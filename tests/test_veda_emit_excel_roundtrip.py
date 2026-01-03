@@ -50,6 +50,8 @@ class TestRoundtrip:
                 [
                     "uv",
                     "run",
+                    "python",
+                    "-m",
                     "xl2times",
                     str(tmpdir),
                     "--manifest-json",
@@ -131,6 +133,8 @@ class TestRoundtrip:
                 [
                     "uv",
                     "run",
+                    "python",
+                    "-m",
                     "xl2times",
                     str(tmpdir),
                     "--manifest-json",

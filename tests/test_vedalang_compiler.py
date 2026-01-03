@@ -112,6 +112,7 @@ def test_process_cost_attributes():
                     "sets": ["IMP"],
                     "primary_commodity_group": "NRGO",
                     "outputs": [{"commodity": "NG"}],
+                    "efficiency": 1.0,
                     "cost": 5.0,
                 },
             ],
@@ -140,7 +141,7 @@ def test_process_cost_attributes():
     assert ccgt_row["act_cost"] == 2  # canonical for varom
     assert ccgt_row["ncap_tlife"] == 30  # canonical for life
 
-    # Find the cost row for IMP_NG (cost merged into commodity-out row)
+    # Find the cost row for IMP_NG
     # VedaLang emits canonical 'ire_price' column (not alias 'cost')
     # xl2times now handles both canonical and alias names correctly
     imp_cost_rows = [
@@ -148,15 +149,18 @@ def test_process_cost_attributes():
     ]
     assert len(imp_cost_rows) == 1
     assert imp_cost_rows[0]["ire_price"] == 5.0
-    assert imp_cost_rows[0]["commodity-out"] == "NG"  # Merged into output row
+    # eff is merged with ire_price row when efficiency is present
+    assert imp_cost_rows[0]["eff"] == 1.0
 
 
 def test_demand_projection_scenario():
-    """demand_projection scenario should emit to ~TFM_DINS-AT in Scen_* file.
+    """demand_projection scenario should emit to ~TFM_DINS-AT in Scen_{case}_{category}.xlsx file.
 
     Architecture/scenario separation: demand projections are scenario data,
     not model architecture. They go to separate Scen_* files to avoid
     forward-fill contamination in xl2times.
+
+    File naming: Scen_{case}_{category}.xlsx (e.g., Scen_baseline_demands.xlsx)
     """
     source = {
         "model": {
@@ -195,10 +199,11 @@ def test_demand_projection_scenario():
     }
     tableir = compile_vedalang_to_tableir(source)
 
-    # Find Scen_BaseDemand file with ~TFM_DINS-AT table
+    # Find scen_baseline_demands file with ~TFM_DINS-AT table
+    # (default case 'baseline', category inferred as 'demands' from demand_projection type)
     demand_rows = []
     for f in tableir["files"]:
-        if "Scen_BaseDemand" in f["path"]:
+        if "scen_baseline_demands" in f["path"].lower():
             for s in f["sheets"]:
                 for t in s["tables"]:
                     if t["tag"] == "~TFM_DINS-AT":
@@ -225,10 +230,12 @@ def test_demand_projection_scenario():
 
 
 def test_demand_projection_creates_scenario_file():
-    """demand_projection SHOULD create a separate Scen_* scenario file.
+    """demand_projection SHOULD create a separate Scen_{case}_{category}.xlsx scenario file.
 
     This is the correct architecture/scenario separation: demand projections
     are scenario data and belong in Scen_* files, not VT_* architecture files.
+
+    File naming: Scen_{case}_{category}.xlsx (e.g., Scen_baseline_demands.xlsx)
     """
     source = {
         "model": {
@@ -243,6 +250,7 @@ def test_demand_projection_creates_scenario_file():
                     "sets": ["DMD"],
                     "primary_commodity_group": "DEMO",
                     "outputs": [{"commodity": "RSD"}],
+                    "efficiency": 1.0,
                 },
             ],
             "scenarios": [
@@ -258,9 +266,10 @@ def test_demand_projection_creates_scenario_file():
     }
     tableir = compile_vedalang_to_tableir(source)
 
-    # SHOULD have a Scen_BaseDemand file (architecture/scenario separation)
-    file_paths = [f["path"] for f in tableir["files"]]
-    assert any("Scen_BaseDemand" in p for p in file_paths)
+    # SHOULD have a scen_baseline_demands file (architecture/scenario separation)
+    # Default case is 'baseline', category inferred as 'demands' from type
+    file_paths = [f["path"].lower() for f in tableir["files"]]
+    assert any("scen_baseline_demands" in p for p in file_paths)
 
 
 def test_process_capacity_bounds():
@@ -278,6 +287,7 @@ def test_process_capacity_bounds():
                     "sets": ["ELE"],
                     "primary_commodity_group": "NRGO",
                     "outputs": [{"commodity": "ELC"}],
+                    "efficiency": 0.55,
                     "cap_bound": {"up": 10.0},
                     "ncap_bound": {"up": 2.0, "lo": 0.5},
                 },
@@ -330,6 +340,7 @@ def test_process_activity_bound():
                     "sets": ["IMP"],
                     "primary_commodity_group": "NRGO",
                     "outputs": [{"commodity": "NG"}],
+                    "efficiency": 1.0,
                     "activity_bound": {"up": 500.0, "fx": 100.0},
                 },
             ],
@@ -425,6 +436,7 @@ def test_compile_timeslices():
                     "sets": ["ELE"],
                     "primary_commodity_group": "NRGO",
                     "outputs": [{"commodity": "ELC"}],
+                    "efficiency": 0.55,
                 },
             ],
         }
@@ -442,28 +454,22 @@ def test_compile_timeslices():
     assert len(timeslice_tables) == 1
     ts_rows = timeslice_tables[0]["rows"]
 
-    # 4 rows: cross-product of season × daynite level codes
-    # xl2times expects level codes and does concatenation itself
-    # (S, D), (S, N), (W, D), (W, N)
-    assert len(ts_rows) == 4
+    # Ragged table format: independent columns, NOT cross-product
+    # xl2times extracts unique values per column and creates cross-product itself
+    # With 2 seasons and 2 daynites, we emit 2 rows (max column length)
+    assert len(ts_rows) == 2
 
-    # Check that each row has level codes (not leaf names)
-    # All rows should have season code populated
-    seasons_in_rows = {r["season"] for r in ts_rows}
+    # Check that unique level codes are present in rows
+    seasons_in_rows = {r["season"] for r in ts_rows if r["season"]}
     assert seasons_in_rows == {"S", "W"}
 
-    # All rows should have daynite level code (D or N, not SD/SN/WD/WN)
-    daynites_in_rows = {r["daynite"] for r in ts_rows}
+    daynites_in_rows = {r["daynite"] for r in ts_rows if r["daynite"]}
     assert daynites_in_rows == {"D", "N"}
 
     # Each row should have weekly column (empty for this test)
     for row in ts_rows:
         assert "weekly" in row
         assert row["weekly"] == ""
-
-    # Verify all 4 combinations are present
-    combos = {(r["season"], r["daynite"]) for r in ts_rows}
-    assert combos == {("S", "D"), ("S", "N"), ("W", "D"), ("W", "N")}
 
 
 def test_compile_timeslices_yrfr():
@@ -484,16 +490,16 @@ def test_compile_timeslices_yrfr():
             },
             "commodities": [{"name": "ELC", "type": "energy"}],
             "processes": [
-                {"name": "PP_CCGT", "sets": ["ELE"], "primary_commodity_group": "NRGO"}
+                {"name": "PP_CCGT", "sets": ["ELE"], "primary_commodity_group": "NRGO", "efficiency": 0.55}
             ],
         }
     }
     tableir = compile_vedalang_to_tableir(source)
 
-    # Find ~TFM_INS table in SysSettings
+    # Find ~TFM_INS table in syssettings
     tfm_ins_rows = []
     for f in tableir["files"]:
-        if "SysSettings" in f["path"]:
+        if "syssettings" in f["path"].lower():
             for s in f["sheets"]:
                 for t in s["tables"]:
                     if t["tag"] == "~TFM_INS":
@@ -516,15 +522,16 @@ def test_compile_example_with_timeslices():
     source = load_vedalang(EXAMPLES_DIR / "example_with_timeslices.veda.yaml")
     tableir = compile_vedalang_to_tableir(source)
 
-    # Should have timeslice table with cross-product of level codes
+    # Should have timeslice table with ragged columns (NOT cross-product)
     has_timeslices = False
     for f in tableir["files"]:
         for s in f["sheets"]:
             for t in s["tables"]:
                 if t["tag"] == "~TIMESLICES":
                     has_timeslices = True
-                    # 4 rows: cross-product of season × daynite level codes
-                    assert len(t["rows"]) == 4
+                    # Ragged table: max(len(seasons), len(daynites)) rows
+                    # With 2 seasons and 2 daynites, we get 2 rows
+                    assert len(t["rows"]) == 2
 
     assert has_timeslices
 
@@ -542,7 +549,16 @@ def test_no_timeslices_when_not_defined():
 
 
 def test_compile_trade_links():
-    """Trade links should emit ~TRADELINKS tables (matrix format)."""
+    """Trade links should emit ~TRADELINKS tables (matrix format with auto-naming).
+
+    Matrix structure:
+    - First column is commodity name, value is origin (FROM) region
+    - Other columns are destination (TO) regions
+    - Cell value is 1 for auto-naming (VEDA generates process names)
+
+    Bilateral trades produce rows in BOTH directions (REG1→REG2 and REG2→REG1).
+    Unidirectional trades produce only one row (origin→destination).
+    """
     source = {
         "model": {
             "name": "TradeTest",
@@ -557,6 +573,7 @@ def test_compile_trade_links():
                     "sets": ["ELE"],
                     "primary_commodity_group": "NRGO",
                     "outputs": [{"commodity": "ELC"}],
+                    "efficiency": 0.55,
                 },
             ],
             "trade_links": [
@@ -592,30 +609,34 @@ def test_compile_trade_links():
     assert "Bi_ELC" in sheet_names
     assert "Uni_NG" in sheet_names
 
-    # Check bidirectional ELC link (matrix format with process name as value)
+    # Check bidirectional ELC link (2 rows for both directions, auto-naming)
     bi_elc_idx = sheet_names.index("Bi_ELC")
     elc_rows = tradelinks_tables[bi_elc_idx]["rows"]
-    assert len(elc_rows) == 1  # One origin (REG1)
-    assert elc_rows[0]["ELC"] == "REG1"  # First column is commodity, value is origin
-    assert elc_rows[0]["REG2"] == "T_B_ELC_REG1_REG2_01"  # Explicit process name
+    assert len(elc_rows) == 2  # Both directions: REG1→REG2 and REG2→REG1
+    origins = {row["ELC"] for row in elc_rows}
+    assert origins == {"REG1", "REG2"}  # Both regions as origins
+    for row in elc_rows:
+        for key, val in row.items():
+            if key != "ELC":  # Skip origin column
+                assert val == 1  # Auto-naming marker
 
-    # Check unidirectional NG link
+    # Check unidirectional NG link (1 row, only forward direction)
     uni_ng_idx = sheet_names.index("Uni_NG")
     ng_rows = tradelinks_tables[uni_ng_idx]["rows"]
     assert len(ng_rows) == 1
-    assert ng_rows[0]["NG"] == "REG1"
-    assert ng_rows[0]["REG2"] == "T_U_NG_REG1_REG2_01"
+    assert ng_rows[0]["NG"] == "REG1"  # Origin
+    assert ng_rows[0]["REG2"] == 1  # Auto-naming marker
 
 
 def test_trade_links_file_path():
-    """Trade links should be in SuppXLS/Trades directory."""
+    """Trade links should be in suppxls/trades directory."""
     source = {
         "model": {
             "name": "TestModel",
             "regions": ["REG1", "REG2"],
             "commodities": [{"name": "ELC", "type": "energy"}],
             "processes": [
-                {"name": "PP", "sets": ["ELE"], "primary_commodity_group": "NRGO"}
+                {"name": "PP", "sets": ["ELE"], "primary_commodity_group": "NRGO", "efficiency": 1.0}
             ],
             "trade_links": [
                 {"origin": "REG1", "destination": "REG2", "commodity": "ELC"},
@@ -624,12 +645,12 @@ def test_trade_links_file_path():
     }
     tableir = compile_vedalang_to_tableir(source)
 
-    # Find trade file path (in SuppXLS/Trades)
+    # Find trade file path (in suppxls/trades)
     trade_files = [
-        f["path"] for f in tableir["files"] if f["path"].startswith("SuppXLS/Trades/")
+        f["path"] for f in tableir["files"] if f["path"].startswith("suppxls/trades/")
     ]
     assert len(trade_files) == 1
-    assert trade_files[0] == "SuppXLS/Trades/ScenTrade__Trade_Links.xlsx"
+    assert trade_files[0] == "suppxls/trades/scentrade__trade_links.xlsx"
 
 
 def test_no_trade_links_when_not_defined():
@@ -639,49 +660,44 @@ def test_no_trade_links_when_not_defined():
 
     # Should NOT have trade file
     for f in tableir["files"]:
-        assert "Trade" not in f["path"]
+        assert "trade" not in f["path"].lower()
         for s in f["sheets"]:
             for t in s["tables"]:
                 assert t["tag"] != "~TRADELINKS"
 
 
 def test_compile_example_with_trade():
-    """Compile example_with_trade.veda.yaml to TableIR."""
+    """Compile example_with_trade.veda.yaml to TableIR.
+
+    Trade processes are auto-generated by VEDA/xl2times from ~TRADELINKS.
+    Trade attributes (efficiency) are set via ~TFM_INS tables.
+    """
     source = load_vedalang(EXAMPLES_DIR / "example_with_trade.veda.yaml")
     tableir = compile_vedalang_to_tableir(source)
 
-    # Should have trade links file in SuppXLS/Trades
+    # Should have trade links files in suppxls/trades
+    # ~TRADELINKS file + ~TFM_INS file for efficiency (emitted as EFF)
     trade_files = [
-        f for f in tableir["files"] if f["path"].startswith("SuppXLS/Trades/")
+        f for f in tableir["files"] if f["path"].startswith("suppxls/trades/")
     ]
-    assert len(trade_files) == 1
+    assert len(trade_files) == 2  # trade_links.xlsx + trade_attrs.xlsx
+
+    # Find the trade links file
+    tradelinks_file = next(f for f in trade_files if "trade_links" in f["path"].lower())
 
     # Should have ~TRADELINKS tables (2 sheets for 2 commodities, both bidirectional)
     tradelinks_tables = []
-    for s in trade_files[0]["sheets"]:
+    for s in tradelinks_file["sheets"]:
         for t in s["tables"]:
             if t["tag"] == "~TRADELINKS":
                 tradelinks_tables.append(t)
     assert len(tradelinks_tables) == 2
 
-    # VedaOnline compatibility: ~FI_T tables go to base VT_* file, NOT ScenTrade
-    # Trade efficiency rows should be in the main process file's ~FI_T table
-    base_file = [f for f in tableir["files"] if f["path"].startswith("VT_")][0]
-    fit_rows = []
-    for s in base_file["sheets"]:
-        for t in s["tables"]:
-            if t["tag"] == "~FI_T":
-                fit_rows.extend(t["rows"])
-    # Check trade efficiency row is present (ELC has efficiency 0.98)
-    trade_eff_rows = [r for r in fit_rows if r.get("process", "").startswith("T_")]
-    assert any(r.get("eff") == 0.98 for r in trade_eff_rows)
-
 
 def test_trade_link_efficiency():
-    """Trade links with efficiency should emit ~FI_T row in base VT_* file.
+    """Trade links with efficiency emit EFF via TFM_INS.
 
-    VedaOnline compatibility: ~FI_T tables are NOT allowed in ScenTrade files,
-    so trade efficiency rows go to the base VT_* file.
+    xl2times transforms EFF on IRE processes to IRE_FLO internally.
     """
     source = {
         "model": {
@@ -689,7 +705,7 @@ def test_trade_link_efficiency():
             "regions": ["REG1", "REG2"],
             "commodities": [{"name": "ELC", "type": "energy"}],
             "processes": [
-                {"name": "PP", "sets": ["ELE"], "primary_commodity_group": "NRGO"}
+                {"name": "PP", "sets": ["ELE"], "primary_commodity_group": "NRGO", "efficiency": 1.0}
             ],
             "trade_links": [
                 {
@@ -697,43 +713,61 @@ def test_trade_link_efficiency():
                     "destination": "REG2",
                     "commodity": "ELC",
                     "bidirectional": True,
-                    "efficiency": 0.95,  # 5% transmission loss
+                    "efficiency": 0.95,
                 },
             ],
         }
     }
     tableir = compile_vedalang_to_tableir(source)
 
-    # Find trade file
+    # Find trade files - trade_links.xlsx + trade_attrs.xlsx
     trade_files = [
-        f for f in tableir["files"] if f["path"].startswith("SuppXLS/Trades/")
+        f for f in tableir["files"] if f["path"].startswith("suppxls/trades/")
     ]
-    assert len(trade_files) == 1
+    assert len(trade_files) == 2  # trade_links.xlsx + trade_attrs.xlsx
 
-    # Should have ~TRADELINKS table with process name
+    # Find ~TRADELINKS file
+    tradelinks_file = next(f for f in trade_files if "trade_links" in f["path"].lower())
     tradelinks_tables = []
-    for s in trade_files[0]["sheets"]:
+    for s in tradelinks_file["sheets"]:
         for t in s["tables"]:
             if t["tag"] == "~TRADELINKS":
                 tradelinks_tables.append(t)
     assert len(tradelinks_tables) == 1
-    # Check that we emit process name (not just 1) to enable efficiency targeting
-    assert tradelinks_tables[0]["rows"][0]["REG2"] == "T_B_ELC_REG1_REG2_01"
 
-    # VedaOnline: ~FI_T goes to base VT_* file, NOT trade file
-    base_file = [f for f in tableir["files"] if f["path"].startswith("VT_")][0]
-    fit_rows = []
-    for s in base_file["sheets"]:
+    # Bilateral trade should produce 2 rows (both directions)
+    rows = tradelinks_tables[0]["rows"]
+    assert len(rows) == 2  # REG1→REG2 and REG2→REG1
+
+    # Check auto-naming: cells contain 1, not process names
+    for row in rows:
+        for key, val in row.items():
+            if key != "ELC":  # Skip commodity column (value is origin region)
+                assert val == 1  # Auto-naming marker
+
+    # Check both directions are present
+    origins = {row["ELC"] for row in rows}
+    assert origins == {"REG1", "REG2"}
+
+    # Find ~TFM_INS file with EFF rows
+    attrs_file = next(f for f in trade_files if "trade_attrs" in f["path"].lower())
+    tfm_tables = []
+    for s in attrs_file["sheets"]:
         for t in s["tables"]:
-            if t["tag"] == "~FI_T":
-                fit_rows.extend(t["rows"])
+            if t["tag"] == "~TFM_INS":
+                tfm_tables.append(t)
+    assert len(tfm_tables) == 1
 
-    # Find the trade efficiency row
-    trade_eff_rows = [r for r in fit_rows if r.get("process") == "T_B_ELC_REG1_REG2_01"
-                      and r.get("eff") == 0.95]
-    assert len(trade_eff_rows) == 1
-    assert trade_eff_rows[0]["region"] == "REG1"
-    assert trade_eff_rows[0]["commodity-out"] == "ELC"
+    # Should have 2 EFF rows (one per direction for bilateral)
+    eff_rows = [r for r in tfm_tables[0]["rows"] if r.get("attribute") == "EFF"]
+    assert len(eff_rows) == 2
+
+    # Check EFF row structure
+    for row in eff_rows:
+        assert row["attribute"] == "EFF"
+        assert row["value"] == 0.95
+        assert row["pset_pn"] == "TB_ELC_*,TU_ELC_*"
+        assert row["region"] in {"REG1", "REG2"}
 
 
 def test_trade_link_no_efficiency():
@@ -744,7 +778,7 @@ def test_trade_link_no_efficiency():
             "regions": ["REG1", "REG2"],
             "commodities": [{"name": "ELC", "type": "energy"}],
             "processes": [
-                {"name": "PP", "sets": ["ELE"], "primary_commodity_group": "NRGO"}
+                {"name": "PP", "sets": ["ELE"], "primary_commodity_group": "NRGO", "efficiency": 1.0}
             ],
             "trade_links": [
                 {
@@ -761,7 +795,7 @@ def test_trade_link_no_efficiency():
 
     # Find trade file
     trade_files = [
-        f for f in tableir["files"] if f["path"].startswith("SuppXLS/Trades/")
+        f for f in tableir["files"] if f["path"].startswith("suppxls/trades/")
     ]
     assert len(trade_files) == 1
 
@@ -775,15 +809,20 @@ def test_trade_link_no_efficiency():
     assert len(fit_tables) == 0
 
 
-def test_trade_links_emit_explicit_process_declarations():
-    """Trade links should emit explicit ~FI_PROCESS declarations."""
+def test_trade_links_emit_tradelinks_only():
+    """Trade links should emit only ~TRADELINKS tables (no ~FI_PROCESS).
+
+    Trade processes are auto-generated by VEDA/xl2times from ~TRADELINKS.
+    This avoids PCG conflicts that occur when both ~TRADELINKS and explicit
+    ~FI_PROCESS declarations exist for the same trades.
+    """
     source = {
         "model": {
             "name": "TradeExplicitTest",
             "regions": ["REG1", "REG2"],
             "commodities": [{"name": "ELC", "type": "energy", "unit": "PJ"}],
             "processes": [
-                {"name": "PP", "sets": ["ELE"], "primary_commodity_group": "NRGO"}
+                {"name": "PP", "sets": ["ELE"], "primary_commodity_group": "NRGO", "efficiency": 1.0}
             ],
             "trade_links": [
                 {
@@ -805,22 +844,13 @@ def test_trade_links_emit_explicit_process_declarations():
                 if t["tag"] == "~FI_PROCESS":
                     process_rows.extend(t["rows"])
 
-    # Trade process should be explicitly declared
+    # Trade processes should NOT be in ~FI_PROCESS (auto-generated by xl2times)
     trade_proc_rows = [
-        r for r in process_rows if r.get("process", "").startswith("T_")
+        r for r in process_rows if r.get("process", "").startswith("TRADE_")
     ]
+    assert len(trade_proc_rows) == 0
 
-    # Bidirectional = declared in BOTH regions
-    assert len(trade_proc_rows) == 2
-    regions = {r["region"] for r in trade_proc_rows}
-    assert regions == {"REG1", "REG2"}
-
-    # Should have IRE set
-    for row in trade_proc_rows:
-        assert row["sets"] == "IRE"
-        assert row["process"] == "T_B_ELC_REG1_REG2_01"
-
-    # Should also have topology in ~FI_T (commodity-in/out flows)
+    # Should NOT have trade topology in ~FI_T either
     topology_rows = []
     for f in tableir["files"]:
         for s in f["sheets"]:
@@ -829,33 +859,36 @@ def test_trade_links_emit_explicit_process_declarations():
                     topology_rows.extend(t["rows"])
 
     trade_topo_rows = [
-        r for r in topology_rows if r.get("process", "").startswith("T_")
+        r for r in topology_rows if r.get("process", "").startswith("TRADE_")
     ]
-    # One commodity-out (REG1), one commodity-in (REG2)
-    assert len(trade_topo_rows) == 2
+    assert len(trade_topo_rows) == 0
 
-    # REG1 exports (commodity-out)
-    out_row = [r for r in trade_topo_rows if r.get("commodity-out")]
-    assert len(out_row) == 1
-    assert out_row[0]["region"] == "REG1"
-    assert out_row[0]["commodity-out"] == "ELC"
+    # Should have ~TRADELINKS with auto-naming (1s in matrix)
+    trade_files = [
+        f for f in tableir["files"] if f["path"].startswith("suppxls/trades/")
+    ]
+    assert len(trade_files) >= 1
 
-    # REG2 imports (commodity-in)
-    in_row = [r for r in trade_topo_rows if r.get("commodity-in")]
-    assert len(in_row) == 1
-    assert in_row[0]["region"] == "REG2"
-    assert in_row[0]["commodity-in"] == "ELC"
+    tradelinks_file = [f for f in trade_files if "trade_links" in f["path"].lower()][0]
+    for sheet in tradelinks_file["sheets"]:
+        for table in sheet["tables"]:
+            if table["tag"] == "~TRADELINKS":
+                # Check cells contain 1 (auto-naming), not explicit process names
+                for row in table["rows"]:
+                    for key, val in row.items():
+                        if key != "ELC":  # Skip the origin column
+                            assert val == 1
 
 
-def test_trade_links_unidirectional_single_declaration():
-    """Unidirectional trade should only declare process in origin region."""
+def test_trade_links_unidirectional():
+    """Unidirectional trade should have only one direction in matrix."""
     source = {
         "model": {
             "name": "TradeUniTest",
             "regions": ["REG1", "REG2"],
             "commodities": [{"name": "ELC", "type": "energy"}],
             "processes": [
-                {"name": "PP", "sets": ["ELE"], "primary_commodity_group": "NRGO"}
+                {"name": "PP", "sets": ["ELE"], "primary_commodity_group": "NRGO", "efficiency": 1.0}
             ],
             "trade_links": [
                 {
@@ -869,21 +902,22 @@ def test_trade_links_unidirectional_single_declaration():
     }
     tableir = compile_vedalang_to_tableir(source)
 
-    # Find all ~FI_PROCESS rows
-    process_rows = []
-    for f in tableir["files"]:
-        for s in f["sheets"]:
-            for t in s["tables"]:
-                if t["tag"] == "~FI_PROCESS":
-                    process_rows.extend(t["rows"])
-
-    # Trade process should only be in origin (REG1)
-    trade_proc_rows = [
-        r for r in process_rows if r.get("process", "").startswith("T_")
+    # Find trade links file
+    trade_files = [
+        f for f in tableir["files"] if "trade_links" in f["path"].lower()
     ]
-    assert len(trade_proc_rows) == 1
-    assert trade_proc_rows[0]["region"] == "REG1"
-    assert trade_proc_rows[0]["process"] == "T_U_ELC_REG1_REG2_01"
+    assert len(trade_files) == 1
+
+    # Check ~TRADELINKS uses Uni_ sheet name and has only one row (one direction)
+    for sheet in trade_files[0]["sheets"]:
+        assert sheet["name"].startswith("Uni_")
+        for table in sheet["tables"]:
+            if table["tag"] == "~TRADELINKS":
+                # Unidirectional: only one row (REG1→REG2)
+                rows = table["rows"]
+                assert len(rows) == 1
+                assert rows[0]["ELC"] == "REG1"  # Origin
+                assert rows[0]["REG2"] == 1  # Auto-naming marker
 
 
 # =============================================================================
@@ -904,7 +938,7 @@ def test_emission_cap_constraint():
                 {"name": "ELC", "type": "energy"},
             ],
             "processes": [
-                {"name": "PP_CCGT", "sets": ["ELE"], "primary_commodity_group": "NRGO"},
+                {"name": "PP_CCGT", "sets": ["ELE"], "primary_commodity_group": "NRGO", "efficiency": 0.55},
             ],
             "constraints": [
                 {
@@ -961,7 +995,7 @@ def test_emission_cap_with_year_trajectory():
                 {"name": "CO2", "type": "emission"},
             ],
             "processes": [
-                {"name": "PP", "sets": ["ELE"], "primary_commodity_group": "NRGO"}
+                {"name": "PP", "sets": ["ELE"], "primary_commodity_group": "NRGO", "efficiency": 1.0}
             ],
             "constraints": [
                 {
@@ -1009,13 +1043,14 @@ def test_activity_share_minimum():
                 {"name": "ELC", "type": "energy"},
             ],
             "processes": [
-                {"name": "PP_WIND", "sets": ["ELE"], "primary_commodity_group": "NRGO"},
+                {"name": "PP_WIND", "sets": ["ELE"], "primary_commodity_group": "NRGO", "efficiency": 1.0},
                 {
                     "name": "PP_SOLAR",
                     "sets": ["ELE"],
                     "primary_commodity_group": "NRGO",
+                    "efficiency": 1.0,
                 },
-                {"name": "PP_CCGT", "sets": ["ELE"], "primary_commodity_group": "NRGO"},
+                {"name": "PP_CCGT", "sets": ["ELE"], "primary_commodity_group": "NRGO", "efficiency": 0.55},
             ],
             "constraints": [
                 {
@@ -1075,8 +1110,8 @@ def test_activity_share_maximum():
             "time_periods": [10],
             "commodities": [{"name": "ELC", "type": "energy"}],
             "processes": [
-                {"name": "PP_COAL", "sets": ["ELE"], "primary_commodity_group": "NRGO"},
-                {"name": "PP_CCGT", "sets": ["ELE"], "primary_commodity_group": "NRGO"},
+                {"name": "PP_COAL", "sets": ["ELE"], "primary_commodity_group": "NRGO", "efficiency": 0.40},
+                {"name": "PP_CCGT", "sets": ["ELE"], "primary_commodity_group": "NRGO", "efficiency": 0.55},
             ],
             "constraints": [
                 {
@@ -1119,7 +1154,7 @@ def test_activity_share_both_min_max():
             "time_periods": [10],
             "commodities": [{"name": "ELC", "type": "energy"}],
             "processes": [
-                {"name": "PP_WIND", "sets": ["ELE"], "primary_commodity_group": "NRGO"},
+                {"name": "PP_WIND", "sets": ["ELE"], "primary_commodity_group": "NRGO", "efficiency": 1.0},
             ],
             "constraints": [
                 {
@@ -1181,14 +1216,18 @@ def test_activity_share_both_min_max():
 
 
 def test_constraint_file_path():
-    """Constraints should be emitted to SuppXLS/Scen_UC_Constraints.xlsx."""
+    """Constraints should be emitted to SuppXLS/Scen_{case}_policies.xlsx.
+
+    Constraints default to category 'policies' and are co-located in the
+    Scen_{case}_{category}.xlsx file for that category.
+    """
     source = {
         "model": {
             "name": "ConstraintFileTest",
             "regions": ["REG1"],
             "commodities": [{"name": "CO2", "type": "emission"}],
             "processes": [
-                {"name": "PP", "sets": ["ELE"], "primary_commodity_group": "NRGO"}
+                {"name": "PP", "sets": ["ELE"], "primary_commodity_group": "NRGO", "efficiency": 1.0}
             ],
             "constraints": [
                 {
@@ -1202,12 +1241,12 @@ def test_constraint_file_path():
     }
     tableir = compile_vedalang_to_tableir(source)
 
-    # Find constraint file path
+    # Find constraint file path - constraints go to scen_baseline_policies.xlsx
     constraint_files = [
-        f["path"] for f in tableir["files"] if "UC_Constraints" in f["path"]
+        f["path"] for f in tableir["files"] if "policies" in f["path"].lower()
     ]
     assert len(constraint_files) == 1
-    assert constraint_files[0] == "SuppXLS/Scen_UC_Constraints.xlsx"
+    assert constraint_files[0] == "suppxls/scen_baseline_policies.xlsx"
 
 
 # =============================================================================
@@ -1281,6 +1320,7 @@ def test_pcg_explicit_nrgo():
                     "primary_commodity_group": "NRGO",
                     "inputs": [{"commodity": "NG"}],
                     "outputs": [{"commodity": "ELC"}],
+                    "efficiency": 0.55,
                 },
             ],
         }
@@ -1315,6 +1355,7 @@ def test_pcg_explicit_demo():
                     "primary_commodity_group": "DEMO",
                     "inputs": [{"commodity": "ELC"}],
                     "outputs": [{"commodity": "RSD"}],
+                    "efficiency": 1.0,
                 },
             ],
         }
@@ -1384,7 +1425,7 @@ def test_emission_cap_lower_bound():
             "regions": ["REG1"],
             "commodities": [{"name": "CO2", "type": "emission"}],
             "processes": [
-                {"name": "PP", "sets": ["ELE"], "primary_commodity_group": "NRGO"}
+                {"name": "PP", "sets": ["ELE"], "primary_commodity_group": "NRGO", "efficiency": 1.0}
             ],
             "constraints": [
                 {
@@ -1420,7 +1461,7 @@ def test_uc_table_has_uc_sets_metadata():
             "regions": ["REG1"],
             "commodities": [{"name": "CO2", "type": "emission"}],
             "processes": [
-                {"name": "PP", "sets": ["ELE"], "primary_commodity_group": "NRGO"}
+                {"name": "PP", "sets": ["ELE"], "primary_commodity_group": "NRGO", "efficiency": 1.0}
             ],
             "constraints": [
                 {
@@ -1472,6 +1513,7 @@ def test_unknown_commodity_in_process_input():
                     "primary_commodity_group": "NRGO",
                     "inputs": [{"commodity": "NG_MISSING"}],
                     "outputs": [{"commodity": "ELC"}],
+                    "efficiency": 0.55,
                 },
             ],
         }
@@ -1499,6 +1541,7 @@ def test_unknown_commodity_in_process_output():
                     "primary_commodity_group": "NRGO",
                     "inputs": [{"commodity": "NG"}],
                     "outputs": [{"commodity": "ELC1"}],
+                    "efficiency": 0.55,
                 },
             ],
         }
@@ -1525,6 +1568,7 @@ def test_unknown_commodity_suggests_similar():
                     "sets": ["ELE"],
                     "primary_commodity_group": "NRGO",
                     "outputs": [{"commodity": "EL"}],
+                    "efficiency": 0.55,
                 },
             ],
         }
@@ -1549,6 +1593,7 @@ def test_unknown_process_in_constraint():
                     "sets": ["ELE"],
                     "primary_commodity_group": "NRGO",
                     "outputs": [{"commodity": "ELC"}],
+                    "efficiency": 0.55,
                 },
             ],
             "constraints": [
@@ -1583,6 +1628,7 @@ def test_unknown_region_in_trade_link():
                     "sets": ["ELE"],
                     "primary_commodity_group": "NRGO",
                     "outputs": [{"commodity": "ELC"}],
+                    "efficiency": 0.55,
                 },
             ],
             "trade_links": [
@@ -1615,6 +1661,7 @@ def test_unknown_commodity_in_trade_link():
                     "sets": ["ELE"],
                     "primary_commodity_group": "NRGO",
                     "outputs": [{"commodity": "ELC"}],
+                    "efficiency": 0.55,
                 },
             ],
             "trade_links": [
@@ -1646,6 +1693,7 @@ def test_demand_projection_wrong_commodity_type():
                     "sets": ["IMP"],
                     "primary_commodity_group": "NRGO",
                     "outputs": [{"commodity": "NG"}],
+                    "efficiency": 1.0,
                 },
             ],
             "scenarios": [
@@ -1682,6 +1730,7 @@ def test_commodity_price_wrong_commodity_type():
                     "sets": ["DMD"],
                     "primary_commodity_group": "DEMO",
                     "outputs": [{"commodity": "RSD"}],
+                    "efficiency": 1.0,
                 },
             ],
             "scenarios": [
@@ -1715,6 +1764,7 @@ def test_unit_warning_for_unusual_activity_unit():
                 "primary_commodity_group": "NRGO",
                 "activity_unit": "kg",
                 "outputs": [{"commodity": "ELC"}],
+                "efficiency": 0.55,
             },
         ],
     }
@@ -1739,6 +1789,7 @@ def test_unit_warning_for_unusual_capacity_unit():
                 "primary_commodity_group": "NRGO",
                 "capacity_unit": "Mt",
                 "outputs": [{"commodity": "ELC"}],
+                "efficiency": 0.55,
             },
         ],
     }
@@ -1765,6 +1816,7 @@ def test_multiple_errors_collected():
                     "primary_commodity_group": "NRGO",
                     "inputs": [{"commodity": "MISSING1"}],
                     "outputs": [{"commodity": "MISSING2"}],
+                    "efficiency": 0.55,
                 },
             ],
         }
@@ -1805,6 +1857,7 @@ def test_time_varying_invcost():
                     "sets": ["ELE"],
                     "primary_commodity_group": "NRGO",
                     "outputs": [{"commodity": "ELC"}],
+                    "efficiency": 1.0,
                     "invcost": {"values": {"2020": 1000, "2030": 600, "2050": 300}},
                 }
             ],
@@ -1895,6 +1948,7 @@ def test_time_varying_mixed_with_scalar():
                     "sets": ["ELE"],
                     "primary_commodity_group": "NRGO",
                     "outputs": [{"commodity": "ELC"}],
+                    "efficiency": 1.0,
                     "invcost": {"values": {"2020": 1500, "2030": 1000}},
                     "life": 25,  # Scalar
                     "fixom": 30,  # Scalar
@@ -1939,6 +1993,7 @@ def test_time_varying_no_interpolation():
                     "sets": ["ELE"],
                     "primary_commodity_group": "NRGO",
                     "outputs": [{"commodity": "ELC"}],
+                    "efficiency": 0.40,
                     "invcost": {
                         "values": {"2020": 2000, "2030": 2100},
                         "interpolation": "none",
@@ -2099,6 +2154,7 @@ def test_default_commodity_units_energy():
                     "sets": ["ELE"],
                     "primary_commodity_group": "NRGO",
                     "output": "ELC",
+                    "efficiency": 0.55,
                 },
             ],
         }
@@ -2134,6 +2190,7 @@ def test_default_commodity_units_emission():
                     "sets": ["ELE"],
                     "primary_commodity_group": "NRGO",
                     "output": "ELC",
+                    "efficiency": 0.55,
                 },
             ],
         }
@@ -2170,6 +2227,7 @@ def test_default_commodity_units_demand():
                     "primary_commodity_group": "DEMO",
                     "input": "ELC",
                     "output": "RSD",
+                    "efficiency": 1.0,
                 },
             ],
         }
@@ -2206,6 +2264,7 @@ def test_default_commodity_units_material():
                     "primary_commodity_group": "MATO",
                     "input": "ELC",
                     "output": "H2",
+                    "efficiency": 0.70,
                 },
             ],
         }
@@ -2240,6 +2299,7 @@ def test_explicit_unit_overrides_default():
                     "sets": ["ELE"],
                     "primary_commodity_group": "NRGO",
                     "output": "ELC",
+                    "efficiency": 0.55,
                 },
             ],
         }
@@ -2275,6 +2335,7 @@ def test_shorthand_validation_unknown_commodity():
                     "primary_commodity_group": "NRGO",
                     "input": "MISSING_NG",  # Unknown commodity in shorthand
                     "output": "ELC",
+                    "efficiency": 0.55,
                 },
             ],
         }
@@ -2283,3 +2344,58 @@ def test_shorthand_validation_unknown_commodity():
         compile_vedalang_to_tableir(source)
     assert "MISSING_NG" in str(exc_info.value)
     assert "PP_CCGT" in str(exc_info.value)
+
+
+def test_prc_capact_emitted_for_gw_pj_units():
+    """Compiler emits PRC_CAPACT when capacity unit differs from activity unit.
+
+    When TCAP=GW and TACT=PJ, the conversion factor (31.536 PJ/GW/year) must be
+    emitted so TIMES knows how much activity 1 unit of capacity can produce.
+    Without this, TIMES defaults to PRC_CAPACT=1, causing infeasibility.
+    See issue vedalang-rkf.
+    """
+    source = {
+        "model": {
+            "name": "Cap2ActTest",
+            "regions": ["R1"],
+            "start_year": 2020,
+            "time_periods": [10],
+            "commodities": [
+                {"name": "ELC", "type": "energy", "unit": "PJ"},
+            ],
+            "processes": [
+                {
+                    "name": "PP_TEST",
+                    "sets": ["ELE"],
+                    "primary_commodity_group": "NRGO",
+                    "outputs": [{"commodity": "ELC"}],
+                    "efficiency": 0.5,
+                },
+            ],
+        }
+    }
+
+    tableir = compile_vedalang_to_tableir(source)
+
+    # Find the ~FI_T table rows
+    fi_t_rows = []
+    for file_spec in tableir.get("files", []):
+        for sheet in file_spec.get("sheets", []):
+            for table in sheet.get("tables", []):
+                if table.get("tag") == "~FI_T":
+                    fi_t_rows.extend(table.get("rows", []))
+
+    # Find the efficiency row for PP_TEST
+    eff_row = None
+    for row in fi_t_rows:
+        if row.get("process") == "PP_TEST" and "eff" in row:
+            eff_row = row
+            break
+
+    assert eff_row is not None, "Could not find efficiency row for PP_TEST"
+    assert "prc_capact" in eff_row, (
+        "PRC_CAPACT should be emitted when TCAP=GW and TACT=PJ"
+    )
+    assert eff_row["prc_capact"] == 31.536, (
+        f"PRC_CAPACT should be 31.536, got {eff_row.get('prc_capact')}"
+    )

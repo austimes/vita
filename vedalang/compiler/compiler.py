@@ -7,6 +7,8 @@ from pathlib import Path
 import jsonschema
 import yaml
 
+from .registry import VedaLangError, get_registry
+
 SCHEMA_DIR = Path(__file__).parent.parent / "schema"
 
 # Unit categories for semantic validation
@@ -22,9 +24,23 @@ DEFAULT_UNITS = {
     "material": "Mt",
 }
 
+# Capacity-to-activity conversion factors (PRC_CAPACT)
+# When capacity is in power units (GW) and activity is in energy units (PJ),
+# we need to specify how much activity 1 unit of capacity can produce per year.
+# Formula: 1 GW × 8760 hours × 3600 seconds / 1e15 J/PJ = 31.536 PJ/GW/year
+CAP2ACT_CONVERSIONS = {
+    # (capacity_unit, activity_unit): conversion_factor
+    ("GW", "PJ"): 31.536,
+    ("GW", "TWh"): 8.76,
+    ("MW", "GWh"): 8.76,
+    ("MW", "PJ"): 0.031536,
+    ("TW", "PJ"): 31536.0,
+}
+
 # Process attributes that support time-varying values
 TIME_VARYING_ATTRS = {
-    "efficiency", "invcost", "fixom", "varom", "life", "cost", "availability_factor"
+    "efficiency", "invcost", "fixom", "varom", "life", "cost", "availability_factor",
+    # Note: emission_factor also supports time-varying but is handled separately
 }
 
 # Map VedaLang attribute names to their TableIR/VEDA column names
@@ -38,6 +54,8 @@ ATTR_TO_COLUMN = {
     "life": "ncap_tlife",  # NCAP_TLIFE canonical (alias: life)
     "cost": "ire_price",  # IRE_PRICE canonical (alias: cost)
     "availability_factor": "ncap_af",  # NCAP_AF canonical (aliases: cf, utilization)
+    "stock": "prc_resid",  # PRC_RESID canonical (aliases: stock, resid)
+    # Note: emission_factor uses attribute=ENV_ACT with value column, not column header
 }
 
 # Interpolation mode to VEDA code mapping
@@ -48,6 +66,36 @@ INTERPOLATION_CODES = {
     "interp_extrap": 3,
     "interp_extrap_back": 4,
     "interp_extrap_forward": 5,
+}
+
+# Map VedaLang semantic attribute names to canonical TIMES attribute names
+# Used for registry validation (registry uses TIMES names like NCAP_COST)
+SEMANTIC_TO_TIMES = {
+    "efficiency": "ACT_EFF",
+    "invcost": "NCAP_COST",
+    "fixom": "NCAP_FOM",
+    "varom": "ACT_COST",
+    "life": "NCAP_TLIFE",
+    "cost": "IRE_PRICE",
+    "availability_factor": "NCAP_AF",
+    "stock": "PRC_RESID",
+    # Note: emission_factor is emitted via ENV_ACT attribute (maps to FLO_EMIS)
+}
+
+# Default category inference from scenario parameter type
+DEFAULT_CATEGORY_FROM_TYPE = {
+    "commodity_price": "prices",
+    "demand_projection": "demands",
+}
+
+# Valid scenario categories
+VALID_CATEGORIES = {
+    "demands",
+    "prices",
+    "policies",
+    "technology_assumptions",
+    "resource_availability",
+    "global_settings",
 }
 
 
@@ -143,6 +191,46 @@ def _expand_time_varying_attr(
         rows.append(row)
 
     return rows
+
+
+def _validate_attribute_for_emission(attr_name: str, tag_name: str) -> None:
+    """
+    Validate attribute can be emitted in the given tag.
+
+    Args:
+        attr_name: VedaLang semantic name (e.g., 'efficiency') or TIMES name
+        tag_name: VEDA tag name without ~ prefix (e.g., 'FI_T', 'TFM_INS')
+
+    Raises:
+        VedaLangError: If attribute is unsupported or incompatible with tag
+    """
+    registry = get_registry()
+
+    times_name = SEMANTIC_TO_TIMES.get(attr_name, attr_name.upper())
+
+    if not registry.is_attribute_supported(times_name):
+        unsupported = registry.get_unsupported_info(times_name)
+        if unsupported:
+            msg = f"Attribute '{attr_name}' is not supported by VedaLang. "
+            msg += unsupported.reason
+            if unsupported.suggested_alternative:
+                msg += f" Use '{unsupported.suggested_alternative}' instead."
+            raise VedaLangError(msg)
+        else:
+            msg = f"Attribute '{attr_name}' is not supported by VedaLang."
+            raise VedaLangError(msg)
+
+    # Skip tag compatibility for TFM_ tags (transformation tags are flexible)
+    # TFM_DINS-AT, TFM_INS etc. inherit valid_fields from base_tag which
+    # the registry doesn't resolve. The attribute support check is sufficient.
+    if tag_name.upper().startswith("TFM_"):
+        return
+
+    if not registry.is_attribute_compatible_with_tag(times_name, tag_name):
+        raise VedaLangError(
+            f"Attribute '{attr_name}' cannot be set in tag '~{tag_name.upper()}'. "
+            f"Required columns are not available in this tag."
+        )
 
 
 class SemanticValidationError(Exception):
@@ -379,6 +467,9 @@ def compile_vedalang_to_tableir(source: dict, validate: bool = True) -> dict:
     regions = model.get("regions", ["REG1"])
     default_region = ",".join(regions)  # For multi-region models
 
+    # Build commodity lookup for type checking during process compilation
+    commodity_types = {c["name"]: c.get("type", "energy") for c in model.get("commodities", [])}
+
     # Build commodity table (~FI_COMM)
     # Use lowercase column names for xl2times compatibility
     comm_rows = []
@@ -413,6 +504,7 @@ def compile_vedalang_to_tableir(source: dict, validate: bool = True) -> dict:
     # Build topology table (~FI_T) for inputs/outputs
     # Use lowercase column names for xl2times compatibility
     topology_rows = []
+    all_emission_factors = []  # Collected for separate ~TFM_INS table
     for raw_process in model.get("processes", []):
         # Normalize shorthand input/output syntax
         process = _normalize_process_flows(raw_process)
@@ -423,8 +515,9 @@ def compile_vedalang_to_tableir(source: dict, validate: bool = True) -> dict:
         # Keys in cost_params use CANONICAL column names from ATTR_TO_COLUMN
         cost_params = {}  # Scalar values to merge into rows (canonical column names)
         time_varying_attrs = []  # (attr_name, value) tuples for separate rows
-        for attr in ["invcost", "fixom", "varom", "life", "cost"]:
+        for attr in ["invcost", "fixom", "varom", "life", "cost", "stock"]:
             if attr in process:
+                _validate_attribute_for_emission(attr, "FI_T")
                 val = process[attr]
                 # Map VedaLang attr name to canonical column name
                 column = ATTR_TO_COLUMN.get(attr, attr)
@@ -432,6 +525,15 @@ def compile_vedalang_to_tableir(source: dict, validate: bool = True) -> dict:
                     time_varying_attrs.append((attr, val))
                 else:
                     cost_params[column] = val
+
+        # Add PRC_CAPACT (capacity-to-activity conversion) when units differ
+        # This is critical: if capacity is in GW and activity is in PJ, TIMES needs
+        # to know the conversion factor (31.536 PJ/GW/year for full-year operation)
+        activity_unit = process.get("activity_unit", "PJ")
+        capacity_unit = process.get("capacity_unit", "GW")
+        cap2act_key = (capacity_unit, activity_unit)
+        if cap2act_key in CAP2ACT_CONVERSIONS:
+            cost_params["prc_capact"] = CAP2ACT_CONVERSIONS[cap2act_key]
 
         # Add input flows
         for inp in inputs:
@@ -444,26 +546,61 @@ def compile_vedalang_to_tableir(source: dict, validate: bool = True) -> dict:
                 row["share-i"] = inp["share"]
             topology_rows.append(row)
 
+        # Collect emission factors for separate rows (emitted via attribute column)
+        emission_factors = []
+
         # Add output flows - merge cost params into first output row if no eff
         for i, out in enumerate(outputs):
+            out_comm = out["commodity"]
+            out_comm_type = commodity_types.get(out_comm, "energy")
             row = {
                 "region": default_region,
                 "process": process["name"],
-                "commodity-out": out["commodity"],
+                "commodity-out": out_comm,
             }
-            if "share" in out:
-                row["share-o"] = out["share"]
+
+            # Handle emission outputs: use ENV_ACT attribute for emission coefficients
+            # Reject 'share' on emission commodities (would become invalid FLO_SHAR)
+            if out_comm_type == "emission":
+                if "share" in out:
+                    raise SemanticValidationError([
+                        f"Process '{process['name']}': 'share' is not allowed on "
+                        f"emission output '{out_comm}'. Use 'emission_factor' instead."
+                    ])
+                if "emission_factor" in out:
+                    # Collect for separate attribute row
+                    emission_factors.append({
+                        "commodity": out_comm,
+                        "value": out["emission_factor"],
+                    })
+            else:
+                # Non-emission outputs: use share -> share-o
+                if "share" in out:
+                    row["share-o"] = out["share"]
+
             # Merge cost params into first output row if no efficiency specified
             if i == 0 and "efficiency" not in process and cost_params:
                 row.update(cost_params)
                 cost_params = {}  # Clear so we don't add again
             topology_rows.append(row)
 
+        # Collect emission factors for VT process file ~TFM_INS table
+        # We'll emit these as a separate table after ~FI_T
+        for ef in emission_factors:
+            all_emission_factors.append({
+                "region": default_region,
+                "process": process["name"],
+                "commodity": ef["commodity"],
+                "attribute": "ENV_ACT",
+                "value": ef["value"],
+            })
+
         # Collect bound parameters
         bound_params = _collect_bound_params(process)
 
         # Add efficiency row with cost and bound parameters if specified
         if "efficiency" in process:
+            _validate_attribute_for_emission("efficiency", "FI_T")
             eff_val = process["efficiency"]
             if _is_time_varying(eff_val):
                 # Time-varying efficiency - add to time_varying_attrs
@@ -474,6 +611,11 @@ def compile_vedalang_to_tableir(source: dict, validate: bool = True) -> dict:
                         "region": default_region,
                         "process": process["name"],
                     }
+                    # xl2times requires rows to have a commodity or eff/value
+                    # Add first output commodity for reference
+                    first_output = outputs[0]["commodity"] if outputs else None
+                    if first_output:
+                        row["commodity-out"] = first_output
                     row.update(cost_params)
                     if bound_params:
                         first_bound = bound_params.pop(0)
@@ -557,31 +699,30 @@ def compile_vedalang_to_tableir(source: dict, validate: bool = True) -> dict:
     # - Scenario data (demand projections, commodity prices) goes to Scen_* files
     # - This prevents forward-fill contamination when mixed with process topology
     # - Uses ~TFM_DINS-AT for VedaOnline compatibility
-    scenario_files = []
-    for scenario in model.get("scenarios", []):
-        scenario_type = scenario.get("type")
-        scenario_rows = []
+    # FILE NAMING: Scen_{case}_{category}.xlsx
+    # - Groups parameters by case and category
+    # - Constraints are co-located with their category (default: policies)
 
-        if scenario_type == "commodity_price":
-            scenario_rows = _compile_commodity_price_scenario(
-                scenario, regions, model_years
-            )
-        elif scenario_type == "demand_projection":
-            scenario_rows = _compile_demand_projection_scenario(
-                scenario, regions, model_years
-            )
+    # Get scenario parameters (support new 'scenario_parameters' and legacy 'scenarios')
+    scenario_params = (
+        model.get("scenario_parameters", []) or model.get("scenarios", [])
+    )
 
-        if scenario_rows:
-            scenario_file = {
-                "path": f"SuppXLS/Scen_{scenario['name']}.xlsx",
-                "sheets": [
-                    {
-                        "name": "Scenario",
-                        "tables": [{"tag": "~TFM_DINS-AT", "rows": scenario_rows}],
-                    }
-                ],
-            }
-            scenario_files.append(scenario_file)
+    # Get cases - if none defined, create a default 'baseline' case
+    cases = model.get("cases", [])
+    if not cases:
+        # Default case includes all parameters
+        cases = [{"name": "baseline", "is_baseline": True}]
+
+    # Build scenario files organized by case and category
+    scenario_files, cases_json = _compile_scenario_files(
+        scenario_params,
+        model.get("constraints", []),
+        cases,
+        regions,
+        model_years,
+        default_region,
+    )
 
     # Compile timeslices if defined
     timeslice_rows = []
@@ -619,32 +760,23 @@ def compile_vedalang_to_tableir(source: dict, validate: bool = True) -> dict:
 
     # Build process file - use VT_{bookname}_ prefix for internal region recognition
     # All regions map to this single bookname via BOOKREGIONS_MAP
-    process_file_path = f"VT_{bookname}_{model_name}.xlsx"
+    # Use lowercase for consistent file naming (xl2times is case-insensitive)
+    process_file_path = f"vt_{bookname.lower()}_{model_name.lower()}.xlsx"
 
-    # Compile trade links if present - returns files, process declarations, and topology
-    trade_link_files, trade_process_rows, trade_topology_rows = _compile_trade_links(
+    # Compile trade links if present - returns files only (no process/topology rows)
+    # Trade processes are auto-generated by VEDA/xl2times from ~TRADELINKS tables
+    trade_link_files, _ = _compile_trade_links(
         model.get("trade_links", []),
         model.get("commodities", []),
     )
 
-    # Merge trade process declarations into main process/topology rows
-    process_rows.extend(trade_process_rows)
-    topology_rows.extend(trade_topology_rows)
-
-    # Compile constraints if present - returns UC file(s)
-    constraint_files = _compile_constraints(
-        model.get("constraints", []),
-        default_region,
-        model_years,
-    )
-
     # Build TableIR structure
     # ARCHITECTURE ONLY: VT_* and SysSettings files contain model structure
-    # Scenario data (demand projections, prices) is in separate Scen_* files
+    # Scenario data (demands, prices, policies) → Scen_{case}_{category}.xlsx
     tableir = {
         "files": [
             {
-                "path": "SysSettings.xlsx",
+                "path": "syssettings.xlsx",
                 "sheets": syssettings_sheets,
             },
             {
@@ -655,14 +787,15 @@ def compile_vedalang_to_tableir(source: dict, validate: bool = True) -> dict:
                         "tables": [
                             {"tag": "~FI_PROCESS", "rows": process_rows},
                             {"tag": "~FI_T", "rows": topology_rows},
-                        ],
+                        ] + ([{"tag": "~TFM_INS", "rows": all_emission_factors}] if all_emission_factors else []),
                     },
                 ],
             },
             *scenario_files,
             *trade_link_files,
-            *constraint_files,
-        ]
+        ],
+        # Include cases.json metadata for VEDA integration
+        "cases": cases_json,
     }
 
     if validate:
@@ -697,11 +830,11 @@ def _collect_bound_params(process: dict) -> list[dict]:
     """
     params = []
 
-    # Mapping: VedaLang field -> VEDA column name
+    # Mapping: VedaLang field -> (VEDA column name, TIMES attribute name)
     bound_mapping = {
-        "activity_bound": "act_bnd",
-        "cap_bound": "cap_bnd",
-        "ncap_bound": "ncap_bnd",
+        "activity_bound": ("act_bnd", "ACT_BND"),
+        "cap_bound": ("cap_bnd", "CAP_BND"),
+        "ncap_bound": ("ncap_bnd", "NCAP_BND"),
     }
 
     # Mapping: VedaLang limtype key -> VEDA limtype value
@@ -711,10 +844,12 @@ def _collect_bound_params(process: dict) -> list[dict]:
         "fx": "FX",
     }
 
-    for vedalang_field, veda_column in bound_mapping.items():
+    for vedalang_field, (veda_column, times_attr) in bound_mapping.items():
         bound_spec = process.get(vedalang_field)
         if not bound_spec:
             continue
+
+        _validate_attribute_for_emission(times_attr, "FI_T")
 
         for limit_key, limit_value in bound_spec.items():
             if limit_key not in limtype_mapping:
@@ -860,6 +995,8 @@ def _compile_commodity_price_scenario(
     """
     assert scenario.get("type") == "commodity_price"
 
+    _validate_attribute_for_emission("COM_CSTNET", "TFM_DINS-AT")
+
     commodity = scenario["commodity"]
     sparse_values = scenario.get("values", {})
     interpolation = scenario.get("interpolation", "interp_extrap")
@@ -904,6 +1041,8 @@ def _compile_demand_projection_scenario(
     """
     assert scenario.get("type") == "demand_projection"
 
+    _validate_attribute_for_emission("COM_PROJ", "TFM_DINS-AT")
+
     commodity = scenario["commodity"]
     sparse_values = scenario.get("values", {})
     interpolation = scenario.get("interpolation", "interp_extrap")
@@ -926,46 +1065,265 @@ def _compile_demand_projection_scenario(
     return rows
 
 
-def _compile_trade_links(
-    trade_links: list[dict],
-    commodities: list[dict],
-) -> tuple[list[dict], list[dict], list[dict]]:
+def _get_parameter_category(param: dict) -> str:
     """
-    Compile trade link definitions to TableIR structures.
+    Get the category for a scenario parameter.
 
-    Uses the matrix format ~TRADELINKS because xl2times harmonise_tradelinks
-    properly converts it.
+    Uses explicit 'category' if provided, otherwise infers from 'type'.
+    """
+    if "category" in param:
+        return param["category"]
+    param_type = param.get("type", "")
+    return DEFAULT_CATEGORY_FROM_TYPE.get(param_type, "global_settings")
 
-    IMPORTANT: VedaLang explicitly emits trade process declarations to ~FI_PROCESS
-    to avoid relying on xl2times's complete_processes auto-generation.
 
-    VedaOnline compatibility: ~FI_T tables are NOT allowed in ScenTrade files.
-    Trade efficiency rows are returned as topology_rows to be emitted in the
-    base VT_* file (which does allow ~FI_T).
+def _get_constraint_category(constraint: dict) -> str:
+    """
+    Get the category for a constraint.
 
-    Matrix format: sheet name encodes direction (Bi_COMM or Uni_COMM),
-    first column is commodity, other columns are destination regions.
-    Cell value is explicit process name (NOT numeric 1).
+    Constraints default to 'policies' unless explicitly categorized.
+    """
+    return constraint.get("category", "policies")
 
-    Process naming follows VEDA convention: T{B|U}_{COMM}_{REG1}_{REG2}_01
+
+def _compile_scenario_files(
+    scenario_params: list[dict],
+    constraints: list[dict],
+    cases: list[dict],
+    regions: list[str],
+    model_years: list[int],
+    default_region: str,
+) -> tuple[list[dict], list[dict]]:
+    """
+    Compile scenario parameters and constraints into case-organized files.
+
+    File naming: Scen_{case}_{category}.xlsx
+    Each file contains all parameters of that category for that case.
 
     Args:
-        trade_links: List of trade link definitions from VedaLang source
-        commodities: List of commodity definitions (for unit lookup)
+        scenario_params: List of scenario parameter definitions
+        constraints: List of constraint definitions
+        cases: List of case definitions
+        regions: List of model regions
+        model_years: List of model representative years
+        default_region: Default region string (comma-separated if multi-region)
 
     Returns:
         Tuple of:
-        - List of TableIR file definitions (ScenTrade file with ~TRADELINKS only)
-        - List of process declaration rows for ~FI_PROCESS
-        - List of topology rows for ~FI_T (includes trade efficiency rows)
+        - List of TableIR file definitions
+        - List of case metadata for cases.json
     """
-    if not trade_links:
-        return [], [], []
-
     from collections import defaultdict
 
-    # Build commodity lookup for unit
-    comm_units = {c["name"]: c.get("unit", "PJ") for c in commodities}
+    scenario_files = []
+    cases_json = []
+
+    for case in cases:
+        case_name = case["name"]
+        includes = set(case.get("includes", []))
+        excludes = set(case.get("excludes", []))
+
+        # Group parameters by category for this case
+        params_by_category: dict[str, list[dict]] = defaultdict(list)
+
+        for param in scenario_params:
+            param_name = param["name"]
+
+            # Check if parameter is included in this case
+            if includes and param_name not in includes:
+                continue
+            if param_name in excludes:
+                continue
+
+            category = _get_parameter_category(param)
+            param_type = param.get("type")
+
+            # Compile parameter rows
+            if param_type == "commodity_price":
+                rows = _compile_commodity_price_scenario(param, regions, model_years)
+            elif param_type == "demand_projection":
+                rows = _compile_demand_projection_scenario(param, regions, model_years)
+            else:
+                continue
+
+            if rows:
+                params_by_category[category].append({
+                    "name": param_name,
+                    "description": param.get("description", ""),
+                    "rows": rows,
+                    "tag": "~TFM_DINS-AT",
+                })
+
+        # Group constraints by category for this case
+        for constraint in constraints:
+            constraint_name = constraint["name"]
+
+            # Check if constraint is included in this case
+            if includes and constraint_name not in includes:
+                continue
+            if constraint_name in excludes:
+                continue
+
+            category = _get_constraint_category(constraint)
+
+            # Compile constraint rows (one ~UC_T per constraint)
+            constraint_rows = _compile_single_constraint(
+                constraint, default_region, model_years
+            )
+
+            if constraint_rows:
+                params_by_category[category].append({
+                    "name": constraint_name,
+                    "description": constraint.get("description", ""),
+                    "rows": constraint_rows,
+                    "tag": "~UC_T",
+                    "uc_sets": {"R_E": "AllRegions", "T_E": ""},
+                })
+
+        # Build files for each category
+        case_scenario_files = []
+        for category, items in sorted(params_by_category.items()):
+            if not items:
+                continue
+
+            # Build sheets - one sheet per category with all tables
+            sheets = []
+
+            # Group items by tag (TFM_DINS-AT vs UC_T)
+            tfm_items = [i for i in items if i["tag"] == "~TFM_DINS-AT"]
+            uc_items = [i for i in items if i["tag"] == "~UC_T"]
+
+            # Build TFM sheet with all scenario parameter rows
+            if tfm_items:
+                all_tfm_rows = []
+                for item in tfm_items:
+                    all_tfm_rows.extend(item["rows"])
+
+                # Sheet name based on category
+                sheet_name = _category_to_sheet_name(category)
+                sheets.append({
+                    "name": sheet_name,
+                    "tables": [{"tag": "~TFM_DINS-AT", "rows": all_tfm_rows}],
+                })
+
+            # Build UC sheets - ONE ~UC_T per constraint (not merged)
+            for uc_item in uc_items:
+                sheets.append({
+                    "name": uc_item["name"],
+                    "tables": [{
+                        "tag": "~UC_T",
+                        "uc_sets": uc_item.get("uc_sets", {}),
+                        "rows": uc_item["rows"],
+                    }],
+                })
+
+            # Create file for this case+category (lowercase paths)
+            file_path = f"suppxls/scen_{case_name.lower()}_{category.lower()}.xlsx"
+            scenario_files.append({
+                "path": file_path,
+                "sheets": sheets,
+            })
+            case_scenario_files.append(file_path)
+
+        # Build case metadata for cases.json
+        cases_json.append({
+            "name": case_name,
+            "description": case.get("description", ""),
+            "is_baseline": case.get("is_baseline", False),
+            "scenario_files": case_scenario_files,
+            "tags": case.get("tags", []),
+        })
+
+    return scenario_files, cases_json
+
+
+def _category_to_sheet_name(category: str) -> str:
+    """Convert category to human-readable sheet name."""
+    mapping = {
+        "demands": "Demands",
+        "prices": "Prices",
+        "policies": "Policies",
+        "technology_assumptions": "TechAssumptions",
+        "resource_availability": "Resources",
+        "global_settings": "Settings",
+    }
+    return mapping.get(category, category.title())
+
+
+def _compile_single_constraint(
+    constraint: dict,
+    region: str,
+    model_years: list[int],
+) -> list[dict]:
+    """
+    Compile a single constraint to ~UC_T rows.
+
+    Args:
+        constraint: Constraint definition
+        region: Default region
+        model_years: List of model years
+
+    Returns:
+        List of ~UC_T rows for this constraint
+    """
+    constraint_type = constraint["type"]
+    uc_name = constraint["name"]
+    commodity = constraint.get("commodity")
+    limtype = constraint.get("limtype", "up").upper()
+
+    if constraint_type == "emission_cap":
+        return _compile_emission_cap(
+            uc_name, commodity, constraint, region, model_years, limtype
+        )
+    elif constraint_type == "activity_share":
+        return _compile_activity_share(
+            uc_name, commodity, constraint, region, model_years
+        )
+
+    return []
+
+
+def _compile_trade_links(
+    trade_links: list[dict],
+    commodities: list[dict],
+) -> tuple[list[dict], list[dict]]:
+    """
+    Compile trade link definitions to TableIR structures.
+
+    Emits ONLY ~TRADELINKS tables - VEDA/xl2times auto-generates trade processes
+    (IRE) from these tables. This avoids PCG conflicts that occur when both
+    ~TRADELINKS and explicit ~FI_PROCESS declarations exist for the same trades.
+
+    Trade attributes (efficiency) are emitted via ~TFM_INS tables using long
+    format (attribute + value columns) targeting the auto-generated process names.
+
+    Matrix format:
+    - Sheet name uses Bi_ or Uni_ prefix for compatibility (e.g., Bi_ELC, Uni_NG)
+    - First column is commodity name, contains origin (FROM) region
+    - Other columns are destination (TO) regions
+    - Cell value is 1 for enabled trade (auto-naming), 0 or empty for no trade
+
+    Bilateral trade representation:
+    - Bidirectional trade requires BOTH directions in the matrix
+    - For REG1↔REG2: one row with REG1→REG2, another with REG2→REG1
+    - This explicitly represents both flows; we don't rely on sheet prefix alone
+
+    Process auto-naming: VEDA/xl2times generates process names automatically
+    from the matrix structure when cells contain 1.
+
+    Args:
+        trade_links: List of trade link definitions from VedaLang source
+        commodities: List of commodity definitions (unused, kept for API compat)
+
+    Returns:
+        Tuple of:
+        - List of TableIR file definitions (ScenTrade file with ~TRADELINKS)
+        - List of TFM rows for trade attributes (efficiency, etc.)
+    """
+    if not trade_links:
+        return [], []
+
+    from collections import defaultdict
 
     # Group trade links by commodity and bidirectional flag
     grouped: dict[tuple[str, bool], list[dict]] = defaultdict(list)
@@ -976,88 +1334,56 @@ def _compile_trade_links(
 
     # Build sheets for trade links (matrix format)
     tradelink_sheets = []
-    process_rows = []  # Explicit trade process declarations
-    topology_rows = []  # Trade process topology (inputs/outputs) + efficiency
-    emitted_processes: set[str] = set()  # Track to avoid duplicates
+    tfm_rows = []  # TFM rows for trade attributes
 
     for (commodity, bidirectional), links in grouped.items():
-        # Sheet name encodes direction and commodity
+        # Sheet name encodes direction and commodity (kept for compatibility)
         direction = "Bi" if bidirectional else "Uni"
         sheet_name = f"{direction}_{commodity}"
-        direction_code = "B" if bidirectional else "U"
 
-        # Collect all unique regions for matrix
+        # Collect all unique regions for matrix columns
         all_regions: set[str] = set()
         for link in links:
             all_regions.add(link["origin"])
             all_regions.add(link["destination"])
 
-        # Build matrix rows - one row per origin, columns are destinations
+        # Build directed edges - for bilateral, expand to both directions
+        # This is the key change: bilateral creates BOTH A→B and B→A edges
+        directed_edges: list[tuple[str, str, float | None]] = []
+        for link in links:
+            origin = link["origin"]
+            dest = link["destination"]
+            efficiency = link.get("efficiency")
+
+            # Add forward direction
+            directed_edges.append((origin, dest, efficiency))
+
+            # For bilateral, also add reverse direction
+            if bidirectional:
+                directed_edges.append((dest, origin, efficiency))
+
+        # Group edges by origin for matrix rows
+        edges_by_origin: dict[str, list[tuple[str, float | None]]] = defaultdict(list)
+        for origin, dest, eff in directed_edges:
+            edges_by_origin[origin].append((dest, eff))
+
+        # Build matrix rows - one row per origin region
         rows = []
-        for origin in sorted(all_regions):
-            # Check if this origin has any outgoing links
-            outgoing = [lnk for lnk in links if lnk["origin"] == origin]
-            if not outgoing:
-                continue
-
+        for origin in sorted(edges_by_origin.keys()):
             row: dict = {commodity: origin}
-            for link in outgoing:
-                dest = link["destination"]
-                efficiency = link.get("efficiency")
+            for dest, efficiency in edges_by_origin[origin]:
+                # Cell value: 1 for auto-naming (VEDA generates process names).
+                row[dest] = 1
 
-                # Generate predictable process name
-                process_name = f"T_{direction_code}_{commodity}_{origin}_{dest}_01"
-
-                # Cell value: use explicit process name
-                row[dest] = process_name
-
-                # Emit explicit process declaration for ORIGIN region
-                # (IRE processes are declared in the exporting region)
-                if process_name not in emitted_processes:
-                    unit = comm_units.get(commodity, "PJ")
-                    process_rows.append({
-                        "region": origin,
-                        "process": process_name,
-                        "description": f"Trade {commodity} from {origin} to {dest}",
-                        "sets": "IRE",
-                        "tact": unit,
-                        "tcap": "",  # Trade processes typically don't have capacity
-                    })
-
-                    # For bidirectional, also declare in destination region
-                    if bidirectional:
-                        process_rows.append({
-                            "region": dest,
-                            "process": process_name,
-                            "description": f"Trade {commodity} from {origin} to {dest}",
-                            "sets": "IRE",
-                            "tact": unit,
-                            "tcap": "",
-                        })
-
-                    # Emit topology rows - IRE processes need commodity flows
-                    # Origin exports (OUT), destination imports (IN)
-                    topology_rows.append({
-                        "region": origin,
-                        "process": process_name,
-                        "commodity-out": commodity,
-                    })
-                    topology_rows.append({
-                        "region": dest,
-                        "process": process_name,
-                        "commodity-in": commodity,
-                    })
-
-                    emitted_processes.add(process_name)
-
-                # If efficiency specified, add to topology_rows (goes to base VT_* file)
-                # VedaOnline does NOT allow ~FI_T in ScenTrade files
+                # Emit EFF for trade processes with efficiency
+                # xl2times transforms EFF on IRE processes to IRE_FLO
                 if efficiency is not None:
-                    topology_rows.append({
+                    _validate_attribute_for_emission("efficiency", "TFM_INS")
+                    tfm_rows.append({
                         "region": origin,
-                        "process": process_name,
-                        "commodity-out": commodity,
-                        "eff": efficiency,
+                        "pset_pn": f"TB_{commodity}_*,TU_{commodity}_*",
+                        "attribute": "EFF",
+                        "value": efficiency,
                     })
 
             rows.append(row)
@@ -1067,13 +1393,27 @@ def _compile_trade_links(
             "tables": [{"tag": "~TRADELINKS", "rows": rows}],
         })
 
-    # Build trade file with ~TRADELINKS only (no ~FI_T for VedaOnline compatibility)
-    trade_file = {
-        "path": "SuppXLS/Trades/ScenTrade__Trade_Links.xlsx",
-        "sheets": tradelink_sheets,
-    }
+    # Build files list
+    files = []
 
-    return [trade_file], process_rows, topology_rows
+    # Trade links file with ~TRADELINKS tables only
+    if tradelink_sheets:
+        files.append({
+            "path": "suppxls/trades/scentrade__trade_links.xlsx",
+            "sheets": tradelink_sheets,
+        })
+
+    # Trade attributes file with TFM_INS if we have any attributes
+    if tfm_rows:
+        files.append({
+            "path": "suppxls/trades/scentrade__trade_attrs.xlsx",
+            "sheets": [{
+                "name": "Attributes",
+                "tables": [{"tag": "~TFM_INS", "rows": tfm_rows}],
+            }],
+        })
+
+    return files, tfm_rows
 
 
 def _compile_timeslices(
@@ -1087,16 +1427,19 @@ def _compile_timeslices(
     1. ~TIMESLICES table with season/weekly/daynite columns
     2. ~TFM_INS rows with attribute=YRFR for year fractions
 
-    The ~TIMESLICES table format emits level codes in a cross-product pattern.
-    xl2times expects level codes and does its own concatenation to form leaf
-    timeslice names.
+    The ~TIMESLICES table format emits **independent columns** (a ragged table).
+    xl2times extracts unique values from each column, then internally creates
+    the cross-product and concatenates them to form leaf timeslice names.
 
     For example, with seasons [S, W] and daynites [D, N], we emit:
         Season | Weekly | DayNite
-        S      |        | D       <- (S, D) -> xl2times produces "SD"
-        S      |        | N       <- (S, N) -> xl2times produces "SN"
-        W      |        | D       <- (W, D) -> xl2times produces "WD"
-        W      |        | N       <- (W, N) -> xl2times produces "WN"
+        S      |        | D
+        W      |        | N
+
+    xl2times will:
+    1. Extract unique seasons: {S, W}
+    2. Extract unique daynites: {D, N}
+    3. Create cross-product: SD, SN, WD, WN
 
     Args:
         timeslices: Timeslice definition from VedaLang source
@@ -1132,28 +1475,45 @@ def _compile_timeslices(
             )
             raise ValueError("\n".join(msg_parts))
 
+    # =========================================================================
+    # WARNING: DO NOT "FIX" THIS TO EMIT A CROSS-PRODUCT!
+    #
+    # This emits a "ragged table" where each column independently lists its
+    # level codes. This looks strange, but it's exactly what xl2times expects.
+    #
+    # xl2times extracts unique values from each column via pandas unique(),
+    # then uses merge(..., how="cross") to create the cartesian product.
+    # See: xl2times/transforms.py::process_time_slices() around line 3334.
+    #
+    # Example: seasons=[S,W], daynites=[D,N] emits 2 rows, NOT 4 rows:
+    #     Season | DayNite     (NOT: Season | DayNite)
+    #     S      | D                 (S      | D      )
+    #     W      | N                 (S      | N      )
+    #                                (W      | D      )
+    #                                (W      | N      )
+    #
+    # This is a peculiarity of VEDA's table format. Trust the docstring.
+    # =========================================================================
     timeslice_rows = []
 
-    # Emit cross-product of level codes
-    # xl2times expects level codes and concatenates them to form leaf names
-    import itertools
+    # Determine the maximum number of rows needed (ragged - columns vary)
+    max_rows = max(len(season_codes), len(weekly_codes), len(daynite_codes), 1)
 
-    s_list = season_codes if season_codes else [""]
-    w_list = weekly_codes if weekly_codes else [""]
-    d_list = daynite_codes if daynite_codes else [""]
-
-    for s, w, d in itertools.product(s_list, w_list, d_list):
-        # Skip if all are empty
-        if not s and not w and not d:
+    for i in range(max_rows):
+        row = {
+            "season": season_codes[i] if i < len(season_codes) else "",
+            "weekly": weekly_codes[i] if i < len(weekly_codes) else "",
+            "daynite": daynite_codes[i] if i < len(daynite_codes) else "",
+        }
+        # Skip if all columns are empty
+        if not row["season"] and not row["weekly"] and not row["daynite"]:
             continue
-        timeslice_rows.append({
-            "season": s,
-            "weekly": w,
-            "daynite": d,
-        })
+        timeslice_rows.append(row)
 
     # Build ~TFM_INS rows for year fractions
     yrfr_rows = []
+    if fractions:
+        _validate_attribute_for_emission("G_YRFR", "TFM_INS")
     for ts_name, fraction in fractions.items():
         # YRFR applies to all regions via allregions column
         yrfr_rows.append({

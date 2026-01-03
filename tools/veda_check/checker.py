@@ -89,7 +89,7 @@ def run_check(
 
             proc = subprocess.run(
                 [
-                    "uv", "run", "xl2times",
+                    "uv", "run", "python", "-m", "xl2times",
                     str(tmpdir),
                     "--manifest-json", str(manifest_path),
                     "--diagnostics-json", str(diagnostics_path),

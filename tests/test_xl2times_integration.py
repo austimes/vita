@@ -52,6 +52,8 @@ class TestXl2timesIntegration:
                 [
                     "uv",
                     "run",
+                    "python",
+                    "-m",
                     "xl2times",
                     str(FIXTURE_PATH),
                     "--manifest-json",
@@ -118,6 +120,8 @@ class TestXl2timesIntegration:
                 [
                     "uv",
                     "run",
+                    "python",
+                    "-m",
                     "xl2times",
                     str(FIXTURE_PATH),
                     "--manifest-json",

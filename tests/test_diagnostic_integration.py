@@ -51,7 +51,7 @@ class TestDiagnosticFeedbackLoop:
 
             subprocess.run(
                 [
-                    "uv", "run", "xl2times",
+                    "uv", "run", "python", "-m", "xl2times",
                     str(tmpdir),
                     "--diagnostics-json", str(diag_path),
                 ],
@@ -92,7 +92,7 @@ class TestDiagnosticFeedbackLoop:
 
             subprocess.run(
                 [
-                    "uv", "run", "xl2times",
+                    "uv", "run", "python", "-m", "xl2times",
                     str(tmpdir),
                     "--diagnostics-json", str(diag_path),
                 ],
@@ -139,7 +139,7 @@ class TestDiagnosticCodes:
             emit_excel(ir, tmpdir)
 
             proc = subprocess.run(
-                ["uv", "run", "xl2times", str(tmpdir)],
+                ["uv", "run", "python", "-m", "xl2times", str(tmpdir)],
                 capture_output=True,
                 text=True,
             )
