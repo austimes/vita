@@ -1,0 +1,336 @@
+# MiniSystem8: Australian Baseline Scaffold
+# Increment 8: Production-aligned multi-sector energy system
+# New capabilities: Multi-sector (RSD/COM/IND/TRN), hydrogen production & use, coal, solar
+# Fixes: IND commodity now consumed by DMD_IND_NG/DMD_IND_H2
+#        H2 commodity now produced by H2_SMR/H2_ELEC, consumed by industry/transport
+# Tests: Complete energy system topology, fuel switching options, all commodities wired
+# Issue: vedalang-8pr.8
+
+model:
+  name: MiniSystem8
+  description: Australian baseline scaffold with multi-sector energy system
+
+  regions:
+    - NEM_EAST
+    - NEM_SOUTH
+    - WA
+
+  start_year: 2020
+  time_periods: [5, 5, 10, 10]
+
+  timeslices:
+    season:
+      - code: S
+        name: Summer
+      - code: W
+        name: Winter
+    daynite:
+      - code: D
+        name: Day
+      - code: N
+        name: Night
+    fractions:
+      SD: 0.25
+      SN: 0.22
+      WD: 0.28
+      WN: 0.25
+
+  commodities:
+    # Energy carriers
+    - name: NG
+      type: energy
+      unit: PJ
+      description: Natural gas
+
+    - name: COAL
+      type: energy
+      unit: PJ
+      description: Coal
+
+    - name: ELC
+      type: energy
+      unit: PJ
+      description: Electricity
+
+    - name: H2
+      type: material
+      unit: PJ
+      description: Hydrogen
+
+    # Emissions
+    - name: CO2
+      type: emission
+      unit: Mt
+      description: Carbon dioxide
+
+    # Demand commodities
+    - name: RSD
+      type: demand
+      unit: PJ
+      description: Residential demand
+
+    - name: COM
+      type: demand
+      unit: PJ
+      description: Commercial demand
+
+    - name: IND
+      type: demand
+      unit: PJ
+      description: Industrial demand
+
+    - name: TRN
+      type: demand
+      unit: PJ
+      description: Transport demand
+
+  processes:
+    # === SUPPLY ===
+    - name: IMP_NG
+      description: Natural gas import supply
+      sets: [IMP]
+      primary_commodity_group: NRGO
+      outputs:
+        - commodity: NG
+      efficiency: 1.0
+      cost: 5.0
+      stock: 1000
+
+    - name: IMP_COAL
+      description: Coal supply
+      sets: [IMP]
+      primary_commodity_group: NRGO
+      outputs:
+        - commodity: COAL
+      efficiency: 1.0
+      cost: 2.0
+      stock: 1000
+
+    # === POWER GENERATION ===
+    - name: PP_COAL
+      description: Coal-fired power plant
+      sets: [ELE]
+      primary_commodity_group: NRGO
+      inputs:
+        - commodity: COAL
+      outputs:
+        - commodity: ELC
+        - commodity: CO2
+          emission_factor: 0.09
+      efficiency: 0.38
+      invcost: 2500
+      fixom: 40
+      varom: 3
+      life: 40
+      stock: 5
+
+    - name: PP_CCGT
+      description: Combined cycle gas turbine
+      sets: [ELE]
+      primary_commodity_group: NRGO
+      inputs:
+        - commodity: NG
+      outputs:
+        - commodity: ELC
+        - commodity: CO2
+          emission_factor: 0.05
+      efficiency: 0.55
+      invcost: 800
+      fixom: 20
+      varom: 2
+      life: 40
+      stock: 2
+
+    - name: PP_WIND
+      description: Onshore wind plant
+      sets: [ELE]
+      primary_commodity_group: NRGO
+      outputs:
+        - commodity: ELC
+      efficiency: 1.0
+      invcost: 1200
+      fixom: 25
+      varom: 1
+      life: 25
+      stock: 1
+
+    - name: PP_SOLAR
+      description: Solar PV plant
+      sets: [ELE]
+      primary_commodity_group: NRGO
+      outputs:
+        - commodity: ELC
+      efficiency: 1.0
+      invcost: 1000
+      fixom: 15
+      varom: 0.5
+      life: 25
+      stock: 1
+
+    # === HYDROGEN PRODUCTION ===
+    - name: H2_SMR
+      description: Steam methane reforming (grey hydrogen)
+      sets: [PRE]
+      primary_commodity_group: MATO
+      inputs:
+        - commodity: NG
+      outputs:
+        - commodity: H2
+        - commodity: CO2
+          emission_factor: 0.056
+      efficiency: 0.75
+      invcost: 1500
+      fixom: 50
+      varom: 2
+      life: 25
+      stock: 0.5
+
+    - name: H2_ELEC
+      description: Electrolysis (green hydrogen)
+      sets: [PRE]
+      primary_commodity_group: MATO
+      inputs:
+        - commodity: ELC
+      outputs:
+        - commodity: H2
+      efficiency: 0.70
+      invcost: 2000
+      fixom: 30
+      varom: 1
+      life: 20
+      stock: 0.5
+
+    # === DEMAND DEVICES ===
+    # Residential - electricity only
+    - name: DMD_RSD_ELC
+      description: Residential electricity demand
+      sets: [DMD]
+      primary_commodity_group: DEMO
+      inputs:
+        - commodity: ELC
+      outputs:
+        - commodity: RSD
+      efficiency: 1.0
+      stock: 100
+      life: 100
+
+    # Commercial - electricity only
+    - name: DMD_COM_ELC
+      description: Commercial electricity demand
+      sets: [DMD]
+      primary_commodity_group: DEMO
+      inputs:
+        - commodity: ELC
+      outputs:
+        - commodity: COM
+      efficiency: 1.0
+      stock: 100
+      life: 100
+
+    # Industrial - gas and hydrogen options (fixes IND orphan)
+    - name: DMD_IND_NG
+      description: Industrial gas demand
+      sets: [DMD]
+      primary_commodity_group: DEMO
+      inputs:
+        - commodity: NG
+      outputs:
+        - commodity: IND
+      efficiency: 0.85
+      stock: 50
+      life: 30
+
+    - name: DMD_IND_H2
+      description: Industrial hydrogen demand
+      sets: [DMD]
+      primary_commodity_group: DEMO
+      inputs:
+        - commodity: H2
+      outputs:
+        - commodity: IND
+      efficiency: 0.90
+      stock: 10
+      life: 30
+
+    # Transport - electricity and hydrogen options
+    - name: DMD_TRN_ELC
+      description: Electric vehicle transport
+      sets: [DMD]
+      primary_commodity_group: DEMO
+      inputs:
+        - commodity: ELC
+      outputs:
+        - commodity: TRN
+      efficiency: 0.85
+      stock: 20
+      life: 15
+
+    - name: DMD_TRN_H2
+      description: Fuel cell vehicle transport
+      sets: [DMD]
+      primary_commodity_group: DEMO
+      inputs:
+        - commodity: H2
+      outputs:
+        - commodity: TRN
+      efficiency: 0.55
+      stock: 10
+      life: 15
+
+  trade_links:
+    - origin: NEM_EAST
+      destination: NEM_SOUTH
+      commodity: ELC
+      bidirectional: false
+      efficiency: 0.97
+
+  scenario_parameters:
+    - name: DemandRSD
+      description: Residential demand projection
+      type: demand_projection
+      commodity: RSD
+      interpolation: interp_extrap
+      values:
+        "2020": 30
+        "2030": 60
+        "2050": 100
+
+    - name: DemandCOM
+      description: Commercial demand projection
+      type: demand_projection
+      commodity: COM
+      interpolation: interp_extrap
+      values:
+        "2020": 20
+        "2030": 40
+        "2050": 80
+
+    - name: DemandIND
+      description: Industrial demand projection
+      type: demand_projection
+      commodity: IND
+      interpolation: interp_extrap
+      values:
+        "2020": 50
+        "2030": 80
+        "2050": 120
+
+    - name: DemandTRN
+      description: Transport demand projection
+      type: demand_projection
+      commodity: TRN
+      interpolation: interp_extrap
+      values:
+        "2020": 40
+        "2030": 60
+        "2050": 100
+
+    - name: CO2_Price
+      description: Carbon price trajectory
+      type: commodity_price
+      commodity: CO2
+      interpolation: interp_extrap
+      values:
+        "2025": 30
+        "2030": 50
+        "2050": 150

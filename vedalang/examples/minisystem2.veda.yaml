@@ -1,0 +1,74 @@
+# MiniSystem2: Fuel Chain
+# Increment 2: Primary fuel and conversion
+# New capabilities: Input-output chains, cost propagation, fuel supply
+# Tests: NG → PP_CCGT → ELC → DMD_RSD → RSD
+# Issue: vedalang-8pr.2
+
+model:
+  name: MiniSystem2
+  description: Fuel chain with natural gas import and CCGT conversion
+
+  regions:
+    - SINGLE
+
+  start_year: 2020
+  time_periods: [10]
+
+  commodities:
+    - name: NG
+      type: energy
+      unit: PJ
+      description: Natural gas
+
+    - name: ELC
+      type: energy
+      unit: PJ
+      description: Electricity
+
+    - name: RSD
+      type: demand
+      unit: PJ
+      description: Residential demand
+
+  processes:
+    - name: IMP_NG
+      description: Natural gas import supply
+      sets: [IMP]
+      primary_commodity_group: NRGO
+      outputs:
+        - commodity: NG
+      efficiency: 1.0
+      cost: 5.0
+      stock: 100
+
+    - name: PP_CCGT_SIMPLE
+      description: Simple CCGT (no investment yet)
+      sets: [ELE]
+      primary_commodity_group: NRGO
+      inputs:
+        - commodity: NG
+      outputs:
+        - commodity: ELC
+      efficiency: 0.55
+      cost: 2
+      stock: 100
+
+    - name: DMD_RSD
+      description: Residential demand device
+      sets: [DMD]
+      primary_commodity_group: DEMO
+      inputs:
+        - commodity: ELC
+      outputs:
+        - commodity: RSD
+      efficiency: 1.0
+      stock: 100
+
+  scenario_parameters:
+    - name: DemandRSD
+      description: Residential demand projection
+      type: demand_projection
+      commodity: RSD
+      interpolation: interp_extrap
+      values:
+        "2020": 50

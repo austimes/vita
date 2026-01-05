@@ -1,0 +1,114 @@
+# MiniSystem5: Technology Competition with Renewables
+# Increment 5: Multiple generation options, technology choice
+# New capabilities: Competing processes for same output, technology mix
+# Tests: CCGT vs WIND competition, wind share increases with CO2 price
+# Issue: vedalang-8pr.5
+
+model:
+  name: MiniSystem5
+  description: Technology competition between fossil and renewables
+
+  regions:
+    - SINGLE
+
+  start_year: 2020
+  time_periods: [5, 5, 10]
+
+  commodities:
+    - name: NG
+      type: energy
+      unit: PJ
+      description: Natural gas
+
+    - name: ELC
+      type: energy
+      unit: PJ
+      description: Electricity
+
+    - name: CO2
+      type: emission
+      unit: Mt
+      description: Carbon dioxide emissions
+
+    - name: RSD
+      type: demand
+      unit: PJ
+      description: Residential demand
+
+  processes:
+    - name: IMP_NG
+      description: Natural gas import supply
+      sets: [IMP]
+      primary_commodity_group: NRGO
+      outputs:
+        - commodity: NG
+      efficiency: 1.0
+      cost: 5.0
+      stock: 1000
+
+    - name: PP_CCGT
+      description: CCGT with emissions
+      sets: [ELE]
+      primary_commodity_group: NRGO
+      inputs:
+        - commodity: NG
+      outputs:
+        - commodity: ELC
+        - commodity: CO2
+          emission_factor: 0.05
+      efficiency: 0.55
+      invcost: 800
+      fixom: 20
+      varom: 2
+      life: 40
+      stock: 2
+      cap_bound:
+        up: 100
+
+    - name: PP_WIND
+      description: Onshore wind plant
+      sets: [ELE]
+      primary_commodity_group: NRGO
+      outputs:
+        - commodity: ELC
+      efficiency: 1.0
+      invcost: 1200
+      fixom: 25
+      varom: 1
+      life: 25
+      stock: 1
+      cap_bound:
+        up: 100
+
+    - name: DMD_RSD
+      description: Residential demand device
+      sets: [DMD]
+      primary_commodity_group: DEMO
+      inputs:
+        - commodity: ELC
+      outputs:
+        - commodity: RSD
+      efficiency: 1.0
+      stock: 1000
+      life: 100
+
+  scenario_parameters:
+    - name: DemandRSD
+      description: Residential demand projection with growth
+      type: demand_projection
+      commodity: RSD
+      interpolation: interp_extrap
+      values:
+        "2020": 30
+        "2030": 60
+        "2050": 90
+
+    - name: CO2_Price
+      description: Carbon price trajectory
+      type: commodity_price
+      commodity: CO2
+      interpolation: interp_extrap
+      values:
+        "2025": 30
+        "2030": 50
+        "2050": 100

@@ -1,0 +1,99 @@
+# MiniSystem4: Emissions and Climate Policy
+# Increment 4: Emission accounting and carbon pricing
+# New capabilities: CO2 commodity, emission_factor, commodity_price
+# Tests: Emissions tracked, carbon price affects objective
+# Issue: vedalang-8pr.4
+
+model:
+  name: MiniSystem4
+  description: Emission tracking and carbon pricing
+
+  regions:
+    - SINGLE
+
+  start_year: 2020
+  time_periods: [5, 5, 10]
+
+  commodities:
+    - name: NG
+      type: energy
+      unit: PJ
+      description: Natural gas
+
+    - name: ELC
+      type: energy
+      unit: PJ
+      description: Electricity
+
+    - name: CO2
+      type: emission
+      unit: Mt
+      description: Carbon dioxide emissions
+
+    - name: RSD
+      type: demand
+      unit: PJ
+      description: Residential demand
+
+  processes:
+    - name: IMP_NG
+      description: Natural gas import supply
+      sets: [IMP]
+      primary_commodity_group: NRGO
+      outputs:
+        - commodity: NG
+      efficiency: 1.0
+      cost: 5.0
+      stock: 1000
+
+    - name: PP_CCGT
+      description: CCGT with emissions
+      sets: [ELE]
+      primary_commodity_group: NRGO
+      inputs:
+        - commodity: NG
+      outputs:
+        - commodity: ELC
+        - commodity: CO2
+          emission_factor: 0.05
+      efficiency: 0.55
+      invcost: 800
+      fixom: 20
+      varom: 2
+      life: 40
+      stock: 2
+      cap_bound:
+        up: 100
+
+    - name: DMD_RSD
+      description: Residential demand device
+      sets: [DMD]
+      primary_commodity_group: DEMO
+      inputs:
+        - commodity: ELC
+      outputs:
+        - commodity: RSD
+      efficiency: 1.0
+      stock: 1000
+      life: 100
+
+  scenario_parameters:
+    - name: DemandRSD
+      description: Residential demand projection with growth
+      type: demand_projection
+      commodity: RSD
+      interpolation: interp_extrap
+      values:
+        "2020": 30
+        "2030": 60
+        "2050": 90
+
+    - name: CO2_Price
+      description: Carbon price trajectory
+      type: commodity_price
+      commodity: CO2
+      interpolation: interp_extrap
+      values:
+        "2025": 30
+        "2030": 50
+        "2050": 100

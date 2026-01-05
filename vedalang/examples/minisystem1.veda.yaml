@@ -1,0 +1,61 @@
+# MiniSystem1: Minimal Solvable Model
+# Increment 1: Pipeline sanity test
+# New capabilities: Basic RES, demand projection, E2E validation
+# Tests: VedaLang → TableIR → Excel → DD → solve
+# Issue: vedalang-8pr.1
+
+model:
+  name: MiniSystem1
+  description: Simplest possible solvable VedaLang model
+
+  regions:
+    - SINGLE
+
+  start_year: 2020
+  time_periods: [10]
+
+  commodities:
+    - name: ELC
+      type: energy
+      unit: PJ
+      description: Electricity
+
+    - name: RSD
+      type: demand
+      unit: PJ
+      description: Residential demand
+
+  processes:
+    - name: PP_SIMPLE
+      description: Simple power generator
+      sets: [ELE]
+      primary_commodity_group: NRGO
+      outputs:
+        - commodity: ELC
+      efficiency: 1.0
+      cost: 10
+      stock: 100
+      cap_bound:
+        up: 1000
+
+    - name: DMD_RSD
+      description: Residential demand device
+      sets: [DMD]
+      primary_commodity_group: DEMO
+      inputs:
+        - commodity: ELC
+      outputs:
+        - commodity: RSD
+      efficiency: 1.0
+      stock: 100
+      cap_bound:
+        up: 1000
+
+  scenario_parameters:
+    - name: DemandRSD
+      description: Residential demand projection
+      type: demand_projection
+      commodity: RSD
+      interpolation: interp_extrap
+      values:
+        "2020": 50
