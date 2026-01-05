@@ -65,8 +65,8 @@ The Python components work end-to-end without exceptions:
 | Tool | Status | Notes |
 |------|--------|-------|
 | `vedalang compile` | ✅ Pass | Compiles .veda.yaml → TableIR |
-| `veda_emit_excel` | ✅ Pass | Emits TableIR → Excel files |
-| `veda_check` | ✅ Pass | Orchestrates full pipeline |
+| `vedalang-dev emit-excel` | ✅ Pass | Emits TableIR → Excel files |
+| `vedalang validate` | ✅ Pass | Orchestrates full pipeline |
 
 ### xl2times Validation: ⚠️ EXPECTED FAILURE WITH DIAGNOSTICS
 
@@ -93,8 +93,8 @@ INTERNAL_ERROR: Uncaught exception during processing: 'tact'
 
 Key test files:
 - test_vedalang_compiler.py - VedaLang → TableIR compilation
-- test_veda_emit_excel.py - TableIR → Excel emission
-- test_veda_check.py - Full pipeline orchestration
+- test_emit_excel.py - TableIR → Excel emission
+- test_validate.py - Full pipeline orchestration
 - test_xl2times_integration.py - xl2times with fixture models
 - test_require_table_diagnostics.py - Diagnostic code tests
 ```
@@ -146,7 +146,7 @@ Required columns in existing tables:
 - `tact`, `tcap`, `primarycg` in process tables
 - Various topology columns
 
-## Reference: veda_check JSON Output
+## Reference: vedalang validate JSON Output
 
 ```json
 {

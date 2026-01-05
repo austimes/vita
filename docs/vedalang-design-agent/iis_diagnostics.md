@@ -50,10 +50,10 @@ After a run, the `RunResult.diagnostics["iis"]` field contains:
 
 ```bash
 # Run with CPLEX for IIS diagnostics
-veda-dev pipeline model.veda.yaml --solver CPLEX --no-solver --json
+uv run vedalang-dev pipeline model.veda.yaml --solver CPLEX --no-solver --json
 
 # Or directly:
-uv run veda_run_times dd_output/ --solver CPLEX --times-src ~/TIMES_model
+uv run vedalang-dev run-times dd_output/ --solver CPLEX --times-src ~/TIMES_model
 ```
 
 ## Interpreting IIS Results

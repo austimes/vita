@@ -31,8 +31,11 @@ VedaLang Source (.veda.yaml)  →  VEDA Excel (.xlsx)  →  TIMES DD files
 Always validate your models:
 
 ```bash
-# Compile and validate a VedaLang model
-uv run veda_check your_model.veda.yaml --from-vedalang
+# Full validation (lint + compile + xl2times)
+uv run vedalang validate your_model.veda.yaml
+
+# Lint only (fast, checks heuristics)
+uv run vedalang lint your_model.veda.yaml
 ```
 
 ## What This Documentation Does NOT Cover

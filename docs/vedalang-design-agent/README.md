@@ -40,7 +40,7 @@ This directory contains supporting documentation:
 
 ```
 1. Prototype at TableIR level
-2. Emit Excel via veda_emit_excel
+2. Emit Excel via vedalang-dev emit-excel
 3. Validate with xl2times
 4. If valid → lift pattern to VedaLang syntax
 5. If invalid → fix and retry

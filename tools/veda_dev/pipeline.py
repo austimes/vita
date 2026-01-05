@@ -35,8 +35,12 @@ class PipelineResult:
 
     def to_dict(self) -> dict:
         """Convert to JSON-serializable dict."""
+        # Build summary of key diagnostics for quick access
+        summary = self._build_summary()
+
         return {
             "success": self.success,
+            "summary": summary,
             "input": {"path": self.input_path, "kind": self.input_kind},
             "work_dir": self.work_dir,
             "artifacts": self.artifacts,
@@ -51,6 +55,39 @@ class PipelineResult:
                 for name, step in self.steps.items()
             },
         }
+
+    def _build_summary(self) -> dict:
+        """Build a quick-access summary of pipeline status."""
+        summary: dict[str, Any] = {
+            "all_steps_ok": self.success,
+            "failed_step": None,
+            "gams": None,
+        }
+
+        # Find first failed step
+        for name, step in self.steps.items():
+            if not step.skipped and not step.success:
+                summary["failed_step"] = name
+                break
+
+        # Extract GAMS diagnostics summary if available
+        run_times_step = self.steps.get("run_times")
+        if run_times_step and not run_times_step.skipped:
+            gams_diag = run_times_step.artifacts.get("gams_diagnostics")
+            if gams_diag:
+                gams_summary = gams_diag.get("summary", {})
+                execution = gams_diag.get("execution", {})
+                summary["gams"] = {
+                    "ok": gams_summary.get("ok", False),
+                    "problem_type": gams_summary.get("problem_type"),
+                    "message": gams_summary.get("message", ""),
+                    "ran_solver": execution.get("ran_solver", False),
+                    "model_status": execution.get("model_status", {}).get("category"),
+                    "solve_status": execution.get("solve_status", {}).get("category"),
+                    "objective": execution.get("objective", {}).get("value"),
+                }
+
+        return summary
 
 
 def detect_input_kind(path: Path) -> str:
@@ -111,6 +148,38 @@ def run_pipeline(
         tableir_file: Path | None = None
         excel_dir: Path | None = None
         dd_dir: Path | None = None
+        vedalang_source: dict | None = None
+
+        # Step 0: Heuristics (VedaLang only)
+        heuristics_result = StepResult()
+        if input_kind == "vedalang":
+            try:
+                from vedalang.compiler import load_vedalang
+                from vedalang.heuristics.linter import run_heuristics
+
+                if verbose:
+                    print(f"[heuristics] Checking {input_path}")
+
+                vedalang_source = load_vedalang(input_path)
+                issues = run_heuristics(vedalang_source)
+
+                heuristics_result.artifacts["issues"] = [i.to_dict() for i in issues]
+                heuristics_result.artifacts["issue_count"] = len(issues)
+
+                for issue in issues:
+                    if issue.severity == "error":
+                        heuristics_result.errors.append(issue.message)
+                    else:
+                        heuristics_result.warnings.append(issue.message)
+
+                if verbose and issues:
+                    print(f"[heuristics] Found {len(issues)} issue(s)")
+            except Exception as e:
+                heuristics_result.success = False
+                heuristics_result.errors.append(str(e))
+        else:
+            heuristics_result.skipped = True
+        result.steps["heuristics"] = heuristics_result
 
         # Step 1: Compile VedaLang -> TableIR
         compile_result = StepResult()
@@ -119,9 +188,10 @@ def run_pipeline(
                 from vedalang.compiler import compile_vedalang_to_tableir, load_vedalang
 
                 if verbose:
-                    print(f"[compile] Loading {input_path}")
+                    print(f"[compile] Compiling {input_path}")
 
-                source = load_vedalang(input_path)
+                # Reuse source if already loaded, otherwise load fresh
+                source = vedalang_source if vedalang_source else load_vedalang(input_path)
                 tableir = compile_vedalang_to_tableir(source, validate=True)
 
                 tableir_file = work_dir / "model.tableir.yaml"
@@ -269,12 +339,15 @@ def run_pipeline(
                     if verbose:
                         print(f"[run_times] Using TIMES source: {effective_times_src}")
 
+                    # Run GAMS in a subdirectory of our work_dir
+                    gams_work_dir = work_dir / "gams"
                     times_result = run_times(
                         dd_dir=dd_dir,
                         case=case,
                         times_src=effective_times_src,
                         gams_binary=gams_binary,
                         solver=solver,
+                        work_dir=gams_work_dir,
                         keep_workdir=True,  # We manage cleanup ourselves
                         verbose=verbose,
                     )
@@ -304,6 +377,20 @@ def run_pipeline(
                             str(f) for f in times_result.gdx_files
                         ]
                     run_times_result.errors.extend(times_result.errors)
+                    run_times_result.warnings.extend(times_result.warnings)
+
+                    # Add GAMS diagnostics artifact
+                    if times_result.diagnostics:
+                        run_times_result.artifacts["gams_diagnostics"] = (
+                            times_result.diagnostics
+                        )
+                        # Write diagnostics file
+                        diag_file = work_dir / f"{case}_gams_diagnostics.json"
+                        with open(diag_file, "w") as f:
+                            json.dump(times_result.diagnostics, f, indent=2)
+                        run_times_result.artifacts["gams_diagnostics_file"] = str(
+                            diag_file
+                        )
             except Exception as e:
                 run_times_result.success = False
                 run_times_result.errors.append(str(e))
@@ -337,6 +424,65 @@ def run_pipeline(
     return result
 
 
+def _format_step_detail(name: str, step: StepResult) -> str:
+    """Format additional detail for a step based on its artifacts."""
+    details = []
+
+    if name == "heuristics" and not step.skipped:
+        issue_count = step.artifacts.get("issue_count", 0)
+        if issue_count > 0:
+            err_count = len(step.errors)
+            warn_count = len(step.warnings)
+            if err_count > 0:
+                details.append(f"{err_count} error(s)")
+            if warn_count > 0:
+                details.append(f"{warn_count} warning(s)")
+        else:
+            details.append("clean")
+
+    elif name == "compile" and not step.skipped:
+        if "file_count" in step.artifacts:
+            details.append(f"{step.artifacts['file_count']} files")
+
+    elif name == "emit_excel" and not step.skipped:
+        if "file_count" in step.artifacts:
+            details.append(f"{step.artifacts['file_count']} xlsx")
+
+    elif name == "xl2times" and not step.skipped:
+        if "return_code" in step.artifacts:
+            rc = step.artifacts["return_code"]
+            if rc != 0:
+                details.append(f"rc={rc}")
+
+    elif name == "run_times" and not step.skipped:
+        # Show GAMS diagnostics summary
+        diag = step.artifacts.get("gams_diagnostics")
+        if diag:
+            summary = diag.get("summary", {})
+            if summary.get("ok"):
+                obj = diag.get("execution", {}).get("objective", {}).get("value")
+                if obj is not None:
+                    details.append(f"obj={obj:.2f}")
+                else:
+                    details.append("solved")
+            else:
+                prob = summary.get("problem_type", "error")
+                details.append(prob)
+
+            # Show if solver didn't run
+            if not diag.get("execution", {}).get("ran_solver"):
+                details.append("no-solve")
+        else:
+            # Fall back to legacy fields
+            if step.artifacts.get("model_status"):
+                details.append(step.artifacts["model_status"])
+            rc = step.artifacts.get("gams_return_code")
+            if rc is not None and rc != 0:
+                details.append(f"rc={rc}")
+
+    return ", ".join(details) if details else ""
+
+
 def format_result_table(result: PipelineResult) -> str:
     """Format pipeline result as a human-readable table."""
     status = "✓ PASS" if result.success else "✗ FAIL"
@@ -358,7 +504,14 @@ def format_result_table(result: PipelineResult) -> str:
             step_status = "✓ ok"
         else:
             step_status = "✗ fail"
-        lines.append(f"│ {name:15} {step_status}".ljust(66) + "│")
+
+        # Add step-specific details
+        detail = _format_step_detail(name, step)
+        if detail:
+            step_line = f"│ {name:15} {step_status:8} ({detail})"
+        else:
+            step_line = f"│ {name:15} {step_status}"
+        lines.append(step_line[:65].ljust(66) + "│")
 
     lines.append("├" + "─" * 65 + "┤")
     lines.append(f"│ Overall: {status}".ljust(66) + "│")

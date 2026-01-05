@@ -24,6 +24,15 @@
           "minItems": 1,
           "description": "List of region codes"
         },
+        "start_year": {
+          "type": "integer",
+          "description": "Model start year (default: 2020)"
+        },
+        "time_periods": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 1 },
+          "description": "Period lengths in years (e.g., [10, 10, 10] for three 10-year periods)"
+        },
         "timeslices": {
           "$ref": "#/$defs/timeslices",
           "description": "Timeslice structure for intra-annual temporal resolution"
@@ -38,10 +47,10 @@
           "items": { "$ref": "#/$defs/process" },
           "description": "Process definitions"
         },
-        "scenarios": {
+        "scenario_parameters": {
           "type": "array",
-          "items": { "$ref": "#/$defs/scenario" },
-          "description": "Scenario definitions (TFM parameters)"
+          "items": { "$ref": "#/$defs/scenario_parameter" },
+          "description": "Scenario parameters (demand projections, prices, etc.)"
         },
         "trade_links": {
           "type": "array",
@@ -52,11 +61,97 @@
           "type": "array",
           "items": { "$ref": "#/$defs/constraint" },
           "description": "User constraints (emission caps, activity shares, etc.)"
+        },
+        "cases": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/case" },
+          "description": "Model cases - named combinations of scenario parameters for different model runs"
+        },
+        "studies": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/study" },
+          "description": "Studies - collections of cases for comparison"
+        },
+        "scenarios": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/scenario_parameter" },
+          "description": "DEPRECATED: Use 'scenario_parameters' instead. Kept for backward compatibility."
         }
       }
     }
   },
   "$defs": {
+    "category": {
+      "type": "string",
+      "enum": [
+        "demands",
+        "prices",
+        "policies",
+        "technology_assumptions",
+        "resource_availability",
+        "global_settings"
+      ],
+      "description": "Scenario category for organizing parameters into logical groups"
+    },
+    "case": {
+      "type": "object",
+      "description": "A model case - a named combination of scenario parameters for a specific model run",
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "Case identifier (lowercase, used in file names: Scen_{case}_{category}.xlsx)"
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable case description"
+        },
+        "is_baseline": {
+          "type": "boolean",
+          "default": false,
+          "description": "Marks this case as the baseline/reference case"
+        },
+        "includes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of scenario parameter names to include in this case. If omitted, includes all parameters."
+        },
+        "excludes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of scenario parameter names to exclude from this case"
+        },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Optional labels for categorizing cases (e.g., 'policy', 'reference', 'sensitivity')"
+        }
+      },
+      "additionalProperties": false
+    },
+    "study": {
+      "type": "object",
+      "description": "A study - a collection of cases for comparison",
+      "required": ["name", "cases"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Study name"
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable study description"
+        },
+        "cases": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1,
+          "description": "List of case names included in this study"
+        }
+      },
+      "additionalProperties": false
+    },
     "constraint": {
       "type": "object",
       "description": "User constraint definition (emission_cap or activity_share)",
@@ -66,10 +161,18 @@
           "type": "string",
           "description": "Constraint name (becomes UC_N in TIMES)"
         },
+        "description": {
+          "type": "string",
+          "description": "Human-readable constraint description"
+        },
         "type": {
           "type": "string",
           "enum": ["emission_cap", "activity_share"],
           "description": "Type of constraint"
+        },
+        "category": {
+          "$ref": "#/$defs/category",
+          "description": "Scenario category (default: 'policies' for constraints)"
         },
         "commodity": {
           "type": "string",
@@ -231,7 +334,7 @@
     },
     "process": {
       "type": "object",
-      "required": ["name", "sets", "primary_commodity_group"],
+      "required": ["name", "sets", "primary_commodity_group", "efficiency"],
       "properties": {
         "name": { "type": "string", "description": "Process identifier (e.g., PP_CCGT, IMP_NG)" },
         "description": { "type": "string", "description": "Human-readable process description" },
@@ -270,7 +373,7 @@
             { "type": "number", "minimum": 0, "maximum": 1 },
             { "$ref": "#/$defs/time_varying_value" }
           ],
-          "description": "Process efficiency (0-1). Can be scalar or time-varying."
+          "description": "REQUIRED. Process efficiency (0-1), ratio of useful output to input. Must be explicitly specified for all processes, including demand devices and sources. Use 1.0 for lossless pass-through."
         },
         "invcost": {
           "oneOf": [
@@ -325,6 +428,13 @@
         "ncap_bound": {
           "$ref": "#/$defs/bound",
           "description": "Bounds on new capacity per period (NCAP_BND)"
+        },
+        "stock": {
+          "oneOf": [
+            { "type": "number", "minimum": 0 },
+            { "$ref": "#/$defs/time_varying_value" }
+          ],
+          "description": "Initial/residual capacity (PRC_RESID/STOCK). Pre-existing capacity before model start."
         }
       }
     },
@@ -355,26 +465,35 @@
       "required": ["commodity"],
       "properties": {
         "commodity": { "type": "string", "description": "Reference to commodity name" },
-        "share": { "type": "number", "minimum": 0, "maximum": 1, "default": 1.0 }
+        "share": { "type": "number", "minimum": 0, "maximum": 1, "default": 1.0, "description": "Flow share for non-emission outputs (FLO_SHAR)" },
+        "emission_factor": { "type": "number", "minimum": 0, "description": "Emission per unit PROCESS ACTIVITY. Units: <emission_commodity.unit> per <process.activity_unit> (e.g., Mt CO2 per PJ activity). Implemented via ENV_ACT in TIMES, which xl2times maps to FLO_EMIS. Always per-activity, NOT per-flow. Use instead of 'share' for emission commodities." }
       }
     },
-    "scenario": {
+    "scenario_parameter": {
       "type": "object",
+      "description": "A scenario parameter - an atomic time-series or value assumption (e.g., CO2 price path, demand projection)",
       "required": ["name", "type"],
       "properties": {
         "name": { 
           "type": "string", 
-          "description": "Scenario name (becomes folder name: Scen_{name})"
+          "description": "Parameter name identifier"
         },
-        "description": { "type": "string" },
+        "description": { 
+          "type": "string",
+          "description": "Human-readable parameter description"
+        },
         "type": {
           "type": "string",
           "enum": ["commodity_price", "demand_projection"],
           "description": "Type of scenario parameter"
         },
+        "category": {
+          "$ref": "#/$defs/category",
+          "description": "Scenario category. Defaults: commodity_price→prices, demand_projection→demands"
+        },
         "commodity": {
           "type": "string",
-          "description": "Target commodity for price scenarios"
+          "description": "Target commodity for this parameter"
         },
         "interpolation": {
           "type": "string",

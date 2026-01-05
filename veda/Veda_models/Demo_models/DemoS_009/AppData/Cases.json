@@ -1,0 +1,320 @@
+[
+    {
+        "CaseId": 390,
+        "CreatedOn": "2020-06-02 13:09",
+        "Description": "Demo Step 009",
+        "EditedOn": "2020-06-02 13:14",
+        "EndingYear": "2050",
+        "FixResultFileName": "False",
+        "FixResultInfo": {
+            "WorkTimesFolderPath": null,
+            "GdxElasticDermands": {
+                "GdxSelectedFile": {
+                    "FileName": "",
+                    "FilePath": "",
+                    "IsSelected": false
+                },
+                "IsApplied": false
+            },
+            "GdxIre": {
+                "GdxSelectedFile": {
+                    "FileName": "",
+                    "FilePath": "",
+                    "IsSelected": false
+                },
+                "IsApplied": false,
+                "RadioSelection": 1
+            },
+            "GdxUseSolution": {
+                "FixYearsUpto": "",
+                "GdxSelectedFile": {
+                    "FileName": "",
+                    "FilePath": "",
+                    "IsSelected": false
+                },
+                "IsApplied": false,
+                "RadioSelection": 1
+            },
+            "IsApplyFixResult": false
+        },
+        "GAMSSourceFolder": "GAMS_SrcTIMES.v4",
+        "Name": "DemoS_009",
+        "ParametricGroup": null,
+        "ParametricGroupId": null,
+        "PeriodsDefinition": "pdef-11",
+        "PropertiesGroup": "DefaultProperties",
+        "PropertiesGroupId": 3027,
+        "RegionGroup": "AllRegion",
+        "RegionGroupId": 3026,
+        "ScenarioGroup": "DemoS_009",
+        "ScenarioGroupId": 3033,
+        "Solver": "cplex",
+        "SolverOptionFile": "BA121-7",
+        "UserName": ""
+    },
+    {
+        "CaseId": 391,
+        "CreatedOn": "2020-06-02 13:17",
+        "Description": "Demo Step 009 ELC and TRA CO2 Bounds",
+        "EditedOn": "2020-06-03 08:08",
+        "EndingYear": "2050",
+        "FixResultFileName": "False",
+        "FixResultInfo": {
+            "WorkTimesFolderPath": null,
+            "GdxElasticDermands": {
+                "GdxSelectedFile": {
+                    "FileName": "",
+                    "FilePath": "",
+                    "IsSelected": false
+                },
+                "IsApplied": false
+            },
+            "GdxIre": {
+                "GdxSelectedFile": {
+                    "FileName": "",
+                    "FilePath": "",
+                    "IsSelected": false
+                },
+                "IsApplied": false,
+                "RadioSelection": 1
+            },
+            "GdxUseSolution": {
+                "FixYearsUpto": "",
+                "GdxSelectedFile": {
+                    "FileName": "",
+                    "FilePath": "",
+                    "IsSelected": false
+                },
+                "IsApplied": false,
+                "RadioSelection": 1
+            },
+            "IsApplyFixResult": false
+        },
+        "GAMSSourceFolder": "GAMS_SrcTIMES.v4",
+        "Name": "DemoS_009a",
+        "ParametricGroup": null,
+        "ParametricGroupId": null,
+        "PeriodsDefinition": "pdef-11",
+        "PropertiesGroup": "DefaultProperties",
+        "PropertiesGroupId": 3027,
+        "RegionGroup": "AllRegion",
+        "RegionGroupId": 3026,
+        "ScenarioGroup": "DemoS_009a",
+        "ScenarioGroupId": 3028,
+        "Solver": "cplex",
+        "SolverOptionFile": "BA121-7",
+        "UserName": ""
+    },
+    {
+        "CaseId": 392,
+        "CreatedOn": "2020-06-02 13:18",
+        "Description": "Demo Step 009 Elastic Demand",
+        "EditedOn": "2020-06-02 13:18",
+        "EndingYear": "2050",
+        "FixResultFileName": "False",
+        "FixResultInfo": {
+            "WorkTimesFolderPath": null,
+            "GdxElasticDermands": {
+                "GdxSelectedFile": {
+                    "FileName": "",
+                    "FilePath": "",
+                    "IsSelected": false
+                },
+                "IsApplied": false
+            },
+            "GdxIre": {
+                "GdxSelectedFile": {
+                    "FileName": "",
+                    "FilePath": "",
+                    "IsSelected": false
+                },
+                "IsApplied": false,
+                "RadioSelection": 1
+            },
+            "GdxUseSolution": {
+                "FixYearsUpto": "",
+                "GdxSelectedFile": {
+                    "FileName": "",
+                    "FilePath": "",
+                    "IsSelected": false
+                },
+                "IsApplied": false,
+                "RadioSelection": 1
+            },
+            "IsApplyFixResult": false
+        },
+        "GAMSSourceFolder": "GAMS_SrcTIMES.v4",
+        "Name": "DemoS_009b",
+        "ParametricGroup": null,
+        "ParametricGroupId": null,
+        "PeriodsDefinition": "pdef-11",
+        "PropertiesGroup": "DefaultProperties",
+        "PropertiesGroupId": 3027,
+        "RegionGroup": "AllRegion",
+        "RegionGroupId": 3026,
+        "ScenarioGroup": "DemoS_009b",
+        "ScenarioGroupId": 3029,
+        "Solver": "cplex",
+        "SolverOptionFile": "BA121-7",
+        "UserName": ""
+    },
+    {
+        "CaseId": 393,
+        "CreatedOn": "2020-06-02 13:19",
+        "Description": "Demo Step 009 UC Growth and Bound",
+        "EditedOn": "2020-06-02 13:19",
+        "EndingYear": "2050",
+        "FixResultFileName": "False",
+        "FixResultInfo": {
+            "WorkTimesFolderPath": null,
+            "GdxElasticDermands": {
+                "GdxSelectedFile": {
+                    "FileName": "",
+                    "FilePath": "",
+                    "IsSelected": false
+                },
+                "IsApplied": false
+            },
+            "GdxIre": {
+                "GdxSelectedFile": {
+                    "FileName": "",
+                    "FilePath": "",
+                    "IsSelected": false
+                },
+                "IsApplied": false,
+                "RadioSelection": 1
+            },
+            "GdxUseSolution": {
+                "FixYearsUpto": "",
+                "GdxSelectedFile": {
+                    "FileName": "",
+                    "FilePath": "",
+                    "IsSelected": false
+                },
+                "IsApplied": false,
+                "RadioSelection": 1
+            },
+            "IsApplyFixResult": false
+        },
+        "GAMSSourceFolder": "GAMS_SrcTIMES.v4",
+        "Name": "DemoS_009c",
+        "ParametricGroup": null,
+        "ParametricGroupId": null,
+        "PeriodsDefinition": "pdef-11",
+        "PropertiesGroup": "DefaultProperties",
+        "PropertiesGroupId": 3027,
+        "RegionGroup": "AllRegion",
+        "RegionGroupId": 3026,
+        "ScenarioGroup": "DemoS_009c",
+        "ScenarioGroupId": 3030,
+        "Solver": "cplex",
+        "SolverOptionFile": "BA121-7",
+        "UserName": ""
+    },
+    {
+        "CaseId": 394,
+        "CreatedOn": "2020-06-02 13:20",
+        "Description": "Demo Step 009 New IND Sector",
+        "EditedOn": "2020-06-02 13:20",
+        "EndingYear": "2050",
+        "FixResultFileName": "False",
+        "FixResultInfo": {
+            "WorkTimesFolderPath": null,
+            "GdxElasticDermands": {
+                "GdxSelectedFile": {
+                    "FileName": "",
+                    "FilePath": "",
+                    "IsSelected": false
+                },
+                "IsApplied": false
+            },
+            "GdxIre": {
+                "GdxSelectedFile": {
+                    "FileName": "",
+                    "FilePath": "",
+                    "IsSelected": false
+                },
+                "IsApplied": false,
+                "RadioSelection": 1
+            },
+            "GdxUseSolution": {
+                "FixYearsUpto": "",
+                "GdxSelectedFile": {
+                    "FileName": "",
+                    "FilePath": "",
+                    "IsSelected": false
+                },
+                "IsApplied": false,
+                "RadioSelection": 1
+            },
+            "IsApplyFixResult": false
+        },
+        "GAMSSourceFolder": "GAMS_SrcTIMES.v4",
+        "Name": "DemoS_009d",
+        "ParametricGroup": null,
+        "ParametricGroupId": null,
+        "PeriodsDefinition": "pdef-11",
+        "PropertiesGroup": "DefaultProperties",
+        "PropertiesGroupId": 3027,
+        "RegionGroup": "AllRegion",
+        "RegionGroupId": 3026,
+        "ScenarioGroup": "DemoS_009d",
+        "ScenarioGroupId": 3031,
+        "Solver": "cplex",
+        "SolverOptionFile": "BA121-7",
+        "UserName": ""
+    },
+    {
+        "CaseId": 395,
+        "CreatedOn": "2020-06-02 13:21",
+        "Description": "Demo Step 009 New IND and DH",
+        "EditedOn": "2020-06-02 13:21",
+        "EndingYear": "2050",
+        "FixResultFileName": "False",
+        "FixResultInfo": {
+            "WorkTimesFolderPath": null,
+            "GdxElasticDermands": {
+                "GdxSelectedFile": {
+                    "FileName": "",
+                    "FilePath": "",
+                    "IsSelected": false
+                },
+                "IsApplied": false
+            },
+            "GdxIre": {
+                "GdxSelectedFile": {
+                    "FileName": "",
+                    "FilePath": "",
+                    "IsSelected": false
+                },
+                "IsApplied": false,
+                "RadioSelection": 1
+            },
+            "GdxUseSolution": {
+                "FixYearsUpto": "",
+                "GdxSelectedFile": {
+                    "FileName": "",
+                    "FilePath": "",
+                    "IsSelected": false
+                },
+                "IsApplied": false,
+                "RadioSelection": 1
+            },
+            "IsApplyFixResult": false
+        },
+        "GAMSSourceFolder": "GAMS_SrcTIMES.v4",
+        "Name": "DemoS_009e",
+        "ParametricGroup": null,
+        "ParametricGroupId": null,
+        "PeriodsDefinition": "pdef-11",
+        "PropertiesGroup": "DefaultProperties",
+        "PropertiesGroupId": 3027,
+        "RegionGroup": "AllRegion",
+        "RegionGroupId": 3026,
+        "ScenarioGroup": "DemoS_009e",
+        "ScenarioGroupId": 3032,
+        "Solver": "cplex",
+        "SolverOptionFile": "BA121-7",
+        "UserName": ""
+    }
+]

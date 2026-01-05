@@ -10,6 +10,26 @@ VedaLang Source (.veda.yaml) → Compiler → VEDA Excel (.xlsx) → xl2times �
 
 ---
 
+## Terminology
+
+VedaLang uses precise terminology to avoid ambiguity:
+
+| Term | Definition |
+|------|------------|
+| **Scenario Parameter** | An atomic time-series or value assumption (e.g., CO2 price path, demand projection) |
+| **Category** | Logical grouping of scenario parameters: `demands`, `prices`, `policies`, `technology_assumptions`, `resource_availability`, `global_settings` |
+| **Case** | A named combination of scenario parameters for a specific model run (e.g., `baseline`, `ambitious`) |
+| **Study** | A collection of cases for comparison |
+
+**File naming convention:** `Scen_{case}_{category}.xlsx`
+- Example: `Scen_baseline_demands.xlsx`, `Scen_ambitious_policies.xlsx`
+
+This separation distinguishes between:
+- **Model architecture** (VT_* files): processes, commodities, topology
+- **Scenario instantiation** (Scen_* files): demands, prices, policies that instantiate the architecture
+
+---
+
 ## Two Ways to Use This Repository
 
 | Goal | You are a... | Start here |
@@ -39,10 +59,16 @@ cd vedalang
 uv sync
 
 # Validate a model
-uv run veda-dev check model.veda.yaml --from-vedalang
+uv run vedalang validate model.veda.yaml
+
+# Lint for heuristic issues
+uv run vedalang lint model.veda.yaml
+
+# Compile to Excel only
+uv run vedalang compile model.veda.yaml --out output/
 
 # Run full pipeline (VedaLang → Excel → DD → TIMES)
-uv run veda-dev pipeline model.veda.yaml --no-solver
+uv run vedalang-dev pipeline model.veda.yaml --no-solver
 ```
 
 ### Minimal Example
@@ -86,7 +112,7 @@ Extend the VedaLang DSL, improve the compiler, or discover new VEDA patterns.
 
 ```
 1. Prototype at TableIR level (raw YAML tables)
-2. Emit Excel: veda_emit_excel tables.yaml --out test.xlsx
+2. Emit Excel: vedalang-dev emit-excel tables.yaml --out test.xlsx
 3. Validate: xl2times test.xlsx --diagnostics-json diag.json
 4. If valid → lift pattern to VedaLang syntax
 5. If invalid → fix and retry
@@ -102,7 +128,7 @@ uv run pytest
 uv run ruff check .
 
 # Validate the mini_plant example
-uv run veda_check vedalang/examples/mini_plant.veda.yaml --from-vedalang
+uv run vedalang validate vedalang/examples/mini_plant.veda.yaml
 ```
 
 ---
@@ -149,10 +175,9 @@ veda-devtools/
 │   ├── schema/            # JSON Schema definitions
 │   └── examples/          # Example VedaLang models
 ├── tools/
-│   ├── veda_dev/          # Unified CLI (veda-dev)
-│   ├── veda_check/        # Validation tool
-│   ├── veda_emit_excel/   # TableIR → Excel emitter
-│   └── veda_run_times/    # GAMS/TIMES runner
+│   ├── vedalang_cli/      # User CLI (vedalang lint/compile/validate)
+│   ├── vedalang_dev_cli/  # Design agent CLI (vedalang-dev)
+│   └── emit_excel/        # TableIR → Excel emitter
 ├── xl2times/              # Local fork of xl2times (Excel → DD)
 ├── rules/                 # Pattern library
 ├── docs/

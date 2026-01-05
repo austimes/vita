@@ -55,8 +55,8 @@ class TestLoadVedaTagsSchemas:
         assert attr_field is not None
         assert attr_field.canonical_header == "attribute"
 
-    def test_allowed_columns_uses_canonical_names_only(self):
-        """allowed_columns contains only canonical names (use_name), no aliases."""
+    def test_allowed_columns_includes_canonical_and_aliases(self):
+        """allowed_columns contains canonical names and their aliases."""
         schemas = load_veda_tags_schemas(VEDA_TAGS_PATH)
         fi_t = schemas["fi_t"]
 
@@ -65,10 +65,9 @@ class TestLoadVedaTagsSchemas:
         assert "attribute" in fi_t.allowed_columns
         assert "process" in fi_t.allowed_columns  # canonical for techname
         assert "commodity" in fi_t.allowed_columns  # canonical for commname
-        # Should NOT have aliases
-        assert "parameter" not in fi_t.allowed_columns
-        assert "prmtr" not in fi_t.allowed_columns
-        assert "techname" not in fi_t.allowed_columns  # alias, not canonical
+        # Aliases ARE also allowed (xl2times accepts them)
+        assert "parameter" in fi_t.allowed_columns  # alias for attribute
+        assert "techname" in fi_t.allowed_columns  # alias for process
 
     def test_valid_values_extracted(self):
         """valid_values should be extracted from veda-tags.json."""
@@ -116,13 +115,18 @@ class TestManualLayouts:
         assert fi_t.layout.kind == "wide"
         assert "process" in fi_t.layout.index_fields
 
-    def test_fi_t_forbids_value_column(self):
-        """FI_T should forbid generic 'value' column."""
+    def test_fi_t_allows_value_with_attribute(self):
+        """FI_T should allow 'value' column when 'attribute' column is present.
+
+        This enables long-format attribute rows (e.g., ENV_ACT) within ~FI_T.
+        """
         schemas = get_all_schemas(VEDA_TAGS_PATH)
         fi_t = schemas["fi_t"]
 
-        assert fi_t.layout.allow_value_column is False
-        assert "value" in fi_t.forbidden_headers
+        # ~FI_T now allows value column for attribute-based rows
+        assert fi_t.layout.allow_value_column is True
+        assert "value" in fi_t.allowed_columns
+        assert "attribute" in fi_t.allowed_columns
 
     def test_fi_comm_layout_applied(self):
         """FI_COMM should have wide layout."""

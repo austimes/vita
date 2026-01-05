@@ -1,4 +1,4 @@
-"""CLI for veda-dev: Unified CLI for VedaLang Design Agent."""
+"""CLI for vedalang-dev: Unified CLI for VedaLang Design Agent."""
 
 import argparse
 import json
@@ -11,8 +11,8 @@ from dotenv import load_dotenv
 def main():
     load_dotenv()
     parser = argparse.ArgumentParser(
-        prog="veda-dev",
-        description="Unified CLI for VedaLang Design Agent",
+        prog="vedalang-dev",
+        description="VedaLang Design Agent CLI",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -227,6 +227,9 @@ def run_pipeline_command(args):
         print(f"Error: Input not found: {args.input}", file=sys.stderr)
         sys.exit(2)
 
+    # Suppress verbose output when JSON is requested (to keep stdout clean)
+    verbose = args.verbose and not args.json_output
+
     result = run_pipeline(
         input_path=args.input,
         input_kind=args.input_kind,
@@ -237,7 +240,7 @@ def run_pipeline_command(args):
         work_dir=args.work_dir,
         keep_workdir=args.keep_workdir,
         no_solver=args.no_solver,
-        verbose=args.verbose,
+        verbose=verbose,
     )
 
     if args.json_output:
@@ -377,7 +380,7 @@ def run_pattern_command(args):
             print(f"Pattern: {args.name}")
             print(json.dumps(pattern, indent=2))
     else:
-        print("Usage: veda-dev pattern {list|show} ...")
+        print("Usage: vedalang-dev pattern {list|show} ...")
         sys.exit(1)
 
 

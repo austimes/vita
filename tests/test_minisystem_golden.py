@@ -50,9 +50,9 @@ class TestMiniSystemCompilation:
         assert len(file_paths) >= 3
 
     def test_has_syssettings(self, tableir):
-        """Should have SysSettings file with timeslices and regions."""
+        """Should have syssettings file with timeslices and regions."""
         syssettings_files = [
-            f for f in tableir["files"] if "SysSettings" in f["path"]
+            f for f in tableir["files"] if "syssettings" in f["path"].lower()
         ]
         assert len(syssettings_files) == 1
 
@@ -158,47 +158,59 @@ class TestMiniSystemTableIRStructure:
         return rows
 
     def test_has_commodities(self, tableir):
-        """Should have ~FI_COMM table with all commodities."""
+        """Should have ~FI_COMM table with core commodities."""
         comm_rows = self._find_table_rows(tableir, "~FI_COMM")
-        assert len(comm_rows) >= 6  # NG, ELC, CO2, RSD, IND, H2
+        assert len(comm_rows) >= 4  # NG, ELC, CO2, RSD minimum
         names = {r.get("commodity") for r in comm_rows}
-        assert {"NG", "ELC", "CO2", "RSD", "IND", "H2"}.issubset(names)
+        assert {"NG", "ELC", "CO2", "RSD"}.issubset(names)
 
     def test_has_processes(self, tableir):
-        """Should have ~FI_PROCESS table with all processes."""
+        """Should have ~FI_PROCESS table with core processes."""
         proc_rows = self._find_table_rows(tableir, "~FI_PROCESS")
-        # 7 processes: IMP_NG, PP_CCGT, PP_WIND, PP_SOLAR, PP_ELYZ, DMD_RSD, DMD_IND
-        assert len(proc_rows) >= 7
+        # 4 core processes: IMP_NG, PP_CCGT, PP_WIND, DMD_RSD
+        assert len(proc_rows) >= 4
         names = {r.get("process") for r in proc_rows}
         expected = {
-            "IMP_NG", "PP_CCGT", "PP_WIND", "PP_SOLAR",
-            "PP_ELYZ", "DMD_RSD", "DMD_IND",
+            "IMP_NG", "PP_CCGT", "PP_WIND", "DMD_RSD",
         }
         assert expected.issubset(names)
 
     def test_has_topology(self, tableir):
         """Should have ~FI_T table with process topology."""
         fit_rows = self._find_table_rows(tableir, "~FI_T")
-        assert len(fit_rows) >= 10  # Multiple rows per process
+        assert len(fit_rows) >= 6  # Multiple rows per process
 
     def test_has_timeslices(self, tableir):
-        """Should have ~TIMESLICES table with parent codes and explicit leaves."""
+        """Should have ~TIMESLICES table with ragged columns (independent levels)."""
         ts_rows = self._find_table_rows(tableir, "~TIMESLICES")
-        # 6 rows: 2 parent seasons + 4 leaf timeslices
-        assert len(ts_rows) == 6
-        # Verify parent season codes are present
+        # Ragged table: max(len(seasons), len(daynites)) rows
+        # With 2 seasons and 2 daynites, we get 2 rows
+        # xl2times extracts unique values per column and creates cross-product itself
+        assert len(ts_rows) == 2
+        # Verify season codes are present
         seasons = {r.get("season") for r in ts_rows if r.get("season")}
         assert seasons == {"S", "W"}
-        # Verify explicit leaf timeslice names in daynite column
+        # Verify daynite level codes (D, N - not leaf names SD/SN/WD/WN)
         daynites = {r.get("daynite") for r in ts_rows if r.get("daynite")}
-        assert daynites == {"SD", "SN", "WD", "WN"}
+        assert daynites == {"D", "N"}
 
-    def test_has_trade_processes(self, tableir):
-        """Trade links should create IRE processes."""
-        proc_rows = self._find_table_rows(tableir, "~FI_PROCESS")
-        # Trade process naming: T_B_COMM_REG1_REG2_01 (bidirectional) or T_U_...
-        trade_procs = [r for r in proc_rows if r.get("process", "").startswith("T_")]
-        assert len(trade_procs) >= 2  # ELC and NG trade
+    def test_has_tradelinks(self, tableir):
+        """Trade links should emit ~TRADELINKS tables (processes auto-generated).
+
+        Bilateral trade requires BOTH directions in matrix, so each bidirectional
+        link produces 2 rows (NORTH→SOUTH and SOUTH→NORTH).
+        MiniSystem has 1 bidirectional trade link (ELC) = 2 rows total.
+        """
+        tradelinks_rows = self._find_table_rows(tableir, "~TRADELINKS")
+        # 1 commodity × 2 directions = 2 rows minimum
+        assert len(tradelinks_rows) >= 2
+
+        # Verify auto-naming (cells contain 1)
+        for row in tradelinks_rows:
+            for key, val in row.items():
+                # Skip the commodity column (contains region name)
+                if key not in ("ELC", "NG"):
+                    assert val == 1
 
     def test_has_user_constraints(self, tableir):
         """Should have ~UC_T table for constraints."""

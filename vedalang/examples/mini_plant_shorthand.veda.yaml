@@ -40,4 +40,5 @@ model:
       sets: [IMP]
       primary_commodity_group: NRGO
       output: NG          # Shorthand
+      efficiency: 1.0
       cost: 5.0

@@ -27,6 +27,7 @@ model:
       capacity_unit: GW
       outputs:
         - commodity: ELC
+      efficiency: 1.0
 
     - name: DEM_RSD
       description: Residential demand device

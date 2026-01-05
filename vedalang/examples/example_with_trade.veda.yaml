@@ -58,6 +58,7 @@ model:
       primary_commodity_group: NRGO
       outputs:
         - commodity: NG
+      efficiency: 1.0
       cost: 5.0
     
     - name: DEM_RSD

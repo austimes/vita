@@ -1,0 +1,83 @@
+[
+    {
+        "SavedGroupId": 3008,
+        "GroupName": "AllRegion",
+        "GroupType": "Region",
+        "Settings": "[\"REG1\"]",
+        "CreatedOn": "2023-10-12 10:05",
+        "DisplayCreatedOn": "2023-10-12 10:05",
+        "UserName": ""
+    },
+    {
+        "SavedGroupId": 3009,
+        "GroupName": "DefaultProperties",
+        "GroupType": "Properties",
+        "Settings": "{\"OptCa\": null, \"OptCr\": null, \"Damage\": 2, \"LimCol\": 0, \"LimRow\": 0, \"Oblong\": true, \"ResLim\": 50000, \"Retire\": false, \"IterLim\": 999999, \"SolPrint\": false, \"Uncertainty\": 0, \"RunInStepsOf\": 0, \"ClimateModule\": false, \"LinearVarCost\": true, \"LevelizedCosts\": 3, \"GamsOptionBratio\": \"\", \"DiscreteInvestment\": false, \"DoExtendedQaChecks\": false, \"GeneralEquilibrium\": 3, \"MidYearDiscounting\": true, \"ObjFunctionVariant\": 0, \"ShiftDiscountingBy\": 0, \"Co2CalibrationAtBoh\": false, \"UseSlackVariablesInUc\": false, \"DiscreteUnitCommitment\": false, \"EndoGenousTechLearning\": false, \"WriteBPriceforElastDem\": false, \"SaveSolutionInformation\": false, \"TsForFlowReportingTypes\": 0, \"UseLastRunAsStartingPoint\": false, \"ActivateSensitivityAnalysis\": false}",
+        "CreatedOn": "2023-10-12 10:05",
+        "DisplayCreatedOn": "2023-10-12 10:05",
+        "UserName": ""
+    },
+    {
+        "SavedGroupId": 3010,
+        "GroupName": "DemoS_011",
+        "GroupType": "Scenario",
+        "Settings": "[{\"Name\": \"BASE\", \"Checked\": true, \"RowOrder\": 0, \"ShortName\": \"B\"}, {\"Name\": \"NewTechs\", \"Checked\": true, \"RowOrder\": 1, \"ShortName\": \"SR\"}, {\"Name\": \"TRADE_PARAM\", \"Checked\": true, \"RowOrder\": 2, \"ShortName\": \"TS\"}, {\"Name\": \"DEM_Ref\", \"Checked\": true, \"RowOrder\": 3, \"ShortName\": \"DS\"}, {\"Name\": \"SysSettings\", \"Checked\": true, \"RowOrder\": 4, \"ShortName\": \"SS\"}, {\"Name\": \"Peak_RSV\", \"Checked\": true, \"RowOrder\": 5, \"ShortName\": \"RS\"}, {\"Name\": \"Refinery\", \"Checked\": true, \"RowOrder\": 6, \"ShortName\": \"RS\"}, {\"Name\": \"DemProj_DTCAR\", \"Checked\": true, \"RowOrder\": 7, \"ShortName\": \"RS\"}, {\"Name\": \"UC_NUC_MaxCAP\", \"Checked\": true, \"RowOrder\": 8, \"ShortName\": \"RS\"}, {\"Name\": \"BOUNDS-UC_WSETS\", \"Checked\": true, \"RowOrder\": 9, \"ShortName\": \"RS\"}, {\"Name\": \"ELC_CO2_BOUND\", \"Checked\": false, \"RowOrder\": 10, \"ShortName\": \"RS\"}, {\"Name\": \"IND_NewRES\", \"Checked\": false, \"RowOrder\": 11, \"ShortName\": \"RS\"}, {\"Name\": \"New-IND\", \"Checked\": false, \"RowOrder\": 12, \"ShortName\": \"SR\"}, {\"Name\": \"TRA_CO2_BOUND\", \"Checked\": false, \"RowOrder\": 13, \"ShortName\": \"RS\"}, {\"Name\": \"UC_CO2BND\", \"Checked\": false, \"RowOrder\": 14, \"ShortName\": \"RS\"}, {\"Name\": \"UC_DH_MinProd\", \"Checked\": false, \"RowOrder\": 15, \"ShortName\": \"RS\"}, {\"Name\": \"UC_Growth\", \"Checked\": false, \"RowOrder\": 16, \"ShortName\": \"RS\"}, {\"Name\": \"ElasticDem\", \"Checked\": false, \"RowOrder\": 17, \"ShortName\": \"RS\"}, {\"Name\": \"New-CHP-DH\", \"Checked\": false, \"RowOrder\": 18, \"ShortName\": \"SR\"}]",
+        "CreatedOn": "2020-06-02 21:02",
+        "DisplayCreatedOn": "2020-06-02 21:02",
+        "UserName": ""
+    },
+    {
+        "SavedGroupId": 3011,
+        "GroupName": "DemoS_011a",
+        "GroupType": "Scenario",
+        "Settings": "[{\"Name\": \"BASE\", \"Checked\": \"true\", \"RowOrder\": \"1\", \"ShortName\": \"B\"}, {\"Name\": \"NewTechs\", \"Checked\": \"true\", \"RowOrder\": \"2\", \"ShortName\": \"SR\"}, {\"Name\": \"TRADE_PARAM\", \"Checked\": \"true\", \"RowOrder\": \"5\", \"ShortName\": \"TS\"}, {\"Name\": \"DEM_Ref\", \"Checked\": \"true\", \"RowOrder\": \"6\", \"ShortName\": \"DS\"}, {\"Name\": \"SysSettings\", \"Checked\": \"true\", \"RowOrder\": \"7\", \"ShortName\": \"SS\"}, {\"Name\": \"Peak_RSV\", \"Checked\": \"true\", \"RowOrder\": \"8\", \"ShortName\": \"RS\"}, {\"Name\": \"Refinery\", \"Checked\": \"true\", \"RowOrder\": \"9\", \"ShortName\": \"RS\"}, {\"Name\": \"DemProj_DTCAR\", \"Checked\": \"true\", \"RowOrder\": \"10\", \"ShortName\": \"RS\"}, {\"Name\": \"UC_NUC_MaxCAP\", \"Checked\": \"true\", \"RowOrder\": \"11\", \"ShortName\": \"RS\"}, {\"Name\": \"BOUNDS-UC_WSETS\", \"Checked\": \"true\", \"RowOrder\": \"12\", \"ShortName\": \"RS\"}, {\"Name\": \"ELC_CO2_BOUND\", \"Checked\": \"true\", \"RowOrder\": \"13\", \"ShortName\": \"RS\"}, {\"Name\": \"TRA_CO2_BOUND\", \"Checked\": \"true\", \"RowOrder\": \"14\", \"ShortName\": \"RS\"}, {\"Name\": \"New-CHP-DH\", \"Checked\": \"false\", \"RowOrder\": \"15\", \"ShortName\": \"SR\"}, {\"Name\": \"New-IND\", \"Checked\": \"false\", \"RowOrder\": \"15\", \"ShortName\": \"SR\"}, {\"Name\": \"IND_NewRES\", \"Checked\": \"false\", \"RowOrder\": \"15\", \"ShortName\": \"RS\"}, {\"Name\": \"UC_DH_MinProd\", \"Checked\": \"false\", \"RowOrder\": \"15\", \"ShortName\": \"RS\"}, {\"Name\": \"ElasticDem\", \"Checked\": \"false\", \"RowOrder\": \"15\", \"ShortName\": \"RS\"}, {\"Name\": \"UC_CO2BND\", \"Checked\": \"false\", \"RowOrder\": \"15\", \"ShortName\": \"RS\"}, {\"Name\": \"UC_Growth\", \"Checked\": \"false\", \"RowOrder\": \"15\", \"ShortName\": \"RS\"}]",
+        "CreatedOn": "2017-07-06 14:39",
+        "DisplayCreatedOn": "2017-07-06 14:39",
+        "UserName": ""
+    },
+    {
+        "SavedGroupId": 3007,
+        "GroupName": "AllScenario",
+        "GroupType": "Scenario",
+        "Settings": "[{\"Name\": \"BASE\", \"Checked\": true, \"RowOrder\": 1, \"ShortName\": \"B\", \"FileStatus\": \"NotImported\", \"RecordCount\": 105}, {\"Name\": \"New-CHP-DH\", \"Checked\": false, \"RowOrder\": 2, \"ShortName\": \"SR\", \"FileStatus\": \"NotImported\", \"RecordCount\": 0}, {\"Name\": \"New-IND\", \"Checked\": false, \"RowOrder\": 3, \"ShortName\": \"SR\", \"FileStatus\": \"NotImported\", \"RecordCount\": 0}, {\"Name\": \"NewTechs\", \"Checked\": false, \"RowOrder\": 4, \"ShortName\": \"SR\", \"FileStatus\": \"NotImported\", \"RecordCount\": 0}, {\"Name\": \"SysSettings\", \"Checked\": true, \"RowOrder\": 5, \"ShortName\": \"SS\", \"FileStatus\": \"Consistent\", \"RecordCount\": 10}, {\"Name\": \"DEM_Ref\", \"Checked\": false, \"RowOrder\": 6, \"ShortName\": \"DS\", \"FileStatus\": \"NotImported\", \"RecordCount\": 0}, {\"Name\": \"TRADE_PARAM\", \"Checked\": false, \"RowOrder\": 7, \"ShortName\": \"TS\", \"FileStatus\": \"NotImported\", \"RecordCount\": 0}, {\"Name\": \"BOUNDS-UC_WSETS\", \"Checked\": false, \"RowOrder\": 8, \"ShortName\": \"RS\", \"FileStatus\": \"NotImported\", \"RecordCount\": 0}, {\"Name\": \"DemProj_DTCAR\", \"Checked\": false, \"RowOrder\": 9, \"ShortName\": \"RS\", \"FileStatus\": \"NotImported\", \"RecordCount\": 0}, {\"Name\": \"ELC_CO2_BOUND\", \"Checked\": false, \"RowOrder\": 10, \"ShortName\": \"RS\", \"FileStatus\": \"NotImported\", \"RecordCount\": 0}, {\"Name\": \"ElasticDem\", \"Checked\": false, \"RowOrder\": 11, \"ShortName\": \"RS\", \"FileStatus\": \"NotImported\", \"RecordCount\": 0}, {\"Name\": \"IND_NewRES\", \"Checked\": false, \"RowOrder\": 12, \"ShortName\": \"RS\", \"FileStatus\": \"NotImported\", \"RecordCount\": 0}, {\"Name\": \"Peak_RSV\", \"Checked\": false, \"RowOrder\": 13, \"ShortName\": \"RS\", \"FileStatus\": \"NotImported\", \"RecordCount\": 0}, {\"Name\": \"Refinery\", \"Checked\": false, \"RowOrder\": 14, \"ShortName\": \"RS\", \"FileStatus\": \"NotImported\", \"RecordCount\": 0}, {\"Name\": \"TRA_CO2_BOUND\", \"Checked\": false, \"RowOrder\": 15, \"ShortName\": \"RS\", \"FileStatus\": \"NotImported\", \"RecordCount\": 0}, {\"Name\": \"UC_CO2BND\", \"Checked\": false, \"RowOrder\": 16, \"ShortName\": \"RS\", \"FileStatus\": \"NotImported\", \"RecordCount\": 0}, {\"Name\": \"UC_DH_MinProd\", \"Checked\": false, \"RowOrder\": 17, \"ShortName\": \"RS\", \"FileStatus\": \"NotImported\", \"RecordCount\": 0}, {\"Name\": \"UC_Growth\", \"Checked\": false, \"RowOrder\": 18, \"ShortName\": \"RS\", \"FileStatus\": \"NotImported\", \"RecordCount\": 0}, {\"Name\": \"UC_NUC_MaxCAP\", \"Checked\": false, \"RowOrder\": 19, \"ShortName\": \"RS\", \"FileStatus\": \"NotImported\", \"RecordCount\": 0}]",
+        "CreatedOn": "2023-10-12 10:05",
+        "DisplayCreatedOn": "2023-10-12 10:05",
+        "UserName": ""
+    },
+    {
+        "SavedGroupId": 3012,
+        "GroupName": "DemoS_011b",
+        "GroupType": "Scenario",
+        "Settings": "[{\"Name\": \"BASE\", \"Checked\": \"true\", \"RowOrder\": \"1\", \"ShortName\": \"B\"}, {\"Name\": \"NewTechs\", \"Checked\": \"true\", \"RowOrder\": \"2\", \"ShortName\": \"SR\"}, {\"Name\": \"TRADE_PARAM\", \"Checked\": \"true\", \"RowOrder\": \"5\", \"ShortName\": \"TS\"}, {\"Name\": \"DEM_Ref\", \"Checked\": \"true\", \"RowOrder\": \"6\", \"ShortName\": \"DS\"}, {\"Name\": \"SysSettings\", \"Checked\": \"true\", \"RowOrder\": \"7\", \"ShortName\": \"SS\"}, {\"Name\": \"Peak_RSV\", \"Checked\": \"true\", \"RowOrder\": \"8\", \"ShortName\": \"RS\"}, {\"Name\": \"Refinery\", \"Checked\": \"true\", \"RowOrder\": \"9\", \"ShortName\": \"RS\"}, {\"Name\": \"DemProj_DTCAR\", \"Checked\": \"true\", \"RowOrder\": \"10\", \"ShortName\": \"RS\"}, {\"Name\": \"UC_NUC_MaxCAP\", \"Checked\": \"true\", \"RowOrder\": \"11\", \"ShortName\": \"RS\"}, {\"Name\": \"BOUNDS-UC_WSETS\", \"Checked\": \"true\", \"RowOrder\": \"12\", \"ShortName\": \"RS\"}, {\"Name\": \"ELC_CO2_BOUND\", \"Checked\": \"true\", \"RowOrder\": \"13\", \"ShortName\": \"RS\"}, {\"Name\": \"TRA_CO2_BOUND\", \"Checked\": \"true\", \"RowOrder\": \"14\", \"ShortName\": \"RS\"}, {\"Name\": \"ElasticDem\", \"Checked\": \"true\", \"RowOrder\": \"15\", \"ShortName\": \"RS\"}, {\"Name\": \"New-IND\", \"Checked\": \"false\", \"RowOrder\": \"16\", \"ShortName\": \"SR\"}, {\"Name\": \"New-CHP-DH\", \"Checked\": \"false\", \"RowOrder\": \"16\", \"ShortName\": \"SR\"}, {\"Name\": \"IND_NewRES\", \"Checked\": \"false\", \"RowOrder\": \"16\", \"ShortName\": \"RS\"}, {\"Name\": \"UC_CO2BND\", \"Checked\": \"false\", \"RowOrder\": \"16\", \"ShortName\": \"RS\"}, {\"Name\": \"UC_DH_MinProd\", \"Checked\": \"false\", \"RowOrder\": \"16\", \"ShortName\": \"RS\"}, {\"Name\": \"UC_Growth\", \"Checked\": \"false\", \"RowOrder\": \"16\", \"ShortName\": \"RS\"}]",
+        "CreatedOn": "2017-07-06 14:39",
+        "DisplayCreatedOn": "2017-07-06 14:39",
+        "UserName": ""
+    },
+    {
+        "SavedGroupId": 3013,
+        "GroupName": "DemoS_011c",
+        "GroupType": "Scenario",
+        "Settings": "[{\"Name\": \"BASE\", \"Checked\": \"true\", \"RowOrder\": \"1\", \"ShortName\": \"B\"}, {\"Name\": \"NewTechs\", \"Checked\": \"true\", \"RowOrder\": \"2\", \"ShortName\": \"SR\"}, {\"Name\": \"TRADE_PARAM\", \"Checked\": \"true\", \"RowOrder\": \"5\", \"ShortName\": \"TS\"}, {\"Name\": \"DEM_Ref\", \"Checked\": \"true\", \"RowOrder\": \"6\", \"ShortName\": \"DS\"}, {\"Name\": \"SysSettings\", \"Checked\": \"true\", \"RowOrder\": \"7\", \"ShortName\": \"SS\"}, {\"Name\": \"Peak_RSV\", \"Checked\": \"true\", \"RowOrder\": \"8\", \"ShortName\": \"RS\"}, {\"Name\": \"Refinery\", \"Checked\": \"true\", \"RowOrder\": \"9\", \"ShortName\": \"RS\"}, {\"Name\": \"DemProj_DTCAR\", \"Checked\": \"true\", \"RowOrder\": \"10\", \"ShortName\": \"RS\"}, {\"Name\": \"UC_NUC_MaxCAP\", \"Checked\": \"true\", \"RowOrder\": \"11\", \"ShortName\": \"RS\"}, {\"Name\": \"BOUNDS-UC_WSETS\", \"Checked\": \"true\", \"RowOrder\": \"12\", \"ShortName\": \"RS\"}, {\"Name\": \"ELC_CO2_BOUND\", \"Checked\": \"true\", \"RowOrder\": \"13\", \"ShortName\": \"RS\"}, {\"Name\": \"TRA_CO2_BOUND\", \"Checked\": \"true\", \"RowOrder\": \"14\", \"ShortName\": \"RS\"}, {\"Name\": \"ElasticDem\", \"Checked\": \"true\", \"RowOrder\": \"15\", \"ShortName\": \"RS\"}, {\"Name\": \"UC_CO2BND\", \"Checked\": \"true\", \"RowOrder\": \"16\", \"ShortName\": \"RS\"}, {\"Name\": \"UC_Growth\", \"Checked\": \"true\", \"RowOrder\": \"17\", \"ShortName\": \"RS\"}, {\"Name\": \"New-IND\", \"Checked\": \"false\", \"RowOrder\": \"18\", \"ShortName\": \"SR\"}, {\"Name\": \"New-CHP-DH\", \"Checked\": \"false\", \"RowOrder\": \"18\", \"ShortName\": \"SR\"}, {\"Name\": \"UC_DH_MinProd\", \"Checked\": \"false\", \"RowOrder\": \"18\", \"ShortName\": \"RS\"}, {\"Name\": \"IND_NewRES\", \"Checked\": \"false\", \"RowOrder\": \"18\", \"ShortName\": \"RS\"}]",
+        "CreatedOn": "2017-07-06 14:40",
+        "DisplayCreatedOn": "2017-07-06 14:40",
+        "UserName": ""
+    },
+    {
+        "SavedGroupId": 3014,
+        "GroupName": "DemoS_011d",
+        "GroupType": "Scenario",
+        "Settings": "[{\"Name\": \"BASE\", \"Checked\": \"true\", \"RowOrder\": \"1\", \"ShortName\": \"B\"}, {\"Name\": \"NewTechs\", \"Checked\": \"true\", \"RowOrder\": \"2\", \"ShortName\": \"SR\"}, {\"Name\": \"New-IND\", \"Checked\": \"true\", \"RowOrder\": \"3\", \"ShortName\": \"SR\"}, {\"Name\": \"TRADE_PARAM\", \"Checked\": \"true\", \"RowOrder\": \"5\", \"ShortName\": \"TS\"}, {\"Name\": \"DEM_Ref\", \"Checked\": \"true\", \"RowOrder\": \"6\", \"ShortName\": \"DS\"}, {\"Name\": \"SysSettings\", \"Checked\": \"true\", \"RowOrder\": \"7\", \"ShortName\": \"SS\"}, {\"Name\": \"Peak_RSV\", \"Checked\": \"true\", \"RowOrder\": \"8\", \"ShortName\": \"RS\"}, {\"Name\": \"Refinery\", \"Checked\": \"true\", \"RowOrder\": \"9\", \"ShortName\": \"RS\"}, {\"Name\": \"DemProj_DTCAR\", \"Checked\": \"true\", \"RowOrder\": \"10\", \"ShortName\": \"RS\"}, {\"Name\": \"UC_NUC_MaxCAP\", \"Checked\": \"true\", \"RowOrder\": \"11\", \"ShortName\": \"RS\"}, {\"Name\": \"BOUNDS-UC_WSETS\", \"Checked\": \"true\", \"RowOrder\": \"12\", \"ShortName\": \"RS\"}, {\"Name\": \"ELC_CO2_BOUND\", \"Checked\": \"true\", \"RowOrder\": \"13\", \"ShortName\": \"RS\"}, {\"Name\": \"TRA_CO2_BOUND\", \"Checked\": \"true\", \"RowOrder\": \"14\", \"ShortName\": \"RS\"}, {\"Name\": \"ElasticDem\", \"Checked\": \"true\", \"RowOrder\": \"15\", \"ShortName\": \"RS\"}, {\"Name\": \"UC_CO2BND\", \"Checked\": \"true\", \"RowOrder\": \"16\", \"ShortName\": \"RS\"}, {\"Name\": \"UC_Growth\", \"Checked\": \"true\", \"RowOrder\": \"17\", \"ShortName\": \"RS\"}, {\"Name\": \"IND_NewRES\", \"Checked\": \"true\", \"RowOrder\": \"18\", \"ShortName\": \"RS\"}, {\"Name\": \"New-CHP-DH\", \"Checked\": \"false\", \"RowOrder\": \"19\", \"ShortName\": \"SR\"}, {\"Name\": \"UC_DH_MinProd\", \"Checked\": \"false\", \"RowOrder\": \"19\", \"ShortName\": \"RS\"}]",
+        "CreatedOn": "2017-07-06 14:40",
+        "DisplayCreatedOn": "2017-07-06 14:40",
+        "UserName": ""
+    },
+    {
+        "SavedGroupId": 3015,
+        "GroupName": "DemoS_011e",
+        "GroupType": "Scenario",
+        "Settings": "[{\"Name\": \"BASE\", \"Checked\": \"true\", \"RowOrder\": \"1\", \"ShortName\": \"B\"}, {\"Name\": \"NewTechs\", \"Checked\": \"true\", \"RowOrder\": \"2\", \"ShortName\": \"SR\"}, {\"Name\": \"New-IND\", \"Checked\": \"true\", \"RowOrder\": \"3\", \"ShortName\": \"SR\"}, {\"Name\": \"New-CHP-DH\", \"Checked\": \"true\", \"RowOrder\": \"4\", \"ShortName\": \"SR\"}, {\"Name\": \"TRADE_PARAM\", \"Checked\": \"true\", \"RowOrder\": \"5\", \"ShortName\": \"TS\"}, {\"Name\": \"DEM_Ref\", \"Checked\": \"true\", \"RowOrder\": \"6\", \"ShortName\": \"DS\"}, {\"Name\": \"SysSettings\", \"Checked\": \"true\", \"RowOrder\": \"7\", \"ShortName\": \"SS\"}, {\"Name\": \"Peak_RSV\", \"Checked\": \"true\", \"RowOrder\": \"8\", \"ShortName\": \"RS\"}, {\"Name\": \"Refinery\", \"Checked\": \"true\", \"RowOrder\": \"9\", \"ShortName\": \"RS\"}, {\"Name\": \"DemProj_DTCAR\", \"Checked\": \"true\", \"RowOrder\": \"10\", \"ShortName\": \"RS\"}, {\"Name\": \"UC_NUC_MaxCAP\", \"Checked\": \"true\", \"RowOrder\": \"11\", \"ShortName\": \"RS\"}, {\"Name\": \"BOUNDS-UC_WSETS\", \"Checked\": \"true\", \"RowOrder\": \"12\", \"ShortName\": \"RS\"}, {\"Name\": \"ELC_CO2_BOUND\", \"Checked\": \"true\", \"RowOrder\": \"13\", \"ShortName\": \"RS\"}, {\"Name\": \"TRA_CO2_BOUND\", \"Checked\": \"true\", \"RowOrder\": \"14\", \"ShortName\": \"RS\"}, {\"Name\": \"ElasticDem\", \"Checked\": \"true\", \"RowOrder\": \"15\", \"ShortName\": \"RS\"}, {\"Name\": \"UC_CO2BND\", \"Checked\": \"true\", \"RowOrder\": \"16\", \"ShortName\": \"RS\"}, {\"Name\": \"UC_Growth\", \"Checked\": \"true\", \"RowOrder\": \"17\", \"ShortName\": \"RS\"}, {\"Name\": \"IND_NewRES\", \"Checked\": \"true\", \"RowOrder\": \"18\", \"ShortName\": \"RS\"}, {\"Name\": \"UC_DH_MinProd\", \"Checked\": \"true\", \"RowOrder\": \"19\", \"ShortName\": \"RS\"}]",
+        "CreatedOn": "2017-07-06 14:40",
+        "DisplayCreatedOn": "2017-07-06 14:40",
+        "UserName": ""
+    }
+]

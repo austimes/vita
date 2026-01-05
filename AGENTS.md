@@ -16,7 +16,7 @@ This repository serves **two distinct AI personas** — understanding this disti
 An AI agent that **uses VedaLang** to create `.veda.yaml` models for energy system analysis. This agent:
 - Reads the VedaLang schema and examples
 - Writes valid VedaLang source files
-- Uses `veda_check` to validate models
+- Uses `vedalang lint` and `vedalang validate` to check models
 - Does NOT modify the language, compiler, or schema
 
 **User agent documentation:**
@@ -78,6 +78,29 @@ Build a **safer, typed DSL** that compiles to VEDA tables — analogous to how T
 
 VEDA Excel tables become a **compiled artifact**, not the source. xl2times validates the compiled output.
 
+## Terminology
+
+VedaLang uses precise terminology to avoid ambiguity in the VEDA ecosystem:
+
+| Term | Definition |
+|------|------------|
+| **Scenario Parameter** | An atomic time-series or value assumption (e.g., CO2 price path, demand projection) |
+| **Category** | Logical grouping of scenario parameters: `demands`, `prices`, `policies`, `technology_assumptions`, `resource_availability`, `global_settings` |
+| **Case** | A named combination of scenario parameters for a specific model run (e.g., `baseline`, `ambitious`) |
+| **Study** | A collection of cases for comparison |
+
+**Key distinctions:**
+- **Model architecture** (VT_* files): processes, commodities, topology — the Reference Energy System
+- **Scenario instantiation** (Scen_{case}_{category}.xlsx): demands, prices, policies that instantiate the RES
+
+**File naming convention:** `Scen_{case}_{category}.xlsx`
+- Example: `Scen_baseline_demands.xlsx`, `Scen_ambitious_policies.xlsx`
+
+This terminology maps to VEDA concepts:
+- "Scenario file" (Scen_*.xlsx) → contains scenario parameters grouped by case and category
+- "High-level scenario" → **case** (a specific combination of scenario parameters)
+- "Study" → collection of cases for comparison
+
 ## Architecture Overview
 
 ```
@@ -95,7 +118,7 @@ Typed VedaLang    VEDA Excel (.xlsx)
                       ▼
                TIMES DD files + Diagnostics
                       │
-                      │  (5) veda_run_times
+                      │  (5) vedalang-dev run-times
                       ▼
                GAMS/TIMES Solution (.gdx)
 ```
@@ -109,17 +132,17 @@ Tools needed for an agent to **design VedaLang itself**:
 | Order | Tool | Purpose |
 |-------|------|---------|
 | **T1** | `xl2times` + JSON outputs | Validation oracle — "Is this valid VEDA?" |
-| **T2** | `veda_emit_excel` | TableIR → Excel emitter (test VEDA patterns) |
+| **T2** | `vedalang-dev emit-excel` | TableIR → Excel emitter (test VEDA patterns) |
 | **T3** | `vedalang` compiler | VedaLang → TableIR → Excel |
-| **T4** | `veda_check` | Orchestration wrapper with unified diagnostics |
-| **T5** | `veda_run_times` | Run DD files through GAMS/TIMES solver |
+| **T4** | `vedalang validate` | Orchestration wrapper with unified diagnostics |
+| **T5** | `vedalang-dev run-times` | Run DD files through GAMS/TIMES solver |
 
 ## Key Principle: Agent-Designed Language
 
 The goal is for an **AI agent to iteratively design VedaLang** using feedback tools:
 
 1. **xl2times validation** — "Did I produce valid VEDA tables?"
-2. **veda_check** — Unified lint + compile + validate feedback
+2. **vedalang validate** — Unified lint + compile + validate feedback
 3. **Decision heuristics** — Mapping physical concepts → VEDA table patterns
 
 We are NOT porting legacy models. This is for new model development.
@@ -152,9 +175,9 @@ veda-devtools/
 │   ├── compiler/                # VedaLang → TableIR
 │   └── examples/                # Example VedaLang sources
 ├── tools/
-│   ├── veda_check/              # Unified validation CLI
-│   ├── veda_emit_excel/         # TableIR → Excel emitter
-│   └── veda_run_times/          # GAMS/TIMES runner
+│   ├── vedalang_cli/            # User CLI (vedalang lint/compile/validate)
+│   ├── vedalang_dev_cli/        # Design agent CLI (vedalang-dev)
+│   └── emit_excel/              # TableIR → Excel emitter
 ├── rules/
 │   ├── patterns.yaml            # Concept → VedaLang templates
 │   ├── decision_tree.yaml       # Intent routing
@@ -168,29 +191,29 @@ veda-devtools/
 
 The Design Agent has access to the following CLI tools:
 
-### Primary Tool: `veda-dev` (Design Agent Hub)
+### Primary Tool: `vedalang-dev` (Design Agent Hub)
 
 The unified CLI for VedaLang design iteration. Use this for most workflows.
 
 ```bash
 # Full pipeline: VedaLang → TableIR → Excel → DD (preferred workflow)
-veda-dev pipeline model.veda.yaml --no-solver --json
+vedalang-dev pipeline model.veda.yaml --no-solver --json
 
 # Full pipeline with TIMES solver
-veda-dev pipeline model.veda.yaml --times-src ~/TIMES_model --case base --json
+vedalang-dev pipeline model.veda.yaml --times-src ~/TIMES_model --case base --json
 
 # Validate VedaLang source
-veda-dev check model.veda.yaml --json
+vedalang-dev check model.veda.yaml --json
 
 # Emit Excel from TableIR (for pattern experimentation)
-veda-dev emit-excel tables.yaml --out output/
+vedalang-dev emit-excel tables.yaml --out output/
 
 # Run TIMES solver on DD files
-veda-dev run-times dd_dir/ --times-src ~/TIMES_model --json
+vedalang-dev run-times dd_dir/ --times-src ~/TIMES_model --json
 
 # Pattern library utilities
-veda-dev pattern list --json
-veda-dev pattern show thermal_plant --json
+vedalang-dev pattern list --json
+vedalang-dev pattern show thermal_plant --json
 ```
 
 **Key flags:**
@@ -287,7 +310,7 @@ The agent discovers and refines these heuristics through experimentation.
 ## Notes for AI Agents
 
 - Excel is OUTPUT, not source — never edit Excel directly
-- Always validate through `veda_check` after generating tables
+- Always validate through `vedalang validate` after generating tables
 - VedaLang schema is evolving — propose improvements via schema changes
 - Decision heuristics are learned, not hardcoded
 - TableIR is your experimentation layer before committing to VedaLang syntax
@@ -305,7 +328,7 @@ The agent iteratively designs VedaLang through a structured feedback loop:
 │     - Low friction experimentation                          │
 ├─────────────────────────────────────────────────────────────┤
 │  2. Emit Excel                                               │
-│     - veda_emit_excel tables.yaml --out test.xlsx           │
+│     - vedalang-dev emit-excel tables.yaml --out test.xlsx   │
 ├─────────────────────────────────────────────────────────────┤
 │  3. Validate with xl2times                                   │
 │     - xl2times test.xlsx --diagnostics-json diag.json       │
@@ -317,13 +340,13 @@ The agent iteratively designs VedaLang through a structured feedback loop:
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**Preferred workflow:** Use `veda_check` for the full pipeline:
+**Preferred workflow:** Use `vedalang validate` for the full pipeline:
 ```bash
 # Validate VedaLang source end-to-end
-uv run veda_check vedalang/examples/mini_plant.veda.yaml --from-vedalang
+uv run vedalang validate vedalang/examples/mini_plant.veda.yaml
 
 # Validate TableIR directly
-uv run veda_check tables.yaml --from-tableir
+uv run vedalang-dev validate-tableir tables.yaml
 ```
 
 ---
@@ -340,8 +363,8 @@ uv run veda_check tables.yaml --from-tableir
 
 ### P0: Validate Toolchain (DONE)
 - ✅ `vedalang compile` works
-- ✅ `veda_emit_excel` emits valid Excel
-- ✅ `veda_check` orchestrates pipeline
+- ✅ `vedalang-dev emit-excel` emits valid Excel
+- ✅ `vedalang validate` orchestrates pipeline
 - ✅ xl2times emits structured diagnostics (not crashes)
 - ✅ `mini_plant.veda.yaml` passes VedaLang compilation
 
@@ -424,6 +447,40 @@ cp failing_input.yaml tests/failures/type_a_missing_column.yaml
    - For Type B: documents the gap (skip with reason)
    - For Type C: expects correct behavior after fix
 
+### Heuristics-Catchable Issues
+
+When debugging reveals a **modeling pattern that causes infeasibility** (or other solver failures), create a `bd` issue to track adding a pre-compilation heuristic check:
+
+```bash
+# Create issue for new heuristic
+bd create "H0XX: <descriptive name>" --label heuristics
+
+# Include in description:
+# 1. The modeling pattern that causes the problem
+# 2. Why it causes infeasibility/errors
+# 3. What the heuristic should check
+# 4. Example from the model where it was discovered
+```
+
+**Current heuristics** (in `vedalang/heuristics/linter.py`):
+
+| Code | Name | What it catches |
+|------|------|-----------------|
+| H001 | FixedNewCapShortLife | Fixed ncap_bound with lifetime < horizon |
+| H002 | DemandDeviceNoStock | Demand devices without stock/capacity |
+| H003 | BaseYearCapacityAdequacy | Insufficient base year capacity for demand |
+
+**When to add a new heuristic:**
+- Pattern reliably causes solver infeasibility
+- Can be detected from VedaLang AST (before Excel/DD generation)
+- Provides actionable guidance to fix the issue
+
+**Implementation:**
+1. Add rule class in `vedalang/heuristics/linter.py`
+2. Register in `ALL_RULES` list
+3. Add test in `tests/test_heuristics.py`
+4. Close the tracking issue
+
 ---
 
 ## Guardrails
@@ -458,7 +515,7 @@ uv run pytest tests/
 uv run ruff check .
 
 # Full validation
-uv run veda_check vedalang/examples/mini_plant.veda.yaml --from-vedalang
+uv run vedalang validate vedalang/examples/mini_plant.veda.yaml
 ```
 
 ---

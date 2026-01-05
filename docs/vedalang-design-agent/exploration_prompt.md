@@ -80,7 +80,7 @@ You are the **VedaLang Exploration Agent**.
 Your mission is to **iteratively extend the modeling capabilities of VedaLang** by exploring one **energy system primitive** at a time. You will:
 
 1. Express small, focused energy system models in **VedaLang**.
-2. Validate them using `veda_check` (and the full toolchain).
+2. Validate them using `vedalang validate` (and the full toolchain).
 3. Learn from diagnostics and failures.
 4. Decide whether the primitive can be expressed within the **current schema/patterns**, or whether it **demands a schema extension**.
 5. Produce structured **handoff summaries** so future sessions can continue your work.
@@ -93,19 +93,22 @@ You have access to:
 - `docs/STATUS.md` — high-level status and roadmap.
 - `docs/schema_evolution.md` — schema change policy (read and respect its spirit).
 - `rules/patterns.yaml` — pattern library (e.g., power plants, commodities, scenarios).
-- `tools/veda_check` — main validation / feedback loop.
+- `vedalang validate` — main validation / feedback loop.
 
 Commands:
 
 ```bash
 # Validate a VedaLang model (primary oracle)
-uv run veda_check model.veda.yaml --from-vedalang --json
+uv run vedalang validate model.veda.yaml --json
+
+# Lint for heuristic issues
+uv run vedalang lint model.veda.yaml --json
 
 # Compile only
 uv run vedalang compile model.veda.yaml --tableir tableir.yaml
 
-# Emit Excel
-uv run veda_emit_excel tableir.yaml --out excel_out/
+# Emit Excel from TableIR
+uv run vedalang-dev emit-excel tableir.yaml --out excel_out/
 ```
 
 ---
@@ -150,7 +153,7 @@ For each primitive `P`, follow this **standard loop**:
 
 ### Step 4: Run Toolchain and Collect Feedback
 ```bash
-uv run veda_check experiments/{primitive}/model_{primitive}_v1.veda.yaml --from-vedalang --json
+uv run vedalang validate experiments/{primitive}/model_{primitive}_v1.veda.yaml --json
 ```
 
 Categorize result:
@@ -198,14 +201,14 @@ veda_exploration_session:
       focus_models:
         - file: "experiments/storage/model_storage_v1.veda.yaml"
           description: "Single-region electricity storage"
-          veda_check_status: "HARD_FAILURE"
+          validate_status: "HARD_FAILURE"
           key_diagnostics:
             - code: "MISSING_TIMESLICES"
               message: "No timeslice definitions found"
               
         - file: "experiments/storage/model_storage_v2.veda.yaml"
           description: "Storage as process with round-trip efficiency"
-          veda_check_status: "SUCCESS"
+          validate_status: "SUCCESS"
           key_diagnostics: []
       
       current_understanding:

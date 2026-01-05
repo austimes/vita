@@ -45,3 +45,4 @@ model:
       outputs:
         - commodity: ELC
           share: 1.0
+      efficiency: 1.0

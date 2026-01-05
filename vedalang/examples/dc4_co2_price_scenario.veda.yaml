@@ -40,9 +40,8 @@ model:
           share: 1.0
       outputs:
         - commodity: ELC
-          share: 1.0
         - commodity: CO2
-          share: 0.05  # Emission factor: 0.05 Mt CO2 per PJ activity
+          emission_factor: 0.05  # Mt CO2 per PJ activity
       efficiency: 0.55
     
     # Renewable plant (from add_renewable_plant pattern)
@@ -55,6 +54,7 @@ model:
       outputs:
         - commodity: ELC
           share: 1.0
+      efficiency: 1.0
   
   scenarios:
     - name: CO2_Price

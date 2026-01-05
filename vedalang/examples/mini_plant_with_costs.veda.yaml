@@ -30,6 +30,7 @@ model:
       capacity_unit: PJ
       outputs:
         - commodity: NG
+      efficiency: 1.0
       cost: 5.0  # M€/PJ import cost (ACT_COST)
 
     # CCGT power plant - conversion process with investment and O&M costs
@@ -60,3 +61,4 @@ model:
         - commodity: ELC
       outputs:
         - commodity: RSD
+      efficiency: 1.0

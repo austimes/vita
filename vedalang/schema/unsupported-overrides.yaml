@@ -1,0 +1,33 @@
+_comment: "Human-authored reasons and alternatives for unsupported attributes."
+_purpose: "Used by VedaRegistry to generate helpful compile-time error messages."
+
+attributes:
+  IRE_FLO:
+    reason: "Derived by xl2times from EFF on IRE processes. VedaLang should never emit IRE_FLO directly."
+    suggested_alternative: ACT_EFF
+    implementation_notes:
+      - "When user wants to control interregional trade efficiency, use ACT_EFF/EFF on IRE processes."
+      - "xl2times transforms EFF on IRE processes into IRE_FLO with correct region2/commodity2 indices."
+      - "See xl2times/transforms.py for the EFF → IRE_FLO transformation logic."
+
+  IRE_CCVT:
+    reason: "Requires region2 and commodity2 columns which no standard VEDA tag supports."
+    suggested_alternative: null
+    implementation_notes:
+      - "Would require extending veda-tags.json or using a specialized table."
+      - "Used for commodity conversion in interregional trade."
+
+  IRE_FLOSUM:
+    reason: "Complex multi-index attribute requiring IE (import/export), commodity2, and IO indices."
+    suggested_alternative: null
+    implementation_notes:
+      - "Some indices must go in other_indexes column."
+      - "Order in other_indexes is IE~IO based on times-info.json mapping order."
+
+  MILESTONYR:
+    reason: "Model set derived from milestone years, not a user input parameter."
+    suggested_alternative: null
+
+  MODLYEAR:
+    reason: "Model set derived internally, not a user input parameter."
+    suggested_alternative: null

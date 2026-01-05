@@ -30,6 +30,7 @@ model:
       capacity_unit: PJ
       outputs:
         - commodity: NG
+      efficiency: 1.0
       cost: 5.0
       activity_bound:
         up: 500.0  # Maximum 500 PJ/year import
@@ -63,6 +64,7 @@ model:
       capacity_unit: GW
       outputs:
         - commodity: ELC
+      efficiency: 1.0
       invcost: 1200
       fixom: 25
       life: 25
@@ -96,3 +98,4 @@ model:
         - commodity: ELC
       outputs:
         - commodity: RSD
+      efficiency: 1.0

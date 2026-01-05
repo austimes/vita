@@ -110,12 +110,17 @@ class TestRequiredFieldsPreserved:
             )
 
     def test_scenario_required_fields(self, schema: dict):
-        """Scenario definition must require baseline fields."""
-        scenario_def = schema.get("$defs", {}).get("scenario", {})
+        """Scenario parameter definition must require baseline fields.
+
+        Note: 'scenario' was renamed to 'scenario_parameter' in the schema,
+        with 'scenarios' kept as a deprecated alias for backward compatibility.
+        """
+        # Use the new 'scenario_parameter' definition
+        scenario_def = schema.get("$defs", {}).get("scenario_parameter", {})
         current_required = scenario_def.get("required", [])
         for field in REQUIRED_SCENARIO_FIELDS:
             assert field in current_required, (
-                f"Required scenario field '{field}' was removed! "
+                f"Required scenario_parameter field '{field}' was removed! "
                 "This is a breaking change. See docs/schema_evolution.md"
             )
 
@@ -145,14 +150,17 @@ class TestEnumValuesPreserved:
             )
 
     def test_scenario_type_enum_values(self, schema: dict):
-        """Scenario type enum must include all baseline values."""
-        scenario_def = schema.get("$defs", {}).get("scenario", {})
+        """Scenario parameter type enum must include all baseline values.
+
+        Note: 'scenario' was renamed to 'scenario_parameter' in the schema.
+        """
+        scenario_def = schema.get("$defs", {}).get("scenario_parameter", {})
         type_prop = scenario_def.get("properties", {}).get("type", {})
         current_enum = type_prop.get("enum", [])
 
         for value in BASELINE_SCENARIO_TYPES:
             assert value in current_enum, (
-                f"Scenario type '{value}' was removed from enum! "
+                f"Scenario parameter type '{value}' was removed from enum! "
                 "This is a breaking change. See docs/schema_evolution.md"
             )
 
@@ -240,9 +248,13 @@ class TestSchemaStructure:
         )
 
     def test_scenario_def_exists(self, schema: dict):
-        """Scenario definition must exist."""
-        assert "scenario" in schema.get("$defs", {}), (
-            "Scenario type definition was removed!"
+        """Scenario parameter definition must exist.
+
+        Note: 'scenario' was renamed to 'scenario_parameter' in the schema,
+        with 'scenarios' kept as a deprecated alias for backward compatibility.
+        """
+        assert "scenario_parameter" in schema.get("$defs", {}), (
+            "Scenario parameter type definition was removed!"
         )
 
     def test_timeslices_def_exists(self, schema: dict):

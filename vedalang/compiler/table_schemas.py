@@ -134,8 +134,10 @@ def load_veda_tags_schemas(
             field_name = field_def.get("use_name", field_def["name"])
             canonical_header = field_name.lower()
 
-            # Add to allowed columns (canonical only)
+            # Add to allowed columns (canonical + all aliases)
             allowed_columns.add(canonical_header)
+            for alias in field_def.get("aliases", []):
+                allowed_columns.add(alias.lower())
 
             # Determine if field is required (from xl2times logic)
             required = (
@@ -209,16 +211,15 @@ def apply_manual_layouts(schemas: dict[str, VedaTableSchema]) -> None:
             index_fields=["region", "process", "commodity", "year"],
             attribute_field=None,  # Attributes are column headers, not row values
             value_field=None,  # No 'value' column - data under attribute headers
-            allow_value_column=False,  # FI-style: attribute columns, not 'value'
+            allow_value_column=True,  # ~FI_T can use 'value' for attribute-based rows (e.g., ENV_ACT)
         )
-        schemas["fi_t"].forbidden_headers.add("value")
         # Add common attribute column headers that VedaLang emits
         # NOTE: Use CANONICAL attribute names from attribute-master.json.
         # xl2times now recognizes both canonical names and aliases.
         schemas["fi_t"].allowed_columns.update({
             "com_proj", "eff", "ncap_cost", "ncap_fom", "act_cost", "ncap_tlife",
             "ire_price", "act_bnd", "cap_bnd", "ncap_bnd", "share-o", "share-i",
-            "commodity-in", "commodity-out", "commodity",
+            "commodity-in", "commodity-out", "commodity", "attribute", "value",
         })
 
     # ~TFM_DINS - long format
@@ -291,12 +292,6 @@ def apply_manual_layouts(schemas: dict[str, VedaTableSchema]) -> None:
         schemas["uc_t"].allowed_columns.update({
             "uc_comprd", "uc_rhs", "uc_rhsrt", "commodity", "uc_sets", "value",
             "process", "uc_act",  # Activity share constraints
-        })
-
-    # ~TFM_INS - add columns for timeslice fractions and system params
-    if "tfm_ins" in schemas:
-        schemas["tfm_ins"].allowed_columns.update({
-            "ts", "allts", "allregions",  # Timeslice and region columns
         })
 
 

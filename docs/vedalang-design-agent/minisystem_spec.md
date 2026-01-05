@@ -317,8 +317,11 @@ The following VedaLang features are **not yet implemented** and therefore not te
 ### Validation Approach
 
 ```bash
-# Compile and validate
-uv run veda_check vedalang/examples/minisystem.veda.yaml --from-vedalang --json
+# Full validation (lint + compile + xl2times)
+uv run vedalang validate vedalang/examples/minisystem.veda.yaml --json
+
+# Lint only
+uv run vedalang lint vedalang/examples/minisystem.veda.yaml --json
 
 # Expected outcome: 0 errors from compilation
 # Known warnings: UC tables may warn until uc_sets emission is implemented

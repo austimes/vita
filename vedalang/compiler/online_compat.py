@@ -74,10 +74,15 @@ def _validate_year_columns(tag: str, rows: list[dict], loc: str) -> list[str]:
 
 
 def _validate_no_value_column(tag: str, rows: list[dict], loc: str) -> list[str]:
-    """Forbid generic 'value' column in wide-attribute format tags."""
+    """Forbid generic 'value' column in wide-attribute format tags.
+
+    Exception: If the row has an 'attribute' column, then 'value' is allowed
+    because the row is using long-format (attribute + value) within the table.
+    This is valid for tags like ~FI_T that support mixed formats.
+    """
     errors = []
     for i, row in enumerate(rows):
-        if "value" in row:
+        if "value" in row and "attribute" not in row:
             errors.append(
                 f"{loc}: Row {i} has 'value' column in wide-attribute tag "
                 f"(use specific attribute column names instead)"

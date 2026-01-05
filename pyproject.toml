@@ -17,6 +17,10 @@ dependencies = [
     "numpy>=1.26",
     "tqdm>=4.66",
     "more-itertools>=10.0",
+    "fastapi>=0.128.0",
+    "uvicorn>=0.40.0",
+    "websockets>=15.0.1",
+    "watchdog>=6.0.0",
 ]
 
 [project.optional-dependencies]
@@ -34,13 +38,8 @@ dev-dependencies = [
 ]
 
 [project.scripts]
-veda_emit_excel = "tools.veda_emit_excel.cli:main"
-vedalang = "vedalang.compiler.cli:main"
-veda_check = "tools.veda_check.cli:main"
-veda_pattern = "tools.veda_patterns.cli:main"
-veda_run_times = "tools.veda_run_times.cli:main"
-veda-dev = "tools.veda_dev.cli:main"
-xl2times = "xl2times.__main__:main"
+vedalang = "vedalang.cli:main"
+vedalang-dev = "tools.veda_dev.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["tools*", "vedalang*", "xl2times*"]

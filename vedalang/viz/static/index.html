@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VedaLang RES Visualizer</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <script src="https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js"></script>
+    <script src="https://unpkg.com/dagre@0.8.5/dist/dagre.min.js"></script>
+    <script src="https://unpkg.com/cytoscape-dagre@2.5.0/cytoscape-dagre.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">
+                <div class="logo-icon"></div>
+                <h1>VedaLang</h1>
+            </div>
+            <div class="model-name" id="modelName">Loading...</div>
+            <div class="status">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">Connecting...</span>
+            </div>
+        </header>
+
+        <main>
+            <!-- Collapsible Left Sidebar -->
+            <aside class="sidebar" id="sidebar">
+                <div class="sidebar-toggle" id="sidebarToggle">
+                    <span class="toggle-icon">◀</span>
+                </div>
+                <div class="sidebar-content">
+                    <div class="sidebar-section">
+                        <h3>View Mode</h3>
+                        <div class="view-tabs">
+                            <button class="view-tab active" data-mode="all">All Regions</button>
+                            <button class="view-tab" data-mode="single">Single Region</button>
+                            <button class="view-tab" data-mode="multi">Trade Flows</button>
+                        </div>
+                    </div>
+                    <div id="regionSection" class="sidebar-section hidden">
+                        <h3 id="regionSectionTitle">Select Region</h3>
+                        <div class="region-pills" id="regionPills"></div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Graph Container -->
+            <div class="graph-container">
+                <div id="cy"></div>
+
+                <!-- Legend - Top Right -->
+                <div class="legend">
+                    <h3>Legend</h3>
+                    <div class="legend-row">
+                        <div class="legend-section">
+                            <div class="legend-title">Processes</div>
+                            <div class="legend-item">
+                                <div class="legend-node import"></div>
+                                <span class="legend-label">Import</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-node generation"></div>
+                                <span class="legend-label">Generation</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-node demand"></div>
+                                <span class="legend-label">Demand</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-node storage"></div>
+                                <span class="legend-label">Storage</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-node conversion"></div>
+                                <span class="legend-label">Conversion</span>
+                            </div>
+                        </div>
+                        <div class="legend-section">
+                            <div class="legend-title">Commodities</div>
+                            <div class="legend-item">
+                                <div class="legend-node circle energy"></div>
+                                <span class="legend-label">Energy</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-node circle emission"></div>
+                                <span class="legend-label">Emission</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-node circle demand-comm"></div>
+                                <span class="legend-label">Demand</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-node circle material"></div>
+                                <span class="legend-label">Material</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stats - Bottom Left -->
+                <div class="stats" id="stats">
+                    <span>Nodes: <span class="count" id="nodeCount">0</span></span>
+                    <span>Edges: <span class="count" id="edgeCount">0</span></span>
+                </div>
+
+                <!-- Zoom Controls - Bottom Right -->
+                <div class="controls">
+                    <button class="control-btn" id="fitBtn" title="Fit to screen">⊡</button>
+                    <button class="control-btn" id="layoutBtn" title="Re-run layout">↻</button>
+                    <button class="control-btn" id="zoomInBtn" title="Zoom in">+</button>
+                    <button class="control-btn" id="zoomOutBtn" title="Zoom out">−</button>
+                </div>
+
+                <!-- Error Banner -->
+                <div class="error-banner" id="errorBanner">
+                    <h4>Parse Error</h4>
+                    <p id="errorMessage"></p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

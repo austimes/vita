@@ -10,6 +10,21 @@
 VedaLang (.veda.yaml) → Compiler → VEDA Excel (.xlsx) → xl2times → TIMES DD files
 ```
 
+### Terminology
+
+VedaLang uses precise terminology to avoid ambiguity:
+
+| Term | Definition |
+|------|------------|
+| **Scenario Parameter** | An atomic time-series or value assumption (e.g., CO2 price, demand projection) |
+| **Category** | Logical grouping: `demands`, `prices`, `policies`, `technology_assumptions`, `resource_availability`, `global_settings` |
+| **Case** | A named combination of scenario parameters for a model run (e.g., `baseline`, `ambitious`) |
+| **Study** | A collection of cases for comparison |
+
+**File organization:**
+- **Model architecture** (VT_* files): processes, commodities, topology
+- **Scenario instantiation** (Scen_{case}_{category}.xlsx): demands, prices, policies
+
 ### Sources of Truth (Priority Order)
 
 1. **`vedalang/schema/vedalang.schema.json`** — What syntax is valid
@@ -23,7 +38,7 @@ VedaLang (.veda.yaml) → Compiler → VEDA Excel (.xlsx) → xl2times → TIMES
 2. **Every process needs `primary_commodity_group`** — no exceptions
 3. **Interpolation is required for time-series** — always specify `interpolation` for `values` maps
 4. **Commodities must exist before reference** — define before using in processes
-5. **Validate via `veda_check`** — xl2times is the oracle, not your assumptions
+5. **Validate via `vedalang validate`** — xl2times is the oracle, not your assumptions
 6. **Schema-first** — if the schema doesn't allow it, you can't do it
 7. **Fail fast, learn** — when xl2times rejects output, capture the pattern
 
@@ -36,15 +51,18 @@ VedaLang (.veda.yaml) → Compiler → VEDA Excel (.xlsx) → xl2times → TIMES
 | Use Case | Tool |
 |----------|------|
 | New model from scratch | VedaLang |
-| Quick pattern experiment | TableIR + `veda_emit_excel` |
+| Quick pattern experiment | TableIR + `vedalang-dev emit-excel` |
 | Production model authoring | VedaLang |
 | Debugging VEDA structure | TableIR (lower friction) |
 
 ### Standard Workflow
 
 ```bash
-# Compile and validate
-uv run veda_check mymodel.veda.yaml --from-vedalang
+# Validate (lint + compile + xl2times)
+uv run vedalang validate mymodel.veda.yaml
+
+# Lint for heuristic issues only
+uv run vedalang lint mymodel.veda.yaml
 
 # Or step by step:
 uv run vedalang compile mymodel.veda.yaml --out output/
@@ -168,14 +186,16 @@ processes:
 
 **Bound types:** `up` (max), `lo` (min), `fx` (fixed)
 
-### Scenarios
+### Scenario Parameters
 
-Define time-varying parameters like prices and demand projections.
+Define time-varying parameters like prices and demand projections. These are organized by **category** and **case**.
 
 ```yaml
-scenarios:
+# Scenario parameters (old 'scenarios' key still works for backward compatibility)
+scenario_parameters:
   - name: CO2_Price
     type: commodity_price      # commodity_price | demand_projection
+    category: prices           # Optional: defaults from type
     commodity: CO2
     interpolation: interp_extrap
     values:
@@ -185,12 +205,27 @@ scenarios:
 
   - name: DemandRSD
     type: demand_projection
+    category: demands          # Optional: defaults from type
     commodity: RSD
     interpolation: interp_extrap
     values:
       "2020": 100
       "2030": 120
+
+# Define cases (combinations of scenario parameters)
+cases:
+  - name: baseline
+    description: Reference case with standard assumptions
+    is_baseline: true
+
+  - name: ambitious
+    description: Aggressive climate policy case
+    excludes: []  # Include all parameters
 ```
+
+**Categories:** `demands`, `prices`, `policies`, `technology_assumptions`, `resource_availability`, `global_settings`
+
+**File output:** `Scen_{case}_{category}.xlsx` (e.g., `Scen_baseline_demands.xlsx`)
 
 **Interpolation modes:**
 - `none` — No interpolation
@@ -372,7 +407,7 @@ processes:
 
 ## Validation Checklist
 
-Before running `veda_check`, verify:
+Before running `vedalang validate`, verify:
 
 ### Structure
 
@@ -432,10 +467,17 @@ model:
         - commodity: ELC
 ```
 
-### Validation Command
+### Validation Commands
 
 ```bash
-uv run veda_check model.veda.yaml --from-vedalang
+# Full validation (lint + compile + xl2times)
+uv run vedalang validate model.veda.yaml
+
+# Lint only (fast, checks heuristics)
+uv run vedalang lint model.veda.yaml
+
+# With JSON output for automation
+uv run vedalang validate model.veda.yaml --json
 ```
 
 ### Common Errors

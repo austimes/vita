@@ -56,8 +56,8 @@ VedaLang is a typed DSL that compiles to VEDA Excel tables for TIMES energy mode
 
 ### Phase 0: Toolchain Validation ✅
 - `vedalang compile` works
-- `veda_emit_excel` emits valid Excel
-- `veda_check` orchestrates pipeline
+- `vedalang-dev emit-excel` emits valid Excel
+- `vedalang validate` orchestrates pipeline
 - xl2times emits structured diagnostics
 
 ### Phase 1: TableIR Experimentation ✅
@@ -128,14 +128,17 @@ All 10 energy system primitives explored and implemented:
 ## Commands Reference
 
 ```bash
-# Validate a VedaLang model
-uv run veda_check model.veda.yaml --from-vedalang --json
+# Validate a VedaLang model (lint + compile + xl2times)
+uv run vedalang validate model.veda.yaml --json
+
+# Lint for heuristic issues only
+uv run vedalang lint model.veda.yaml --json
 
 # Compile to TableIR only
 uv run vedalang compile model.veda.yaml --tableir output.yaml
 
-# Emit Excel from TableIR
-uv run veda_emit_excel tableir.yaml --out output_dir/
+# Emit Excel from TableIR (design agent)
+uv run vedalang-dev emit-excel tableir.yaml --out output_dir/
 
 # Run all tests
 uv run pytest tests/ -v

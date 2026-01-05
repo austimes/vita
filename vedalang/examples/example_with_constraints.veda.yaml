@@ -40,7 +40,7 @@ model:
       outputs:
         - commodity: ELC
         - commodity: CO2
-          share: 0.05
+          emission_factor: 0.05  # Mt CO2 per PJ activity
       efficiency: 0.55
 
     - name: PP_WIND
@@ -49,6 +49,7 @@ model:
       primary_commodity_group: NRGO
       outputs:
         - commodity: ELC
+      efficiency: 1.0
 
     - name: PP_SOLAR
       description: Solar PV plant
@@ -56,6 +57,7 @@ model:
       primary_commodity_group: NRGO
       outputs:
         - commodity: ELC
+      efficiency: 1.0
 
   constraints:
     # Emission cap: limit CO2 to 100 Mt initially, declining to 50 Mt by 2040

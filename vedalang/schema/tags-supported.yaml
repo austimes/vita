@@ -1,0 +1,77 @@
+# Curated list of VEDA table tags VedaLang can emit.
+# Hand-edited. Tag names validated against xl2times/config/veda-tags.json and xl2times/datatypes.py.
+
+_source: "Tag names from veda-tags.json and xl2times datatypes.Tag enum"
+
+tags:
+  fi_comm:
+    tag_name: fi_comm
+    description: "Commodity definitions"
+    file_types: [BY, SubRES, SysSettings]
+
+  fi_process:
+    tag_name: fi_process
+    description: "Process definitions"
+    file_types: [BY, SubRES]
+
+  fi_t:
+    tag_name: fi_t
+    description: "Flow/topology data with attributes as columns"
+    file_types: [BY, SubRES]
+
+  tfm_ins:
+    tag_name: tfm_ins
+    description: "Insert/update attribute values, long format"
+    file_types: [BY_Trans, SR_Trans, SysSettings, RegScen, TradeScen]
+
+  tfm_dins:
+    tag_name: tfm_dins
+    description: "Data insert with attribute column headers"
+    file_types: [BY_Trans, SR_Trans, SysSettings, RegScen, TradeScen]
+
+  tfm_dins-at:
+    tag_name: tfm_dins-at
+    description: "Data insert with attributes as columns"
+    file_types: [BY_Trans, SR_Trans, SysSettings, RegScen, TradeScen]
+
+  uc_t:
+    tag_name: uc_t
+    description: "User constraint definitions"
+    file_types: [SysSettings, RegScen]
+
+  tradelinks:
+    tag_name: tradelinks
+    description: "Trade link topology"
+    file_types: [BY, SubRES]
+    note: "Defined in xl2times datatypes.Tag enum, not in veda-tags.json"
+
+  timeslices:
+    tag_name: timeslices
+    description: "Timeslice definitions"
+    file_types: [SysSettings]
+    note: "Defined in xl2times datatypes.Tag enum as time_slices, not in veda-tags.json"
+
+  bookregions_map:
+    tag_name: bookregions_map
+    description: "Book to region mapping"
+    file_types: [SysSettings]
+
+  startyear:
+    tag_name: startyear
+    description: "Model start year"
+    file_types: [SysSettings]
+
+  activepdef:
+    tag_name: activepdef
+    description: "Active period definition"
+    file_types: [SysSettings]
+
+  timeperiods:
+    tag_name: timeperiods
+    description: "Time period definitions"
+    file_types: [SysSettings]
+
+  currencies:
+    tag_name: currencies
+    description: "Currency definitions"
+    file_types: [SysSettings]

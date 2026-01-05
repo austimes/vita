@@ -99,7 +99,7 @@ def test_timeslices_validates():
             },
             "commodities": [{"name": "ELC", "type": "energy"}],
             "processes": [
-                {"name": "P1", "sets": ["ELE"], "primary_commodity_group": "NRGO"}
+                {"name": "P1", "sets": ["ELE"], "primary_commodity_group": "NRGO", "efficiency": 1.0}
             ],
         }
     }
@@ -126,7 +126,7 @@ def test_timeslice_code_pattern():
             },
             "commodities": [{"name": "ELC", "type": "energy"}],
             "processes": [
-                {"name": "P1", "sets": ["ELE"], "primary_commodity_group": "NRGO"}
+                {"name": "P1", "sets": ["ELE"], "primary_commodity_group": "NRGO", "efficiency": 1.0}
             ],
         }
     }
@@ -143,7 +143,7 @@ def test_trade_links_validates():
             "regions": ["REG1", "REG2"],
             "commodities": [{"name": "ELC", "type": "energy"}],
             "processes": [
-                {"name": "P1", "sets": ["ELE"], "primary_commodity_group": "NRGO"}
+                {"name": "P1", "sets": ["ELE"], "primary_commodity_group": "NRGO", "efficiency": 1.0}
             ],
             "trade_links": [
                 {
@@ -175,7 +175,7 @@ def test_trade_link_missing_required_fields():
             "regions": ["REG1", "REG2"],
             "commodities": [{"name": "ELC", "type": "energy"}],
             "processes": [
-                {"name": "P1", "sets": ["ELE"], "primary_commodity_group": "NRGO"}
+                {"name": "P1", "sets": ["ELE"], "primary_commodity_group": "NRGO", "efficiency": 1.0}
             ],
             "trade_links": [
                 {"origin": "REG1"},  # Missing destination and commodity
@@ -195,7 +195,7 @@ def test_constraints_emission_cap_validates():
             "regions": ["REG1"],
             "commodities": [{"name": "CO2", "type": "emission"}],
             "processes": [
-                {"name": "P1", "sets": ["ELE"], "primary_commodity_group": "NRGO"}
+                {"name": "P1", "sets": ["ELE"], "primary_commodity_group": "NRGO", "efficiency": 1.0}
             ],
             "constraints": [
                 {
@@ -220,8 +220,8 @@ def test_constraints_activity_share_validates():
             "regions": ["REG1"],
             "commodities": [{"name": "ELC", "type": "energy"}],
             "processes": [
-                {"name": "PP_WIND", "sets": ["ELE"], "primary_commodity_group": "NRGO"},
-                {"name": "PP_CCGT", "sets": ["ELE"], "primary_commodity_group": "NRGO"},
+                {"name": "PP_WIND", "sets": ["ELE"], "primary_commodity_group": "NRGO", "efficiency": 1.0},
+                {"name": "PP_CCGT", "sets": ["ELE"], "primary_commodity_group": "NRGO", "efficiency": 0.55},
             ],
             "constraints": [
                 {
@@ -254,7 +254,7 @@ def test_constraint_invalid_type_rejected():
             "regions": ["REG1"],
             "commodities": [{"name": "CO2", "type": "emission"}],
             "processes": [
-                {"name": "P1", "sets": ["ELE"], "primary_commodity_group": "NRGO"}
+                {"name": "P1", "sets": ["ELE"], "primary_commodity_group": "NRGO", "efficiency": 1.0}
             ],
             "constraints": [
                 {
@@ -278,7 +278,7 @@ def test_constraint_share_range():
             "regions": ["REG1"],
             "commodities": [{"name": "ELC", "type": "energy"}],
             "processes": [
-                {"name": "PP_WIND", "sets": ["ELE"], "primary_commodity_group": "NRGO"}
+                {"name": "PP_WIND", "sets": ["ELE"], "primary_commodity_group": "NRGO", "efficiency": 1.0}
             ],
             "constraints": [
                 {

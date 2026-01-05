@@ -260,7 +260,7 @@ Each pattern was validated through the following process:
 2. **YAML Validity:** Expanded output parses as valid YAML
 3. **VedaLang Compilation:** Patterns with `vedalang_template` compile to TableIR
 4. **TableIR Schema Validation:** Compiled TableIR validates against `tableir.schema.json`
-5. **xl2times Validation:** Generated Excel passes xl2times (via `veda_check`)
+5. **xl2times Validation:** Generated Excel passes xl2times (via `vedalang validate`)
 
 See `tests/test_patterns_expand.py` for automated validation tests.
 

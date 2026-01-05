@@ -1,0 +1,94 @@
+_comment: "Curated list of TIMES attributes VedaLang can emit. Hand-edited."
+_source: "Canonical names from times-info.json"
+
+attributes:
+  NCAP_COST:
+    times_name: NCAP_COST
+    column_header: ncap_cost
+    description: "Investment cost per unit of new capacity."
+
+  NCAP_FOM:
+    times_name: NCAP_FOM
+    column_header: ncap_fom
+    description: "Fixed annual O&M cost per unit capacity."
+
+  NCAP_TLIFE:
+    times_name: NCAP_TLIFE
+    column_header: ncap_tlife
+    description: "Technical lifetime of new capacity."
+
+  NCAP_AF:
+    times_name: NCAP_AF
+    column_header: ncap_af
+    description: "Availability factor / capacity factor."
+
+  NCAP_BND:
+    times_name: NCAP_BND
+    column_header: ncap_bnd
+    description: "Bound on new capacity investment."
+
+  ACT_COST:
+    times_name: ACT_COST
+    column_header: act_cost
+    description: "Variable cost per unit activity."
+
+  ACT_BND:
+    times_name: ACT_BND
+    column_header: act_bnd
+    description: "Bound on process activity."
+
+  CAP_BND:
+    times_name: CAP_BND
+    column_header: cap_bnd
+    description: "Bound on total capacity."
+
+  ACT_EFF:
+    times_name: ACT_EFF
+    column_header: act_eff
+    description: "Process efficiency."
+    notes: "Use for IRE processes to set trade efficiency - xl2times derives IRE_FLO."
+
+  FLO_SHAR:
+    times_name: FLO_SHAR
+    column_header: flo_shar
+    description: "Flow share constraint."
+
+  FLO_EMIS:
+    times_name: FLO_EMIS
+    column_header: flo_emis
+    description: "Emission coefficient per unit process activity for a given emission flow (ENV_ACT in TIMES). Units: emission_unit per activity_unit."
+
+  COM_PROJ:
+    times_name: COM_PROJ
+    column_header: com_proj
+    description: "Commodity demand projection."
+
+  COM_TAXNET:
+    times_name: COM_TAXNET
+    column_header: com_taxnet
+    description: "Tax on net commodity."
+
+  COM_TAXPRD:
+    times_name: COM_TAXPRD
+    column_header: com_taxprd
+    description: "Tax on commodity production."
+
+  COM_CSTNET:
+    times_name: COM_CSTNET
+    column_header: com_cstnet
+    description: "Cost on net commodity."
+
+  G_YRFR:
+    times_name: G_YRFR
+    column_header: yrfr
+    description: "Fraction of year for timeslice."
+
+  IRE_PRICE:
+    times_name: IRE_PRICE
+    column_header: ire_price
+    description: "Import/export price for IRE processes."
+
+  PRC_RESID:
+    times_name: PRC_RESID
+    column_header: prc_resid
+    description: "Initial/residual capacity (pre-existing stock)."
