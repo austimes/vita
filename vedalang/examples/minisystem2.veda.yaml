@@ -38,7 +38,7 @@ model:
       outputs:
         - commodity: NG
       efficiency: 1.0
-      cost: 5.0
+      import_price: 5.0  # Import commodity price ($/PJ)
       stock: 100
 
     - name: PP_CCGT_SIMPLE
@@ -50,7 +50,7 @@ model:
       outputs:
         - commodity: ELC
       efficiency: 0.55
-      cost: 2
+      variable_om_cost: 2  # Activity cost ($/PJ)
       stock: 100
 
     - name: DMD_RSD

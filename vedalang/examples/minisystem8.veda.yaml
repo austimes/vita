@@ -93,7 +93,7 @@ model:
       outputs:
         - commodity: NG
       efficiency: 1.0
-      cost: 5.0
+      import_price: 5.0  # Import commodity price ($/PJ)
       stock: 1000
 
     - name: IMP_COAL
@@ -103,7 +103,7 @@ model:
       outputs:
         - commodity: COAL
       efficiency: 1.0
-      cost: 2.0
+      import_price: 2.0  # Import commodity price ($/PJ)
       stock: 1000
 
     # === POWER GENERATION ===
@@ -118,10 +118,10 @@ model:
         - commodity: CO2
           emission_factor: 0.09
       efficiency: 0.38
-      invcost: 2500
-      fixom: 40
-      varom: 3
-      life: 40
+      investment_cost: 2500  # Capital cost ($/GW)
+      fixed_om_cost: 40  # Fixed O&M ($/GW/yr)
+      variable_om_cost: 3  # Variable O&M ($/PJ)
+      lifetime: 40  # Technical lifetime (years)
       stock: 5
 
     - name: PP_CCGT
@@ -135,10 +135,10 @@ model:
         - commodity: CO2
           emission_factor: 0.05
       efficiency: 0.55
-      invcost: 800
-      fixom: 20
-      varom: 2
-      life: 40
+      investment_cost: 800  # Capital cost ($/GW)
+      fixed_om_cost: 20  # Fixed O&M ($/GW/yr)
+      variable_om_cost: 2  # Variable O&M ($/PJ)
+      lifetime: 40  # Technical lifetime (years)
       stock: 2
 
     - name: PP_WIND
@@ -148,10 +148,10 @@ model:
       outputs:
         - commodity: ELC
       efficiency: 1.0
-      invcost: 1200
-      fixom: 25
-      varom: 1
-      life: 25
+      investment_cost: 1200  # Capital cost ($/GW)
+      fixed_om_cost: 25  # Fixed O&M ($/GW/yr)
+      variable_om_cost: 1  # Variable O&M ($/PJ)
+      lifetime: 25  # Technical lifetime (years)
       stock: 1
 
     - name: PP_SOLAR
@@ -161,10 +161,10 @@ model:
       outputs:
         - commodity: ELC
       efficiency: 1.0
-      invcost: 1000
-      fixom: 15
-      varom: 0.5
-      life: 25
+      investment_cost: 1000  # Capital cost ($/GW)
+      fixed_om_cost: 15  # Fixed O&M ($/GW/yr)
+      variable_om_cost: 0.5  # Variable O&M ($/PJ)
+      lifetime: 25  # Technical lifetime (years)
       stock: 1
 
     # === HYDROGEN PRODUCTION ===
@@ -179,10 +179,10 @@ model:
         - commodity: CO2
           emission_factor: 0.056
       efficiency: 0.75
-      invcost: 1500
-      fixom: 50
-      varom: 2
-      life: 25
+      investment_cost: 1500  # Capital cost ($/GW)
+      fixed_om_cost: 50  # Fixed O&M ($/GW/yr)
+      variable_om_cost: 2  # Variable O&M ($/PJ)
+      lifetime: 25  # Technical lifetime (years)
       stock: 0.5
 
     - name: H2_ELEC
@@ -194,10 +194,10 @@ model:
       outputs:
         - commodity: H2
       efficiency: 0.70
-      invcost: 2000
-      fixom: 30
-      varom: 1
-      life: 20
+      investment_cost: 2000  # Capital cost ($/GW)
+      fixed_om_cost: 30  # Fixed O&M ($/GW/yr)
+      variable_om_cost: 1  # Variable O&M ($/PJ)
+      lifetime: 20  # Technical lifetime (years)
       stock: 0.5
 
     # === DEMAND DEVICES ===
@@ -212,7 +212,7 @@ model:
         - commodity: RSD
       efficiency: 1.0
       stock: 100
-      life: 100
+      lifetime: 100  # Technical lifetime (years)
 
     # Commercial - electricity only
     - name: DMD_COM_ELC
@@ -225,7 +225,7 @@ model:
         - commodity: COM
       efficiency: 1.0
       stock: 100
-      life: 100
+      lifetime: 100  # Technical lifetime (years)
 
     # Industrial - gas and hydrogen options (fixes IND orphan)
     - name: DMD_IND_NG
@@ -238,7 +238,7 @@ model:
         - commodity: IND
       efficiency: 0.85
       stock: 50
-      life: 30
+      lifetime: 30  # Technical lifetime (years)
 
     - name: DMD_IND_H2
       description: Industrial hydrogen demand
@@ -250,7 +250,7 @@ model:
         - commodity: IND
       efficiency: 0.90
       stock: 10
-      life: 30
+      lifetime: 30  # Technical lifetime (years)
 
     # Transport - electricity and hydrogen options
     - name: DMD_TRN_ELC
@@ -263,7 +263,7 @@ model:
         - commodity: TRN
       efficiency: 0.85
       stock: 20
-      life: 15
+      lifetime: 15  # Technical lifetime (years)
 
     - name: DMD_TRN_H2
       description: Fuel cell vehicle transport
@@ -275,7 +275,7 @@ model:
         - commodity: TRN
       efficiency: 0.55
       stock: 10
-      life: 15
+      lifetime: 15  # Technical lifetime (years)
 
   trade_links:
     - origin: NEM_EAST

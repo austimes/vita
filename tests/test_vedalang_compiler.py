@@ -2402,13 +2402,13 @@ def test_prc_capact_emitted_for_gw_pj_units():
 
 
 def test_cost_attribute_context_aware():
-    """'cost' attribute should map to different VEDA columns based on process type.
+    """DEPRECATED 'cost' attribute should map based on process type.
 
     For IMP/EXP/IRE processes: cost → ire_price (import/export price)
     For other processes (ELE, DMD, etc.): cost → act_cost (variable operating cost)
 
-    This is important because PP_SIMPLE with cost=10 was incorrectly mapping to
-    ire_price, causing zero objective (no activity cost applied to generation).
+    Note: The 'cost' attribute is DEPRECATED. Use 'variable_om_cost' for activity
+    costs and 'import_price' for IMP/EXP processes.
     """
     source = {
         "model": {
@@ -2462,3 +2462,111 @@ def test_cost_attribute_context_aware():
     assert "act_cost" in pp_rows[0], "ELE process should use act_cost"
     assert pp_rows[0]["act_cost"] == 10.0
     assert "ire_price" not in pp_rows[0], "ELE process should NOT have ire_price"
+
+
+def test_explicit_cost_attribute_names():
+    """Explicit cost attribute names should map correctly.
+
+    Explicit names (preferred):
+    - investment_cost → ncap_cost (NCAP_COST)
+    - fixed_om_cost → ncap_fom (NCAP_FOM)
+    - variable_om_cost → act_cost (ACT_COST)
+    - import_price → ire_price (IRE_PRICE)
+    - lifetime → ncap_tlife (NCAP_TLIFE)
+    """
+    source = {
+        "model": {
+            "name": "ExplicitCostTest",
+            "regions": ["REG1"],
+            "commodities": [
+                {"name": "NG", "type": "energy"},
+                {"name": "ELC", "type": "energy"},
+            ],
+            "processes": [
+                {
+                    "name": "IMP_NG",
+                    "sets": ["IMP"],
+                    "primary_commodity_group": "NRGO",
+                    "outputs": [{"commodity": "NG"}],
+                    "efficiency": 1.0,
+                    "import_price": 5.0,  # Explicit name for IRE_PRICE
+                },
+                {
+                    "name": "PP_CCGT",
+                    "sets": ["ELE"],
+                    "primary_commodity_group": "NRGO",
+                    "inputs": [{"commodity": "NG"}],
+                    "outputs": [{"commodity": "ELC"}],
+                    "efficiency": 0.55,
+                    "investment_cost": 800,    # Explicit name for NCAP_COST
+                    "fixed_om_cost": 20,       # Explicit name for NCAP_FOM
+                    "variable_om_cost": 2,     # Explicit name for ACT_COST
+                    "lifetime": 30,            # Explicit name for NCAP_TLIFE
+                },
+            ],
+        }
+    }
+    tableir = compile_vedalang_to_tableir(source)
+
+    # Find ~FI_T table
+    fit_rows = []
+    for f in tableir["files"]:
+        for s in f["sheets"]:
+            for t in s["tables"]:
+                if t["tag"] == "~FI_T":
+                    fit_rows.extend(t["rows"])
+
+    # IMP_NG should have ire_price from import_price
+    imp_rows = [r for r in fit_rows if r.get("process") == "IMP_NG" and "eff" in r]
+    assert len(imp_rows) == 1
+    assert imp_rows[0]["ire_price"] == 5.0
+
+    # PP_CCGT should have all explicit cost columns
+    ccgt_rows = [r for r in fit_rows if r.get("process") == "PP_CCGT" and "eff" in r]
+    assert len(ccgt_rows) == 1
+    ccgt = ccgt_rows[0]
+    assert ccgt["ncap_cost"] == 800      # investment_cost
+    assert ccgt["ncap_fom"] == 20        # fixed_om_cost
+    assert ccgt["act_cost"] == 2         # variable_om_cost
+    assert ccgt["ncap_tlife"] == 30      # lifetime
+
+
+def test_explicit_names_take_precedence_over_legacy():
+    """Explicit names should take precedence if both specified."""
+    source = {
+        "model": {
+            "name": "PrecedenceTest",
+            "regions": ["REG1"],
+            "commodities": [
+                {"name": "ELC", "type": "energy"},
+            ],
+            "processes": [
+                {
+                    "name": "PP_TEST",
+                    "sets": ["ELE"],
+                    "primary_commodity_group": "NRGO",
+                    "outputs": [{"commodity": "ELC"}],
+                    "efficiency": 1.0,
+                    "investment_cost": 1000,  # Explicit (should win)
+                    "invcost": 500,           # Legacy (should be ignored)
+                    "variable_om_cost": 10,   # Explicit (should win)
+                    "varom": 5,               # Legacy (should be ignored)
+                },
+            ],
+        }
+    }
+    tableir = compile_vedalang_to_tableir(source)
+
+    # Find ~FI_T table
+    fit_rows = []
+    for f in tableir["files"]:
+        for s in f["sheets"]:
+            for t in s["tables"]:
+                if t["tag"] == "~FI_T":
+                    fit_rows.extend(t["rows"])
+
+    # PP_TEST should use explicit values, not legacy
+    pp_rows = [r for r in fit_rows if r.get("process") == "PP_TEST" and "eff" in r]
+    assert len(pp_rows) == 1
+    assert pp_rows[0]["ncap_cost"] == 1000  # investment_cost wins over invcost
+    assert pp_rows[0]["act_cost"] == 10     # variable_om_cost wins over varom

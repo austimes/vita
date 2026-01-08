@@ -70,7 +70,7 @@ model:
       outputs:
         - commodity: NG
       efficiency: 1.0
-      cost: 5.0
+      import_price: 5.0  # Import commodity price ($/PJ)
 
     # Thermal generation: CCGT
     - name: PP_CCGT
@@ -84,10 +84,10 @@ model:
         - commodity: CO2
           emission_factor: 0.05
       efficiency: 0.55
-      invcost: 800
-      fixom: 20
-      varom: 2
-      life: 40
+      investment_cost: 800  # Capital cost ($/GW)
+      fixed_om_cost: 20  # Fixed O&M ($/GW/yr)
+      variable_om_cost: 2  # Variable O&M ($/PJ)
+      lifetime: 40  # Technical lifetime (years)
       stock: 5
       cap_bound:
         up: 500
@@ -100,10 +100,10 @@ model:
       outputs:
         - commodity: ELC
       efficiency: 1.0
-      invcost: 1200
-      fixom: 25
-      varom: 1
-      life: 40
+      investment_cost: 1200  # Capital cost ($/GW)
+      fixed_om_cost: 25  # Fixed O&M ($/GW/yr)
+      variable_om_cost: 1  # Variable O&M ($/PJ)
+      lifetime: 40  # Technical lifetime (years)
       stock: 5
 
     # Demand device: Residential
@@ -117,7 +117,7 @@ model:
         - commodity: RSD
       efficiency: 1.0
       stock: 100
-      life: 100
+      lifetime: 100  # Technical lifetime (years)
 
   trade_links:
     - origin: NORTH

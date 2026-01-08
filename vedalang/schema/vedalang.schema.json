@@ -375,40 +375,75 @@
           ],
           "description": "REQUIRED. Process efficiency (0-1), ratio of useful output to input. Must be explicitly specified for all processes, including demand devices and sources. Use 1.0 for lossless pass-through."
         },
+        "investment_cost": {
+          "oneOf": [
+            { "type": "number", "minimum": 0 },
+            { "$ref": "#/$defs/time_varying_value" }
+          ],
+          "description": "Investment cost per unit of new capacity (NCAP_COST). Units: $/GW or specified currency/capacity_unit."
+        },
+        "fixed_om_cost": {
+          "oneOf": [
+            { "type": "number", "minimum": 0 },
+            { "$ref": "#/$defs/time_varying_value" }
+          ],
+          "description": "Fixed O&M cost per unit capacity per year (NCAP_FOM). Units: $/GW/yr."
+        },
+        "variable_om_cost": {
+          "oneOf": [
+            { "type": "number", "minimum": 0 },
+            { "$ref": "#/$defs/time_varying_value" }
+          ],
+          "description": "Variable O&M cost per unit of activity (ACT_COST). Units: $/PJ or $/activity_unit."
+        },
+        "import_price": {
+          "oneOf": [
+            { "type": "number", "minimum": 0 },
+            { "$ref": "#/$defs/time_varying_value" }
+          ],
+          "description": "Price for imported commodity (IRE_PRICE). Only valid for IMP/EXP processes. Units: $/PJ."
+        },
+        "lifetime": {
+          "oneOf": [
+            { "type": "number", "minimum": 0 },
+            { "$ref": "#/$defs/time_varying_value" }
+          ],
+          "description": "Technical lifetime of new capacity (NCAP_TLIFE). Units: years."
+        },
         "invcost": {
           "oneOf": [
             { "type": "number", "minimum": 0 },
             { "$ref": "#/$defs/time_varying_value" }
           ],
-          "description": "Investment cost per unit capacity (NCAP_COST). Can be scalar or time-varying."
+          "description": "DEPRECATED: Use 'investment_cost'. Investment cost per unit capacity (NCAP_COST)."
         },
         "fixom": {
           "oneOf": [
             { "type": "number", "minimum": 0 },
             { "$ref": "#/$defs/time_varying_value" }
           ],
-          "description": "Fixed O&M per unit capacity per year (FOM). Can be scalar or time-varying."
+          "description": "DEPRECATED: Use 'fixed_om_cost'. Fixed O&M per unit capacity per year (NCAP_FOM)."
         },
         "varom": {
           "oneOf": [
             { "type": "number", "minimum": 0 },
             { "$ref": "#/$defs/time_varying_value" }
           ],
-          "description": "Variable O&M per unit activity (VOM). Can be scalar or time-varying."
+          "description": "DEPRECATED: Use 'variable_om_cost'. Variable O&M per unit activity (ACT_COST)."
         },
         "life": {
           "oneOf": [
             { "type": "number", "minimum": 0 },
             { "$ref": "#/$defs/time_varying_value" }
           ],
-          "description": "Technical lifetime in years (LIFE). Can be scalar or time-varying."
+          "description": "DEPRECATED: Use 'lifetime'. Technical lifetime in years (NCAP_TLIFE)."
         },
         "cost": {
           "oneOf": [
             { "type": "number", "minimum": 0 },
             { "$ref": "#/$defs/time_varying_value" }
           ],
-          "description": "Activity cost for supply processes (ACT_COST). Can be scalar or time-varying."
+          "description": "DEPRECATED: Ambiguous - use 'variable_om_cost' for activity cost or 'import_price' for IMP/EXP processes."
         },
         "availability_factor": {
           "oneOf": [

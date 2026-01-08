@@ -46,23 +46,43 @@ TIME_VARYING_ATTRS = {
 # Map VedaLang attribute names to their TableIR/VEDA column names
 # These must map to CANONICAL VEDA attribute column headers only
 # (from attribute-master.json "column_header" field, NOT aliases)
+#
+# EXPLICIT NAMES (preferred):
+#   investment_cost, fixed_om_cost, variable_om_cost, import_price, lifetime
+#
+# LEGACY NAMES (deprecated, kept for backward compatibility):
+#   invcost, fixom, varom, life, cost
+#
 ATTR_TO_COLUMN = {
-    "efficiency": "eff",  # EFF canonical
-    "invcost": "ncap_cost",  # NCAP_COST canonical (alias: invcost)
-    "fixom": "ncap_fom",  # NCAP_FOM canonical (alias: fixom)
-    "varom": "act_cost",  # ACT_COST canonical (alias: varom)
-    "life": "ncap_tlife",  # NCAP_TLIFE canonical (alias: life)
+    # Explicit attribute names (preferred)
+    "efficiency": "eff",                # ACT_EFF
+    "investment_cost": "ncap_cost",     # NCAP_COST - capital cost per capacity
+    "fixed_om_cost": "ncap_fom",        # NCAP_FOM - fixed O&M per capacity/year
+    "variable_om_cost": "act_cost",     # ACT_COST - variable cost per activity
+    "import_price": "ire_price",        # IRE_PRICE - import/export commodity price
+    "lifetime": "ncap_tlife",           # NCAP_TLIFE - technical lifetime
+    "availability_factor": "ncap_af",   # NCAP_AF - capacity factor
+    "stock": "prc_resid",               # PRC_RESID - residual/existing capacity
+
+    # Legacy names (deprecated - mapped for backward compatibility)
+    "invcost": "ncap_cost",             # → use investment_cost
+    "fixom": "ncap_fom",                # → use fixed_om_cost
+    "varom": "act_cost",                # → use variable_om_cost
+    "life": "ncap_tlife",               # → use lifetime
     # NOTE: "cost" is context-dependent - see _get_cost_column_for_process()
-    # For IMP/EXP processes: ire_price (import/export price)
-    # For other processes: act_cost (variable operating cost)
-    "availability_factor": "ncap_af",  # NCAP_AF canonical (aliases: cf, utilization)
-    "stock": "prc_resid",  # PRC_RESID canonical (aliases: stock, resid)
-    # Note: emission_factor uses attribute=ENV_ACT with value column, not column header
+    # For IMP/EXP processes: ire_price; for others: act_cost
+    # DEPRECATED: use 'variable_om_cost' or 'import_price' explicitly
 }
 
 # Process sets that use IRE_PRICE for the "cost" attribute
 # (Inter-Regional Export/Import processes)
 IRE_PROCESS_SETS = {"IMP", "EXP", "IRE"}
+
+# Explicit attributes that are NOT context-dependent
+# (they map directly without process-type inference)
+EXPLICIT_COST_ATTRS = {
+    "investment_cost", "fixed_om_cost", "variable_om_cost", "import_price",
+}
 
 # Interpolation mode to VEDA code mapping
 INTERPOLATION_CODES = {
@@ -77,15 +97,22 @@ INTERPOLATION_CODES = {
 # Map VedaLang semantic attribute names to canonical TIMES attribute names
 # Used for registry validation (registry uses TIMES names like NCAP_COST)
 SEMANTIC_TO_TIMES = {
+    # Explicit names (preferred)
     "efficiency": "ACT_EFF",
+    "investment_cost": "NCAP_COST",
+    "fixed_om_cost": "NCAP_FOM",
+    "variable_om_cost": "ACT_COST",
+    "import_price": "IRE_PRICE",
+    "lifetime": "NCAP_TLIFE",
+    "availability_factor": "NCAP_AF",
+    "stock": "PRC_RESID",
+
+    # Legacy names (deprecated)
     "invcost": "NCAP_COST",
     "fixom": "NCAP_FOM",
     "varom": "ACT_COST",
     "life": "NCAP_TLIFE",
-    "cost": "IRE_PRICE",
-    "availability_factor": "NCAP_AF",
-    "stock": "PRC_RESID",
-    # Note: emission_factor is emitted via ENV_ACT attribute (maps to FLO_EMIS)
+    "cost": "IRE_PRICE",  # Note: context-dependent, but validation uses IRE_PRICE
 }
 
 # Default category inference from scenario parameter type
@@ -543,22 +570,42 @@ def compile_vedalang_to_tableir(source: dict, validate: bool = True) -> dict:
 
         # Collect cost parameters - separate scalar from time-varying
         # Keys in cost_params use CANONICAL column names from ATTR_TO_COLUMN
+        # Process both explicit names (preferred) and legacy names (deprecated)
         cost_params = {}  # Scalar values to merge into rows (canonical column names)
         time_varying_attrs = []  # (attr_name, value) tuples for separate rows
-        for attr in ["invcost", "fixom", "varom", "life", "cost", "stock"]:
-            if attr in process:
-                _validate_attribute_for_emission(attr, "FI_T")
-                val = process[attr]
-                # Map VedaLang attr name to canonical column name
-                # Special case: 'cost' is context-dependent on process type
-                if attr == "cost":
-                    column = _get_cost_column_for_process(process)
-                else:
-                    column = ATTR_TO_COLUMN.get(attr, attr)
-                if _is_time_varying(val):
-                    time_varying_attrs.append((attr, val))
-                else:
-                    cost_params[column] = val
+
+        # All process attributes that can be emitted
+        # Explicit names first (so they take precedence if both specified)
+        process_attrs = [
+            # Explicit names (preferred)
+            "investment_cost", "fixed_om_cost", "variable_om_cost",
+            "import_price", "lifetime", "stock",
+            # Legacy names (deprecated)
+            "invcost", "fixom", "varom", "life", "cost",
+        ]
+
+        for attr in process_attrs:
+            if attr not in process:
+                continue
+
+            _validate_attribute_for_emission(attr, "FI_T")
+            val = process[attr]
+
+            # Map VedaLang attr name to canonical column name
+            # Special case: 'cost' is context-dependent on process type
+            if attr == "cost":
+                column = _get_cost_column_for_process(process)
+            else:
+                column = ATTR_TO_COLUMN.get(attr, attr)
+
+            # Skip if column already set by explicit name
+            if column in cost_params:
+                continue
+
+            if _is_time_varying(val):
+                time_varying_attrs.append((attr, val))
+            else:
+                cost_params[column] = val
 
         # Add PRC_CAPACT (capacity-to-activity conversion) when units differ
         # This is critical: if capacity is in GW and activity is in PJ, TIMES needs

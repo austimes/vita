@@ -22,6 +22,7 @@ VedaLang Source (.veda.yaml)  →  VEDA Excel (.xlsx)  →  TIMES DD files
 | Resource | Description |
 |----------|-------------|
 | [LLMS.md](LLMS.md) | LLM guide for authoring VedaLang models |
+| [attribute_mapping.md](attribute_mapping.md) | VedaLang → VEDA/TIMES attribute mapping |
 | [heuristics.md](heuristics.md) | Heuristic checks that catch modeling mistakes |
 | `vedalang/schema/vedalang.schema.json` | Formal language schema |
 | `vedalang/examples/` | Example `.veda.yaml` models |

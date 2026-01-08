@@ -33,7 +33,7 @@ model:
       outputs:
         - commodity: ELC
       efficiency: 1.0
-      cost: 10
+      variable_om_cost: 10  # Activity cost ($/PJ)
       stock: 100
       cap_bound:
         up: 1000
