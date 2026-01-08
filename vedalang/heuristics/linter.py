@@ -682,6 +682,41 @@ ALL_RULES: list[HeuristicRule] = [
 ]
 
 
+@dataclass
+class HeuristicsResult:
+    """Result of running all heuristic checks."""
+
+    issues: list[LintIssue]
+    checks_run: list[dict[str, str]]  # [{code, description}, ...]
+    error_count: int
+    warning_count: int
+
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to JSON-serializable dict."""
+        return {
+            "issues": [i.to_dict() for i in self.issues],
+            "checks_run": self.checks_run,
+            "summary": {
+                "total_checks": len(self.checks_run),
+                "error_count": self.error_count,
+                "warning_count": self.warning_count,
+                "issue_count": len(self.issues),
+            },
+        }
+
+
+def get_available_checks() -> list[dict[str, str]]:
+    """Get list of all available heuristic checks.
+
+    Returns:
+        List of {code, description} dicts for all registered rules.
+    """
+    return [
+        {"code": rule.code, "description": rule.description}
+        for rule in ALL_RULES
+    ]
+
+
 def run_heuristics(model: dict) -> list[LintIssue]:
     """Run all heuristic rules on a VedaLang model.
 
@@ -708,3 +743,31 @@ def run_heuristics(model: dict) -> list[LintIssue]:
                 )
             )
     return issues
+
+
+def run_heuristics_detailed(model: dict) -> HeuristicsResult:
+    """Run all heuristic rules and return detailed results.
+
+    This is the preferred API for tools that want to show:
+    - What checks were run (even if they passed)
+    - Counts of errors vs warnings
+    - Full issue details
+
+    Args:
+        model: Parsed VedaLang model dict (from load_vedalang)
+
+    Returns:
+        HeuristicsResult with issues and metadata
+    """
+    issues = run_heuristics(model)
+    checks_run = get_available_checks()
+
+    error_count = sum(1 for i in issues if i.severity == "error")
+    warning_count = sum(1 for i in issues if i.severity == "warning")
+
+    return HeuristicsResult(
+        issues=issues,
+        checks_run=checks_run,
+        error_count=error_count,
+        warning_count=warning_count,
+    )

@@ -52,11 +52,17 @@ ATTR_TO_COLUMN = {
     "fixom": "ncap_fom",  # NCAP_FOM canonical (alias: fixom)
     "varom": "act_cost",  # ACT_COST canonical (alias: varom)
     "life": "ncap_tlife",  # NCAP_TLIFE canonical (alias: life)
-    "cost": "ire_price",  # IRE_PRICE canonical (alias: cost)
+    # NOTE: "cost" is context-dependent - see _get_cost_column_for_process()
+    # For IMP/EXP processes: ire_price (import/export price)
+    # For other processes: act_cost (variable operating cost)
     "availability_factor": "ncap_af",  # NCAP_AF canonical (aliases: cf, utilization)
     "stock": "prc_resid",  # PRC_RESID canonical (aliases: stock, resid)
     # Note: emission_factor uses attribute=ENV_ACT with value column, not column header
 }
+
+# Process sets that use IRE_PRICE for the "cost" attribute
+# (Inter-Regional Export/Import processes)
+IRE_PROCESS_SETS = {"IMP", "EXP", "IRE"}
 
 # Interpolation mode to VEDA code mapping
 INTERPOLATION_CODES = {
@@ -136,6 +142,30 @@ def _normalize_process_flows(process: dict) -> dict:
 def _get_default_unit(commodity_type: str) -> str:
     """Get default unit for a commodity type."""
     return DEFAULT_UNITS.get(commodity_type, "PJ")
+
+
+def _get_cost_column_for_process(process: dict) -> str:
+    """
+    Determine the correct column name for the 'cost' attribute based on process type.
+
+    The 'cost' attribute has different meanings depending on process type:
+    - IMP/EXP/IRE processes: IRE_PRICE (cost of importing/exporting commodity)
+    - Other processes (ELE, DMD, PRE, etc.): ACT_COST (variable operating cost)
+
+    Args:
+        process: Process definition from VedaLang source
+
+    Returns:
+        Column name: 'ire_price' for IMP/EXP/IRE, 'act_cost' for others
+    """
+    process_sets = process.get("sets", [])
+    if isinstance(process_sets, str):
+        process_sets = [process_sets]
+
+    # Check if any of the process sets indicate an inter-regional process
+    if any(s.upper() in IRE_PROCESS_SETS for s in process_sets):
+        return "ire_price"
+    return "act_cost"
 
 
 def _get_scalar_value(value):
@@ -520,7 +550,11 @@ def compile_vedalang_to_tableir(source: dict, validate: bool = True) -> dict:
                 _validate_attribute_for_emission(attr, "FI_T")
                 val = process[attr]
                 # Map VedaLang attr name to canonical column name
-                column = ATTR_TO_COLUMN.get(attr, attr)
+                # Special case: 'cost' is context-dependent on process type
+                if attr == "cost":
+                    column = _get_cost_column_for_process(process)
+                else:
+                    column = ATTR_TO_COLUMN.get(attr, attr)
                 if _is_time_varying(val):
                     time_varying_attrs.append((attr, val))
                 else:

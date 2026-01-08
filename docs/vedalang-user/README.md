@@ -22,6 +22,7 @@ VedaLang Source (.veda.yaml)  →  VEDA Excel (.xlsx)  →  TIMES DD files
 | Resource | Description |
 |----------|-------------|
 | [LLMS.md](LLMS.md) | LLM guide for authoring VedaLang models |
+| [heuristics.md](heuristics.md) | Heuristic checks that catch modeling mistakes |
 | `vedalang/schema/vedalang.schema.json` | Formal language schema |
 | `vedalang/examples/` | Example `.veda.yaml` models |
 | `rules/patterns.yaml` | Pattern "standard library" |

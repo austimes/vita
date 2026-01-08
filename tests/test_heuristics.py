@@ -5,7 +5,9 @@ from vedalang.heuristics.linter import (
     H002_DemandDeviceNoStock,
     H003_BaseYearCapacityAdequacy,
     H004_StockCoversAllDemand,
+    get_available_checks,
     run_heuristics,
+    run_heuristics_detailed,
 )
 
 
@@ -472,3 +474,80 @@ class TestRunHeuristics:
         issues = run_heuristics({})
 
         assert all(i.severity == "warning" for i in issues if "_ERROR" in i.code)
+
+
+class TestHeuristicsAPI:
+    """Tests for heuristics API functions."""
+
+    def test_get_available_checks(self):
+        """Should return list of all registered checks."""
+        checks = get_available_checks()
+
+        assert len(checks) >= 4  # H001-H004
+        codes = {c["code"] for c in checks}
+        assert "H001" in codes
+        assert "H002" in codes
+        assert "H003" in codes
+        assert "H004" in codes
+
+        for check in checks:
+            assert "code" in check
+            assert "description" in check
+            assert check["description"]  # Non-empty
+
+    def test_run_heuristics_detailed(self):
+        """Should return detailed results with checks run."""
+        model = {
+            "model": {
+                "start_year": 2020,
+                "time_periods": [10],
+                "commodities": [
+                    {"name": "ELC", "type": "energy"},
+                    {"name": "RSD", "type": "demand"},
+                ],
+                "processes": [
+                    {
+                        "name": "DMD_RSD",
+                        "inputs": [{"commodity": "ELC"}],
+                        "outputs": [{"commodity": "RSD"}],
+                        "efficiency": 1.0,
+                        # No stock - should trigger H002
+                    },
+                ],
+                "scenarios": [],
+            }
+        }
+
+        result = run_heuristics_detailed(model)
+
+        # Should have metadata
+        assert result.checks_run is not None
+        assert len(result.checks_run) >= 4
+
+        # Should have H002 error
+        assert result.error_count >= 1
+        h002_issues = [i for i in result.issues if i.code == "H002"]
+        assert len(h002_issues) == 1
+
+    def test_run_heuristics_detailed_to_dict(self):
+        """Should convert to JSON-serializable dict."""
+        model = {
+            "model": {
+                "start_year": 2020,
+                "time_periods": [10],
+                "commodities": [],
+                "processes": [],
+                "scenarios": [],
+            }
+        }
+
+        result = run_heuristics_detailed(model)
+        data = result.to_dict()
+
+        assert "issues" in data
+        assert "checks_run" in data
+        assert "summary" in data
+        assert "total_checks" in data["summary"]
+        assert "error_count" in data["summary"]
+        assert "warning_count" in data["summary"]
+        assert "issue_count" in data["summary"]

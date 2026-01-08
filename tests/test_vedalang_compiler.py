@@ -2399,3 +2399,66 @@ def test_prc_capact_emitted_for_gw_pj_units():
     assert eff_row["prc_capact"] == 31.536, (
         f"PRC_CAPACT should be 31.536, got {eff_row.get('prc_capact')}"
     )
+
+
+def test_cost_attribute_context_aware():
+    """'cost' attribute should map to different VEDA columns based on process type.
+
+    For IMP/EXP/IRE processes: cost → ire_price (import/export price)
+    For other processes (ELE, DMD, etc.): cost → act_cost (variable operating cost)
+
+    This is important because PP_SIMPLE with cost=10 was incorrectly mapping to
+    ire_price, causing zero objective (no activity cost applied to generation).
+    """
+    source = {
+        "model": {
+            "name": "CostContextTest",
+            "regions": ["REG1"],
+            "commodities": [
+                {"name": "NG", "type": "energy"},
+                {"name": "ELC", "type": "energy"},
+            ],
+            "processes": [
+                {
+                    "name": "IMP_NG",
+                    "sets": ["IMP"],
+                    "primary_commodity_group": "NRGO",
+                    "outputs": [{"commodity": "NG"}],
+                    "efficiency": 1.0,
+                    "cost": 5.0,  # Should become ire_price
+                },
+                {
+                    "name": "PP_SIMPLE",
+                    "sets": ["ELE"],
+                    "primary_commodity_group": "NRGO",
+                    "inputs": [{"commodity": "NG"}],
+                    "outputs": [{"commodity": "ELC"}],
+                    "efficiency": 0.5,
+                    "cost": 10.0,  # Should become act_cost
+                },
+            ],
+        }
+    }
+    tableir = compile_vedalang_to_tableir(source)
+
+    # Find ~FI_T table
+    fit_rows = []
+    for f in tableir["files"]:
+        for s in f["sheets"]:
+            for t in s["tables"]:
+                if t["tag"] == "~FI_T":
+                    fit_rows.extend(t["rows"])
+
+    # IMP_NG should have ire_price (not act_cost)
+    imp_rows = [r for r in fit_rows if r.get("process") == "IMP_NG" and "eff" in r]
+    assert len(imp_rows) == 1
+    assert "ire_price" in imp_rows[0], "IMP process should use ire_price"
+    assert imp_rows[0]["ire_price"] == 5.0
+    assert "act_cost" not in imp_rows[0], "IMP process should NOT have act_cost"
+
+    # PP_SIMPLE should have act_cost (not ire_price)
+    pp_rows = [r for r in fit_rows if r.get("process") == "PP_SIMPLE" and "eff" in r]
+    assert len(pp_rows) == 1
+    assert "act_cost" in pp_rows[0], "ELE process should use act_cost"
+    assert pp_rows[0]["act_cost"] == 10.0
+    assert "ire_price" not in pp_rows[0], "ELE process should NOT have ire_price"
