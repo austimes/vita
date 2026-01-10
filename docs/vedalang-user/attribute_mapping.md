@@ -22,6 +22,7 @@ All VedaLang process attributes with their TIMES/VEDA mappings:
 | `variable_om_cost` | ACT_COST | act_cost | Cost |
 | `import_price` | IRE_PRICE | ire_price | Cost |
 | `lifetime` | NCAP_TLIFE | ncap_tlife | Capacity |
+| `economic_life` | NCAP_ELIFE | ncap_elife | Capacity |
 | `availability_factor` | NCAP_AF | ncap_af | Capacity |
 | `stock` | PRC_RESID | prc_resid | Capacity |
 | `existing_capacity` | NCAP_PASTI | ncap_pasti | Capacity |
@@ -50,9 +51,37 @@ All VedaLang process attributes with their TIMES/VEDA mappings:
 | VedaLang Attribute | TIMES Attribute | VEDA Column | Unit | Description |
 |-------------------|-----------------|-------------|------|-------------|
 | `lifetime` | NCAP_TLIFE | ncap_tlife | years | Technical lifetime of new capacity |
+| `economic_life` | NCAP_ELIFE | ncap_elife | years | Economic lifetime for cost amortization |
 | `stock` | PRC_RESID | prc_resid | GW | Aggregate residual capacity (mixed vintages) |
 | `existing_capacity` | NCAP_PASTI | ncap_pasti | GW | Past capacity with vintage year (preferred) |
 | `availability_factor` | NCAP_AF | ncap_af | fraction | Annual availability/capacity factor |
+
+### Technical Lifetime vs Economic Lifetime
+
+TIMES distinguishes between two lifetime concepts:
+
+| VedaLang | TIMES | Purpose | Default |
+|----------|-------|---------|---------|
+| `lifetime` | NCAP_TLIFE | How long the asset can physically operate | Required |
+| `economic_life` | NCAP_ELIFE | How long investment costs are amortized | = TLIFE |
+
+**When they differ:**
+- **Loan financing**: Equipment may operate 30 years but loan is 20 years
+- **Accelerated depreciation**: Tax benefits with shorter economic life
+- **Leased equipment**: Economic life matches lease term, not physical life
+
+**Default behavior**: When `economic_life` is not specified, TIMES uses `lifetime` (NCAP_TLIFE) for both purposes. This is appropriate for most models.
+
+```yaml
+# Typical case: same lifetime for both (economic_life not needed)
+lifetime: 40
+
+# Special case: shorter financing period than physical life
+lifetime: 40           # Can operate for 40 years
+economic_life: 20      # Loan paid off in 20 years
+```
+
+**Recommendation**: Omit `economic_life` unless your model explicitly requires different amortization periods. Most energy system models use the same value for technical and economic life.
 
 ### Stock vs Existing Capacity
 
@@ -256,4 +285,4 @@ investment_cost:
 
 Supported attributes:
 - `efficiency`, `investment_cost`, `fixed_om_cost`, `variable_om_cost`
-- `import_price`, `availability_factor`, `lifetime`
+- `import_price`, `availability_factor`, `lifetime`, `economic_life`
