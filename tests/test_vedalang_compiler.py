@@ -384,20 +384,25 @@ def test_compile_example_with_bounds():
     assert len(bound_rows) >= 6  # Multiple bounds across processes
 
     # Verify specific bounds exist
+    # Bounds are now expanded to all milestone years (4 years in this model)
     ccgt_cap_up = [
         r
         for r in bound_rows
         if r.get("process") == "PP_CCGT" and r.get("cap_bnd") == 10.0
     ]
-    assert len(ccgt_cap_up) == 1
+    assert len(ccgt_cap_up) == 4  # One row per milestone year [2020, 2030, 2040, 2050]
+
+    # Each bound row should have a year column
+    ccgt_years = sorted(r.get("year") for r in ccgt_cap_up)
+    assert ccgt_years == [2020, 2030, 2040, 2050]
 
     wind_cap_lo = [
         r
         for r in bound_rows
         if r.get("process") == "PP_WIND" and r.get("limtype") == "LO"
     ]
-    assert len(wind_cap_lo) == 1
-    assert wind_cap_lo[0]["cap_bnd"] == 5.0
+    assert len(wind_cap_lo) == 4  # One row per milestone year
+    assert all(r["cap_bnd"] == 5.0 for r in wind_cap_lo)
 
 
 def test_compile_timeslices():
@@ -2506,9 +2511,9 @@ def test_existing_capacity_emits_ncap_pasti():
             ],
         }
     }
-    
+
     tableir = compile_vedalang_to_tableir(source)
-    
+
     # Find ~TFM_INS tables with NCAP_PASTI attribute
     pasti_rows = []
     for f in tableir["files"]:
@@ -2518,10 +2523,10 @@ def test_existing_capacity_emits_ncap_pasti():
                     for row in t["rows"]:
                         if row.get("attribute") == "NCAP_PASTI":
                             pasti_rows.append(row)
-    
+
     # Should have 2 NCAP_PASTI rows (one per vintage)
     assert len(pasti_rows) == 2
-    
+
     # Verify vintage years and capacities
     pasti_by_year = {r["year"]: r for r in pasti_rows}
     assert 2010 in pasti_by_year
@@ -2571,9 +2576,9 @@ def test_existing_capacity_vs_stock():
             ],
         }
     }
-    
+
     tableir = compile_vedalang_to_tableir(source)
-    
+
     # Find PRC_RESID (stock) in ~FI_T
     fit_rows = []
     for f in tableir["files"]:
@@ -2581,11 +2586,11 @@ def test_existing_capacity_vs_stock():
             for t in s["tables"]:
                 if t["tag"] == "~FI_T":
                     fit_rows.extend(t["rows"])
-    
+
     resid_rows = [r for r in fit_rows if "prc_resid" in r]
     assert len(resid_rows) >= 1
     assert resid_rows[0]["prc_resid"] == 10.0
-    
+
     # Find NCAP_PASTI in ~TFM_INS
     pasti_rows = []
     for f in tableir["files"]:
@@ -2595,8 +2600,112 @@ def test_existing_capacity_vs_stock():
                     for row in t["rows"]:
                         if row.get("attribute") == "NCAP_PASTI":
                             pasti_rows.append(row)
-    
+
     assert len(pasti_rows) == 1
     assert pasti_rows[0]["value"] == 2.0
     assert pasti_rows[0]["year"] == 2015
+
+
+def test_bounds_expand_to_all_milestone_years():
+    """Bounds should be expanded to explicit rows for all milestone years.
+    
+    Per VedaLang design principle: never rely on TIMES implicit interpolation.
+    Bounds (ACT_BND, CAP_BND, NCAP_BND) are period-indexed and should have
+    explicit values for each milestone year.
+    """
+    source = {
+        "model": {
+            "name": "BoundExpansionTest",
+            "regions": ["REG1"],
+            "milestone_years": [2020, 2030, 2040],
+            "commodities": [
+                {"name": "ELC", "type": "energy"},
+            ],
+            "processes": [
+                {
+                    "name": "PP_TEST",
+                    "sets": ["ELE"],
+                    "primary_commodity_group": "NRGO",
+                    "outputs": [{"commodity": "ELC"}],
+                    "efficiency": 1.0,
+                    "cap_bound": {"up": 100.0},
+                    "ncap_bound": {"up": 10.0, "lo": 1.0},
+                },
+            ],
+        }
+    }
+    tableir = compile_vedalang_to_tableir(source)
+
+    # Find ~FI_T rows with bounds
+    fit_rows = []
+    for f in tableir["files"]:
+        for s in f["sheets"]:
+            for t in s["tables"]:
+                if t["tag"] == "~FI_T":
+                    fit_rows.extend(t["rows"])
+
+    # cap_bound: up should be expanded to 3 rows (one per milestone year)
+    cap_up = [r for r in fit_rows if r.get("cap_bnd") == 100.0]
+    assert len(cap_up) == 3, f"Expected 3 cap_bnd rows, got {len(cap_up)}"
+    cap_years = sorted(r["year"] for r in cap_up)
+    assert cap_years == [2020, 2030, 2040]
+
+    # ncap_bound: up should be expanded to 3 rows
+    ncap_up = [r for r in fit_rows if r.get("ncap_bnd") == 10.0]
+    assert len(ncap_up) == 3
+    ncap_up_years = sorted(r["year"] for r in ncap_up)
+    assert ncap_up_years == [2020, 2030, 2040]
+
+    # ncap_bound: lo should be expanded to 3 rows
+    ncap_lo = [r for r in fit_rows if r.get("ncap_bnd") == 1.0]
+    assert len(ncap_lo) == 3
+    ncap_lo_years = sorted(r["year"] for r in ncap_lo)
+    assert ncap_lo_years == [2020, 2030, 2040]
+
+
+def test_stock_expands_to_all_milestone_years():
+    """Stock (PRC_RESID) should be expanded to explicit rows for all years.
+    
+    Per VedaLang design principle: PRC_RESID has surprising default behavior
+    (linear decay over TLIFE), so scalar stock values must be expanded.
+    """
+    source = {
+        "model": {
+            "name": "StockExpansionTest",
+            "regions": ["REG1"],
+            "milestone_years": [2020, 2030],
+            "commodities": [
+                {"name": "ELC", "type": "energy"},
+            ],
+            "processes": [
+                {
+                    "name": "PP_EXIST",
+                    "sets": ["ELE"],
+                    "primary_commodity_group": "NRGO",
+                    "outputs": [{"commodity": "ELC"}],
+                    "efficiency": 1.0,
+                    "stock": 50.0,  # Existing capacity
+                },
+            ],
+        }
+    }
+    tableir = compile_vedalang_to_tableir(source)
+
+    # Find ~FI_T rows with prc_resid
+    fit_rows = []
+    for f in tableir["files"]:
+        for s in f["sheets"]:
+            for t in s["tables"]:
+                if t["tag"] == "~FI_T":
+                    fit_rows.extend(t["rows"])
+
+    # stock should be expanded to 2 rows (one per milestone year)
+    resid_rows = [r for r in fit_rows if "prc_resid" in r]
+    assert len(resid_rows) == 2, f"Expected 2 prc_resid rows, got {len(resid_rows)}"
+
+    years = sorted(r["year"] for r in resid_rows)
+    assert years == [2020, 2030]
+
+    # All rows should have the same value
+    assert all(r["prc_resid"] == 50.0 for r in resid_rows)
 

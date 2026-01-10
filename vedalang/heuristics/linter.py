@@ -481,7 +481,7 @@ class H004_StockCoversAllDemand(HeuristicRule):
     def _get_total_capacity(self, proc: dict) -> float:
         """Get total capacity from stock and/or existing_capacity."""
         total = 0
-        
+
         # Stock (PRC_RESID) - aggregate residual capacity
         stock = proc.get("stock", 0)
         if isinstance(stock, dict):
@@ -491,12 +491,12 @@ class H004_StockCoversAllDemand(HeuristicRule):
             else:
                 stock = 0
         total += stock
-        
+
         # Existing capacity (NCAP_PASTI) - sum of past investments
         existing_capacity = proc.get("existing_capacity", [])
         for ec in existing_capacity:
             total += ec.get("capacity", 0)
-        
+
         return total
 
 
@@ -691,7 +691,7 @@ class H003_BaseYearCapacityAdequacy(HeuristicRule):
     def _get_total_capacity(self, proc: dict) -> float:
         """Get total capacity from stock and/or existing_capacity."""
         total = 0
-        
+
         # Stock (PRC_RESID) - aggregate residual capacity
         stock = proc.get("stock", 0)
         if isinstance(stock, dict):
@@ -702,12 +702,12 @@ class H003_BaseYearCapacityAdequacy(HeuristicRule):
             else:
                 stock = 0
         total += stock
-        
+
         # Existing capacity (NCAP_PASTI) - sum of past investments
         existing_capacity = proc.get("existing_capacity", [])
         for ec in existing_capacity:
             total += ec.get("capacity", 0)
-        
+
         return total
 
     def _get_scalar_efficiency(self, proc: dict) -> float:

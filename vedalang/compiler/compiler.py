@@ -44,6 +44,30 @@ TIME_VARYING_ATTRS = {
     # Note: emission_factor also supports time-varying but is handled separately
 }
 
+# Attributes that MUST be expanded to all milestone years (even for scalars)
+# These are attributes where TIMES implicit interpolation can cause surprises
+# See AGENTS.md: "Avoid Implicit TIMES Interpolation"
+#
+# Per AGENTS.md, the key parameters with surprising interpolation are:
+# - PRC_RESID (stock) - decays linearly over TLIFE by default
+# - Bounds (ACT_BND, CAP_BND, NCAP_BND) - handled separately
+# - COM_PROJ (demand projections) - already expanded in scenario compilation
+#
+# For now, we only force expansion on 'stock' (PRC_RESID) since it has the most
+# surprising default behavior (linear decay). Costs and efficiency are left as
+# scalars when specified as scalars - TIMES applies them uniformly which is expected.
+EXPAND_TO_ALL_YEARS_ATTRS = {
+    "stock",  # PRC_RESID - decays linearly by default, must be explicit
+}
+
+# Bound attributes that must be expanded to all years
+# Bounds are period-indexed and need explicit values per milestone year
+EXPAND_TO_ALL_YEARS_BOUNDS = {
+    "activity_bound",  # ACT_BND
+    "cap_bound",       # CAP_BND
+    "ncap_bound",      # NCAP_BND
+}
+
 # Map VedaLang attribute names to their TableIR/VEDA column names
 # These must map to CANONICAL VEDA attribute column headers only
 # (from attribute-master.json "column_header" field, NOT aliases)
@@ -192,6 +216,95 @@ def _expand_time_varying_attr(
         rows.append(row)
 
     return rows
+
+
+def _expand_scalar_to_all_years(
+    attr_name: str,
+    scalar_value: float | int,
+    base_row: dict,
+    milestone_years: list[int],
+) -> list[dict]:
+    """
+    Expand a scalar attribute value to explicit rows for all milestone years.
+
+    VedaLang design principle: Never rely on TIMES implicit interpolation.
+    This function ensures scalar values are emitted explicitly for every year.
+
+    Args:
+        attr_name: The VedaLang attribute name (e.g., 'efficiency', 'stock')
+        scalar_value: The scalar value to expand
+        base_row: Base row dict to copy for each year
+        milestone_years: List of model milestone years
+
+    Returns:
+        List of row dicts, one per milestone year
+    """
+    column = ATTR_TO_COLUMN.get(attr_name, attr_name)
+    rows = []
+
+    for year in milestone_years:
+        row = base_row.copy()
+        row["year"] = year
+        row[column] = scalar_value
+        rows.append(row)
+
+    return rows
+
+
+def _expand_attr_to_all_years(
+    attr_name: str,
+    value,
+    base_row: dict,
+    milestone_years: list[int],
+    force_expand: bool = False,
+) -> list[dict]:
+    """
+    Expand an attribute value to rows for all milestone years.
+
+    For time-varying specs: uses interpolation to expand sparse values.
+    For scalar values: expands to all years if force_expand is True.
+
+    This is the preferred function for attributes that should always have
+    explicit year-indexed values (as per VedaLang design principles).
+
+    Args:
+        attr_name: The VedaLang attribute name (e.g., 'efficiency', 'stock')
+        value: Either a scalar or a time-varying spec with 'values' dict
+        base_row: Base row dict to copy for each year
+        milestone_years: List of model milestone years
+        force_expand: If True, expand scalar values to all years
+
+    Returns:
+        List of row dicts, one per milestone year
+    """
+    if _is_time_varying(value):
+        # Time-varying: use interpolation to fill all years
+        sparse_values = value.get("values", {})
+        interpolation = value.get("interpolation", "interp_extrap")
+        dense_values = _expand_series_to_years(
+            sparse_values, milestone_years, interpolation
+        )
+
+        column = ATTR_TO_COLUMN.get(attr_name, attr_name)
+        rows = []
+        for year, val in sorted(dense_values.items()):
+            row = base_row.copy()
+            row["year"] = year
+            row[column] = val
+            rows.append(row)
+        return rows
+
+    # Scalar value
+    if force_expand:
+        return _expand_scalar_to_all_years(
+            attr_name, value, base_row, milestone_years
+        )
+    else:
+        # Just return single row without year (legacy behavior)
+        column = ATTR_TO_COLUMN.get(attr_name, attr_name)
+        row = base_row.copy()
+        row[column] = value
+        return [row]
 
 
 def _validate_attribute_for_emission(attr_name: str, tag_name: str) -> None:
@@ -468,8 +581,14 @@ def compile_vedalang_to_tableir(source: dict, validate: bool = True) -> dict:
     regions = model.get("regions", ["REG1"])
     default_region = ",".join(regions)  # For multi-region models
 
+    # Extract milestone years early - needed for year expansion
+    # VedaLang principle: Always emit explicit values for all milestone years
+    milestone_years = model.get("milestone_years", [2020])
+
     # Build commodity lookup for type checking during process compilation
-    commodity_types = {c["name"]: c.get("type", "energy") for c in model.get("commodities", [])}
+    commodity_types = {
+        c["name"]: c.get("type", "energy") for c in model.get("commodities", [])
+    }
 
     # Build commodity table (~FI_COMM)
     # Use lowercase column names for xl2times compatibility
@@ -515,9 +634,9 @@ def compile_vedalang_to_tableir(source: dict, validate: bool = True) -> dict:
 
         # Collect cost parameters - separate scalar from time-varying
         # Keys in cost_params use CANONICAL column names from ATTR_TO_COLUMN
-        # Process both explicit names (preferred) and legacy names (deprecated)
-        cost_params = {}  # Scalar values to merge into rows (canonical column names)
-        time_varying_attrs = []  # (attr_name, value) tuples for separate rows
+        cost_params = {}  # Scalar values to merge into rows
+        time_varying_attrs = []  # (attr_name, value) tuples for year-indexed rows
+        year_expand_attrs = []  # (attr_name, value) scalars that expand to all years
 
         # All process attributes that can be emitted
         process_attrs = [
@@ -534,8 +653,13 @@ def compile_vedalang_to_tableir(source: dict, validate: bool = True) -> dict:
             column = ATTR_TO_COLUMN.get(attr, attr)
 
             if _is_time_varying(val):
+                # Always expand time-varying to all years
                 time_varying_attrs.append((attr, val))
+            elif attr in EXPAND_TO_ALL_YEARS_ATTRS:
+                # Scalar but must expand to all milestone years
+                year_expand_attrs.append((attr, val))
             else:
+                # Scalar that doesn't need year expansion (e.g., lifetime)
                 cost_params[column] = val
 
         # Add PRC_CAPACT (capacity-to-activity conversion) when units differ
@@ -607,8 +731,8 @@ def compile_vedalang_to_tableir(source: dict, validate: bool = True) -> dict:
                 "value": ef["value"],
             })
 
-        # Collect bound parameters
-        bound_params = _collect_bound_params(process)
+        # Collect bound parameters - expand to all milestone years
+        bound_params = _collect_bound_params(process, milestone_years)
 
         # Add efficiency row with cost and bound parameters if specified
         if "efficiency" in process:
@@ -671,7 +795,23 @@ def compile_vedalang_to_tableir(source: dict, validate: bool = True) -> dict:
             }
             if first_output:
                 base_row["commodity-out"] = first_output
+            # Use original _expand_time_varying_attr which emits year=0 + data rows
+            # This preserves backward compatibility for time-varying syntax
             expanded_rows = _expand_time_varying_attr(attr_name, attr_value, base_row)
+            topology_rows.extend(expanded_rows)
+
+        # Emit scalar attributes that need year expansion (VedaLang design principle)
+        # These are attributes where TIMES interpolation could cause surprises
+        for attr_name, scalar_value in year_expand_attrs:
+            base_row = {
+                "region": default_region,
+                "process": process["name"],
+            }
+            if first_output:
+                base_row["commodity-out"] = first_output
+            expanded_rows = _expand_scalar_to_all_years(
+                attr_name, scalar_value, base_row, milestone_years
+            )
             topology_rows.extend(expanded_rows)
 
         # Handle existing_capacity (NCAP_PASTI) - past investments with vintage years
@@ -700,7 +840,7 @@ def compile_vedalang_to_tableir(source: dict, validate: bool = True) -> dict:
     bookregions_rows = [{"bookname": bookname, "region": r} for r in regions]
 
     # ~STARTYEAR - model start year (first milestone year)
-    milestone_years = model.get("milestone_years", [2020])
+    # NOTE: milestone_years already extracted at start of function
     start_year = milestone_years[0] if milestone_years else 2020
     startyear_rows = [{"value": start_year}]
 
@@ -708,8 +848,10 @@ def compile_vedalang_to_tableir(source: dict, validate: bool = True) -> dict:
     # Format: type column + year column (named after model)
     # This ensures VedaLang milestone_years appear directly in TIMES MILESTONYR
     last_year = milestone_years[-1] if milestone_years else 2020
-    milestoneyears_rows = [{"type": "Endyear", "year": last_year + 10}]  # End horizon
-    milestoneyears_rows += [{"type": "milestoneyear", "year": y} for y in milestone_years]
+    milestoneyears_rows = [{"type": "Endyear", "year": last_year + 10}]
+    milestoneyears_rows += [
+        {"type": "milestoneyear", "year": y} for y in milestone_years
+    ]
 
     # ~CURRENCIES - default currency
     currencies_rows = [{"currency": "USD"}]
@@ -728,8 +870,8 @@ def compile_vedalang_to_tableir(source: dict, validate: bool = True) -> dict:
         for r in regions
     ]
 
-    # Derive model years for time-series expansion
-    model_years = _get_model_years(model)
+    # Use milestone_years for time-series expansion (already extracted above)
+    model_years = milestone_years
 
     # Build scenario files (~TFM_DINS-AT tables)
     # ARCHITECTURE/SCENARIO SEPARATION:
@@ -825,11 +967,10 @@ def compile_vedalang_to_tableir(source: dict, validate: bool = True) -> dict:
                 "sheets": [
                     {
                         "name": "Processes",
-                        "tables": [
-                            {"tag": "~FI_PROCESS", "rows": process_rows},
-                            {"tag": "~FI_T", "rows": topology_rows},
-                        ] + ([{"tag": "~TFM_INS", "rows": all_emission_factors}] if all_emission_factors else [])
-                          + ([{"tag": "~TFM_INS", "rows": all_pasti_rows}] if all_pasti_rows else []),
+                        "tables": _build_process_tables(
+                            process_rows, topology_rows,
+                            all_emission_factors, all_pasti_rows
+                        ),
                     },
                 ],
             },
@@ -854,21 +995,43 @@ def compile_vedalang_to_tableir(source: dict, validate: bool = True) -> dict:
     return tableir
 
 
-def _collect_bound_params(process: dict) -> list[dict]:
+def _build_process_tables(
+    process_rows: list[dict],
+    topology_rows: list[dict],
+    emission_factors: list[dict],
+    pasti_rows: list[dict],
+) -> list[dict]:
+    """Build the tables list for the process sheet."""
+    tables = [
+        {"tag": "~FI_PROCESS", "rows": process_rows},
+        {"tag": "~FI_T", "rows": topology_rows},
+    ]
+    if emission_factors:
+        tables.append({"tag": "~TFM_INS", "rows": emission_factors})
+    if pasti_rows:
+        tables.append({"tag": "~TFM_INS", "rows": pasti_rows})
+    return tables
+
+
+def _collect_bound_params(
+    process: dict,
+    milestone_years: list[int] | None = None,
+) -> list[dict]:
     """
     Collect bound parameters from process definition.
 
     Each bound type (activity_bound, cap_bound, ncap_bound) can have up to three
-    limits (up, lo, fx), each returned as a separate dict with limtype and column.
+    limits (up, lo, fx), each returned as separate dicts with limtype and column.
 
-    These params are designed to be merged into ~FI_T rows that have other
-    required fields (commodity-out, eff, etc.).
+    When milestone_years is provided, scalar bounds are expanded to all years
+    per VedaLang design principle: Never rely on TIMES implicit interpolation.
 
     Args:
         process: Process definition from VedaLang source
+        milestone_years: If provided, expand scalar bounds to all years
 
     Returns:
-        List of dicts with {limtype, <bound_column>: value}
+        List of dicts with {limtype, year (if expanded), <bound_column>: value}
     """
     params = []
 
@@ -896,10 +1059,38 @@ def _collect_bound_params(process: dict) -> list[dict]:
         for limit_key, limit_value in bound_spec.items():
             if limit_key not in limtype_mapping:
                 continue
-            params.append({
-                "limtype": limtype_mapping[limit_key],
-                veda_column: limit_value,
-            })
+
+            limtype = limtype_mapping[limit_key]
+
+            # Check if this is a time-varying bound
+            if _is_time_varying(limit_value):
+                # Time-varying bound: expand using interpolation
+                sparse_values = limit_value.get("values", {})
+                interpolation = limit_value.get("interpolation", "interp_extrap")
+                years_to_use = milestone_years or [2020]
+                dense_values = _expand_series_to_years(
+                    sparse_values, years_to_use, interpolation
+                )
+                for year, val in sorted(dense_values.items()):
+                    params.append({
+                        "limtype": limtype,
+                        "year": year,
+                        veda_column: val,
+                    })
+            elif milestone_years:
+                # Scalar bound with milestone_years: expand to all years
+                for year in milestone_years:
+                    params.append({
+                        "limtype": limtype,
+                        "year": year,
+                        veda_column: limit_value,
+                    })
+            else:
+                # Scalar bound without milestone_years: single row (legacy)
+                params.append({
+                    "limtype": limtype,
+                    veda_column: limit_value,
+                })
 
     return params
 
