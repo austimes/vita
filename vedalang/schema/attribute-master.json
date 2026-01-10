@@ -1,5 +1,5 @@
 {
-  "_comment": "Auto-generated from Attribute-master-export.xlsx. Do not edit.",
+  "_comment": "Auto-generated from veda-attribute-master-export.xlsx. Do not edit.",
   "_source": "tools/convert_attribute_master.py",
   "attributes": {
     "ACT_BND": {
@@ -18,13 +18,25 @@
       "timeslice": "ANNUAL",
       "limtype": "UP",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "BOUND(BD)O",
         "BNDACT",
         "ACTBND",
         "BOUND(BD)Or"
       ],
-      "indexes": "(r,datayear,p,s,bd)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "s",
+        "bd"
+      ],
+      "indexes_raw": "(r,datayear,p,s,bd)",
+      "units_ranges_defaults": "Units of activity [0,?); default value: none Default i/e[6]: MIG",
+      "instances_conditions": "Since inter-/extrapolation default is MIG, the bound must be explicitly specified for each period, unless an inter-/extrapolation option is set. If the bound is specified for a timeslice s above the process timeslice resolution (prc_tsl), the bound is applied to the sum of the activity variables according to the timeslice tree. Standard aggregation.",
+      "affected_equations_or_variables": "Activity limit constraint (EQ(l)_ACTBND) when s is above prc_tsl. Direct bound on activity variable (VAR_ACT) when at the prc_tsl level."
     },
     "ACT_COST": {
       "column_header": "act_cost",
@@ -40,11 +52,22 @@
       "timeslice": "",
       "limtype": "",
       "currency": true,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "VAROM",
         "ACTCOST"
       ],
-      "indexes": "(r,datayear,p,cur)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "cur"
+      ],
+      "indexes_raw": "(r,datayear,p,cur)",
+      "related_sets_and_parameters": "OBJ_ACOST, CST_ACTC, CST_PVP",
+      "units_ranges_defaults": "Monetary unit per unit of activity [open]; default value: none Default i/e: STD",
+      "affected_equations_or_variables": "Applied to the activity variable (VAR_ACT) as a component of the objective function (EQ_OBJVAR). May appear in user constraints (EQ_UC*) if specified in UC_NAME."
     },
     "ACT_CSTPL": {
       "column_header": "act_cstpl",
@@ -58,7 +81,19 @@
       "timeslice": "",
       "limtype": "",
       "currency": true,
-      "indexes": "(r,datayear,p,cur)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "cur"
+      ],
+      "indexes_raw": "(r,datayear,p,cur)",
+      "related_sets_and_parameters": "ACT_MINLD, ACT_LOSPL",
+      "units_ranges_defaults": "Monetary unit per unit of activity [0,?); default value: none Default i/e: STD",
+      "instances_conditions": "Used as an alternative or supplement to using ACT_LOSPL(r,y,p,'FX'). When used as an alternative, the fuel increase at the minimum operating level that should be included in the cost penalty must be embedded in the ACT_CSTPL coefficient.",
+      "affected_equations_or_variables": "Generates an additional term in EQ_OBJVAR for the increase in operating cost."
     },
     "ACT_CSTRMP": {
       "column_header": "act_cstrmp",
@@ -72,7 +107,20 @@
       "timeslice": "",
       "limtype": "UP",
       "currency": true,
-      "indexes": "(r,datayear,p,bd,cur)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "bd",
+        "cur"
+      ],
+      "indexes_raw": "(r,datayear,p,bd,cur)",
+      "related_sets_and_parameters": "ACT_UPS",
+      "units_ranges_defaults": "Corrency unit per unit of capacity (change in load) [0,?); default value: none Default i/e: STD",
+      "instances_conditions": "Can be used for standard processes in basic, advanced and discrete unit commitment extensions. Can also be used for load-shifting processes for defining the cost of shifting loads.",
+      "affected_equations_or_variables": "Activates generation of EQ_ACTRMPC. Generates an additional term in EQ_OBJVAR for the increase in operating cost."
     },
     "ACT_CSTSD": {
       "column_header": "act_cstsd",
@@ -86,7 +134,22 @@
       "timeslice": "",
       "limtype": "UP",
       "currency": true,
-      "indexes": "(r,datayear,p,upt,bd,cur)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "upt",
+        "bd",
+        "cur"
+      ],
+      "indexes_raw": "(r,datayear,p,upt,bd,cur)",
+      "other_indexes": "commodity_group",
+      "related_sets_and_parameters": "ACT_CSTUP, ACT_SDTIME, ACT_MAXNON",
+      "units_ranges_defaults": "Currency units per unit of started-up capacity  [0,?); Default value: none Default i/e: STD",
+      "instances_conditions": "Activates the advanced unit commitment option. In the case of the shut-down costs, only the tuple (upt, bd) = (HOT, LO) is a valid instance for this parameter. Requires the parameter ACT_MAXNON to be defined as well.",
+      "affected_equations_or_variables": "Generates an additional term in EQ_OBJVAR for the increase in operating cost."
     },
     "ACT_CSTUP": {
       "column_header": "act_cstup",
@@ -100,7 +163,20 @@
       "timeslice": "DAYNITE",
       "limtype": "",
       "currency": true,
-      "indexes": "(r,datayear,p,tslvl,cur)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "tslvl",
+        "cur"
+      ],
+      "indexes_raw": "(r,datayear,p,tslvl,cur)",
+      "related_sets_and_parameters": "ACT_MINLD, ACT_UPS",
+      "units_ranges_defaults": "Monetary unit per unit of capacity [0,?); default value: none Default i/e: STD",
+      "instances_conditions": "The tslvl level refers to the timeslice cycle for which the start-up cost is defined. Only applicable when the min. stable operating level has been defined with ACT_MINLD.",
+      "affected_equations_or_variables": "Activates generation of EQL_ACTUPS eqs. Generates an additional term in the variable operating costs included in EQ_OBJVAR."
     },
     "ACT_CUM": {
       "column_header": "act_cum",
@@ -116,11 +192,24 @@
       "timeslice": "",
       "limtype": "UP",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "CUM",
         "BNDCUM"
       ],
-      "indexes": "(r,p,y1,y2,bd)"
+      "indexes": [
+        "r",
+        "p",
+        "y1",
+        "y2",
+        "bd"
+      ],
+      "indexes_raw": "(r,p,y1,y2,bd)",
+      "related_sets_and_parameters": "FLO_CUM",
+      "units_ranges_defaults": "Activity unit [0,?); default value: none Default i/e: N/A",
+      "instances_conditions": "The years y1 and y2 may be any years of the set allyear; where y1 may also be 'BOH' for first year of first period and y2 may be 'EOH' for last year of last period.",
+      "affected_equations_or_variables": "Generates an instance of the cumulative constraint (EQ_CUMFLO)"
     },
     "ACT_EFF": {
       "column_header": "act_eff",
@@ -134,7 +223,20 @@
       "timeslice": "ANNUAL",
       "limtype": "",
       "currency": false,
-      "indexes": "(r,datayear,p,cg,s)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "cg",
+        "s"
+      ],
+      "indexes_raw": "(r,datayear,p,cg,s)",
+      "other_indexes": "commodity_group",
+      "units_ranges_defaults": "Activity unit per flow unit [0,?); default value: none Default i/e: STD",
+      "instances_conditions": "The group cg may be a single commodity, group, or commodity type on the shadow side, or a single commodity in the PCG; cg='ACT' refers to the default shadow group. If no group efficiency is defined, shadow group is assumed to be the commodity type. Individual commodity efficiencies are multiplied with the shadow group efficiency (default=1). Direct inheritance. Weighted aggregation.",
+      "affected_equations_or_variables": "Generates instances of the activity efficiency constraint (EQE_ACTEFF)"
     },
     "ACT_FLO": {
       "column_header": "act_flo",
@@ -148,7 +250,20 @@
       "timeslice": "ANNUAL",
       "limtype": "",
       "currency": false,
-      "indexes": "(r,datayear,p,cg,s)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "cg",
+        "s"
+      ],
+      "indexes_raw": "(r,datayear,p,cg,s)",
+      "other_indexes": "commodity_group",
+      "units_ranges_defaults": "Flow unit per activity unit  [0,?); default value: none Default i/e: STD",
+      "instances_conditions": "Inherited/aggregated to the timeslice levels of the process activity. Direct inheritance. Weighted aggregation.",
+      "affected_equations_or_variables": "Establishes a transfor\u00admation relationship (EQ_PTRANS) between the flows in the PCG and one or more input (or output) commodities."
     },
     "ACT_LOSPL": {
       "column_header": "act_lospl",
@@ -162,7 +277,19 @@
       "timeslice": "",
       "limtype": "FX",
       "currency": false,
-      "indexes": "(r,datayear,p,bd)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "bd"
+      ],
+      "indexes_raw": "(r,datayear,p,bd)",
+      "related_sets_and_parameters": "ACT_MINLD, ACT_CSTPL",
+      "units_ranges_defaults": "Decimal fraction [0,?); default values:  FX: none LO: default value is ACT_MINLD or 0.1 if that is not defined UP: 0.6 Default i/e: STD",
+      "instances_conditions": "Endogenous partial load modeling can only be used for processes that have their efficiency modelled by the ACT_EFF parameter, which must be defined on the shadow side of the process. For other processes, the ACT_CSTPL parameter can be used for modeling a cost penalty at partial loads.",
+      "affected_equations_or_variables": "Generates instances of the partial load efficiency constraint EQ_ACTPL."
     },
     "ACT_LOSSD": {
       "column_header": "act_lossd",
@@ -176,7 +303,21 @@
       "timeslice": "",
       "limtype": "UP",
       "currency": false,
-      "indexes": "(r,datayear,p,upt,bd)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "upt",
+        "bd"
+      ],
+      "indexes_raw": "(r,datayear,p,upt,bd)",
+      "other_indexes": "commodity_group",
+      "related_sets_and_parameters": "ACT_LOSPL, ACT_MINLD, ACT_SDTIME, ACT_EFF",
+      "units_ranges_defaults": "Dimensionless [0,?); default value: none Default i/e: STD",
+      "instances_conditions": "Can only be used when the advanced unit commitment option is used for the process (therefore, defining both ACT_CSTSD and ACT_MAXNON is required) Requires also that ACT_EFF has been used for defining the process efficiency (on the shadow side of the process).",
+      "affected_equations_or_variables": "Activates generation of EQ_SUDPLL"
     },
     "ACT_MAXNON": {
       "column_header": "act_maxnon",
@@ -190,7 +331,20 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
-      "indexes": "(r,datayear,p,upt)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "upt"
+      ],
+      "indexes_raw": "(r,datayear,p,upt)",
+      "other_indexes": "commodity_group",
+      "related_sets_and_parameters": "ACT_CSTSD, ACT_SDTIME",
+      "units_ranges_defaults": "hours [0,?); default value: none Default i/e: STD",
+      "instances_conditions": "Can only be used when the advanced unit commitment option is used for the process (thus defining ACT_CSTSD is required)",
+      "affected_equations_or_variables": "Activates generation of EQ_SUDUPT"
     },
     "ACT_MINLD": {
       "column_header": "act_minld",
@@ -204,7 +358,18 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
-      "indexes": "(r,datayear,p)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "r",
+        "datayear",
+        "p"
+      ],
+      "indexes_raw": "(r,datayear,p)",
+      "related_sets_and_parameters": "ACT_UPS, ACT_CSTUP, ACT_CSTPL, ACT_LOSPL",
+      "units_ranges_defaults": "Decimal fraction [0,?); default value: none Default i/e: STD",
+      "instances_conditions": "Can only be used for standard processes (not IRE or STG). Must be defined if ACT_CSTUP or ACT_TIME is specified.",
+      "affected_equations_or_variables": "Generates instances of equations EQ_CAPLOAD and EQE_ACTUPS."
     },
     "ACT_SDTIME": {
       "column_header": "act_sdtime",
@@ -218,7 +383,21 @@
       "timeslice": "",
       "limtype": "UP",
       "currency": false,
-      "indexes": "(r,datayear,p,upt,bd)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "upt",
+        "bd"
+      ],
+      "indexes_raw": "(r,datayear,p,upt,bd)",
+      "other_indexes": "commodity_group",
+      "related_sets_and_parameters": "ACT_CSTSD, ACT_MAXNON",
+      "units_ranges_defaults": "hours [0,?); default value: none Default i/e: STD",
+      "instances_conditions": "Can only be used when ACT_CSTSD is specified for the process (advanced unit commitment option) When specifying the duration of the shut-down phase, only the tuple (upt,bd)=(HOT,LO) is valid",
+      "affected_equations_or_variables": "Activates generation of EQ_SUDTIME, and  used also in the equations EQ_ACTPL EQ_SDSLANT EQ_SDMINON EQ_SUDPLL"
     },
     "ACT_TIME": {
       "column_header": "act_time",
@@ -232,7 +411,19 @@
       "timeslice": "",
       "limtype": "UP",
       "currency": false,
-      "indexes": "(r,datayear,p,lim)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "lim"
+      ],
+      "indexes_raw": "(r,datayear,p,lim)",
+      "related_sets_and_parameters": "ACT_MINLD, ACT_CSTUP, ACT_UPS, STG_SIFT",
+      "units_ranges_defaults": "Hours  [0,?); default value: none Default i/e: STD",
+      "instances_conditions": "Can be used for standard processes when start-up costs have been modeled, using both ACT_MINLD and  ACT_CSTUP at the  DAYNITE/WEEKLY level. The lim type 'FX' is not supported for this use, and is ignored. Can also be used for load-shifting storage processes, for defining the maximum delay/advance of load shift, or the time-window for load balancing (cf. Sect. 4.3.9).",
+      "affected_equations_or_variables": "Generates instances of EQL_ACTUPC. For load-shifting storage processes, generates instances of EQ_SLSIFT."
     },
     "ACT_UPS": {
       "column_header": "act_ups",
@@ -246,7 +437,20 @@
       "timeslice": "ANNUAL",
       "limtype": "UP",
       "currency": false,
-      "indexes": "(r,datayear,p,s,bd)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "s",
+        "bd"
+      ],
+      "indexes_raw": "(r,datayear,p,s,bd)",
+      "related_sets_and_parameters": "ACT_MINLD, ACT_CSTUP, ACT_CSTPL, ACT_LOSPL",
+      "units_ranges_defaults": "Decimal fraction [0,?); default value: none Default i/e: STD",
+      "instances_conditions": "Inherited/aggregated to the timeslice levels of the process activity. Direct inheritance. Weighted aggregation. The ramp rates can only be specified with bd=LO/UP.",
+      "affected_equations_or_variables": "Generates instances of equation EQ_ACTRAMP."
     },
     "BS_BNDPRS": {
       "column_header": "bs_bndprs",
@@ -259,7 +463,9 @@
       "commodity": false,
       "timeslice": "ANNUAL",
       "limtype": "UP",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "BS_CAPACT": {
       "column_header": "bs_capact",
@@ -272,7 +478,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "BS_DELTA": {
       "column_header": "bs_delta",
@@ -285,7 +493,9 @@
       "commodity": false,
       "timeslice": "ANNUAL",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "BS_DEMDET": {
       "column_header": "bs_demdet",
@@ -298,7 +508,10 @@
       "commodity": false,
       "timeslice": "ANNUAL",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false,
+      "other_indexes": "commodity_group"
     },
     "BS_DETWT": {
       "column_header": "bs_detwt",
@@ -311,7 +524,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "BS_LAMBDA": {
       "column_header": "bs_lambda",
@@ -324,7 +539,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "BS_MAINT": {
       "column_header": "bs_maint",
@@ -337,7 +554,9 @@
       "commodity": false,
       "timeslice": "ANNUAL",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "BS_OMEGA": {
       "column_header": "bs_omega",
@@ -350,7 +569,9 @@
       "commodity": false,
       "timeslice": "ANNUAL",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "BS_RMAX": {
       "column_header": "bs_rmax",
@@ -363,7 +584,9 @@
       "commodity": false,
       "timeslice": "ANNUAL",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "BS_RTYPE": {
       "column_header": "bs_rtype",
@@ -376,7 +599,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "BS_SHARE": {
       "column_header": "bs_share",
@@ -389,7 +614,10 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "UP",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false,
+      "other_indexes": "commodity_group"
     },
     "BS_SIGMA": {
       "column_header": "bs_sigma",
@@ -402,7 +630,10 @@
       "commodity": false,
       "timeslice": "ANNUAL",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false,
+      "other_indexes": "commodity_group"
     },
     "BS_STIME": {
       "column_header": "bs_stime",
@@ -415,7 +646,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "LO",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "CAP_BND": {
       "column_header": "cap_bnd",
@@ -431,11 +664,23 @@
       "timeslice": "",
       "limtype": "UP",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "BOUND(BD)",
         "BNDCAP"
       ],
-      "indexes": "(r,datayear,p,bd)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "bd"
+      ],
+      "indexes_raw": "(r,datayear,p,bd)",
+      "related_sets_and_parameters": "PAR_CAPLO, PAR_CAPUP",
+      "units_ranges_defaults": "Capacity unit [0,?); default value: none Default i/e: MIG",
+      "instances_conditions": "Since inter-/extrapolation is default is MIG, a bound must be specified for each period desired, if no explicit inter-/extrapolation option is given.",
+      "affected_equations_or_variables": "Imposes an indirect limit on the capacity transfer equation (EQ_CPT) by means of a direct bound on the capacity variable (VAR_CAP)."
     },
     "CCAP0": {
       "column_header": "ccap0",
@@ -448,7 +693,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "CCAPM": {
       "column_header": "ccapm",
@@ -461,7 +708,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "CEFF": {
       "column_header": "ceff",
@@ -476,6 +725,8 @@
       "timeslice": "ANNUAL",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "CEFF-I"
       ]
@@ -491,7 +742,10 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false,
+      "other_indexes": "time_slice2"
     },
     "CM_CO2GTC": {
       "column_header": "cm_co2gtc",
@@ -504,7 +758,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "CM_CONST": {
       "column_header": "cm_const",
@@ -518,7 +774,15 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
-      "indexes": "(item)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "item"
+      ],
+      "indexes_raw": "(item)",
+      "units_ranges_defaults": "Constant specific unit [open]; default value: See Appendix Default i/e: N/A",
+      "instances_conditions": "See Appendix on Climate Module for details.",
+      "affected_equations_or_variables": "EQ_CLITOT EQ_CLICONC EQ_CLITEMP EQ_CLIBEOH"
     },
     "CM_EXOFORC": {
       "column_header": "cm_exoforc",
@@ -532,7 +796,15 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
-      "indexes": "(year)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "year"
+      ],
+      "indexes_raw": "(year)",
+      "units_ranges_defaults": "Forcing unit [open]; default value: none Default i/e: STD",
+      "instances_conditions": "Default values are provided. See Appendix on Climate Module for details.",
+      "affected_equations_or_variables": "EQ_CLITOT"
     },
     "CM_GHGMAP": {
       "column_header": "cm_ghgmap",
@@ -546,7 +818,18 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
-      "indexes": "(r,c,cm_var)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "r",
+        "c",
+        "cm_var"
+      ],
+      "indexes_raw": "(r,c,cm_var)",
+      "other_indexes": "commodity_group",
+      "units_ranges_defaults": "Units of climate module emissions per units of regional emissions  [0, ?); default value: none",
+      "instances_conditions": "The global emissions in the climate module (cm_var) are 'CO2-GtC' (GtC), 'CH4-Mt' (Mt) and 'N2O-Mt' (Mt). See Appendix on Climate Module for details.",
+      "affected_equations_or_variables": "EQ_CLITOT"
     },
     "CM_HISTORY": {
       "column_header": "cm_history",
@@ -560,7 +843,16 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
-      "indexes": "(year,item)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "year",
+        "item"
+      ],
+      "indexes_raw": "(year,item)",
+      "units_ranges_defaults": "Climate variable unit [0, ?); default value: none Default i/e: STD",
+      "instances_conditions": "Default values are provided until 2010. See Appendix on Climate Module for details.",
+      "affected_equations_or_variables": "EQ_CLITOT EQ_CLICONC EQ_CLITEMP EQ_CLIBEOH"
     },
     "CM_LINFOR": {
       "column_header": "cm_linfor",
@@ -574,7 +866,17 @@
       "timeslice": "",
       "limtype": "U",
       "currency": false,
-      "indexes": "(datayear,item,lim)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "datayear",
+        "item",
+        "lim"
+      ],
+      "indexes_raw": "(datayear,item,lim)",
+      "units_ranges_defaults": "Forcing unit per concentration unit [open]; default value: none Default i/e: STD",
+      "instances_conditions": "With lim types LO/UP, CO2 forcing function can be automatically linearized between the concent\u00adration levels given. For CH4 and N2O, lim types FX/N must be used (N=con\u00adcent\u00adration multiplier, FX=constant term). See Appendix on Climate Module for details.",
+      "affected_equations_or_variables": "EQ_CLITOT"
     },
     "CM_MAXC": {
       "column_header": "cm_maxc",
@@ -588,7 +890,16 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
-      "indexes": "(datayear,item)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "datayear",
+        "item"
+      ],
+      "indexes_raw": "(datayear,item)",
+      "units_ranges_defaults": "Climate variable unit [0, ?); default value: none Default i/e: none",
+      "instances_conditions": "Since no default inter-/extrapolation, bounds must be explicitly specified for each desired year, unless an explicit inter-/extrapolation option is set. See Appendix on Climate Module for details.",
+      "affected_equations_or_variables": "EQ_CLIMAX"
     },
     "CM_MAXCO2C": {
       "column_header": "cm_maxco2c",
@@ -601,7 +912,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "COM_AGG": {
       "column_header": "com_agg",
@@ -616,10 +929,22 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "CAGG"
       ],
-      "indexes": "(r,dayayear,c1,c2)"
+      "indexes": [
+        "r",
+        "dayayear",
+        "c1",
+        "c2"
+      ],
+      "indexes_raw": "(r,dayayear,c1,c2)",
+      "other_indexes": "commodity2",
+      "units_ranges_defaults": "Commodity units [open]; default value: none Default i/e: STD",
+      "instances_conditions": "When commodity type is LO, VAR_COMNET of c1 is aggregated to c2;  When commodity type is FX/N, VAR_COMPRD of c1 is aggregated to c2.",
+      "affected_equations_or_variables": "Adds a term in EQ(l)_COMBAL and EQ(l)_COMPRD."
     },
     "COM_BNDNET": {
       "column_header": "com_bndnet",
@@ -636,12 +961,25 @@
       "timeslice": "ANNUAL",
       "limtype": "UP",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "ENV_BOUND(BD)",
         "ENVBND",
         "CBNDNET"
       ],
-      "indexes": "(r,datayear,c,s,bd)"
+      "indexes": [
+        "r",
+        "datayear",
+        "c",
+        "s",
+        "bd"
+      ],
+      "indexes_raw": "(r,datayear,c,s,bd)",
+      "related_sets_and_parameters": "rhs_combal, rcs_combal",
+      "units_ranges_defaults": "Commodity unit [open]; default value: none Default i/e: MIG",
+      "instances_conditions": "Since inter-/extrapolation default is MIG, a bound must be specified for each period desired, if no explicit inter-/extrapolation option is given. If the bound is specified for a timeslice s above the commodity timeslice resolution (com_tsl), the bound is applied to the sum of the net commodity variables (VAR_COMNET) below it, according to the timeslice tree. Standard aggregation.",
+      "affected_equations_or_variables": "The balance constraint is set to an equality (EQE_COMBAL). Either the finer timeslice variables are summed (EQ(l)_BNDNET) or the bound applied direct to the commodity net variable(VAR_COMNET) when at the commodity level (com_tsl)."
     },
     "COM_BNDPRD": {
       "column_header": "com_bndprd",
@@ -656,10 +994,23 @@
       "timeslice": "ANNUAL",
       "limtype": "UP",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "CBNDPRD"
       ],
-      "indexes": "(r,datayear,c,s,bd)"
+      "indexes": [
+        "r",
+        "datayear",
+        "c",
+        "s",
+        "bd"
+      ],
+      "indexes_raw": "(r,datayear,c,s,bd)",
+      "related_sets_and_parameters": "rhs_comprd, rcs_comprd",
+      "units_ranges_defaults": "Commodity unit [0,?); default value: none Default i/e: MIG",
+      "instances_conditions": "Since inter-/extrapolation default is MIG, a bound must be specified for each period desired, if no explicit inter-/extrapolation option is given. If the bound is specified for a timeslice s being above the commodity timeslice resolution (com_tsl), the bound is applied to the sum of the commodity production variables (VAR_COMPRD) below it, according to the timeslice tree. Standard aggregation.",
+      "affected_equations_or_variables": "The balance constraint is set to an equality (EQE_COMBAL). Finer timeslice variables summed (EQ(l)_BNDPRD). or the bound is applied direct to the commodity production variable (VAR_COMPRD) when at the commodity level (com_tsl)."
     },
     "COM_BPRICE": {
       "column_header": "com_bprice",
@@ -675,11 +1026,24 @@
       "timeslice": "ANNUAL",
       "limtype": "",
       "currency": true,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "MED-DMBPRICE",
         "CBPRICE"
       ],
-      "indexes": "(r,t,c,s,cur)"
+      "indexes": [
+        "r",
+        "t",
+        "c",
+        "s",
+        "cur"
+      ],
+      "indexes_raw": "(r,t,c,s,cur)",
+      "related_sets_and_parameters": "COM_ELAST, COM_STEP, COM_VOC",
+      "units_ranges_defaults": "Monetary unit per commodity unit [open]; default value: none Default i/e: none",
+      "instances_conditions": "The control parameter $SET TIMESED \u2018YES\u2019 to activate elastic demands must be set.",
+      "affected_equations_or_variables": "Controls the inclusion of the elastic demand variable (VAR_ELAST) in the commodity balance equation(EQ(l)_COMBAL) Applied to the elastic demand variable (VAR_ELAST) in the objective function (EQ_OBJELS)."
     },
     "COM_CSTBAL": {
       "column_header": "com_cstbal",
@@ -692,7 +1056,10 @@
       "commodity": false,
       "timeslice": "ANNUAL",
       "limtype": "",
-      "currency": true
+      "currency": true,
+      "stage": false,
+      "sow": false,
+      "other_indexes": "commodity_group"
     },
     "COM_CSTNET": {
       "column_header": "com_cstnet",
@@ -709,12 +1076,25 @@
       "timeslice": "ANNUAL",
       "limtype": "",
       "currency": true,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "ENV_COST",
         "ENVCOST",
         "CCSTNET"
       ],
-      "indexes": "(r,datayear,c,s,cur)"
+      "indexes": [
+        "r",
+        "datayear",
+        "c",
+        "s",
+        "cur"
+      ],
+      "indexes_raw": "(r,datayear,c,s,cur)",
+      "related_sets_and_parameters": "OBJ_COMNT, CST_COMC, CST_PVC, rhs_combal, rcs_combal",
+      "units_ranges_defaults": "Monetary unit per commodity unit [open]; default value: none Default i/e: STD",
+      "instances_conditions": "Direct inheritance. Weighted aggregation.",
+      "affected_equations_or_variables": "Forces the net commodity variable (VAR_COMNET) to be included in the equality balance constraint (EQE_COMBAL). Applied to said variable in the cost component of the objective function (EQ_OBJVAR)."
     },
     "COM_CSTPRD": {
       "column_header": "com_cstprd",
@@ -729,10 +1109,23 @@
       "timeslice": "ANNUAL",
       "limtype": "",
       "currency": true,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "CCSTPRD"
       ],
-      "indexes": "(r,datayear,c,s,cur)"
+      "indexes": [
+        "r",
+        "datayear",
+        "c",
+        "s",
+        "cur"
+      ],
+      "indexes_raw": "(r,datayear,c,s,cur)",
+      "related_sets_and_parameters": "OBJ_COMPD, CST_COMC, CST_PVC, rhs_comprd, rcs_comprd",
+      "units_ranges_defaults": "Monetary unit per commodity unit [open]; default value: none Default i/e: STD",
+      "instances_conditions": "Direct inheritance. Weighted aggregation.",
+      "affected_equations_or_variables": "Forces the commodity production variable (VAR_COMPRD) to be included in the equality balance constraint (EQE_COMBAL). Applied to said variable in the cost component of the objective function (EQ_OBJVAR)."
     },
     "COM_CUMNET": {
       "column_header": "com_cumnet",
@@ -748,11 +1141,23 @@
       "timeslice": "",
       "limtype": "UP",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "ENV_CUMMAX",
         "ENVCUM"
       ],
-      "indexes": "(r,y1,y2,bd)"
+      "indexes": [
+        "r",
+        "y1",
+        "y2",
+        "bd"
+      ],
+      "indexes_raw": "(r,y1,y2,bd)",
+      "related_sets_and_parameters": "bohyear, eohyear, rhs_combal, rcs_combal, rtc_cumnet",
+      "units_ranges_defaults": "Commodity unit [0,?); default value: none Default i/e: not possible",
+      "instances_conditions": "The years y1 and y2 may be any years of the set allyear; where y1 may also be \u2018BOH\u2019 for first year of first period and y2 may be \u2018EOH\u2019 for last year of last period.",
+      "affected_equations_or_variables": "Forces the net commodity variable (VAR_COMNET) to be included in the equality balance constraint (EQE_COMBAL). Generates the cumulative commodity constraint (EQ(l)_CUMNET)."
     },
     "COM_CUMPRD": {
       "column_header": "com_cumprd",
@@ -766,7 +1171,19 @@
       "timeslice": "",
       "limtype": "UP",
       "currency": false,
-      "indexes": "(r,y1,y2,bd)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "r",
+        "y1",
+        "y2",
+        "bd"
+      ],
+      "indexes_raw": "(r,y1,y2,bd)",
+      "related_sets_and_parameters": "bohyear, eohyear, rhs_comprd, rcs_comprd, rtc_cumprd",
+      "units_ranges_defaults": "Commodity unit [0,?); default value: none Default i/e: not possible",
+      "instances_conditions": "The years y1 and y2 may be any years of the set allyear; where y1 may also be \u2018BOH\u2019 for first year of first period and y2 may be \u2018EOH\u2019 for last year of last period.",
+      "affected_equations_or_variables": "Forces the net commodity variable (VAR_COMPRD) to be included in the balance equation (EQE_COMBAL). The cumulative constraint is generated (EQ(l)_CUMPRD)."
     },
     "COM_ELAST": {
       "column_header": "com_elast",
@@ -782,11 +1199,24 @@
       "timeslice": "ANNUAL",
       "limtype": "U",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "MED-ELAST(BD)",
         "CELAST"
       ],
-      "indexes": "(r,datayear,c,s,lim)"
+      "indexes": [
+        "r",
+        "datayear",
+        "c",
+        "s",
+        "lim"
+      ],
+      "indexes_raw": "(r,datayear,c,s,lim)",
+      "related_sets_and_parameters": "COM_BPRICE, COM_STEP, COM_VOC, COM_AGG",
+      "units_ranges_defaults": "Dimensionless [open]; default value: none Default i/e: STD",
+      "instances_conditions": "The control parameter  $SET TIMESED YES must be set to activate elastic demands. An elasticity is required for each direction the demand is permitted to move.  The index lim = 'LO' corresponds to demand decrease, while lim = 'UP' denotes the direction for demand increase.  A different value may be provided for each direction, thus curves may be asymmetric. Substitution elasticities can be defined with lim='N', among a group of demands aggregated by COM_AGG.",
+      "affected_equations_or_variables": "Controls the inclusion of the elastic demand variable (VAR_ELAST) in the commodity balance equation(EQ(l)_COMBAL)  Applied to the elastic demand variable (VAR_ELAST) in the objective function costs (EQ_OBJELS)."
     },
     "COM_ELASTX": {
       "column_header": "com_elastx",
@@ -801,10 +1231,22 @@
       "timeslice": "",
       "limtype": "U",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "ELASTX"
       ],
-      "indexes": "(r,datayear,c,bd)"
+      "indexes": [
+        "r",
+        "datayear",
+        "c",
+        "bd"
+      ],
+      "indexes_raw": "(r,datayear,c,bd)",
+      "related_sets_and_parameters": "COM_ELAST",
+      "units_ranges_defaults": "Integer scalar  [1,999]; default value: none Default extrapolation: MIG",
+      "instances_conditions": "Provided when shaping of elasticity based upon demand level is desired. Note: Shape index 1 is reserved for constant 1.",
+      "affected_equations_or_variables": "Affects the demand elasticities applied in EQ_OBJELS"
     },
     "COM_FR": {
       "column_header": "com_fr",
@@ -820,11 +1262,23 @@
       "timeslice": "U",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "FR(Z)(Y)",
         "Fraction"
       ],
-      "indexes": "(r,datayear,c,s)"
+      "indexes": [
+        "r",
+        "datayear",
+        "c",
+        "s"
+      ],
+      "indexes_raw": "(r,datayear,c,s)",
+      "related_sets_and_parameters": "COM_PROJ, com_ts, com_tsl, RTCS_TSFR",
+      "units_ranges_defaults": "Decimal fraction [0,1]; default value: timeslice duration (G_YRFR) Default i/e: STD",
+      "instances_conditions": "Normally defined only for demand commodities (com_type = 'DEM'), but can be applied to any commodity for defining load profiles. Affects timeslice resolution at which a commodity is tracked (RTCS_TSFR), and thereby may affect when a process cannot operate (rtps_off). Weighted inheritance. Weighted aggregation.",
+      "affected_equations_or_variables": "Applied to the annual demand (COM_PROJ) as the RHS of the balance equation (EQ(l)_COMBAL). Enters the peaking equation (EQ_PEAK), if a peaking commodity. Applied to the bounds of elastic demand step variables (VAR_ELAST). Applied via RTFCS_FR in all equations to flows having a timeslice level coarser than target level."
     },
     "COM_IE": {
       "column_header": "com_ie",
@@ -840,11 +1294,22 @@
       "timeslice": "ANNUAL",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "TE(ENT)",
         "TE(MAT)"
       ],
-      "indexes": "(r,datayear,c,s)"
+      "indexes": [
+        "r",
+        "datayear",
+        "c",
+        "s"
+      ],
+      "indexes_raw": "(r,datayear,c,s)",
+      "units_ranges_defaults": "Decimal fraction (0,?); default value: 1 Default i/e: STD",
+      "instances_conditions": "Direct inheritance. Weighted aggregation.",
+      "affected_equations_or_variables": "Overall efficiency applied to the total production of a commodity in the commodity balance equation (EQ(l)_COMBAL)."
     },
     "COM_LIM": {
       "column_header": "com_lim",
@@ -857,7 +1322,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "COM_MSHGV": {
       "column_header": "com_mshgv",
@@ -872,6 +1339,8 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "MSHGV"
       ]
@@ -887,7 +1356,10 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false,
+      "other_indexes": "commodity_group"
     },
     "COM_PKFLX": {
       "column_header": "com_pkflx",
@@ -902,10 +1374,22 @@
       "timeslice": "U",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "PKFLX"
       ],
-      "indexes": "(r,datayear,c,s)"
+      "indexes": [
+        "r",
+        "datayear",
+        "c",
+        "s"
+      ],
+      "indexes_raw": "(r,datayear,c,s)",
+      "related_sets_and_parameters": "com_peak, com_pkts, COM_PKRSV, FLO_PKCOI",
+      "units_ranges_defaults": "Scalar [open]; default value: none Default i/e: STD",
+      "instances_conditions": "Direct inheritance. Weighted aggregation.",
+      "affected_equations_or_variables": "Applied to the total consumption of a commodity to raise the capacity needed to satisfy the peaking constraint (EQ_PEAK)."
     },
     "COM_PKRSV": {
       "column_header": "com_pkrsv",
@@ -921,11 +1405,21 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "HRESERV",
         "(E)RESERV"
       ],
-      "indexes": "(r,datayear,c)"
+      "indexes": [
+        "r",
+        "datayear",
+        "c"
+      ],
+      "indexes_raw": "(r,datayear,c)",
+      "related_sets_and_parameters": "com_peak, com_pkts, COM_PKFLX, FLO_PKCOI",
+      "units_ranges_defaults": "Scalar [0,?); default value: none Default i/e: STD",
+      "affected_equations_or_variables": "Applied to the total consumption of a commodity to raise the capacity needed to satisfy the peaking constraint (EQ_PEAK)."
     },
     "COM_PROJ": {
       "column_header": "com_proj",
@@ -940,10 +1434,21 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "DEMAND"
       ],
-      "indexes": "(r,datayear,c)"
+      "indexes": [
+        "r",
+        "datayear",
+        "c"
+      ],
+      "indexes_raw": "(r,datayear,c)",
+      "related_sets_and_parameters": "COM_FR",
+      "units_ranges_defaults": "Commodity unit [0,?); default value: none Default i/e: STD",
+      "instances_conditions": "Only applicable to demand commodities (com_type = \u2018DEM\u2019).",
+      "affected_equations_or_variables": "Serves as the RHS (after COM_FR applied) of the commodity balance constraint (EQ(l)_COMBAL). Enters the peaking equation (EQ_PEAK), if a peaking commodity. Applied when setting the upper bound of an elastic demand step (VAR_ELAST)."
     },
     "COM_STEP": {
       "column_header": "com_step",
@@ -959,11 +1464,22 @@
       "timeslice": "",
       "limtype": "U",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "MED-STEP(BD)",
         "CSTEP"
       ],
-      "indexes": "(r,c,bd)"
+      "indexes": [
+        "r",
+        "c",
+        "bd"
+      ],
+      "indexes_raw": "(r,c,bd)",
+      "related_sets_and_parameters": "COM_BPRICE, COM_ELAST, COM_VOC, rcj",
+      "units_ranges_defaults": "Integer number [1,?); default value: none",
+      "instances_conditions": "The control parameter $SET TIMESED \u2018YES\u2019 must be set to activate elastic demands. The number of steps is required for each direction the demand is permitted to move. The index bd=LO denotes the direction of demand decrease, bd=UP increase, and bd=FX is a shortcut for both. A different value may be provided for each direction, thus curves may be asymmetric.",
+      "affected_equations_or_variables": "Controls the instance of the elastic demand variable (VAR_ELAST) in: the commodity balance equation (EQ(l)_COMBAL); setting of the step limit for the elastic demand variable (VAR_ELAST); enters the objective function costs (EQ_OBJELS)."
     },
     "COM_SUBNET": {
       "column_header": "com_subnet",
@@ -978,10 +1494,23 @@
       "timeslice": "ANNUAL",
       "limtype": "",
       "currency": true,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "CSUBNET"
       ],
-      "indexes": "(r,datayear,c,s,cur)"
+      "indexes": [
+        "r",
+        "datayear",
+        "c",
+        "s",
+        "cur"
+      ],
+      "indexes_raw": "(r,datayear,c,s,cur)",
+      "related_sets_and_parameters": "OBJ_COMNT, CST_COMX, CST_PVC, rhs_combal, rcs_combal",
+      "units_ranges_defaults": "Monetary unit per commodity unit [0,?); default value: none Default i/e: STD",
+      "instances_conditions": "Direct inheritance. Weighted aggregation.",
+      "affected_equations_or_variables": "Forces the net commodity variable (VAR_COMNET) to be included in the equality balance constraint (EQE_COMBAL). Applied (-) to said variable in the cost component of the objective function (EQ_OBJVAR)."
     },
     "COM_SUBPRD": {
       "column_header": "com_subprd",
@@ -996,10 +1525,23 @@
       "timeslice": "ANNUAL",
       "limtype": "",
       "currency": true,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "CSUBPRD"
       ],
-      "indexes": "(r,datayear,c,s,cur)"
+      "indexes": [
+        "r",
+        "datayear",
+        "c",
+        "s",
+        "cur"
+      ],
+      "indexes_raw": "(r,datayear,c,s,cur)",
+      "related_sets_and_parameters": "OBJ_COMPD, CST_COMX, CST_PVC, rhs_comprd, rcs_comprd",
+      "units_ranges_defaults": "Monetary unit per commodity unit [0,?); default value: none Default i/e: STD",
+      "instances_conditions": "Direct inheritance. Weighted aggregation.",
+      "affected_equations_or_variables": "Forces the commodity production variable (VAR_COMPRD) to be included in the equality balance constraint (EQE_COMBAL). Applied (-) to said variable in the cost component of the objective function (EQ_OBJVAR)."
     },
     "COM_TAXNET": {
       "column_header": "com_taxnet",
@@ -1014,10 +1556,23 @@
       "timeslice": "ANNUAL",
       "limtype": "",
       "currency": true,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "CTAXNET"
       ],
-      "indexes": "(r,datayear,c,s,cur)"
+      "indexes": [
+        "r",
+        "datayear",
+        "c",
+        "s",
+        "cur"
+      ],
+      "indexes_raw": "(r,datayear,c,s,cur)",
+      "related_sets_and_parameters": "OBJ_COMNT, CST_COMX, CST_PVC, rhs_combal, rcs_combal",
+      "units_ranges_defaults": "Monetary unit per commodity unit [0,?); default value: none Default i/e: STD",
+      "instances_conditions": "Direct inheritance. Weighted aggregation.",
+      "affected_equations_or_variables": "Forces the net commodity variable (VAR_COMNET) to be included in the equality balance constraint (EQE_COMBAL). Applied to said variable in the cost component of the objective function (EQ_OBJVAR)."
     },
     "COM_TAXPRD": {
       "column_header": "com_taxprd",
@@ -1032,10 +1587,23 @@
       "timeslice": "ANNUAL",
       "limtype": "",
       "currency": true,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "CTAXPRD"
       ],
-      "indexes": "(r,datayear,c,s,cur)"
+      "indexes": [
+        "r",
+        "datayear",
+        "c",
+        "s",
+        "cur"
+      ],
+      "indexes_raw": "(r,datayear,c,s,cur)",
+      "related_sets_and_parameters": "OBJ_COMPD, CST_COMX, CST_PVC, rhs_comprd, rcs_comprd",
+      "units_ranges_defaults": "Monetary unit per commodity unit [0,?); default value: none Default i/e: STD",
+      "instances_conditions": "Direct inheritance. Weighted aggregation.",
+      "affected_equations_or_variables": "Forces the commodity production variable (VAR_COMPRD) to be included in the equality balance constraint (EQE_COMBAL). Applied to said variable in the cost component of the objective function (EQ_OBJVAR)."
     },
     "COM_TSL": {
       "column_header": "com_tsl",
@@ -1048,7 +1616,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "COM_TYPE": {
       "column_header": "com_type",
@@ -1061,7 +1631,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "COM_VOC": {
       "column_header": "com_voc",
@@ -1077,11 +1649,23 @@
       "timeslice": "",
       "limtype": "U",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "MED-VAR(BD)",
         "CVOC"
       ],
-      "indexes": "(r,datayear,c,bd)"
+      "indexes": [
+        "r",
+        "datayear",
+        "c",
+        "bd"
+      ],
+      "indexes_raw": "(r,datayear,c,bd)",
+      "related_sets_and_parameters": "COM_BPRICE, COM_STEP, COM_ELAST",
+      "units_ranges_defaults": "Dimensionless [0,?); default: none Default i/e: STD",
+      "instances_conditions": "The control parameter $SET TIMESED \u2018YES\u2019 to activate elastic demands must be set. A number is required for each direction the demand is permitted to move. The index bd = LO corresponds to the direction of decreasing the demand, while bd = UP denotes the direction for demand increase. A different value may be provided for each direction, thus curves may be asymmetric.",
+      "affected_equations_or_variables": "Applied when setting the bound of an elastic demand step (VAR_ELAST). Applied to the elasticity variable in the objective function costs (EQ_OBJELS)."
     },
     "CmdF_GAMS": {
       "column_header": "cmdf_gams",
@@ -1094,7 +1678,10 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false,
+      "other_indexes": "sector2"
     },
     "CmdF_Title": {
       "column_header": "cmdf_title",
@@ -1107,7 +1694,10 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false,
+      "other_indexes": "sector2"
     },
     "CmdF_bot": {
       "column_header": "cmdf_bot",
@@ -1120,7 +1710,10 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false,
+      "other_indexes": "sector2"
     },
     "CmdF_top": {
       "column_header": "cmdf_top",
@@ -1133,7 +1726,10 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false,
+      "other_indexes": "sector2"
     },
     "Com_OFF": {
       "column_header": "com_off",
@@ -1146,7 +1742,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "Com_PKTS": {
       "column_header": "com_pkts",
@@ -1159,7 +1757,9 @@
       "commodity": false,
       "timeslice": "U",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "DAM_BQTY": {
       "column_header": "dam_bqty",
@@ -1174,10 +1774,20 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "DBQTY"
       ],
-      "indexes": "(r,c)"
+      "indexes": [
+        "r",
+        "c"
+      ],
+      "indexes_raw": "(r,c)",
+      "related_sets_and_parameters": "DAM_COST",
+      "units_ranges_defaults": "Commodity unit [0,?); default value: none Default i/e: N/A",
+      "instances_conditions": "Only effective when DAM_COST has been defined for commodity c.",
+      "affected_equations_or_variables": "EQ_DAMAGE EQ_OBJDAM"
     },
     "DAM_COST": {
       "column_header": "dam_cost",
@@ -1192,10 +1802,22 @@
       "timeslice": "",
       "limtype": "",
       "currency": true,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "DAMCOST"
       ],
-      "indexes": "(r,datayear,c,cur)"
+      "indexes": [
+        "r",
+        "datayear",
+        "c",
+        "cur"
+      ],
+      "indexes_raw": "(r,datayear,c,cur)",
+      "related_sets_and_parameters": "DAM_BQTY",
+      "units_ranges_defaults": "Monetary unit per commodity unit [0,?); default value: none Default i/e: STD",
+      "instances_conditions": "Damage costs are by default endogenous (included in the objective). To set them exogenous, use $SET DAMAGE NO",
+      "affected_equations_or_variables": "EQ_DAMAGE EQ_OBJDAM"
     },
     "DAM_ELAST": {
       "column_header": "dam_elast",
@@ -1210,10 +1832,21 @@
       "timeslice": "",
       "limtype": "U",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "DELAST"
       ],
-      "indexes": "(r,c,lim)"
+      "indexes": [
+        "r",
+        "c",
+        "lim"
+      ],
+      "indexes_raw": "(r,c,lim)",
+      "related_sets_and_parameters": "DAM_COST, DAM_BQTY",
+      "units_ranges_defaults": "Dimensionless [0,?); default value: none Default i/e: N/A",
+      "instances_conditions": "Only effective when DAM_COST has been defined for commodity c.",
+      "affected_equations_or_variables": "EQ_OBJDAM"
     },
     "DAM_STEP": {
       "column_header": "dam_step",
@@ -1228,10 +1861,21 @@
       "timeslice": "",
       "limtype": "U",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "DSTEP"
       ],
-      "indexes": "(r,c,lim)"
+      "indexes": [
+        "r",
+        "c",
+        "lim"
+      ],
+      "indexes_raw": "(r,c,lim)",
+      "related_sets_and_parameters": "DAM_COST, DAM_BQTY",
+      "units_ranges_defaults": "Integer number [1,?); default value: none Default i/e: N/A",
+      "instances_conditions": "Only effective when DAM_COST has been defined for commodity c.",
+      "affected_equations_or_variables": "EQ_DAMAGE EQ_OBJDAM"
     },
     "DAM_VOC": {
       "column_header": "dam_voc",
@@ -1246,10 +1890,21 @@
       "timeslice": "",
       "limtype": "U",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "DVOC"
       ],
-      "indexes": "(r,c,lim)"
+      "indexes": [
+        "r",
+        "c",
+        "lim"
+      ],
+      "indexes_raw": "(r,c,lim)",
+      "related_sets_and_parameters": "DAM_COST, DAM_BQTY",
+      "units_ranges_defaults": "Decimal fraction LO: [0,1]; UP: [0,?); default value: none Default i/e: N/A",
+      "instances_conditions": "Only effective when DAM_COST has been defined for commodity c.",
+      "affected_equations_or_variables": "EQ_OBJDAM"
     },
     "DECAYr": {
       "column_header": "decayr",
@@ -1262,7 +1917,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "EFF": {
       "column_header": "eff",
@@ -1279,6 +1936,8 @@
       "timeslice": "ANNUAL",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "EFFICIENCY",
         "VDA_EFF",
@@ -1296,7 +1955,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "EOTIME": {
       "column_header": "eotime",
@@ -1309,7 +1970,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "FLO_BND": {
       "column_header": "flo_bnd",
@@ -1323,7 +1986,21 @@
       "timeslice": "ANNUAL",
       "limtype": "UP",
       "currency": false,
-      "indexes": "(r,datayear,p,cg,s,bd)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "cg",
+        "s",
+        "bd"
+      ],
+      "indexes_raw": "(r,datayear,p,cg,s,bd)",
+      "other_indexes": "commodity_group",
+      "units_ranges_defaults": "Commodity unit [0,?); default: none Default i/e: MIG",
+      "instances_conditions": "If the bound is specified for a timeslice s being above the flow timeslice resolution (rtpcs_varf), the bound is applied to the sum of the flow variables (VAR_FLO) according to the timeslice tree, otherwise directly to the flow variable. No aggregation.[7]",
+      "affected_equations_or_variables": "Flow activity limit constraint (EQ(l)_FLOBND) when s is above rtpcs_varf Direct bound on activity variable (VAR_FLO) when at the rtpcs_varf level."
     },
     "FLO_COST": {
       "column_header": "flo_cost",
@@ -1339,11 +2016,25 @@
       "timeslice": "ANNUAL",
       "limtype": "",
       "currency": true,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "DELIV(MAT)",
         "FCOST"
       ],
-      "indexes": "(r,datayear,p,c,s,cur)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "c",
+        "s",
+        "cur"
+      ],
+      "indexes_raw": "(r,datayear,p,c,s,cur)",
+      "related_sets_and_parameters": "OBJ_FCOST, CST_FLOC, CST_PVP",
+      "units_ranges_defaults": "Monetary unit per commodity unit [open]; default: none Default i/e: STD",
+      "instances_conditions": "Direct inheritance Weighted aggregation",
+      "affected_equations_or_variables": "Applied to the flow variable (VAR_FLO) when entering the objective function (EQ_OBJVAR). May appear in user constraints (EQ_UC*) if specified in UC_NAME."
     },
     "FLO_CUM": {
       "column_header": "flo_cum",
@@ -1357,7 +2048,21 @@
       "timeslice": "",
       "limtype": "UP",
       "currency": false,
-      "indexes": "(r,p,c,y1,y2,bd)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "r",
+        "p",
+        "c",
+        "y1",
+        "y2",
+        "bd"
+      ],
+      "indexes_raw": "(r,p,c,y1,y2,bd)",
+      "related_sets_and_parameters": "ACT_CUM",
+      "units_ranges_defaults": "Flow unit [0,?); default value: none Default i/e: N/A",
+      "instances_conditions": "The years y1 and y2 may be any years of the set allyear; where y1 may also be 'BOH' for first year of first period and y2 may be 'EOH' for last year of last period.",
+      "affected_equations_or_variables": "Generates an instance of the cumulative constraint (EQ_CUMFLO)"
     },
     "FLO_DELIV": {
       "column_header": "flo_deliv",
@@ -1373,11 +2078,25 @@
       "timeslice": "ANNUAL",
       "limtype": "",
       "currency": true,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "DELIV(ENT)",
         "DELIV"
       ],
-      "indexes": "(r,datayear,p,c,s,cur)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "c",
+        "s",
+        "cur"
+      ],
+      "indexes_raw": "(r,datayear,p,c,s,cur)",
+      "related_sets_and_parameters": "OBJ_FDELV, CST_FLOC, CST_PVP",
+      "units_ranges_defaults": "Monetary unit per commodity unit [open]; default: none Default i/e: STD",
+      "instances_conditions": "Direct inheritance. Weighted aggregation.",
+      "affected_equations_or_variables": "Applied to the flow variable (VAR_FLO) when entering the objective function (EQ_OBJVAR). May appear in user constraints (EQ_UC*) if specified in UC_NAME."
     },
     "FLO_EMIS": {
       "column_header": "flo_emis",
@@ -1393,11 +2112,26 @@
       "timeslice": "ANNUAL",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "FEMIS",
         "FLO_EFF"
       ],
-      "indexes": "(r,datayear,p,cg,com,s)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "cg",
+        "com",
+        "s"
+      ],
+      "indexes_raw": "(r,datayear,p,cg,com,s)",
+      "other_indexes": "commodity_group",
+      "related_sets_and_parameters": "FLO_EFF (alias)",
+      "units_ranges_defaults": "Commodity unit of c / commodity unit of cg [open]; default value: none Default i/e: STD",
+      "instances_conditions": "See FLO_EFF. If com is of type ENV and is not in the process topology, it is added to it as an output flow.",
+      "affected_equations_or_variables": "See FLO_EFF."
     },
     "FLO_EMIS+": {
       "column_header": "flo_emis+",
@@ -1415,6 +2149,8 @@
       "timeslice": "ANNUAL",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "ENV_ACT",
         "ENVACT",
@@ -1434,7 +2170,20 @@
       "timeslice": "U",
       "limtype": "UP",
       "currency": false,
-      "indexes": "(r,datayear,p,c,s,bd)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "c",
+        "s",
+        "bd"
+      ],
+      "indexes_raw": "(r,datayear,p,c,s,bd)",
+      "units_ranges_defaults": "Decimal fraction [0,1] / [0,?); default value: none Default i/e: MIG",
+      "instances_conditions": "FLO_FR may be specified as lower, upper or fixed bounds, in contrast to COM_FR. Can be specified for any flow variable having a subannual timeslice resolution. Weighted aggregation. Direct inheritance, if defined at the ANNUAL level.",
+      "affected_equations_or_variables": "A share equation (EQ(l)_FLOFR) limiting the amount of commodity (c) is generated according to the bound type (bd = l indicator)."
     },
     "FLO_FUNC": {
       "column_header": "flo_func",
@@ -1448,7 +2197,22 @@
       "timeslice": "ANNUAL",
       "limtype": "",
       "currency": false,
-      "indexes": "(r,datayear,p,cg1,cg2,s)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "cg1",
+        "cg2",
+        "s"
+      ],
+      "indexes_raw": "(r,datayear,p,cg1,cg2,s)",
+      "other_indexes": "commodity_group",
+      "related_sets_and_parameters": "FLO_SUM, FLO_FUNCX, COEF_PTRAN, rpc_ffunc, rpcg_ptran",
+      "units_ranges_defaults": "Commodity unit of cg2/commodity unit of cg1 [open]; default value: see next column Default i/e: STD",
+      "instances_conditions": "If for the same indexes the parameter FLO_SUM is specified but no FLO_FUNC, the FLO_FUNC is set to 1. Important factor in determining the level at which a process operates in that the derived transformation parameter (COEF_PTRAN) is inherited/aggregated to the timeslice levels of the flow variables associated with the commodities in the group cg1.",
+      "affected_equations_or_variables": "Establishes the basic transformation relationship (EQ_PTRANS) between one or more input (or output) commodities and one or more output (or input) commodities.  Establishes the relationship between storage charging / discharging and a related commodity flow (VAR_FLO) in the auxiliary storage flow equation (EQ_STGAUX)."
     },
     "FLO_FUNCX": {
       "column_header": "flo_funcx",
@@ -1462,7 +2226,21 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
-      "indexes": "(r,datayear,p,cg1,cg2)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "cg1",
+        "cg2"
+      ],
+      "indexes_raw": "(r,datayear,p,cg1,cg2)",
+      "other_indexes": "commodity_group",
+      "related_sets_and_parameters": "FLO_FUNC, FLO_SUM, COEF_PTRAN",
+      "units_ranges_defaults": "Integer scalar  [1,999]; default value: none Default extrapolation: MIG",
+      "instances_conditions": "Provided when shaping based upon age is desired. Vintaged processes only. Note: Shape index 1 is reserved for constant 1. ACT_EFF(cg): cg1=cg, cg2='ACT' ACT_FLO(cg): cg1='ACT', cg2=cg FLO_EMIS(cg,c): cg1=cg2=c FLO_EFF(cg,c): cg1=cg2=c FLO_FUNC(cg1,cg2): cgN=cgN",
+      "affected_equations_or_variables": "Applied to the flow variable (VAR_FLO) in a transformation equation (EQ_PTRANS / EQE_ACTEFF) to account for changes in the transfor\u00admation efficiency according to the age of each process vintage."
     },
     "FLO_MARK": {
       "column_header": "flo_mark",
@@ -1477,10 +2255,23 @@
       "timeslice": "",
       "limtype": "UP",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "FMSHARE"
       ],
-      "indexes": "(r,datayear,p,c,bd)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "c",
+        "bd"
+      ],
+      "indexes_raw": "(r,datayear,p,c,bd)",
+      "related_sets_and_parameters": "PRC_MARK",
+      "units_ranges_defaults": "Decimal fraction [0,1]; default value: none Default i/e: STD",
+      "instances_conditions": "The same given fraction is applied to all time\u00adslices of the commodity (this could be generalized to allow time-slice-specific fractions, if deemed useful). If an ANNUAL level market-share is desired for a timesliced commodity, PRC_MARK can be used instead.",
+      "affected_equations_or_variables": "The individual process flow variables (VAR_FLO, VAR_IN, VAR_STGIN/OUT) are constrained (EQ(l)_FLOMRK) to a fraction of the total production of a commodity (VAR_COMPRD). Forces the commodity production variable (VAR_COMPRD) to be included in the equality balance constraint (EQE_COMBAL)."
     },
     "FLO_PKCOI": {
       "column_header": "flo_pkcoi",
@@ -1495,10 +2286,23 @@
       "timeslice": "U",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "PKCOI"
       ],
-      "indexes": "(r,datayear,p,c,s)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "c",
+        "s"
+      ],
+      "indexes_raw": "(r,datayear,p,c,s)",
+      "related_sets_and_parameters": "COM_PKRSV, COM_PKFLX, com_peak, com_pkts",
+      "units_ranges_defaults": "Scalar [open]; default value: 1 Default i/e: STD",
+      "instances_conditions": "FLO_PKCOI is specified for individual processes p consuming the peak commodity c. Direct inheritance. Weighted aggregation.  Used when the timeslices are not necessarily fine enough to pick up the actual peak within the peak timeslices.",
+      "affected_equations_or_variables": "Applied to the flow variable (VAR_FLO) to adjust the amount of a commodity consumed when considering the average demand contributing to the peaking constraint (EQ_PEAK)."
     },
     "FLO_SHAR": {
       "column_header": "flo_shar",
@@ -1513,10 +2317,25 @@
       "timeslice": "ANNUAL",
       "limtype": "FX",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "Share-I"
       ],
-      "indexes": "(r,datayear,p,c,cg,s,bd)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "c",
+        "cg",
+        "s",
+        "bd"
+      ],
+      "indexes_raw": "(r,datayear,p,c,cg,s,bd)",
+      "other_indexes": "commodity_group",
+      "units_ranges_defaults": "Decimal fraction [0,1]; default value: none Default i/e: MIG over milestoneyears, STD over pastyears",
+      "instances_conditions": "Direct inheritance. Weighted aggregation. A common example of using FLO_SHAR is to specify the power-to-heat ratio of CHP plants in the backpressure point. For example, for a heat output of a CHP technology, the FLO_SHAR parameter would have the value CHPR/(1+CHPR), with CHPR being the heat-to-power ratio.",
+      "affected_equations_or_variables": "When the commodity is an input an EQ(l)_INSHR equation is generated. When the commodity is an output an EQ(l)_OUTSHR equation is generated."
     },
     "FLO_SUB": {
       "column_header": "flo_sub",
@@ -1530,7 +2349,21 @@
       "timeslice": "ANNUAL",
       "limtype": "",
       "currency": true,
-      "indexes": "(r,datayear,p,c,s,cur)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "c",
+        "s",
+        "cur"
+      ],
+      "indexes_raw": "(r,datayear,p,c,s,cur)",
+      "related_sets_and_parameters": "OBJ_FSUB, CST_FLOX, CST_PVP",
+      "units_ranges_defaults": "Monetary unit per commodity unit [0,?); default value: none Default i/e: STD",
+      "instances_conditions": "Direct inheritance. Weighted aggregation.",
+      "affected_equations_or_variables": "Applied with a minus sign to the flow variable (VAR_FLO) when entering the objective function (EQ_OBJVAR). May appear in user constraints (EQ_UC*) if specified in UC_NAME."
     },
     "FLO_TAX": {
       "column_header": "flo_tax",
@@ -1544,7 +2377,21 @@
       "timeslice": "ANNUAL",
       "limtype": "",
       "currency": true,
-      "indexes": "(r,datayear,p,c,s,cur)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "c",
+        "s",
+        "cur"
+      ],
+      "indexes_raw": "(r,datayear,p,c,s,cur)",
+      "related_sets_and_parameters": "OBJ_FTAX, CST_FLOX, CST_PVP",
+      "units_ranges_defaults": "Monetary unit per commodity unit [0,?); default: none Default i/e: STD",
+      "instances_conditions": "Direct inheritance. Weighted aggregation.",
+      "affected_equations_or_variables": "Applied to the flow variable (VAR_FLO) when entering the objective function (EQ_OBJVAR). May appear in user constraints (EQ_UC*) if specified in UC_NAME."
     },
     "GROWTH": {
       "column_header": "growth",
@@ -1557,7 +2404,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "GROWTH_TID": {
       "column_header": "growth_tid",
@@ -1570,7 +2419,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "GROWTH_TIDr": {
       "column_header": "growth_tidr",
@@ -1583,7 +2434,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "GROWTHr": {
       "column_header": "growthr",
@@ -1596,7 +2449,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "GR_DEMFR": {
       "column_header": "gr_demfr",
@@ -1609,7 +2464,9 @@
       "commodity": false,
       "timeslice": "ANNUAL",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "GR_ENDFR": {
       "column_header": "gr_endfr",
@@ -1622,7 +2479,10 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false,
+      "other_indexes": "commodity_group"
     },
     "GR_GENFR": {
       "column_header": "gr_genfr",
@@ -1635,7 +2495,10 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false,
+      "other_indexes": "commodity_group"
     },
     "GR_GENLEV": {
       "column_header": "gr_genlev",
@@ -1648,7 +2511,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "GR_GENMAP": {
       "column_header": "gr_genmap",
@@ -1661,7 +2526,10 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false,
+      "other_indexes": "commodity_group"
     },
     "GR_THMIN": {
       "column_header": "gr_thmin",
@@ -1674,7 +2542,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "GR_VARGEN": {
       "column_header": "gr_vargen",
@@ -1687,7 +2557,10 @@
       "commodity": false,
       "timeslice": "U",
       "limtype": "LO",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false,
+      "other_indexes": "commodity_group"
     },
     "GR_XBND": {
       "column_header": "gr_xbnd",
@@ -1700,7 +2573,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "G_CHNGMONY": {
       "column_header": "g_chngmony",
@@ -1715,6 +2590,8 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "CurrEx"
       ]
@@ -1731,7 +2608,18 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
-      "indexes": "(cur1,cur2)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "cur1",
+        "cur2"
+      ],
+      "indexes_raw": "(cur1,cur2)",
+      "other_indexes": "commodity_group",
+      "related_sets_and_parameters": "R_CUREX",
+      "units_ranges_defaults": "Scalar (0,?) Default value: none",
+      "instances_conditions": "The target currency cur2 must have a discount rate defined with G_DRATE.",
+      "affected_equations_or_variables": "Affects cost coefficients in EQ_OBJ"
     },
     "G_CYCLE": {
       "column_header": "g_cycle",
@@ -1745,7 +2633,17 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
-      "indexes": "(tslvl)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "tslvl"
+      ],
+      "indexes_raw": "(tslvl)",
+      "other_indexes": "commodity_group",
+      "related_sets_and_parameters": "TS_CYCLE",
+      "units_ranges_defaults": "Number of cycles [1,?); Default values:  \u00b7\u00a0 1 for ANNUAL \u00b7\u00a0 1 for SEASON \u00b7\u00a0 52 for WEEKLY  \u00b7\u00a0 365 for DAYNITE",
+      "instances_conditions": "Not recommended to be changed; use TS_CYCLE instead, whenever the timeslice cycles are different from the default, because changing G_CYCLE would change the meaning of storage availability factors.",
+      "affected_equations_or_variables": "Affects inter\u00adpretation of availability factors for the storage level, whenever capacity represents the maximum nominal output level (EQ(l)_CAPACT, EQL_CAPFLO)."
     },
     "G_DRATE": {
       "column_header": "g_drate",
@@ -1760,10 +2658,21 @@
       "timeslice": "",
       "limtype": "",
       "currency": true,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "DISCOUNT"
       ],
-      "indexes": "(r,allyear,cur)"
+      "indexes": [
+        "r",
+        "allyear",
+        "cur"
+      ],
+      "indexes_raw": "(r,allyear,cur)",
+      "related_sets_and_parameters": "OBJ_DISC, OBJ_DCEOH, NCAP_DRATE, COR_SALVI, COR_SALVD, COEF_PVT, VDA_DISC",
+      "units_ranges_defaults": "Decimal fraction (0,1]; default value = none Default i/e: STD",
+      "instances_conditions": "A value must be provided for each region. Interpolation is dense (all individual years included).",
+      "affected_equations_or_variables": "The discount rate is taken into consideration when constructing the objective function discounting multiplier (OBJ_DISC), which is applied in each components of the objective function (EQ_OBJVAR, EQ_OBJINV, EQ_OBJFIX, EQ_OBJSALV, EQ_OBJELS)."
     },
     "G_DYEAR": {
       "column_header": "g_dyear",
@@ -1776,7 +2685,12 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false,
+      "related_sets_and_parameters": "OBJ_DISC, COEF_PVT",
+      "units_ranges_defaults": "Year [BOTIME,EOTIME]; default value = M(MIYR_1), i.e. the first milestone year",
+      "affected_equations_or_variables": "The year to which all costs are to be discounted is taken into consideration when constructing the objective function discounting multiplier  (OBJ_DISC), which is applied in each of the components of the objective function (EQ_OBJVAR, EQ_OBJINV, EQ_OBJFIX, EQ_OBJSALV, EQ_OBJELS)."
     },
     "G_OFFTHD": {
       "column_header": "g_offthd",
@@ -1790,7 +2704,16 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
-      "indexes": "(datayear)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "datayear"
+      ],
+      "indexes_raw": "(datayear)",
+      "related_sets_and_parameters": "PRC_NOFF, PRC_AOFF, PRC_FOFF, COM_OFF",
+      "units_ranges_defaults": "Scalar [0,1] Default value: 0 Default i/e: 5",
+      "instances_conditions": "Setting G_OFFTHD=1 will make the *_OFF attributes effective only for periods fully included in the OFF range specified.",
+      "affected_equations_or_variables": "Affects availability of VAR_NCAP, VAR_ACT, VAR_FLO, VAR_COMNET/PRD"
     },
     "G_OVERLAP": {
       "column_header": "g_overlap",
@@ -1803,7 +2726,12 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false,
+      "units_ranges_defaults": "Scalar [0,100] Default value: TIMESTEP/2",
+      "instances_conditions": "Used only when time-stepped solution is activated with the TIMESTEP control variable.",
+      "affected_equations_or_variables": "\u2013"
     },
     "G_RFRIR": {
       "column_header": "g_rfrir",
@@ -1818,6 +2746,8 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "RFRIR"
       ]
@@ -1833,7 +2763,11 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false,
+      "related_sets_and_parameters": "NCAP_TLIFE",
+      "units_ranges_defaults": "Scalar [1,?); default value = 10"
     },
     "G_YRFR": {
       "column_header": "g_yrfr",
@@ -1850,12 +2784,22 @@
       "timeslice": "ANNUAL",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "QHR(Z)(Y)",
         "YRFR",
         "QHR"
       ],
-      "indexes": "(all_r,s)"
+      "indexes": [
+        "all_r",
+        "s"
+      ],
+      "indexes_raw": "(all_r,s)",
+      "related_sets_and_parameters": "RTCS_TSFR, RS_STGPRD",
+      "units_ranges_defaults": "Fraction [0,1]; default value: none; only for the ANNUAL timeslice a value of 1 is predefined",
+      "instances_conditions": "Must be provided for each region and timeslice.",
+      "affected_equations_or_variables": "Applied to various variables (VAR_NCAP+PASTI, VAR_COMX, VAR_IRE, VAR_FLO, VAR_SIN/OUT) in the commodity balance equation (EQ(l)_COMBAL)."
     },
     "GenUCByReg": {
       "column_header": "genucbyreg",
@@ -1868,7 +2812,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "IRE_BND": {
       "column_header": "ire_bnd",
@@ -1882,7 +2828,23 @@
       "timeslice": "ANNUAL",
       "limtype": "UP",
       "currency": false,
-      "indexes": "(r,datayear,c,s,all_r,ie,bd)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "r",
+        "datayear",
+        "c",
+        "s",
+        "all_r",
+        "ie",
+        "bd"
+      ],
+      "indexes_raw": "(r,datayear,c,s,all_r,ie,bd)",
+      "other_indexes": "region2,import_export",
+      "related_sets_and_parameters": "top_ire",
+      "units_ranges_defaults": "Commodity unit [0,?); default value: none Default i/e: MIG",
+      "instances_conditions": "Only applicable for inter-regional exchange processes (IRE). If the bound is specified for a timeslice (s) being above the commodity (c) timeslice resolution, the bound is applied to the sum of the imports/exports according to the timeslice tree. Standard aggregation.",
+      "affected_equations_or_variables": "Controls the instances for which the trade bound constraint (EQ(l)_IREBND) is generated, and the RHS."
     },
     "IRE_CCVT": {
       "column_header": "ire_ccvt",
@@ -1896,7 +2858,20 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
-      "indexes": "(r1,c1,r2,c2))"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "r1",
+        "c1",
+        "r2",
+        "c2"
+      ],
+      "indexes_raw": "(r1,c1,r2,c2))",
+      "other_indexes": "region2,commodity2",
+      "related_sets_and_parameters": "IRE_TSCVT, top_ire",
+      "units_ranges_defaults": "Scalar (0,?) Default value: 1 if commodity names are the same in both regions I/e: N/A",
+      "instances_conditions": "Required for mapping commodities involved in inter-regional exchanges between two regions whenever commodities traded are in different units in the regions.",
+      "affected_equations_or_variables": "The conversion factor is applied to the flow variable (VAR_IRE) in the inter-regional balance constraint (EQ_IRE). Similarly, applied to the flow variable (VAR_IRE) when an inter-regional exchange is bounded in the limit constraint (EQ(l)_IREBND). Similarly, applied to the flow variable (VAR_IRE) when an exchange with an external region is bounded (EQ(l)_XBND)."
     },
     "IRE_FLO": {
       "column_header": "ire_flo",
@@ -1910,7 +2885,23 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
-      "indexes": "(r1,datayear,p,c1,r2,c2,s2)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "r1",
+        "datayear",
+        "p",
+        "c1",
+        "r2",
+        "c2",
+        "s2"
+      ],
+      "indexes_raw": "(r1,datayear,p,c1,r2,c2,s2)",
+      "other_indexes": "region2,commodity2,time_slice2",
+      "related_sets_and_parameters": "top_ire",
+      "units_ranges_defaults": "Commodity unit c2/commodity unit c1 [0,?); default value: 1 Default i/e: STD",
+      "instances_conditions": "Only applicable for inter-regional exchange processes (IRE) between two internal regions. Note that for each direction of trade a separate IRE_FLO needs to be specified. Similar to FLO_FUNC for standard processes. Direct inheritance. Weighted aggregation.",
+      "affected_equations_or_variables": "Applied to the exchange flow variable (VAR_IRE) in the inter-regional trade equation (EQ_IRE).  Applied to the exchange flow variable (VAR_IRE) when a bound on inter-regional trade is to be applied (EQ(l)_IREBND)."
     },
     "IRE_FLOSUM": {
       "column_header": "ire_flosum",
@@ -1925,10 +2916,27 @@
       "timeslice": "ANNUAL",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "IFLOSUM"
       ],
-      "indexes": "(r,datayear,p,c1,s,ie,c2,io)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "c1",
+        "s",
+        "ie",
+        "c2",
+        "io"
+      ],
+      "indexes_raw": "(r,datayear,p,c1,s,ie,c2,io)",
+      "other_indexes": "import_export,in_out,commodity2",
+      "related_sets_and_parameters": "top_ire",
+      "units_ranges_defaults": "Commodity unit c2/commodity unit c1 [open]; default value: none Default i/e: STD",
+      "instances_conditions": "Only applicable for inter-regional exchange processes (IRE). Since the efficiency IRE_FLO can only be used for exchange between internal regions, IRE_FLOSUM may be used to define an efficiency for an import/export with an external region by specifying the same commodity for c1 and c2 and the value 1-efficiency as auxiliary consumption. Direct inheritance. Weighted aggregation.",
+      "affected_equations_or_variables": "The multiplier is applied to the flow variable (VAR_IRE) associated with an inter-reginal exchange in the commodity balance constraint (EQ(l)_COMBAL). If a flow share (FLO_SHAR) is provided for an inter-regional exchange process then the multiplier is applied to the flow variable (VAR_IRE) in the share constraint (EQ(l)_IN/OUTSHR). If a cost is provided for the flow (FLO_COST or FLO_DELIV) then the factor is applied to the flow variable (VAR_IRE) in the variable component of the objective function (EQ_OBJVAR)."
     },
     "IRE_PRICE": {
       "column_header": "ire_price",
@@ -1943,10 +2951,26 @@
       "timeslice": "ANNUAL",
       "limtype": "",
       "currency": true,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "COST"
       ],
-      "indexes": "(r,datayear,p,c,s,all_r,ie,cur)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "c",
+        "s",
+        "all_r",
+        "ie",
+        "cur"
+      ],
+      "indexes_raw": "(r,datayear,p,c,s,all_r,ie,cur)",
+      "related_sets_and_parameters": "OBJ_IPRIC, CST_COMC, CST_PVP, top_ire",
+      "units_ranges_defaults": "Monetary unit / commodity unit [0,?); default value: none Default i/e: STD",
+      "instances_conditions": "Only applicable for inter-regional exchange processes (IRE). Ignored if all_r is an internal region. Direct inheritance. Weighted aggregation.",
+      "affected_equations_or_variables": "The price of the exchange commodity is applied to the trade flow variable (VAR_IRE) in the variable costs component of the objective function (EQ_OBJVAR)."
     },
     "IRE_TSCVT": {
       "column_header": "ire_tscvt",
@@ -1961,10 +2985,23 @@
       "timeslice": "U",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "TSCVT"
       ],
-      "indexes": "(r1,s1,r2,s2)"
+      "indexes": [
+        "r1",
+        "s1",
+        "r2",
+        "s2"
+      ],
+      "indexes_raw": "(r1,s1,r2,s2)",
+      "other_indexes": "region2,time_slice2",
+      "related_sets_and_parameters": "IRE_CCVT, top_ire",
+      "units_ranges_defaults": "Scalar (0,?); default value: 1 if timeslice tree and names are the same in both regions I/e: N/A",
+      "instances_conditions": "Used for mapping timeslices in different regions. Required if timeslice definitions are different in the regions.",
+      "affected_equations_or_variables": "The conversion factor is applied to the flow variable (VAR_IRE) in the inter-regional balance constraint (EQ_IRE). Similarly, applied to the flow variable (VAR_IRE) when an inter-regional exchange is bounded in the limit constraint (EQ(l)_IREBND). Similarly, applied to the flow variable (VAR_IRE) when an exchange with an external region is bounded (EQ(l)_XBND)."
     },
     "IRE_XBND": {
       "column_header": "ire_xbnd",
@@ -1978,7 +3015,21 @@
       "timeslice": "ANNUAL",
       "limtype": "UP",
       "currency": false,
-      "indexes": "(all_r,datayear,c,s ie,bd)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "all_r",
+        "datayear",
+        "c",
+        "s ie",
+        "bd"
+      ],
+      "indexes_raw": "(all_r,datayear,c,s ie,bd)",
+      "other_indexes": "import_export",
+      "related_sets_and_parameters": "top_ire",
+      "units_ranges_defaults": "Commodity unit [0,?); default value: none Default i/e: MIG",
+      "instances_conditions": "Only applicable for inter-regional exchange processes (IRE). Provide whenever a trade flow is to be constrained. Note that the limit is either imposed by summing lower or splitting higher flow variables (VAR_IRE) when specified at other than the actual flow level (as determined by the commodity and process levels (COM_TSL/ PRC_TSL ).",
+      "affected_equations_or_variables": "The trade limit equation EQ(l)_XBND generated either sums lower flow variables (VAR_IRE) or splits (according to the timeslice tree) coarser variables."
     },
     "IRE_XXBND": {
       "column_header": "ire_xxbnd",
@@ -1991,7 +3042,10 @@
       "commodity": false,
       "timeslice": "ANNUAL",
       "limtype": "UP",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false,
+      "other_indexes": "region,import_export"
     },
     "MARKAL-REH": {
       "column_header": "markal-reh",
@@ -2006,6 +3060,8 @@
       "timeslice": "",
       "limtype": "FX",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "REH"
       ]
@@ -2022,7 +3078,18 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
-      "indexes": "(j,allyear)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "j",
+        "allyear"
+      ],
+      "indexes_raw": "(j,allyear)",
+      "other_indexes": "commodity_group",
+      "related_sets_and_parameters": "NCAP_AFM, NCAP_FOMM, NCAP_FSUBM, NCAP_FTAXM",
+      "units_ranges_defaults": "Scalar [open]; default value: none I/e: Full dense interpolation and extrapolation",
+      "instances_conditions": "Only provided when the related shaping parameters are to be used.",
+      "affected_equations_or_variables": "{See Related Parameters}"
     },
     "MakeCorridorPrc": {
       "column_header": "makecorridorprc",
@@ -2037,6 +3104,8 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "MCP"
       ]
@@ -2056,12 +3125,25 @@
       "timeslice": "ANNUAL",
       "limtype": "FX",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "CF",
         "UTILIZATION",
         "CF(Z)(Y)"
       ],
-      "indexes": "(r,datayear,p,s,bd)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "s",
+        "bd"
+      ],
+      "indexes_raw": "(r,datayear,p,s,bd)",
+      "related_sets_and_parameters": "NCAP_AFA, NCAP_AFS, NCAP_AFM, NCAP_AFX, COEF_AF",
+      "units_ranges_defaults": "Decimal fraction [0,1]; default value:  1 Default i/e: STD Remark: In special cases values >1 can also be used (when PRC_CAPACT does not represent the max. technical level of activity per unit of capacity).",
+      "instances_conditions": "NCAP_AF, NCAP_AFA and NCAP_AFS can be applied simultaneously. Direct inheritance. Weighted aggregation. (Important remark: No inheritance/aggregation if any value is specified at process timeslices.)",
+      "affected_equations_or_variables": "The corresponding capacity-activity constraint (EQ(l)_CAPACT) will be generated for any  timeslice s.  If the process timeslice level (PRC_TSL) is below said level, the activity variables will be summed."
     },
     "NCAP_AFA": {
       "column_header": "ncap_afa",
@@ -2077,11 +3159,23 @@
       "timeslice": "",
       "limtype": "UP",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "ARAF",
         "AFA"
       ],
-      "indexes": "(r,datayear,p,bd)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "bd"
+      ],
+      "indexes_raw": "(r,datayear,p,bd)",
+      "related_sets_and_parameters": "NCAP_AFA, NCAP_AFS, NCAP_AFM, NCAP_AFX, COEF_AF",
+      "units_ranges_defaults": "Decimal fraction [0,1]; default value: none Default i/e: STD  Remark: In special cases values >1 can also be used (when PRC_CAPACT has been chosen not to represent the max. technical level of activity per unit of capacity).",
+      "instances_conditions": "Provided when \u2018ANNUAL\u2019 level process operation is to be controlled. NCAP_AF, NCAP_AFA and NCAP_AFS can be applied simultaneously. NCAP_AFA is always assumed to be non-vintage dependent, even if the process is defined as a vintaged one; for vintage-dependent annual availability NCAP_AFS with s=\u2019ANNUAL\u2019 can be used.",
+      "affected_equations_or_variables": "The corresponding capacity-activity constraint (EQ(l)_CAPACT) will be generated for the \u2018ANNUAL\u2019 timeslice.  If the process timeslice level (PRC_TSL) is below said level, the activity variables will be summed."
     },
     "NCAP_AFAC": {
       "column_header": "ncap_afac",
@@ -2096,9 +3190,12 @@
       "timeslice": "",
       "limtype": "UP",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "AFAC"
-      ]
+      ],
+      "other_indexes": "commodity_group"
     },
     "NCAP_AFC": {
       "column_header": "ncap_afc",
@@ -2113,10 +3210,24 @@
       "timeslice": "ANNUAL",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "AFC"
       ],
-      "indexes": "(r,datayear,p,cg,tsl)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "cg",
+        "tsl"
+      ],
+      "indexes_raw": "(r,datayear,p,cg,tsl)",
+      "other_indexes": "commodity_group",
+      "related_sets_and_parameters": "NCAP_AFCS",
+      "units_ranges_defaults": "Decimal fraction [0,?); default value: none Default i/e: STD",
+      "instances_conditions": "If the commodities are in the PCG, constraint is applied to the flows in the PCG as a whole (linear combination of flows). Independent equations are generated for commodities not in the PCG, or when NCAP_AFC(r,\u20190\u2019,p,\u2019ACT\u2019,tsl)=\u20131 is also specified.",
+      "affected_equations_or_variables": "Generates instances of EQ(l)_CAFLAC (thereby disabling EQ(l)_CAPACT generation), or EQL_CAPFLO."
     },
     "NCAP_AFCS": {
       "column_header": "ncap_afcs",
@@ -2131,10 +3242,24 @@
       "timeslice": "ANNUAL",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "AFCS"
       ],
-      "indexes": "(r,datayear,p,cg,ts)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "cg",
+        "ts"
+      ],
+      "indexes_raw": "(r,datayear,p,cg,ts)",
+      "other_indexes": "commodity_group",
+      "related_sets_and_parameters": "NCAP_AFC",
+      "units_ranges_defaults": "Decimal fraction [0,?); default value: none Default i/e: STD",
+      "instances_conditions": "See NCAP_AFC. NCAP_AFCS is similar to NCAP_AFC but is defined on individual timeslices. Overrides NCAP_AFC.",
+      "affected_equations_or_variables": "See NCAP_AFC."
     },
     "NCAP_AFM": {
       "column_header": "ncap_afm",
@@ -2149,10 +3274,21 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "AFM"
       ],
-      "indexes": "(r,datayear,p)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p"
+      ],
+      "indexes_raw": "(r,datayear,p)",
+      "related_sets_and_parameters": "NCAP_AF, NCAP_AFA, NCAP_AFS, MULTI, COEF_AF",
+      "units_ranges_defaults": "Integer number Default value: 0 (no multiplier applied) Default extrapolation: MIG",
+      "instances_conditions": "Provided when multiplication of NCAP_AF / NCAP_AFS based upon year is desired. Note: Multiplier index 1 is reserved for constant 1.",
+      "affected_equations_or_variables": "{See Related Parameters}"
     },
     "NCAP_AFS": {
       "column_header": "ncap_afs",
@@ -2169,12 +3305,24 @@
       "timeslice": "U",
       "limtype": "UP",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "SRAF(Z)",
         "SRAF",
         "AFS"
       ],
-      "indexes": "(r,datayear,p,s,bd)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "s",
+        "bd"
+      ],
+      "indexes_raw": "(r,datayear,p,s,bd)",
+      "units_ranges_defaults": "Decimal fraction [0,1]; default value: none Default i/e: STD  Remark: In special cases values >1 can also be used (in cases where PRC_CAPACT has been chosen not to represent the maximum technical level of activity per unit of capacity).",
+      "instances_conditions": "NCAP_AF, NCAP_AFA and NCAP_AFS can be applied simultaneously. NCAP_AFS being specified for timeslices s being below the process timeslice level are ignored. No inheritance. No aggregation.  Can be used also on the process timeslices, and will then override the levelized NCAP_AF availability factors.",
+      "affected_equations_or_variables": "The corresponding capacity-activity constraint (EQ(l)_CAPACT) will be generated for a timeslice s being at or above the process timeslice level (prc_tsl). If the process timeslice level is below said level, the activity variables will be summed."
     },
     "NCAP_AFSX": {
       "column_header": "ncap_afsx",
@@ -2189,6 +3337,8 @@
       "timeslice": "",
       "limtype": "UP",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "AFSX"
       ]
@@ -2206,10 +3356,21 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "AFX"
       ],
-      "indexes": "(r,datayear,p)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p"
+      ],
+      "indexes_raw": "(r,datayear,p)",
+      "related_sets_and_parameters": "NCAP_AF, NCAP_AFA, NCAP_AFS, SHAPE, COEF_AF",
+      "units_ranges_defaults": "Integer number Default value: 0 (no shape curve applied) Default extrapolation: MIG",
+      "instances_conditions": "Provided when shaping based upon age is desired. NCAP_AFX is applied to NCAP_AF and NCAP_AFS, but not the annual availability NCAP_AFA. For non-vintaged process, the SHAPE parameter is only applied to NCAP_AF, i.e. availabilities at process timeslices will be vintaged. Note: Shape index 1 is reserved for constant 1.",
+      "affected_equations_or_variables": "{See Related Parameters}"
     },
     "NCAP_BND": {
       "column_header": "ncap_bnd",
@@ -2226,12 +3387,23 @@
       "timeslice": "",
       "limtype": "UP",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "IBOND(BD)",
         "IBOND",
         "BNDINV"
       ],
-      "indexes": "(r,datayear,p,bd)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "bd"
+      ],
+      "indexes_raw": "(r,datayear,p,bd)",
+      "units_ranges_defaults": "Capacity unit [0,?); default value: none Default i/e: MIG",
+      "instances_conditions": "Provided for each process to have its overall installed capacity (VAR_NCAP) limited in a period. Since inter-/extrapolation default is MIG, a bound must be specified for each period desired, if no explicit inter-/extrapolation option is given, e.g. NCAP_BND(R,\u20190\u2019,P) =2.",
+      "affected_equations_or_variables": "Imposes an indirect limit on the capacity transfer equation (EQ_CPT) by means of a direct bound on the new investments capacity variable (VAR_NCAP)."
     },
     "NCAP_BPME": {
       "column_header": "ncap_bpme",
@@ -2245,7 +3417,18 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
-      "indexes": "(r,datayear,p)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "r",
+        "datayear",
+        "p"
+      ],
+      "indexes_raw": "(r,datayear,p)",
+      "related_sets_and_parameters": "NCAP_CDME",
+      "units_ranges_defaults": "Decimal fraction [0,?); default value: none Default i/e: STD",
+      "instances_conditions": "The parameter is only taken into account when the process is of type CHP, and NCAP_CDME has been also defined.",
+      "affected_equations_or_variables": "Process transformation equation, either  EQE_ACTEFF or EQ_PTRANS"
     },
     "NCAP_CDME": {
       "column_header": "ncap_cdme",
@@ -2259,7 +3442,18 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
-      "indexes": "(r,datayear,p)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "r",
+        "datayear",
+        "p"
+      ],
+      "indexes_raw": "(r,datayear,p)",
+      "related_sets_and_parameters": "NCAP_BPME",
+      "units_ranges_defaults": "Decimal fraction [0,?); default value: none Default i/e: STD",
+      "instances_conditions": "The parameter can only be used for standard process\u00ades having electricity output in the PCG. The efficiency is applied between the default shadow group and the electricity. If the process is also defined as a CHP, heat efficiency is also included.",
+      "affected_equations_or_variables": "Process transformation equation, either  EQE_ACTEFF or EQ_PTRANS"
     },
     "NCAP_CEH": {
       "column_header": "ncap_ceh",
@@ -2273,7 +3467,18 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
-      "indexes": "(r,datayear,p)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "r",
+        "datayear",
+        "p"
+      ],
+      "indexes_raw": "(r,datayear,p)",
+      "related_sets_and_parameters": "NCAP_CHPR, ACT_EFF",
+      "units_ranges_defaults": "Decimal fraction [\u20131,?]; default value: none Default i/e: STD",
+      "instances_conditions": "The parameter is only taken into account when the process is defined to be of type CHP. According to the CEH value, the process activity will be defined as:  CEH ? 0: Max. electricity output according to CHPR 0\u00a0<\u00a0CEH\u00a0?1: Condensing mode electricity output  CEH ? 1: Total energy output in full CHP mode.",
+      "affected_equations_or_variables": "Process transformation equation, either  EQE_ACTEFF or EQ_PTRANS"
     },
     "NCAP_CHPR": {
       "column_header": "ncap_chpr",
@@ -2288,10 +3493,22 @@
       "timeslice": "",
       "limtype": "FX",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "CHPR"
       ],
-      "indexes": "(r,datayear,p,lim)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "lim"
+      ],
+      "indexes_raw": "(r,datayear,p,lim)",
+      "related_sets_and_parameters": "FLO_SHAR",
+      "units_ranges_defaults": "Decimal fraction  [0,?);   default value: 1 (only when process type is CHP, for lim='UP') Default i/e: STD",
+      "instances_conditions": "The parameter is only taken into account when the process is defined to be of type CHP. The defaults can be disabled by defining any i/e value with lim='N', which will eliminate the output share equations.",
+      "affected_equations_or_variables": "Activates the generation of output share equations, implemented with EQ(l)_OUTSHR"
     },
     "NCAP_CLAG": {
       "column_header": "ncap_clag",
@@ -2306,10 +3523,24 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "CLAG"
       ],
-      "indexes": "(r,datayear,p,c,io)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "c",
+        "io"
+      ],
+      "indexes_raw": "(r,datayear,p,c,io)",
+      "other_indexes": "in_out",
+      "related_sets_and_parameters": "NCAP_CLED, NCAP_COM",
+      "units_ranges_defaults": "Years [open]; default value: none Default i/e: STD",
+      "instances_conditions": "Provided when there is a delay in commodity output after commissioning new capacity. So, if the process is available in the year K, the commodity is produced during the years [K+CLAG, K+NCAP_TLIFE\u20131].",
+      "affected_equations_or_variables": "Applied to the investment variable (VAR_NCAP) in the commodity balance (EQ(l)_COMBAL) of the investment period or previous periods."
     },
     "NCAP_CLED": {
       "column_header": "ncap_cled",
@@ -2324,10 +3555,22 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "CLED"
       ],
-      "indexes": "(r,datayear,p,c)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "c"
+      ],
+      "indexes_raw": "(r,datayear,p,c)",
+      "related_sets_and_parameters": "NCAP_ICOM, COEF_ICOM",
+      "units_ranges_defaults": "Years [open]; default value: = NCAP_ILED Default i/e: STD",
+      "instances_conditions": "Provided when a commodity must be available prior to availability of a process. So, if the process is available in the year B(v) +NCAP_ILED\u20131, the commodity is produced during the time span [B(v)+ILED\u2013CLED, B(v) +NCAP_ILED\u20131]. Usually used when modelling the need for fabrication of reactor fuel the period before a reactor goes online.",
+      "affected_equations_or_variables": "Applied to the investment variable (VAR_NCAP) in the commodity balance (EQ(l)_COMBAL) of the investment period or previous periods."
     },
     "NCAP_COM": {
       "column_header": "ncap_com",
@@ -2343,11 +3586,25 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "ENV_CAP",
         "ENVCAP"
       ],
-      "indexes": "(r,datayear,p,c,io)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "c",
+        "io"
+      ],
+      "indexes_raw": "(r,datayear,p,c,io)",
+      "other_indexes": "in_out",
+      "related_sets_and_parameters": "rpc_capflo, rpc_conly",
+      "units_ranges_defaults": "Commodity unit per capacity unit [open]; default value: none Default i/e: STD",
+      "instances_conditions": "Provided when the consumption or production of a commodity is tied to the level of the installed capacity.",
+      "affected_equations_or_variables": "Applied to the capacity variable (VAR_CAP) in the commodity balance (EQ_COMBAL)."
     },
     "NCAP_COST": {
       "column_header": "ncap_cost",
@@ -2362,10 +3619,21 @@
       "timeslice": "",
       "limtype": "",
       "currency": true,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "INVCOST"
       ],
-      "indexes": "(r,datayear,p)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p"
+      ],
+      "indexes_raw": "(r,datayear,p)",
+      "related_sets_and_parameters": "OBJ_ICOST, OBJSCC, CST_INVC, CST_PVP",
+      "units_ranges_defaults": "Monetary unit per capacity unit [0,?); default value: none Default i/e: STD",
+      "instances_conditions": "Provided whenever there is a cost associated with putting new capacity in place.",
+      "affected_equations_or_variables": "Applied to the investment variable (VAR_NCAP) when entering the objective function (EQ_OBJNV). May appear in user constraints (EQ_UC*) if specified in UC_NAME."
     },
     "NCAP_CPX": {
       "column_header": "ncap_cpx",
@@ -2380,10 +3648,21 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "CPX"
       ],
-      "indexes": "(r,datayear,prc)"
+      "indexes": [
+        "r",
+        "datayear",
+        "prc"
+      ],
+      "indexes_raw": "(r,datayear,prc)",
+      "related_sets_and_parameters": "COEF_CPT",
+      "units_ranges_defaults": "Integer number  Default value: 0  (no shape curve applied)  Default extrapolation:  MIG",
+      "instances_conditions": "Provided when shaping based upon age is desired.  The SHAPE index given by NCAP_CPX is applied to the internal capacity transfer parameter (COEF_CPT).  Note: Shape index 1 is reserved for constant 1.",
+      "affected_equations_or_variables": "Impacts all calculations  that are dependent  upon the availability of  capacity (VAR_NCAP), most directly the capacity transfer (EQ_CPT), and capacity availability equations  (EQ(l)_CAPACT)."
     },
     "NCAP_DCOST": {
       "column_header": "ncap_dcost",
@@ -2398,10 +3677,22 @@
       "timeslice": "",
       "limtype": "",
       "currency": true,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "DCOST"
       ],
-      "indexes": "(r,datayear,p,cur)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "cur"
+      ],
+      "indexes_raw": "(r,datayear,p,cur)",
+      "related_sets_and_parameters": "NCAP_DLAG, COR_SALVD, OBJ_DCOST, CST_DECC, CST_PVP",
+      "units_ranges_defaults": "Monetary unit per capacity unit [0,?); default value: none Default i/e: STD",
+      "instances_conditions": "Provided when there are decommissioning costs associated with a process. Decommissioning of a process and the payment of decommissioning costs may be delayed by a lag time (NCAP_DLAG).",
+      "affected_equations_or_variables": "Applied to the current capacity subject to decommissioning (VAR_NCAP+NCAP_PASTI) when entering the objective function (EQ_OBJNV)."
     },
     "NCAP_DELIF": {
       "column_header": "ncap_delif",
@@ -2416,10 +3707,21 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "DELIF"
       ],
-      "indexes": "(r,datayear,p)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p"
+      ],
+      "indexes_raw": "(r,datayear,p)",
+      "related_sets_and_parameters": "NCAP_DLIFE, COR_SALVD, DUR_MAX, OBJ_CRFD, SALV_DEC",
+      "units_ranges_defaults": "Years (0,?); default value: NCAP_DLIFE Default i/e: STD",
+      "instances_conditions": "Provided when the timeframe for paying for decommission is different from that of the actual decommissioning.",
+      "affected_equations_or_variables": "Applied to the investment variable (VAR_NCAP) when entering the salvage portion of the objective function (EQ_OBJSALV)."
     },
     "NCAP_DISC": {
       "column_header": "ncap_disc",
@@ -2433,7 +3735,20 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
-      "indexes": "(r,datayear,p,unit)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "unit"
+      ],
+      "indexes_raw": "(r,datayear,p,unit)",
+      "other_indexes": "unit",
+      "related_sets_and_parameters": "rp_dscncap",
+      "units_ranges_defaults": "Capacity unit [0,?); default value: none Default i/e: MIG",
+      "instances_conditions": "Used for lumpy investments. Requires MIP. Since inter-/extrapolation default is MIG, a value must be specified for each period desired, if no explicit inter-/extrapolation option is given.",
+      "affected_equations_or_variables": "Applied to the lumpy investment integer variable (VAR_DNCAP) in the discrete investment equation (EQ_DSCNCAP) to set the corresponding standard investment variable level (VAR_NCAP)."
     },
     "NCAP_DLAG": {
       "column_header": "ncap_dlag",
@@ -2448,10 +3763,21 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "DLAG"
       ],
-      "indexes": "(r,datayear,p)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p"
+      ],
+      "indexes_raw": "(r,datayear,p)",
+      "related_sets_and_parameters": "COEF_OCOM, DUR_MAX, OBJ_DLAGC",
+      "units_ranges_defaults": "Years [0,?); default value: none Default i/e: STD",
+      "instances_conditions": "Provided when there is a lag in the decommissioning of a process (e.g., to allow the nuclear core to reduce its radiation).",
+      "affected_equations_or_variables": "Delay applied to a decommissioning flow (VAR_FLO) in the balance equation (EQ(l)_COMBAL) as production. Delay applied to the current capacity subject to decommissioning (VAR_NCAP+NCAP_PASTI) when entering the objective function components (EQ_OBJINV, EQ_OBJFIX,  EQ_OBJSALV)."
     },
     "NCAP_DLAGC": {
       "column_header": "ncap_dlagc",
@@ -2466,10 +3792,22 @@
       "timeslice": "",
       "limtype": "",
       "currency": true,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "DLAGC"
       ],
-      "indexes": "(r,datayear,p,cur)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "cur"
+      ],
+      "indexes_raw": "(r,datayear,p,cur)",
+      "related_sets_and_parameters": "NCAP_DLAG, OBJ_DLAGC, CST_DECC, CST_PVP",
+      "units_ranges_defaults": "Monetary unit per capacity unit [0,?); default value: none Default i/e: STD",
+      "instances_conditions": "Provided when there is a cost during any lag in the decommissioning (e.g., security).",
+      "affected_equations_or_variables": "Cost during delay applied to the current capacity subject to decommissioning (VAR_NCAP+NCAP_PASTI) when entering the objective function components (EQ_OBJFIX,  EQ_OBJSALV)."
     },
     "NCAP_DLIFE": {
       "column_header": "ncap_dlife",
@@ -2484,10 +3822,21 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "DLIFE"
       ],
-      "indexes": "(r,datayear,p)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p"
+      ],
+      "indexes_raw": "(r,datayear,p)",
+      "related_sets_and_parameters": "DUR_MAX",
+      "units_ranges_defaults": "Years (0,?); default value: none Default i/e: STD",
+      "instances_conditions": "Provided when a process has a decommissioning phase.",
+      "affected_equations_or_variables": "Decommissioning time impacting (VAR_NCAP+NCAP_PASTI) when entering the objective function components (EQ_OBJINV, EQ_OBJSALV)."
     },
     "NCAP_DRATE": {
       "column_header": "ncap_drate",
@@ -2503,11 +3852,22 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "DISCRATE",
         "DRATE"
       ],
-      "indexes": "(r,datayear,p)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p"
+      ],
+      "indexes_raw": "(r,datayear,p)",
+      "related_sets_and_parameters": "G_DRATE, COR_SALVI, COR_SALVD",
+      "units_ranges_defaults": "Percent (0,?); default value: G_DRATE Default i/e: STD",
+      "instances_conditions": "Provided if the cost of borrowing for a process is different from the standard discount rate.",
+      "affected_equations_or_variables": "Discount rate applied to investments (VAR_NCAP+NCAP_PASTI) when entering the objective function components (EQ_OBJINV, EQ_OBJSALV)."
     },
     "NCAP_EFFX": {
       "column_header": "ncap_effx",
@@ -2522,6 +3882,8 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "EFFX"
       ]
@@ -2539,10 +3901,21 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "ELIFE"
       ],
-      "indexes": "(r,datayear,p)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p"
+      ],
+      "indexes_raw": "(r,datayear,p)",
+      "related_sets_and_parameters": "NCAP_TLIFE, COR_SALVI, OBJ_CRF",
+      "units_ranges_defaults": "years (0,?); default value: NCAP_TLIFE Default i/e: STD",
+      "instances_conditions": "Provided only when the economic lifetime differs from the technical lifetime (NCAP_TLIFE).",
+      "affected_equations_or_variables": "Economic lifetime of a process when costing investment (VAR_NCAP+NCAP_PASTI) or capacity in the objective function components (EQ_OBJINV, EQ_OBJSALV, EQ_OBJFIX)."
     },
     "NCAP_FDR": {
       "column_header": "ncap_fdr",
@@ -2556,7 +3929,18 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
-      "indexes": "(r,datayear,prc)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "r",
+        "datayear",
+        "prc"
+      ],
+      "indexes_raw": "(r,datayear,prc)",
+      "related_sets_and_parameters": "NCAP_COST",
+      "units_ranges_defaults": "Decimal fraction (0,?); default value:none Default i/e: STD",
+      "instances_conditions": "Provided when the effect of functional depreciation is considered significant to justify accelerated decrease in salvage value.",
+      "affected_equations_or_variables": "Affects the salvage value coefficients in EQ_OBJSALV"
     },
     "NCAP_FOM": {
       "column_header": "ncap_fom",
@@ -2571,10 +3955,22 @@
       "timeslice": "",
       "limtype": "",
       "currency": true,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "FIXOM"
       ],
-      "indexes": "(r,datayear,p,cur)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "cur"
+      ],
+      "indexes_raw": "(r,datayear,p,cur)",
+      "related_sets_and_parameters": "OBJ_FOM, CST_FIXC, CST_PVP",
+      "units_ranges_defaults": "Monetary unit per capacity unit [0,?); default value: none Default i/e: STD",
+      "instances_conditions": "Provided when there is a fixed cost associated with the installed capacity.",
+      "affected_equations_or_variables": "Fixed operating and maintenance costs associated with total installed capacity (VAR_NCAP+NCAP_PASTI) when entering the objective function components (EQ_OBJFIX)."
     },
     "NCAP_FOMM": {
       "column_header": "ncap_fomm",
@@ -2589,10 +3985,21 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "FOMM"
       ],
-      "indexes": "(r,datayear,p)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p"
+      ],
+      "indexes_raw": "(r,datayear,p)",
+      "related_sets_and_parameters": "NCAP_FOM, MULTI",
+      "units_ranges_defaults": "Integer number Default value: 0 (no multiplier curve applied) Default i/e: MIG",
+      "instances_conditions": "Provided when shaping based upon the period is desired. Note: Multiplier index 1 is reserved for constant 1.",
+      "affected_equations_or_variables": "{See Related Parameters}"
     },
     "NCAP_FOMX": {
       "column_header": "ncap_fomx",
@@ -2607,10 +4014,21 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "FOMX"
       ],
-      "indexes": "(r,datayear,p)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p"
+      ],
+      "indexes_raw": "(r,datayear,p)",
+      "related_sets_and_parameters": "NCAP_FOM, SHAPE",
+      "units_ranges_defaults": "Integer number Default value: 0 (no shape curve applied) Default i/e: MIG",
+      "instances_conditions": "Provided when shaping based upon age is desired. Note: Shape index 1 is reserved for constant 1.",
+      "affected_equations_or_variables": "{See Related Parameters}"
     },
     "NCAP_FSUB": {
       "column_header": "ncap_fsub",
@@ -2625,10 +4043,22 @@
       "timeslice": "",
       "limtype": "",
       "currency": true,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "TFSUB"
       ],
-      "indexes": "(r,datayear,p,cur)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "cur"
+      ],
+      "indexes_raw": "(r,datayear,p,cur)",
+      "related_sets_and_parameters": "OBJ_FSB, CST_FIXX, CST_PVP",
+      "units_ranges_defaults": "Monetary unit per capacity unit [0,?); default value: none Default i/e: STD",
+      "instances_conditions": "Provided when there is a subsidy for associated with the level of installed capacity.",
+      "affected_equations_or_variables": "Fixed subsidy associated with total installed capacity (VAR_NCAP+NCAP_PASTI) when entering the objective function component (EQ_OBJFIX) with a minus sign."
     },
     "NCAP_FSUBM": {
       "column_header": "ncap_fsubm",
@@ -2643,10 +4073,21 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "FSUBM"
       ],
-      "indexes": "(r,datayear,p)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p"
+      ],
+      "indexes_raw": "(r,datayear,p)",
+      "related_sets_and_parameters": "NCAP_FSUB, MULTI",
+      "units_ranges_defaults": "Integer number Default value: 0 (no multiplier curve applied) Default i/e: MIG",
+      "instances_conditions": "Provided when shaping based upon the period is desired. Note: Multiplier index 1 is reserved for constant 1.",
+      "affected_equations_or_variables": "{See Related Parameters}"
     },
     "NCAP_FSUBX": {
       "column_header": "ncap_fsubx",
@@ -2661,10 +4102,21 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "FSUBX"
       ],
-      "indexes": "(r,datayear,p)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p"
+      ],
+      "indexes_raw": "(r,datayear,p)",
+      "related_sets_and_parameters": "NCAP_FSUB, SHAPE",
+      "units_ranges_defaults": "Integer number Default value: 0 (no shape curve applied) Default i/e: MIG",
+      "instances_conditions": "Provided when shaping based upon age is desired. Note: Shape index 1 is reserved for constant 1.",
+      "affected_equations_or_variables": "{See Related Parameters}"
     },
     "NCAP_FTAX": {
       "column_header": "ncap_ftax",
@@ -2679,10 +4131,22 @@
       "timeslice": "",
       "limtype": "",
       "currency": true,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "TFTAX"
       ],
-      "indexes": "(r,datayear,p,cur)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "cur"
+      ],
+      "indexes_raw": "(r,datayear,p,cur)",
+      "related_sets_and_parameters": "OBJ_FTX, CST_FIXX, CST_PVP",
+      "units_ranges_defaults": "monetary unit per capacity unit [open]; default value: none Default i/e: STD",
+      "instances_conditions": "Provided when there is a fixed tax based upon the level of the installed capacity.",
+      "affected_equations_or_variables": "Fixed subsidy associated with total installed capacity (VAR_NCAP+NCAP_PASTI) when entering the objective function components (EQ_OBJFIX)."
     },
     "NCAP_FTAXM": {
       "column_header": "ncap_ftaxm",
@@ -2697,10 +4161,21 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "FTAXM"
       ],
-      "indexes": "(r,datayear,p)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p"
+      ],
+      "indexes_raw": "(r,datayear,p)",
+      "related_sets_and_parameters": "NCAP_FTAX, MULTI",
+      "units_ranges_defaults": "Integer number Default value: 0 (no multiplier curve applied) Default i/e: MIG",
+      "instances_conditions": "Provided when shaping based upon the period is desired. Note: Multiplier index 1 is reserved for constant 1.",
+      "affected_equations_or_variables": "{See Related Parameters}"
     },
     "NCAP_FTAXX": {
       "column_header": "ncap_ftaxx",
@@ -2715,10 +4190,21 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "FTAXX"
       ],
-      "indexes": "(r,datayear,p)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p"
+      ],
+      "indexes_raw": "(r,datayear,p)",
+      "related_sets_and_parameters": "NCAP_FTAX, SHAPE",
+      "units_ranges_defaults": "Integer number Default value: 0 (no shape curve applied) Default i/e: MIG",
+      "instances_conditions": "Provided when shaping based upon age is desired. Note: Shape index 1 is reserved for constant 1.",
+      "affected_equations_or_variables": "{See Related Parameters}"
     },
     "NCAP_ICOM": {
       "column_header": "ncap_icom",
@@ -2734,11 +4220,23 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "INP(MAT)_TIDp",
         "INP(MAT)_TIDc"
       ],
-      "indexes": "(r,datayear,p,c)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "c"
+      ],
+      "indexes_raw": "(r,datayear,p,c)",
+      "related_sets_and_parameters": "NCAP_CLED, rpc_capflo, rpc_conly",
+      "units_ranges_defaults": "Commodity unit per capacity unit [open]; default value: none Default i/e: STD",
+      "instances_conditions": "Provided when a commodity is needed in the period in which the new capacity is to be available, or before NCAP_CLED. If NCAP_CLED is provided, the commodity is required during the years [B(v)+NCAP_CLED,B(v)+NCAP_ILED-NCAP_CLED]. If this time spans more than one period, the commodity flow is split up proportion\u00adally between the periods. For the commodity balance the commodity requirement in a period is converted to an average annual commodity flow for the entire period, although the construction may take place only for a few years of the period. Negative value describes production (e.g. emissions) at the time of a new investment.",
+      "affected_equations_or_variables": "Applied to the investment variable (VAR_NCAP) in the appropriate commodity constraints (EQ(l)_COMBAL) as part of consumption."
     },
     "NCAP_ILED": {
       "column_header": "ncap_iled",
@@ -2753,10 +4251,21 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "ILED"
       ],
-      "indexes": "(r,t,p)"
+      "indexes": [
+        "r",
+        "t",
+        "p"
+      ],
+      "indexes_raw": "(r,t,p)",
+      "related_sets_and_parameters": "NCAP_ICOM, NCAP_COST, COEF_CPT, COEF_ICOM, DUR_MAX",
+      "units_ranges_defaults": "Years [open]; default value: none Default i/e: STD",
+      "instances_conditions": "Provided when there is a delay between when the investment decision occurs and when the capacity (new capacity or past investment) is initially available. If NCAP_ILED>0, the investment decision is assumed to occur at B(v) and the capacity becomes available at B(v)+NCAP-ILED. If NCAP_ILED<0, the investment decision is assumed to occur at B(v)-NCAP_ILED and the capacity becomes available at B(v). Causes an IDC overhead in the investment costs accounting.",
+      "affected_equations_or_variables": "Applied to the investment variable (VAR_NCAP) balance constraints (EQ(l)_COMBAL) as part of consumption, if there is an associated flow (NCAP_ICOM). Used as to distinguish between small and large investments (VAR_NCAP) and thus influences the way the investment and fixed costs are treated in the objective function (EQ_OBJINV, EQ_OBJFIX, EQ_OBJSALV)."
     },
     "NCAP_ISPCT": {
       "column_header": "ncap_ispct",
@@ -2771,6 +4280,8 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "ISPCT"
       ]
@@ -2788,10 +4299,22 @@
       "timeslice": "",
       "limtype": "",
       "currency": true,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "TISUB"
       ],
-      "indexes": "(r,datayear,p,cur)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "cur"
+      ],
+      "indexes_raw": "(r,datayear,p,cur)",
+      "related_sets_and_parameters": "OBJ_ISUB, OBJSCC, CST_INVX, CST_SALV, CST_PVP",
+      "units_ranges_defaults": "monetary unit per capacity unit [0,?); default value: none Default i/e: STD",
+      "instances_conditions": "Provided when there is a subsidy for new investments in a period.",
+      "affected_equations_or_variables": "Applied to the investment variable (VAR_NCAP) when entering the objective function (EQ_OBJNV) with a minus sign. May appear in user constraints (EQ_UC*) if specified in UC_NAME."
     },
     "NCAP_ITAX": {
       "column_header": "ncap_itax",
@@ -2806,10 +4329,22 @@
       "timeslice": "",
       "limtype": "",
       "currency": true,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "ITAX"
       ],
-      "indexes": "(r,datayear,p,cur)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "cur"
+      ],
+      "indexes_raw": "(r,datayear,p,cur)",
+      "related_sets_and_parameters": "OBJ_ITAX, OBJSCC, CST_INVX, CST_SALV, CST_PVP",
+      "units_ranges_defaults": "monetary unit per capacity unit [0,?); default value: none Default i/e: STD",
+      "instances_conditions": "Provided when there is a tax associated with new investments in a period.",
+      "affected_equations_or_variables": "Applied to the investment variable (VAR_NCAP) when entering the objective function (EQ_OBJNV). May appear in user constraints (EQ_UC*) if specified in UC_NAME."
     },
     "NCAP_MSPRF": {
       "column_header": "ncap_msprf",
@@ -2824,6 +4359,8 @@
       "timeslice": "",
       "limtype": "U",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "MSPRF"
       ]
@@ -2843,12 +4380,24 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "OCOM",
         "OUT(MAT)_TIDp",
         "OUT(MAT)_TIDc"
       ],
-      "indexes": "(r,datayear,p,c)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "c"
+      ],
+      "indexes_raw": "(r,datayear,p,c)",
+      "related_sets_and_parameters": "NCAP_VALU, rpc_capflo, rpc_conly",
+      "units_ranges_defaults": "Commodity unit per capacity unit [open]; default value: none Default i/e: STD",
+      "instances_conditions": "Provided when there is a commodity release associated with the decommissioning. The year index of the parameter corresponds to the vintage year. If the decommissioning time (NCAP_DLIFE) falls in more than one period, is split up proportionally among the periods. For the commodity balance the commodity release in a period is converted to an average annual commodity flow for the entire period, although the dismantling may take place only for a few years of the period.",
+      "affected_equations_or_variables": "Applied to the investment variable (VAR_NCAP) in the appropriate commodity constraints (EQ(l)_COMBAL) as part of production in the appropriate period."
     },
     "NCAP_OLIFE": {
       "column_header": "ncap_olife",
@@ -2863,10 +4412,21 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "OLIFE"
       ],
-      "indexes": "(r,datayear,p)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p"
+      ],
+      "indexes_raw": "(r,datayear,p)",
+      "related_sets_and_parameters": "NCAP_TLIFE",
+      "units_ranges_defaults": "Years (0,?); default value: none Default i/e: STD",
+      "instances_conditions": "Requires that early retirements are enabled and the process is vintaged.",
+      "affected_equations_or_variables": "EQL_SCAP"
     },
     "NCAP_PASTI": {
       "column_header": "ncap_pasti",
@@ -2881,10 +4441,21 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "PASTI"
       ],
-      "indexes": "(r,pastyear,p)"
+      "indexes": [
+        "r",
+        "pastyear",
+        "p"
+      ],
+      "indexes_raw": "(r,pastyear,p)",
+      "related_sets_and_parameters": "NCAP_PASTY, OBJ_PASTI, PAR_PASTI, PRC_RESID",
+      "units_ranges_defaults": "capacity unit [0,?); default value: none No i/e",
+      "instances_conditions": "Past investment can also be specified for milestone years, e.g. if the milestone year is a historic year, so that capacity additions are known or if planned future investments are already known.",
+      "affected_equations_or_variables": "EQ(l)_COMBAL EQ_CPT EQ_OBJINV, EQ_OBJSALV, EQ_OBJFIX"
     },
     "NCAP_PASTY": {
       "column_header": "ncap_pasty",
@@ -2899,10 +4470,21 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "PASTY"
       ],
-      "indexes": "(r,pastyear,p)"
+      "indexes": [
+        "r",
+        "pastyear",
+        "p"
+      ],
+      "indexes_raw": "(r,pastyear,p)",
+      "related_sets_and_parameters": "NCAP_PASTI",
+      "units_ranges_defaults": "Years [1,999]; default value: none No i/e",
+      "instances_conditions": "Provided to spread a single past investment (NCAP_PASTI) back over several years (e.g., cars in the period before the 1st milestoneyr were bought over the previous 15 years). If overlaps with other past investments, the capacity values are added.",
+      "affected_equations_or_variables": "{See NCAP_PASTI}"
     },
     "NCAP_PKCNT": {
       "column_header": "ncap_pkcnt",
@@ -2919,12 +4501,24 @@
       "timeslice": "ANNUAL",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "PEAK(CON)",
         "PEAK",
         "PKCNT"
       ],
-      "indexes": "(r,datayear,p,s)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "s"
+      ],
+      "indexes_raw": "(r,datayear,p,s)",
+      "related_sets_and_parameters": "com_peak, com_pkts, prc_pkaf, prc_pkno",
+      "units_ranges_defaults": "Decimal fraction [0,1]; default value: 1 Default i/e: STD",
+      "instances_conditions": "If the indicator PRC_PKAF is specified, the NCAP_PKCNT is set equal to the availabilities NCAP_AF. Direct inheritance. Weighted aggregation.",
+      "affected_equations_or_variables": "Applied to investments in capacity (VAR_NCAP, NCAP_PASTI) in the peaking constraint (EQ_PEAK)."
     },
     "NCAP_SEMI": {
       "column_header": "ncap_semi",
@@ -2938,7 +4532,18 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
-      "indexes": "(r,datayear,p)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "r",
+        "datayear",
+        "p"
+      ],
+      "indexes_raw": "(r,datayear,p)",
+      "related_sets_and_parameters": "NCAP_DISC",
+      "units_ranges_defaults": "Capacity unit (0,?); default value: none Default i/e: MIG",
+      "instances_conditions": "Upper bound for the capacity must be defined by NCAP_BND; if not defined, assumed to be equal to the lower bound. Requires MIP.",
+      "affected_equations_or_variables": "Applied to the semi-continuous investment variable VAR_SNCAP in the discrete investment equation EQ_DSCNCAP"
     },
     "NCAP_START": {
       "column_header": "ncap_start",
@@ -2953,10 +4558,20 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "START"
       ],
-      "indexes": "(r,p)"
+      "indexes": [
+        "r",
+        "p"
+      ],
+      "indexes_raw": "(r,p)",
+      "related_sets_and_parameters": "PRC_NOFF",
+      "units_ranges_defaults": "Year [1000,?); default value: none",
+      "instances_conditions": "NCAP_START(r,p)=y is equivalent to  PRC_NOFF(r,p,BOH,y\u20131).",
+      "affected_equations_or_variables": "Affects the availability of investment variable (VAR_NCAP)"
     },
     "NCAP_TLIFE": {
       "column_header": "ncap_tlife",
@@ -2971,10 +4586,21 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "LIFE"
       ],
-      "indexes": "(r,datayear,p)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p"
+      ],
+      "indexes_raw": "(r,datayear,p)",
+      "related_sets_and_parameters": "NCAP_ELIFE, COEF_CPT, COEF_RPTI, DUR_MAX",
+      "units_ranges_defaults": "Years (0,?); default value: G_TLIFE Default i/e: STD",
+      "instances_conditions": "Expected for all technologies that have investment costs. Values below 0.5 cannot be well accounted in the objective function, and should thus be avoided (they are automatically resetted to 1).",
+      "affected_equations_or_variables": "Impacts all calculations that are dependent upon the availability of investments (VAR_NCAP) including capacity transfer (EQ_CPT), commodity flow (EQ(l)_COMBAL), costs (EQ_OBJINV, EQ_OBJFIX, EQ_OBJVAR, EQ_OBJSALV)."
     },
     "NCAP_VALU": {
       "column_header": "ncap_valu",
@@ -2988,7 +4614,20 @@
       "timeslice": "",
       "limtype": "",
       "currency": true,
-      "indexes": "(r,datayear,p,c,cur)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "c",
+        "cur"
+      ],
+      "indexes_raw": "(r,datayear,p,c,cur)",
+      "related_sets_and_parameters": "NCAP_OCOM",
+      "units_ranges_defaults": "Monetary unit / commodity unit [0,?); default value: none Default i/e: STD",
+      "instances_conditions": "Provided when a released commodity has a value.",
+      "affected_equations_or_variables": "Applied to the investment related (VAR_NCAP, NCAP_PASTI) release flow at decommissioning in the objective function (EQ_OBJSALV)."
     },
     "OFFEPS": {
       "column_header": "offeps",
@@ -3001,7 +4640,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "PRAT": {
       "column_header": "prat",
@@ -3014,7 +4655,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "PRC_ACTFLO": {
       "column_header": "prc_actflo",
@@ -3030,11 +4673,24 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "ACTFLO",
         "ACT2FLO"
       ],
-      "indexes": "(r,datayear,p,cg)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "cg"
+      ],
+      "indexes_raw": "(r,datayear,p,cg)",
+      "other_indexes": "commodity_group",
+      "related_sets_and_parameters": "PRC_CAPACT, prc_actunt, prc_spg, rpc_aire",
+      "units_ranges_defaults": "Commodity unit / activity unit (0,?); default value: 1 Default i/e: STD",
+      "instances_conditions": "Only (rarely) provided when either the activity and flow variables of a process are in different units, or if there is a conversion efficiency between the activity and the flow(s) in the PCG. The group (cg) can be the whole PCG or any individual commodity in the PCG, or 'ACT' (=PCG).",
+      "affected_equations_or_variables": "Applied to the primary commodity (prc_pcg) flow variables (VAR_FLO, VAR_IRE) to relate overall activity (VAR_ACT in EQ_ACTFLO). When the Reduction algorithm activated it is applied to the activity variable (VAR_ACT) in those cases where the flow variable (VAR_FLO) can be replaced by the activity variable (e.g. the activity is defined by one commodity flow)."
     },
     "PRC_AOFF": {
       "column_header": "prc_aoff",
@@ -3047,7 +4703,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "PRC_CAPACT": {
       "column_header": "prc_capact",
@@ -3063,11 +4721,20 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "CAPUNIT",
         "CAP2ACT"
       ],
-      "indexes": "(r,p)"
+      "indexes": [
+        "r",
+        "p"
+      ],
+      "indexes_raw": "(r,p)",
+      "related_sets_and_parameters": "PRC_ACTFLO, PRC_ACTUNT",
+      "units_ranges_defaults": "Activity unit / capacity unit (0,?); default value: 1 Default i/e: none",
+      "affected_equations_or_variables": "Applied along with the availability factor (NCAP_AF) to the investment (VAR_NCAP + NCAP_PASTI) in the utilization equations (EQ(l)_CAPACT, EQ(l)_CAFLAC). Applied to the investment (VAR_NCAP + NCAP_PASTI) in the peak constraint (EQ_PEAK). Applied to the investment (VAR_NCAP + NCAP_PASTI) in the capacity utilization constraint for CHP plants (ECT_AFCHP) and peak constraint in the IER extension (see Part III)."
     },
     "PRC_FOFF": {
       "column_header": "prc_foff",
@@ -3080,7 +4747,9 @@
       "commodity": false,
       "timeslice": "ANNUAL",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "PRC_GMAP": {
       "column_header": "prc_gmap",
@@ -3093,7 +4762,10 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false,
+      "other_indexes": "commodity_group"
     },
     "PRC_MARK": {
       "column_header": "prc_mark",
@@ -3107,7 +4779,22 @@
       "timeslice": "",
       "limtype": "UP",
       "currency": false,
-      "indexes": "(r,datayear,p,item,c,bd)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "item",
+        "c",
+        "bd"
+      ],
+      "indexes_raw": "(r,datayear,p,item,c,bd)",
+      "other_indexes": "commodity_group",
+      "related_sets_and_parameters": "FLO_MARK",
+      "units_ranges_defaults": "Decimal fraction [open]; default value: none Default i/e: 11",
+      "instances_conditions": "Combined limit on commodity production is derived as the sum of the process-specific productions multiplied by the inverse values of PRC_MARK. The constraint is applied to the annual production of commodity. Item can be a any desired label identifying the group.",
+      "affected_equations_or_variables": "EQ(l)_FLOMRK VAR_COMPRD"
     },
     "PRC_NOFF": {
       "column_header": "prc_noff",
@@ -3120,7 +4807,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "PRC_NSTTS": {
       "column_header": "prc_nstts",
@@ -3135,6 +4824,8 @@
       "timeslice": "U",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "NSTTS"
       ]
@@ -3150,7 +4841,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "PRC_PKNO": {
       "column_header": "prc_pkno",
@@ -3165,6 +4858,8 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "PKNO"
       ]
@@ -3180,7 +4875,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "PRC_REFIT": {
       "column_header": "prc_refit",
@@ -3194,7 +4891,19 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
-      "indexes": "(r,prc,p)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "r",
+        "prc",
+        "p"
+      ],
+      "indexes_raw": "(r,prc,p)",
+      "other_indexes": "unit",
+      "related_sets_and_parameters": "PRC_RCAP",
+      "units_ranges_defaults": "Dimensionless  [1,3];   default value: none  Default i/e: n/a",
+      "instances_conditions": "Requires that early retirements are allowed in the model. The parameter value determines the type of the refurbishment option as follows: \u00b7\u00a0\u00a0\u00a0\u00a0 Value=(\u00b11 mod 2): Technology p will be a lifetime extension option (+1), or a retrofit option (?1), for the host prc \u00b7\u00a0\u00a0\u00a0\u00a0 Value=2 for p=prc: refitted capacity in each period is forced to be equal to the retired capacity of the host prc",
+      "affected_equations_or_variables": "Activates generation of the retrofit\u00a0/\u00a0lifetime extension equations (EQL_REFIT)"
     },
     "PRC_RESID": {
       "column_header": "prc_resid",
@@ -3210,11 +4919,22 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "RESID",
         "STOCK"
       ],
-      "indexes": "(r,datayear,p)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p"
+      ],
+      "indexes_raw": "(r,datayear,p)",
+      "related_sets_and_parameters": "NCAP_PASTI",
+      "units_ranges_defaults": "Capacity unit [0,?); default value: none Default i/e: 1 (options 5/15 may be used for extrapolation over TLIFE)",
+      "instances_conditions": "If only a single data point is specified, linear decay of the specified residual capacity over technical lifetime is assumed. Used as an alternative to NCAP_PASTI, not to use both for the same process.",
+      "affected_equations_or_variables": "EQ(l)_CAPACT EQ(l)_CAFLAC EQL_CAPFLO EQ(l)_CPT VAR_CAP"
     },
     "PRC_STGIPS": {
       "column_header": "prc_stgips",
@@ -3229,6 +4949,8 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "STGTSS"
       ]
@@ -3246,6 +4968,8 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "STGIPS"
       ]
@@ -3261,7 +4985,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "PRC_VINT": {
       "column_header": "prc_vint",
@@ -3274,7 +5000,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "Prc_PKAF": {
       "column_header": "prc_pkaf",
@@ -3287,7 +5015,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "RCAP_BLK": {
       "column_header": "rcap_blk",
@@ -3301,7 +5031,18 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
-      "indexes": "(r,datayear,p)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "r",
+        "datayear",
+        "p"
+      ],
+      "indexes_raw": "(r,datayear,p)",
+      "related_sets_and_parameters": "PRC_RCAP, RCAP_BND",
+      "units_ranges_defaults": "Capacity unit [0,?); default value: none Default i/e: STD",
+      "instances_conditions": "Only effective when lumpy early capacity retirements are active (RETIRE=MIP). Requires MIP.",
+      "affected_equations_or_variables": "EQ_DSCRET VAR_DRCAP VAR_SCAP"
     },
     "RCAP_BND": {
       "column_header": "rcap_bnd",
@@ -3315,7 +5056,19 @@
       "timeslice": "",
       "limtype": "LO",
       "currency": false,
-      "indexes": "(r,datayear,p,bd)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "bd"
+      ],
+      "indexes_raw": "(r,datayear,p,bd)",
+      "related_sets_and_parameters": "PRC_RCAP, RCAP_BLK",
+      "units_ranges_defaults": "Capacity unit [0,?); default value: none Default i/e: STD",
+      "instances_conditions": "Unless the control variable DSCAUTO=YES, requires that PRC_RCAP is defined for process p.",
+      "affected_equations_or_variables": "VAR_RCAP VAR_SCAP"
     },
     "REG_BDNCAP": {
       "column_header": "reg_bdncap",
@@ -3328,7 +5081,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "FX",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "REG_BNDCST": {
       "column_header": "reg_bndcst",
@@ -3343,10 +5098,24 @@
       "timeslice": "",
       "limtype": "UP",
       "currency": true,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "BNDCST"
       ],
-      "indexes": "(r,datayear,agg,cur,bd)"
+      "indexes": [
+        "r",
+        "datayear",
+        "agg",
+        "cur",
+        "bd"
+      ],
+      "indexes_raw": "(r,datayear,agg,cur,bd)",
+      "other_indexes": "commodity_group",
+      "related_sets_and_parameters": "REG_CUMCST",
+      "units_ranges_defaults": "Monetary unit [0,?); default value: none Default i/e: MIG",
+      "instances_conditions": "The cost aggregations (agg) supported are listed in the set COSTAGG (see Table 1).",
+      "affected_equations_or_variables": "EQ_BNDCST VAR_CUMCST"
     },
     "REG_CUMCST": {
       "column_header": "reg_cumcst",
@@ -3361,10 +5130,25 @@
       "timeslice": "",
       "limtype": "UP",
       "currency": true,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "CUMCST"
       ],
-      "indexes": "(r,y1,y2,agg,cur,bd)"
+      "indexes": [
+        "r",
+        "y1",
+        "y2",
+        "agg",
+        "cur",
+        "bd"
+      ],
+      "indexes_raw": "(r,y1,y2,agg,cur,bd)",
+      "other_indexes": "commodity_group",
+      "related_sets_and_parameters": "REG_BNDCST",
+      "units_ranges_defaults": "Monetary unit [0,?); default value: none Default i/e: N/A",
+      "instances_conditions": "The cost aggregations (agg) supported are listed in the set COSTAGG (see Table 1).",
+      "affected_equations_or_variables": "EQ_BNDCST VAR_CUMCST"
     },
     "REG_FIXT": {
       "column_header": "reg_fixt",
@@ -3378,7 +5162,15 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
-      "indexes": "(all_r)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "all_r"
+      ],
+      "indexes_raw": "(all_r)",
+      "units_ranges_defaults": "Year [1000,?); default value: none",
+      "instances_conditions": "Only taken into account when the first periods are fixed by using the FIXBOH control variable.",
+      "affected_equations_or_variables": "\u2013"
     },
     "RFCmd_DD": {
       "column_header": "rfcmd_dd",
@@ -3393,9 +5185,12 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "RFCmd_D"
-      ]
+      ],
+      "other_indexes": "sector2"
     },
     "RFCmd_FLAGS": {
       "column_header": "rfcmd_flags",
@@ -3410,9 +5205,12 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "RFCmd_F"
-      ]
+      ],
+      "other_indexes": "sector2"
     },
     "RFCmd_GAMS": {
       "column_header": "rfcmd_gams",
@@ -3428,10 +5226,13 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "RFCmd_G",
         "RFCmd"
-      ]
+      ],
+      "other_indexes": "sector2"
     },
     "RFCmd_GLOBAL": {
       "column_header": "rfcmd_global",
@@ -3446,9 +5247,12 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "RFCmd_Glb"
-      ]
+      ],
+      "other_indexes": "sector2"
     },
     "RFCmd_OPTIMIZER": {
       "column_header": "rfcmd_optimizer",
@@ -3463,9 +5267,12 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "RFCmd_O"
-      ]
+      ],
+      "other_indexes": "sector2"
     },
     "RFCmd_bot": {
       "column_header": "rfcmd_bot",
@@ -3480,9 +5287,12 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "RFCmd_B"
-      ]
+      ],
+      "other_indexes": "sector2"
     },
     "RPT_OPT": {
       "column_header": "rpt_opt",
@@ -3496,7 +5306,17 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
-      "indexes": "(item,j)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "item",
+        "j"
+      ],
+      "indexes_raw": "(item,j)",
+      "other_indexes": "commodity_group,unit",
+      "units_ranges_defaults": "Integer value [open]; default value: none",
+      "instances_conditions": "See Part III,\u00a0Table 15 for a list and descriptions of available options.",
+      "affected_equations_or_variables": "\u2013"
     },
     "R_CUREX": {
       "column_header": "r_curex",
@@ -3510,7 +5330,19 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
-      "indexes": "(r,cur1,cur2)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "r",
+        "cur1",
+        "cur2"
+      ],
+      "indexes_raw": "(r,cur1,cur2)",
+      "other_indexes": "commodity_group",
+      "related_sets_and_parameters": "G_CUREX",
+      "units_ranges_defaults": "Scalar (0,?) Default value: none Default i/e: N/A",
+      "instances_conditions": "The target currency cur2 must have a discount rate defined with G_DRATE.",
+      "affected_equations_or_variables": "Affects cost coefficients in EQ_OBJ"
     },
     "RemAtRunTime": {
       "column_header": "rematruntime",
@@ -3523,7 +5355,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "SC0": {
       "column_header": "sc0",
@@ -3536,7 +5370,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "SEG": {
       "column_header": "seg",
@@ -3549,7 +5385,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "SFCmd_bot": {
       "column_header": "sfcmd_bot",
@@ -3564,9 +5402,12 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "SFCmd_B"
-      ]
+      ],
+      "other_indexes": "sector2"
     },
     "SFCmd_top": {
       "column_header": "sfcmd_top",
@@ -3582,10 +5423,13 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "SFCmd_T",
         "SFCmd"
-      ]
+      ],
+      "other_indexes": "sector2"
     },
     "SHAPE": {
       "column_header": "shape",
@@ -3599,7 +5443,18 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
-      "indexes": "(j,age)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "j",
+        "age"
+      ],
+      "indexes_raw": "(j,age)",
+      "other_indexes": "commodity_group",
+      "related_sets_and_parameters": "FLO_FUNC, FLO_SUM, NCAP_AFX, NCAP_FOMX, NCAP_FSUBX, NCAP_FTAXX",
+      "units_ranges_defaults": "Scalar [open]; default value: none I/e: Full dense interpolation and extrapolation",
+      "instances_conditions": "Provided for each age dependent shaping curve that is to be applied.",
+      "affected_equations_or_variables": "{See Related Parameters}"
     },
     "STGIN_BND": {
       "column_header": "stgin_bnd",
@@ -3614,10 +5469,24 @@
       "timeslice": "ANNUAL",
       "limtype": "UP",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "S_INBND"
       ],
-      "indexes": "(r,datayear,p,c,s,bd)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "c",
+        "s",
+        "bd"
+      ],
+      "indexes_raw": "(r,datayear,p,c,s,bd)",
+      "related_sets_and_parameters": "prc_nstts, prc_stgips, prc_stgtss",
+      "units_ranges_defaults": "Commodity unit [0,?); default value: none Default i/e: MIG",
+      "instances_conditions": "Only applicable to storage processes (STG): timeslice storage, inter-period storage or night storage devices.",
+      "affected_equations_or_variables": "Storage input bound constraint (EQ(l)_STGIN) when s is above prc_tsl of the storage process. Direct bound on storage input flow (VAR_SIN) when at the prc_tsl level."
     },
     "STGOUT_BND": {
       "column_header": "stgout_bnd",
@@ -3632,10 +5501,24 @@
       "timeslice": "ANNUAL",
       "limtype": "UP",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "S_OUTBND"
       ],
-      "indexes": "(r,datayear,p,c,s,bd)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "c",
+        "s",
+        "bd"
+      ],
+      "indexes_raw": "(r,datayear,p,c,s,bd)",
+      "related_sets_and_parameters": "prc_nstts, prc_stgips, prc_stgtss",
+      "units_ranges_defaults": "Commodity unit [0,?); default value: none Default i/e: MIG",
+      "instances_conditions": "Only applicable to storage processes (STG): timeslice storage, inter-period storage or night storage devices.",
+      "affected_equations_or_variables": "Storage output bound constraint (EQ(l)_STGIN) when s is above prc_tsl of the storage process. Direct bound on storage output flow variable (VAR_SOUT) when at the prc_tsl level."
     },
     "STG_CHRG": {
       "column_header": "stg_chrg",
@@ -3650,10 +5533,22 @@
       "timeslice": "ANNUAL",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "S_CHRG"
       ],
-      "indexes": "(r,datayear,p,s)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "s"
+      ],
+      "indexes_raw": "(r,datayear,p,s)",
+      "related_sets_and_parameters": "prc_nstts, prc_stgips, prc_stgtss",
+      "units_ranges_defaults": "Scalar [0,?); default value: none Default i/e: STD",
+      "instances_conditions": "Only applicable to storage processes (STG): timeslice storage, inter-period storage or night storage devices.",
+      "affected_equations_or_variables": "Exogenous charging of storage enters storage equations (EQ_STGTSS, EQ_STGIPS) as right-hand side constant."
     },
     "STG_EFF": {
       "column_header": "stg_eff",
@@ -3668,10 +5563,21 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "S_EFF"
       ],
-      "indexes": "(r,datayear,p)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p"
+      ],
+      "indexes_raw": "(r,datayear,p)",
+      "related_sets_and_parameters": "prc_nstts, prc_stgips, prc_stgtss",
+      "units_ranges_defaults": "Decimal fraction [0,?); default value: 1 Default i/e: STD",
+      "instances_conditions": "Only applicable to storage processes (STG): timeslice storage, inter-period storage or night storage devices.",
+      "affected_equations_or_variables": "Applied to the storage output flow (VAR_SOUT) in the commodity balance (EQ(l)_COMBAL) for the stored commodity."
     },
     "STG_LOSS": {
       "column_header": "stg_loss",
@@ -3686,10 +5592,22 @@
       "timeslice": "ANNUAL",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "S_LOSS"
       ],
-      "indexes": "(r,datayear,p,s)"
+      "indexes": [
+        "r",
+        "datayear",
+        "p",
+        "s"
+      ],
+      "indexes_raw": "(r,datayear,p,s)",
+      "related_sets_and_parameters": "prc_nstts, prc_stgips, prc_stgtss",
+      "units_ranges_defaults": "Scalar [open]; default value: none Default i/e: STD",
+      "instances_conditions": "Only applicable to storage processes (STG): timeslice storage, inter-period storage or night storage devices. STG_LOSS>0 defines the loss in proportion to the initial storage level during one year\u2019s storage time. STG_LOSS<0 defines an equilibrium loss, i.e. how much the annual losses would be if the storage level is kept constant.",
+      "affected_equations_or_variables": "Timeslice storage process (EQ_STGTSS): applied to the average storage level (VAR_ACT) between two consecutive timeslices. Inter-period storage process (EQ_STGIPS): applied to the average storage level from the pre-period (VAR_ACT) and the net inflow (VAR_SIN-VAR_SOUT) of the current period."
     },
     "STG_MAXCYC": {
       "column_header": "stg_maxcyc",
@@ -3703,7 +5621,18 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
-      "indexes": "(r,datayear,p)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "r",
+        "datayear",
+        "p"
+      ],
+      "indexes_raw": "(r,datayear,p)",
+      "related_sets_and_parameters": "NCAP_AF",
+      "units_ranges_defaults": "Number of cycles [0,?); default value: none Default i/e: STD",
+      "instances_conditions": "Can only be used for genuine storage processes. The limit can be exceeded by paying for additional replacement capacity, with a penalty cost equal to the investment annuity.",
+      "affected_equations_or_variables": "Activates generation of the cycle limit/penalty equations (EQL_STGCCL)."
     },
     "STG_SIFT": {
       "column_header": "stg_sift",
@@ -3717,7 +5646,20 @@
       "timeslice": "ANNUAL",
       "limtype": "",
       "currency": false,
-      "indexes": "(r,datayear,prc,com,ts)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "r",
+        "datayear",
+        "prc",
+        "com",
+        "ts"
+      ],
+      "indexes_raw": "(r,datayear,prc,com,ts)",
+      "related_sets_and_parameters": "ACT_TIME",
+      "units_ranges_defaults": "Decimal fraction [0,?); default value: none Default i/e: STD",
+      "instances_conditions": "Can only be used for a timeslice storage process.  Levelized to the timeslice level of the process flow. Direct inheritance. By specifying com='ACT' one can define a limit in total shifting over a season, in proportion to demand.",
+      "affected_equations_or_variables": "Activates generation of load shifting constraints (EQ(l)_SLSIFT)."
     },
     "SW_LAMBDA": {
       "column_header": "sw_lambda",
@@ -3730,7 +5672,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "SW_PROB": {
       "column_header": "sw_prob",
@@ -3743,7 +5687,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "SW_SPROB": {
       "column_header": "sw_sprob",
@@ -3756,7 +5702,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "SW_START": {
       "column_header": "sw_start",
@@ -3769,7 +5717,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "SW_SUBS": {
       "column_header": "sw_subs",
@@ -3782,7 +5732,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "S_CAP_BND": {
       "column_header": "s_cap_bnd",
@@ -3795,7 +5747,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "UP",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "S_CM_CONST": {
       "column_header": "s_cm_const",
@@ -3808,7 +5762,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "S_CM_MAXC": {
       "column_header": "s_cm_maxc",
@@ -3821,7 +5777,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "S_CM_MAXCO2C": {
       "column_header": "s_cm_maxco2c",
@@ -3834,7 +5792,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "S_COM_CUMNET": {
       "column_header": "s_com_cumnet",
@@ -3847,7 +5807,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "UP",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "S_COM_CUMPRD": {
       "column_header": "s_com_cumprd",
@@ -3860,7 +5822,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "UP",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "S_COM_FR": {
       "column_header": "s_com_fr",
@@ -3873,7 +5837,9 @@
       "commodity": false,
       "timeslice": "U",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "S_COM_PROJ": {
       "column_header": "s_com_proj",
@@ -3886,7 +5852,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "S_COM_TAX": {
       "column_header": "s_com_tax",
@@ -3899,7 +5867,10 @@
       "commodity": false,
       "timeslice": "ANNUAL",
       "limtype": "",
-      "currency": true
+      "currency": true,
+      "stage": false,
+      "sow": false,
+      "other_indexes": "commodity_group"
     },
     "S_DAM_COST": {
       "column_header": "s_dam_cost",
@@ -3915,6 +5886,8 @@
       "timeslice": "",
       "limtype": "",
       "currency": true,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "S_DCOST",
         "SDAMCOST"
@@ -3931,7 +5904,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "UP",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "S_FLO_FUNC": {
       "column_header": "s_flo_func",
@@ -3944,7 +5919,10 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false,
+      "other_indexes": "commodity_group"
     },
     "S_NCAP_AFS": {
       "column_header": "s_ncap_afs",
@@ -3957,7 +5935,9 @@
       "commodity": false,
       "timeslice": "U",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "S_NCAP_COST": {
       "column_header": "s_ncap_cost",
@@ -3970,7 +5950,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "S_UCOBJ": {
       "column_header": "s_ucobj",
@@ -3983,7 +5965,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "S_UC_RHS": {
       "column_header": "s_uc_rhs",
@@ -3996,7 +5980,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "UP",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "S_UC_RHSR": {
       "column_header": "s_uc_rhsr",
@@ -4009,7 +5995,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "UP",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "S_UC_RHSRT": {
       "column_header": "s_uc_rhsrt",
@@ -4022,7 +6010,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "UP",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "S_UC_RHSRTS": {
       "column_header": "s_uc_rhsrts",
@@ -4035,7 +6025,9 @@
       "commodity": false,
       "timeslice": "ANNUAL",
       "limtype": "UP",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "S_UC_RHST": {
       "column_header": "s_uc_rhst",
@@ -4048,7 +6040,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "UP",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "S_UC_RHSTS": {
       "column_header": "s_uc_rhsts",
@@ -4061,7 +6055,9 @@
       "commodity": false,
       "timeslice": "ANNUAL",
       "limtype": "UP",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "TM_ARBM": {
       "column_header": "tm_arbm",
@@ -4074,7 +6070,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "TM_DEFVAL": {
       "column_header": "tm_defval",
@@ -4087,7 +6085,10 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false,
+      "other_indexes": "commodity_group"
     },
     "TS_CYCLE": {
       "column_header": "ts_cycle",
@@ -4101,7 +6102,17 @@
       "timeslice": "ANNUAL",
       "limtype": "",
       "currency": false,
-      "indexes": "(r,ts)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "r",
+        "ts"
+      ],
+      "indexes_raw": "(r,ts)",
+      "related_sets_and_parameters": "G_CYCLE",
+      "units_ranges_defaults": "Number of days [1,?); Default values:  \u00b7\u00a0 365 for ts=ANNUAL \u00b7\u00a0 7 for any ts above the WEEKLY level \u00b7\u00a0 1 for any ts above the DAYNITE level",
+      "instances_conditions": "Recommended to be used whenever timeslice cycles are different from the default, instead of changing G_CYCLE. Does not affect inter\u00adpretation of availability factors for storage level, which thus remain to be according to G_CYCLE.",
+      "affected_equations_or_variables": "Affects the calculation of actual timeslice lengths and number of timeslice cycles in various equations, notably storage and dispatching equations."
     },
     "TS_OFF": {
       "column_header": "ts_off",
@@ -4114,7 +6125,9 @@
       "commodity": false,
       "timeslice": "U",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "UC_ACT": {
       "column_header": "uc_act",
@@ -4128,7 +6141,21 @@
       "timeslice": "ANNUAL",
       "limtype": "",
       "currency": false,
-      "indexes": "(uc_n,side,r,datayear,p,s)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "uc_n",
+        "side",
+        "r",
+        "datayear",
+        "p",
+        "s"
+      ],
+      "indexes_raw": "(uc_n,side,r,datayear,p,s)",
+      "related_sets_and_parameters": "uc_n, uc_gmap_p",
+      "units_ranges_defaults": "None [open]; default value: none Default: i/e: STD",
+      "instances_conditions": "Used in user constraints. Direct inheritance. Weighted aggregation.",
+      "affected_equations_or_variables": "EQ(l)_UCXXX"
     },
     "UC_ACT+": {
       "column_header": "uc_act+",
@@ -4147,6 +6174,8 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "RAT_ACT",
         "RAT_HPL",
@@ -4166,7 +6195,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "UC_ATTR": {
       "column_header": "uc_attr",
@@ -4179,7 +6210,10 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false,
+      "other_indexes": "user_constraint_group,commodity_group"
     },
     "UC_CAP": {
       "column_header": "uc_cap",
@@ -4193,7 +6227,20 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
-      "indexes": "(uc_n,side,r,datayear,p)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "uc_n",
+        "side",
+        "r",
+        "datayear",
+        "p"
+      ],
+      "indexes_raw": "(uc_n,side,r,datayear,p)",
+      "related_sets_and_parameters": "uc_n, uc_gmap_p",
+      "units_ranges_defaults": "None [open]; default value: none Default: i/e: STD",
+      "instances_conditions": "Used in user constraints.",
+      "affected_equations_or_variables": "EQ(l)_UCXXX"
     },
     "UC_CAP+": {
       "column_header": "uc_cap+",
@@ -4208,6 +6255,8 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "RAT_CAP"
       ]
@@ -4224,7 +6273,19 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
-      "indexes": "(uc_n,side,r,datayear,item)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "uc_n",
+        "side",
+        "r",
+        "datayear",
+        "item"
+      ],
+      "indexes_raw": "(uc_n,side,r,datayear,item)",
+      "units_ranges_defaults": "Dimensionless [open]; default value: none Default i/e: STD",
+      "instances_conditions": "Used in user constraints. Climate variable can be at least any of CO2-GTC, CO2-ATM, CO2-UP, CO2-LO, FORCING, DELTA-ATM, DELTA-LO (for carbon). See Appendix on Climate Module for details.",
+      "affected_equations_or_variables": "EQ(l)_UCXXX"
     },
     "UC_COMCON": {
       "column_header": "uc_comcon",
@@ -4238,7 +6299,21 @@
       "timeslice": "ANNUAL",
       "limtype": "",
       "currency": false,
-      "indexes": "(uc_n,side,r,datayear,c,s)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "uc_n",
+        "side",
+        "r",
+        "datayear",
+        "c",
+        "s"
+      ],
+      "indexes_raw": "(uc_n,side,r,datayear,c,s)",
+      "related_sets_and_parameters": "uc_n, uc_gmap_c",
+      "units_ranges_defaults": "None [open]; default value: none Default: i/e: STD",
+      "instances_conditions": "Used in user constraints. No inheritance/aggregation (might be changed in the future).",
+      "affected_equations_or_variables": "EQ(l)_UCXXX"
     },
     "UC_COMNET": {
       "column_header": "uc_comnet",
@@ -4251,7 +6326,9 @@
       "commodity": false,
       "timeslice": "ANNUAL",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "UC_COMPRD": {
       "column_header": "uc_comprd",
@@ -4265,7 +6342,21 @@
       "timeslice": "ANNUAL",
       "limtype": "",
       "currency": false,
-      "indexes": "(uc_n,side,r,datayear,c,s)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "uc_n",
+        "side",
+        "r",
+        "datayear",
+        "c",
+        "s"
+      ],
+      "indexes_raw": "(uc_n,side,r,datayear,c,s)",
+      "related_sets_and_parameters": "uc_n, uc_gmap_c",
+      "units_ranges_defaults": "None [open]; default value: none Default: i/e: STD",
+      "instances_conditions": "Used in user constraints. No inheritance/aggregation (might be changed in the future).",
+      "affected_equations_or_variables": "EQ(l)_UCXXX"
     },
     "UC_CUMACT": {
       "column_header": "uc_cumact",
@@ -4279,7 +6370,20 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
-      "indexes": "(uc_n,r,p,y1,y2)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "uc_n",
+        "r",
+        "p",
+        "y1",
+        "y2"
+      ],
+      "indexes_raw": "(uc_n,r,p,y1,y2)",
+      "related_sets_and_parameters": "ACT_CUM",
+      "units_ranges_defaults": "Dimensionless [open]; default value: none I/e: N/A",
+      "instances_conditions": "Used in cumulative user constraints only.",
+      "affected_equations_or_variables": "EQ(l)_UC EQ(l)_UCR VAR_CUMFLO"
     },
     "UC_CUMCOM": {
       "column_header": "uc_cumcom",
@@ -4293,7 +6397,22 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
-      "indexes": "(uc_n,r,type,c,y1,y2)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "uc_n",
+        "r",
+        "type",
+        "c",
+        "y1",
+        "y2"
+      ],
+      "indexes_raw": "(uc_n,r,type,c,y1,y2)",
+      "other_indexes": "commodity_group",
+      "related_sets_and_parameters": "COM_CUMNET, COM_CUMPRD",
+      "units_ranges_defaults": "Dimensionless [open]; default value: none I/e: N/A",
+      "instances_conditions": "Used in cumulative user constraints only. Type=NET/PRD determines the variable referred to (CUMNET/ CUMPRD).",
+      "affected_equations_or_variables": "EQ(l)_UC EQ(l)_UCR VAR_CUMCOM"
     },
     "UC_CUMFLO": {
       "column_header": "uc_cumflo",
@@ -4307,7 +6426,21 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
-      "indexes": "(uc_n,r,p,c,y1,y2)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "uc_n",
+        "r",
+        "p",
+        "c",
+        "y1",
+        "y2"
+      ],
+      "indexes_raw": "(uc_n,r,p,c,y1,y2)",
+      "related_sets_and_parameters": "FLO_CUM",
+      "units_ranges_defaults": "Dimensionless [open]; default value: none I/e: N/A",
+      "instances_conditions": "Used in cumulative user constraints only.",
+      "affected_equations_or_variables": "EQ(l)_UC EQ(l)_UCR VAR_CUMFLO"
     },
     "UC_DYNBND": {
       "column_header": "uc_dynbnd",
@@ -4320,7 +6453,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "UP",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "UC_FLO": {
       "column_header": "uc_flo",
@@ -4334,7 +6469,22 @@
       "timeslice": "ANNUAL",
       "limtype": "",
       "currency": false,
-      "indexes": "(uc_n,side,r,datayear,p,c,s)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "uc_n",
+        "side",
+        "r",
+        "datayear",
+        "p",
+        "c",
+        "s"
+      ],
+      "indexes_raw": "(uc_n,side,r,datayear,p,c,s)",
+      "related_sets_and_parameters": "uc_n",
+      "units_ranges_defaults": "None [open]; default value: none Default: i/e: STD",
+      "instances_conditions": "Used in user constraints. Direct inheritance. Weighted aggregation.",
+      "affected_equations_or_variables": "EQ(l)_UCXXX"
     },
     "UC_FLOBET": {
       "column_header": "uc_flobet",
@@ -4347,7 +6497,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "UC_IRE": {
       "column_header": "uc_ire",
@@ -4361,7 +6513,23 @@
       "timeslice": "ANNUAL",
       "limtype": "",
       "currency": false,
-      "indexes": "(uc_n,side,r,datayear,p,c,s)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "uc_n",
+        "side",
+        "r",
+        "datayear",
+        "p",
+        "c",
+        "s"
+      ],
+      "indexes_raw": "(uc_n,side,r,datayear,p,c,s)",
+      "other_indexes": "import_export",
+      "related_sets_and_parameters": "uc_n",
+      "units_ranges_defaults": "None [open]; default value: none Default: i/e: STD",
+      "instances_conditions": "Used in user constraints. Direct inheritance. Weighted aggregation.",
+      "affected_equations_or_variables": "EQ(l)_UCXXX"
     },
     "UC_IRE-E": {
       "column_header": "uc_ire-e",
@@ -4374,7 +6542,9 @@
       "commodity": false,
       "timeslice": "ANNUAL",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "UC_IRE-I": {
       "column_header": "uc_ire-i",
@@ -4387,7 +6557,9 @@
       "commodity": false,
       "timeslice": "ANNUAL",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "UC_NCAP": {
       "column_header": "uc_ncap",
@@ -4401,7 +6573,20 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
-      "indexes": "(uc_n,side,r,datayear,p)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "uc_n",
+        "side",
+        "r",
+        "datayear",
+        "p"
+      ],
+      "indexes_raw": "(uc_n,side,r,datayear,p)",
+      "related_sets_and_parameters": "uc_n, uc_gmap_p",
+      "units_ranges_defaults": "None [open]; default value: none Default: i/e: STD",
+      "instances_conditions": "Used in user constraints.",
+      "affected_equations_or_variables": "EQ(l)_UCXXX"
     },
     "UC_NCAP+": {
       "column_header": "uc_ncap+",
@@ -4416,6 +6601,8 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "RAT_INV"
       ]
@@ -4432,7 +6619,17 @@
       "timeslice": "",
       "limtype": "UP",
       "currency": false,
-      "indexes": "(uc_n,lim)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "uc_n",
+        "lim"
+      ],
+      "indexes_raw": "(uc_n,lim)",
+      "related_sets_and_parameters": "uc_n, uc_r_sum, uc_t_sum, uc_ts_sum",
+      "units_ranges_defaults": "None [open]; default value: none Default i/e: none",
+      "instances_conditions": "Used in user constraints. Binding user constraints are defined using bound types lim=UP/LO/FX. Non-binding (free) user constraints can be defined using the lim type lim=N.",
+      "affected_equations_or_variables": "RHS (right-hand side) constant of a user constraint, which is summing over regions (uc_r_sum), periods (uc_t_sum) and timeslices (uc_ts_sum) (EQ(l)_UC)."
     },
     "UC_RHSR": {
       "column_header": "uc_rhsr",
@@ -4446,7 +6643,18 @@
       "timeslice": "",
       "limtype": "UP",
       "currency": false,
-      "indexes": "(r,uc_n,lim)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "r",
+        "uc_n",
+        "lim"
+      ],
+      "indexes_raw": "(r,uc_n,lim)",
+      "related_sets_and_parameters": "uc_n, uc_r_each, uc_t_sum, uc_ts_sum",
+      "units_ranges_defaults": "None [open]; default value: none Default i/e: none",
+      "instances_conditions": "Used in user constraints.  Binding user constraints are defined using bound types lim=UP/LO/FX. Non-binding (free) user constraints can be defined using the lim type lim=N.",
+      "affected_equations_or_variables": "RHS constant of user constraints, which are generated for each specified region (uc_r_each) and are summing over periods (uc_t_sum) and timeslices (uc_ts_sum) (EQ(l)_UCR)."
     },
     "UC_RHSRS": {
       "column_header": "uc_rhsrs",
@@ -4459,7 +6667,9 @@
       "commodity": false,
       "timeslice": "ANNUAL",
       "limtype": "UP",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "UC_RHSRT": {
       "column_header": "uc_rhsrt",
@@ -4473,7 +6683,19 @@
       "timeslice": "",
       "limtype": "UP",
       "currency": false,
-      "indexes": "(r,uc_n,datayear,lim)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "r",
+        "uc_n",
+        "datayear",
+        "lim"
+      ],
+      "indexes_raw": "(r,uc_n,datayear,lim)",
+      "related_sets_and_parameters": "uc_n, uc_r_each, uc_t_each, uc_t_succ, uc_ts_sum",
+      "units_ranges_defaults": "None [open]; default value: none Default i/e: MIG",
+      "instances_conditions": "Used in user constraints.  Binding user constraints are defined using bound types lim=UP/LO/FX. Non-binding (free) user constraints can be defined using the lim type lim=N.",
+      "affected_equations_or_variables": "RHS constant of user constraints, which are generated for each specified region (uc_r_each) and period (uc_t_each) and are summing over timeslices (uc_ts_sum) (EQ(l)_UCRT). If uc_t_succ instead of uc_t_each is specified the constraints will be generated as dynamic constraint between the two successive periods (EQ(l)_UCRSU)."
     },
     "UC_RHSRT+": {
       "column_header": "uc_rhsrt+",
@@ -4488,6 +6710,8 @@
       "timeslice": "",
       "limtype": "U",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "RAT__RHS"
       ]
@@ -4504,7 +6728,20 @@
       "timeslice": "ANNUAL",
       "limtype": "UP",
       "currency": false,
-      "indexes": "(r,uc_n,datayear,s,lim)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "r",
+        "uc_n",
+        "datayear",
+        "s",
+        "lim"
+      ],
+      "indexes_raw": "(r,uc_n,datayear,s,lim)",
+      "related_sets_and_parameters": "uc_n, uc_r_each, uc_t_each, uc_t_succ, uc_ts_each",
+      "units_ranges_defaults": "None [open]; default value: none Default i/e: MIG",
+      "instances_conditions": "Used in user constraints. No inheritance / aggregation, unless the target timeslice level is specified by UC_TSL. Direct inheritance, if the target timeslice level is specified by UC_TSL.  Binding user constraints are defined using bound types lim=UP/LO/FX. Non-binding (free) user constraints can be defined using the lim type lim=N.",
+      "affected_equations_or_variables": "RHS constant of user constraints, which are generated for each specified region (uc_r_each), period (uc_t_each) and timeslice (uc_ts_each) (EQ(l)_UCRTS). If uc_t_succ instead of uc_t_each is specified the constraints will be generated as dynamic constraint between the two successive periods (EQ(l)_UCRSUS)."
     },
     "UC_RHSS": {
       "column_header": "uc_rhss",
@@ -4517,7 +6754,9 @@
       "commodity": false,
       "timeslice": "ANNUAL",
       "limtype": "UP",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "UC_RHST": {
       "column_header": "uc_rhst",
@@ -4531,7 +6770,18 @@
       "timeslice": "",
       "limtype": "UP",
       "currency": false,
-      "indexes": "(uc_n,datayear,lim)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "uc_n",
+        "datayear",
+        "lim"
+      ],
+      "indexes_raw": "(uc_n,datayear,lim)",
+      "related_sets_and_parameters": "uc_n, uc_r_sum, uc_t_each, uc_t_succ, uc_ts_sum",
+      "units_ranges_defaults": "None [open]; default value: none Default i/e: MIG",
+      "instances_conditions": "Used in user constraints.  Binding user constraints are defined using bound types lim=UP/LO/FX. Non-binding (free) user constraints can be defined using the lim type lim=N.",
+      "affected_equations_or_variables": "RHS constant of user constraints, which are generated for each specified period (uc_t_each) and are summing over regions (uc_r_sum) and timeslices (uc_ts_sum) (EQ(l)_UCT). If uc_t_succ instead of uc_t_each is specified the constraints will be generated as dynamic constraint between the two successive periods (EQ(l)_UCSU)."
     },
     "UC_RHSTS": {
       "column_header": "uc_rhsts",
@@ -4545,7 +6795,19 @@
       "timeslice": "ANNUAL",
       "limtype": "UP",
       "currency": false,
-      "indexes": "(uc_n,datayear,s,lim)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "uc_n",
+        "datayear",
+        "s",
+        "lim"
+      ],
+      "indexes_raw": "(uc_n,datayear,s,lim)",
+      "related_sets_and_parameters": "uc_n, uc_r_sum, uc_t_each, uc_t_succ, uc_ts_each",
+      "units_ranges_defaults": "None [open]; default value: none Default i/e: MIG",
+      "instances_conditions": "Used in user constraints. No inheritance/aggregation.  Binding user constraints are defined using bound types lim=UP/LO/FX. Non-binding (free) user constraints can be defined using the lim type lim=N.",
+      "affected_equations_or_variables": "RHS constant of user constraints, which are generated for each specified period (uc_t_each) and timeslice (uc_ts_each) and are summing over regions (uc_r_sum) (EQ(l)_UCTS). If uc_t_succ instead of uc_t_each is specified the constraints will be generated as dynamic constraint between the two successive periods (EQ(l)_UCSUS)."
     },
     "UC_TIME": {
       "column_header": "uc_time",
@@ -4559,7 +6821,17 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
-      "indexes": "(uc_n,r,datayear)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "uc_n",
+        "r",
+        "datayear"
+      ],
+      "indexes_raw": "(uc_n,r,datayear)",
+      "units_ranges_defaults": "Dimensionless [open]; default value: none Default i/e: STD",
+      "instances_conditions": "Used in user constraints. Adds a time constant to the RHS side.",
+      "affected_equations_or_variables": "EQ(l)_UCXXX"
     },
     "UC_UCN": {
       "column_header": "uc_ucn",
@@ -4573,7 +6845,21 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
-      "indexes": "(uc_n,side,r,datayear,ucn)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "uc_n",
+        "side",
+        "r",
+        "datayear",
+        "ucn"
+      ],
+      "indexes_raw": "(uc_n,side,r,datayear,ucn)",
+      "other_indexes": "commodity_group",
+      "related_sets_and_parameters": "UC_RHSRT",
+      "units_ranges_defaults": "Dimensionless [open]; default value: none Default i/e: STD",
+      "instances_conditions": "Only taken into account if the user constraint is by region & period, and summing over timeslices and the RHS side is activated (EQ(l)_UCRSU).",
+      "affected_equations_or_variables": "EQ(l)_UCRSU VAR_UCRT"
     },
     "VA_Attrib_C": {
       "column_header": "va_attrib_c",
@@ -4588,6 +6874,8 @@
       "timeslice": "ANNUAL",
       "limtype": "FX",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "VA_Attrib0"
       ]
@@ -4605,6 +6893,8 @@
       "timeslice": "ANNUAL",
       "limtype": "FX",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "VA_Attrib1"
       ]
@@ -4622,6 +6912,8 @@
       "timeslice": "ANNUAL",
       "limtype": "FX",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "VA_Attrib2"
       ]
@@ -4639,6 +6931,8 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "VA_ConstrucShare"
       ]
@@ -4656,6 +6950,8 @@
       "timeslice": "ANNUAL",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "VA_DelivPerUnit"
       ]
@@ -4673,6 +6969,8 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "VA_DemolHouses"
       ]
@@ -4690,6 +6988,8 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "VA_DemolShare"
       ]
@@ -4707,6 +7007,8 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "VA_HeatNewVsOld"
       ]
@@ -4724,6 +7026,8 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "VA_HouseCoolTarget"
       ]
@@ -4741,6 +7045,8 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "VA_HouseDemol"
       ]
@@ -4759,6 +7065,8 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "VA_HouseShCool",
         "VA_Share"
@@ -4778,6 +7086,8 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "VA_HouseStock",
         "VA_Stock"
@@ -4796,6 +7106,8 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "VA_HsClTrgtYears"
       ]
@@ -4813,6 +7125,8 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "VA_HsImprovOld"
       ]
@@ -4830,6 +7144,8 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "VA_PersPHHold"
       ]
@@ -4847,6 +7163,8 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "VA_PphhEvol"
       ]
@@ -4864,6 +7182,8 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "VA_SFC"
       ]
@@ -4881,6 +7201,8 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "VA_TempCorr"
       ]
@@ -4899,6 +7221,8 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "CEH(Z)(Y)",
         "CEH"
@@ -4916,7 +7240,20 @@
       "timeslice": "",
       "limtype": "",
       "currency": false,
-      "indexes": "(r,datayear,c,com)"
+      "stage": false,
+      "sow": false,
+      "indexes": [
+        "r",
+        "datayear",
+        "c",
+        "com"
+      ],
+      "indexes_raw": "(r,datayear,c,com)",
+      "other_indexes": "commodity2",
+      "related_sets_and_parameters": "FLO_EMIS, FLO_EFF",
+      "units_ranges_defaults": "Emission units per flow units default value: none Default i/e: STD",
+      "instances_conditions": "Available in the VEDA shell. Any process-specific FLO_EMIS / FLO_EFF with the commodities c and com will override VDA_EMCB.",
+      "affected_equations_or_variables": "EQ_PTRANS"
     },
     "VDA_FLOP": {
       "column_header": "vda_flop",
@@ -4943,6 +7280,8 @@
       "timeslice": "ANNUAL",
       "limtype": "",
       "currency": false,
+      "stage": false,
+      "sow": false,
       "aliases": [
         "OUTPUT",
         "Production",
@@ -4970,7 +7309,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "YRINPERIOD": {
       "column_header": "yrinperiod",
@@ -4983,7 +7324,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "tm_depr": {
       "column_header": "tm_depr",
@@ -4996,7 +7339,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "tm_dmtol": {
       "column_header": "tm_dmtol",
@@ -5009,7 +7354,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "tm_esub": {
       "column_header": "tm_esub",
@@ -5022,7 +7369,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "tm_expbnd": {
       "column_header": "tm_expbnd",
@@ -5035,7 +7384,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "tm_expf": {
       "column_header": "tm_expf",
@@ -5048,7 +7399,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "tm_gdp0": {
       "column_header": "tm_gdp0",
@@ -5061,7 +7414,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "tm_gr": {
       "column_header": "tm_gr",
@@ -5074,7 +7429,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "tm_ivetol": {
       "column_header": "tm_ivetol",
@@ -5087,7 +7444,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "tm_kgdp": {
       "column_header": "tm_kgdp",
@@ -5100,7 +7459,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "tm_kpvs": {
       "column_header": "tm_kpvs",
@@ -5113,7 +7474,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "tm_qfac": {
       "column_header": "tm_qfac",
@@ -5126,7 +7489,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "tm_scale_cst": {
       "column_header": "tm_scale_cst",
@@ -5139,7 +7504,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "tm_scale_nrg": {
       "column_header": "tm_scale_nrg",
@@ -5152,7 +7519,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     },
     "tm_scale_util": {
       "column_header": "tm_scale_util",
@@ -5165,7 +7534,9 @@
       "commodity": false,
       "timeslice": "",
       "limtype": "",
-      "currency": false
+      "currency": false,
+      "stage": false,
+      "sow": false
     }
   }
 }

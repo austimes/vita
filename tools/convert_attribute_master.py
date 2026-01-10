@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Convert Attribute-master-export.xlsx to attribute-master.json.
+Convert veda-attribute-master-export.xlsx to attribute-master.json.
 
 This is a one-off script to convert the VEDA attribute master export
 into a JSON format suitable for runtime validation in table_schemas.py.
@@ -8,18 +8,31 @@ into a JSON format suitable for runtime validation in table_schemas.py.
 Usage:
     uv run python tools/convert_attribute_master.py
 
-The output file is written to veda/attribute-master.json.
+The output file is written to vedalang/schema/attribute-master.json.
 """
 
 import json
+import re
 from pathlib import Path
 
 import openpyxl
 
 
+def parse_indexes(indexes_str: str) -> list[str]:
+    """Parse indexes string like '(r,datayear,p,c)' into ['r', 'datayear', 'p', 'c']."""
+    if not indexes_str:
+        return []
+    # Remove parentheses and split by comma
+    match = re.match(r"\(([^)]*)\)", indexes_str.strip())
+    if match:
+        inner = match.group(1)
+        return [idx.strip() for idx in inner.split(",") if idx.strip()]
+    return []
+
+
 def convert_attribute_master():
     """Convert Excel attribute master to JSON format."""
-    input_path = Path("veda/Attribute-master-export.xlsx")
+    input_path = Path("veda/veda-attribute-master-export.xlsx")
     output_path = Path("vedalang/schema/attribute-master.json")
 
     wb = openpyxl.load_workbook(input_path, read_only=True)
@@ -48,7 +61,11 @@ def convert_attribute_master():
         column_headers = [attr_name.lower()]
         column_headers.extend(a.lower() for a in aliases)
 
-        # Build attribute entry
+        # Parse indexes into structured list
+        indexes_raw = row[col_idx.get("Indexes", -1)] or ""
+        indexes = parse_indexes(indexes_raw)
+
+        # Build attribute entry with ALL columns
         entry = {
             "column_header": attr_name.lower(),  # Primary/canonical header
             "column_headers": column_headers,  # All valid headers (including aliases)
@@ -59,21 +76,45 @@ def convert_attribute_master():
             "timeslice": row[col_idx.get("TimeSlice", -1)] or "",
             "limtype": row[col_idx.get("LimType", -1)] or "",
             "currency": row[col_idx.get("Currency", -1)] == "CUR",
+            "stage": row[col_idx.get("Stage", -1)] == "T",
+            "sow": row[col_idx.get("Sow", -1)] == "T",
         }
 
         if aliases:
             entry["aliases"] = aliases
 
-        # Parse indexes
-        indexes_str = row[col_idx.get("Indexes", -1)] or ""
-        if indexes_str:
-            entry["indexes"] = indexes_str
+        # Add indexes (structured and raw)
+        if indexes_raw:
+            entry["indexes"] = indexes
+            entry["indexes_raw"] = indexes_raw
+
+        # Add OtherIndexes if present
+        other_indexes = row[col_idx.get("OtherIndexes", -1)] or ""
+        if other_indexes:
+            entry["other_indexes"] = other_indexes
+
+        # Add remaining columns if they have values
+        related = row[col_idx.get("RelatedSetsAndParameters", -1)] or ""
+        if related:
+            entry["related_sets_and_parameters"] = related
+
+        units_ranges = row[col_idx.get("UnitsRangesAndDefaultValuesAndDefaultInterExtrapolation", -1)] or ""
+        if units_ranges:
+            entry["units_ranges_defaults"] = units_ranges
+
+        instances = row[col_idx.get("InstancesRequiredOmitSpecialConditions", -1)] or ""
+        if instances:
+            entry["instances_conditions"] = instances
+
+        affected = row[col_idx.get("AffectedEquationsOrVariables", -1)] or ""
+        if affected:
+            entry["affected_equations_or_variables"] = affected
 
         attributes[attr_name] = entry
 
     # Write JSON output
     output = {
-        "_comment": "Auto-generated from Attribute-master-export.xlsx. Do not edit.",
+        "_comment": "Auto-generated from veda-attribute-master-export.xlsx. Do not edit.",
         "_source": "tools/convert_attribute_master.py",
         "attributes": attributes,
     }
