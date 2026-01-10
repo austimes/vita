@@ -21,6 +21,8 @@ class TimesResults:
     var_ncap: list[dict[str, Any]] = field(default_factory=list)
     var_cap: list[dict[str, Any]] = field(default_factory=list)
     var_flo: list[dict[str, Any]] = field(default_factory=list)
+    par_pasti: list[dict[str, Any]] = field(default_factory=list)  # NCAP_PASTI input
+    par_resid: list[dict[str, Any]] = field(default_factory=list)  # PRC_RESID input
     errors: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
@@ -32,6 +34,8 @@ class TimesResults:
             "var_ncap": self.var_ncap,
             "var_cap": self.var_cap,
             "var_flo": self.var_flo,
+            "par_pasti": self.par_pasti,
+            "par_resid": self.par_resid,
             "errors": self.errors,
         }
 
@@ -246,6 +250,76 @@ def extract_results(
         results.var_flo.sort(key=lambda r: abs(r["level"]), reverse=True)
         results.var_flo = results.var_flo[:limit]
 
+    # Extract NCAP_PASTI (past investments / existing capacity with vintage)
+    # This is INPUT data (parameter), not a result variable
+    par_pasti_csv = dump_symbol_csv(gdx_path, "NCAP_PASTI", gdxdump)
+    if par_pasti_csv:
+        for row in parse_csv(par_pasti_csv):
+            try:
+                val = float(row.get("Val", 0))
+                if abs(val) < 1e-9:
+                    continue
+                # GDX columns: REG, ALLYEAR, PRC, Val
+                process = row.get("PRC", row.get("P", ""))
+                vintage = row.get("ALLYEAR", row.get("PASTYEAR", ""))
+                region = row.get("REG", row.get("R", ""))
+
+                if process_filter and not any(
+                    f.lower() in process.lower() for f in process_filter
+                ):
+                    continue
+                if year_filter and vintage not in year_filter:
+                    continue
+
+                results.par_pasti.append(
+                    {
+                        "region": region,
+                        "vintage": vintage,
+                        "process": process,
+                        "capacity": val,
+                    }
+                )
+            except (ValueError, KeyError):
+                pass
+
+    results.par_pasti.sort(key=lambda r: (r.get("vintage", ""), r.get("process", "")))
+    results.par_pasti = results.par_pasti[:limit]
+
+    # Extract PRC_RESID (residual capacity / stock)
+    # This is INPUT data (parameter), not a result variable
+    par_resid_csv = dump_symbol_csv(gdx_path, "PRC_RESID", gdxdump)
+    if par_resid_csv:
+        for row in parse_csv(par_resid_csv):
+            try:
+                val = float(row.get("Val", 0))
+                if abs(val) < 1e-9:
+                    continue
+                # GDX columns: REG, ALLYEAR, PRC, Val
+                process = row.get("PRC", row.get("P", ""))
+                year = row.get("ALLYEAR", row.get("DATAYEAR", ""))
+                region = row.get("REG", row.get("R", ""))
+
+                if process_filter and not any(
+                    f.lower() in process.lower() for f in process_filter
+                ):
+                    continue
+                if year_filter and year not in year_filter:
+                    continue
+
+                results.par_resid.append(
+                    {
+                        "region": region,
+                        "year": year,
+                        "process": process,
+                        "capacity": val,
+                    }
+                )
+            except (ValueError, KeyError):
+                pass
+
+    results.par_resid.sort(key=lambda r: (r.get("year", ""), r.get("process", "")))
+    results.par_resid = results.par_resid[:limit]
+
     return results
 
 
@@ -356,6 +430,30 @@ def format_results_console(results: TimesResults, limit: int = 20) -> str:
         )
         lines.append("")
 
+    # PAR_PASTI (input: past investments with vintage)
+    if results.par_pasti:
+        lines.append(
+            format_table(
+                "Past Investments (PAR_PASTI)",
+                results.par_pasti,
+                ["vintage", "process", "capacity"],
+                limit,
+            )
+        )
+        lines.append("")
+
+    # PAR_RESID (input: residual/stock capacity)
+    if results.par_resid:
+        lines.append(
+            format_table(
+                "Residual Capacity (PAR_RESID)",
+                results.par_resid,
+                ["year", "process", "capacity"],
+                limit,
+            )
+        )
+        lines.append("")
+
     # Errors
     if results.errors:
         lines.append("Errors:")
@@ -403,6 +501,8 @@ def save_results(
             ("var_ncap", results.var_ncap),
             ("var_cap", results.var_cap),
             ("var_flo", results.var_flo),
+            ("par_pasti", results.par_pasti),
+            ("par_resid", results.par_resid),
         ]:
             if rows:
                 csv_path = output_path / f"{name}.csv"
