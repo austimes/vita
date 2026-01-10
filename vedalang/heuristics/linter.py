@@ -282,9 +282,10 @@ class H002_DemandDeviceNoStock(HeuristicRule):
 
             # Check for stock or initial capacity
             has_stock = proc.get("stock") is not None
-            has_ncap_pasti = proc.get("ncap_pasti") is not None  # Future support
+            has_existing_capacity = proc.get("existing_capacity") is not None
+            has_ncap_pasti = proc.get("ncap_pasti") is not None  # Legacy support
 
-            if has_stock or has_ncap_pasti:
+            if has_stock or has_existing_capacity or has_ncap_pasti:
                 continue
 
             # Demand device without stock - this is problematic
@@ -296,7 +297,7 @@ class H002_DemandDeviceNoStock(HeuristicRule):
                         f"Demand device {proc_name} has no stock/initial capacity. "
                         f"It outputs demand commodities {demand_outputs} but cannot "
                         f"convert energy to demand service without capacity. "
-                        f"Add 'stock: <value>' to specify pre-existing capacity."
+                        f"Add 'stock' or 'existing_capacity' to specify pre-existing capacity."
                     ),
                     location=f"processes[{proc_name}]",
                     context={
@@ -417,10 +418,10 @@ class H004_StockCoversAllDemand(HeuristicRule):
         """
         supply: dict[str, float] = {}
 
-        # Build energy generation capacity from stock
+        # Build energy generation capacity from stock and existing_capacity
         energy_stock_capacity: dict[str, float] = {}
         for proc in model.get("processes", []):
-            stock = proc.get("stock", 0)
+            stock = self._get_total_capacity(proc)
             if stock <= 0:
                 continue
 
@@ -444,7 +445,7 @@ class H004_StockCoversAllDemand(HeuristicRule):
 
                 # Find energy inputs to this demand device
                 device_eff = self._get_scalar_efficiency(proc)
-                device_stock = proc.get("stock", 0)
+                device_stock = self._get_total_capacity(proc)
 
                 for inp in proc.get("inputs", []):
                     energy_comm = inp.get("commodity")
@@ -476,6 +477,27 @@ class H004_StockCoversAllDemand(HeuristicRule):
                 return list(values.values())[0]
             return 1.0
         return eff
+
+    def _get_total_capacity(self, proc: dict) -> float:
+        """Get total capacity from stock and/or existing_capacity."""
+        total = 0
+        
+        # Stock (PRC_RESID) - aggregate residual capacity
+        stock = proc.get("stock", 0)
+        if isinstance(stock, dict):
+            values = stock.get("values", {})
+            if values:
+                stock = list(values.values())[0]
+            else:
+                stock = 0
+        total += stock
+        
+        # Existing capacity (NCAP_PASTI) - sum of past investments
+        existing_capacity = proc.get("existing_capacity", [])
+        for ec in existing_capacity:
+            total += ec.get("capacity", 0)
+        
+        return total
 
 
 class H003_BaseYearCapacityAdequacy(HeuristicRule):
@@ -606,7 +628,7 @@ class H003_BaseYearCapacityAdequacy(HeuristicRule):
                     continue
 
                 # This is a demand device - estimate its capacity
-                device_stock = proc.get("stock", 0)
+                device_stock = self._get_total_capacity(proc)
                 device_eff = self._get_scalar_efficiency(proc)
 
                 # Device can produce: stock * efficiency * CF * PJ_PER_GW_YEAR
@@ -656,7 +678,7 @@ class H003_BaseYearCapacityAdequacy(HeuristicRule):
                 continue
 
             # Estimate generation capacity
-            stock = proc.get("stock", 0)
+            stock = self._get_total_capacity(proc)
             eff = self._get_scalar_efficiency(proc)
             af = proc.get("availability_factor", 0.85)  # Default assumption
 
@@ -664,6 +686,28 @@ class H003_BaseYearCapacityAdequacy(HeuristicRule):
             gen = stock * eff * af * self.PJ_PER_GW_YEAR
             total += gen
 
+        return total
+
+    def _get_total_capacity(self, proc: dict) -> float:
+        """Get total capacity from stock and/or existing_capacity."""
+        total = 0
+        
+        # Stock (PRC_RESID) - aggregate residual capacity
+        stock = proc.get("stock", 0)
+        if isinstance(stock, dict):
+            # Time-varying stock - get first value
+            values = stock.get("values", {})
+            if values:
+                stock = list(values.values())[0]
+            else:
+                stock = 0
+        total += stock
+        
+        # Existing capacity (NCAP_PASTI) - sum of past investments
+        existing_capacity = proc.get("existing_capacity", [])
+        for ec in existing_capacity:
+            total += ec.get("capacity", 0)
+        
         return total
 
     def _get_scalar_efficiency(self, proc: dict) -> float:

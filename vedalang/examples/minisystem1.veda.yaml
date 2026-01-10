@@ -3,6 +3,12 @@
 # New capabilities: Basic RES, demand projection, E2E validation
 # Tests: VedaLang → TableIR → Excel → DD → solve
 # Issue: vedalang-8pr.1
+#
+# Uses existing_capacity (NCAP_PASTI) with vintage years for proper
+# capacity tracking. Unlike 'stock' (PRC_RESID), NCAP_PASTI:
+# - Tracks specific vintage years
+# - Provides proper economic life tracking
+# - Retires based on lifetime from vintage year
 
 model:
   name: MiniSystem1
@@ -33,7 +39,10 @@ model:
         - commodity: ELC
       efficiency: 1.0
       variable_om_cost: 10  # Activity cost ($/PJ)
-      stock: 100
+      lifetime: 40  # Years - capacity retires after this period
+      existing_capacity:
+        - vintage: 2010
+          capacity: 100  # GW built in 2010, retires 2050
       cap_bound:
         up: 1000
 
@@ -46,7 +55,10 @@ model:
       outputs:
         - commodity: RSD
       efficiency: 1.0
-      stock: 100
+      lifetime: 40
+      existing_capacity:
+        - vintage: 2010
+          capacity: 100  # GW built in 2010, retires 2050
       cap_bound:
         up: 1000
 
