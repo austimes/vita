@@ -39,22 +39,15 @@ CAP2ACT_CONVERSIONS = {
 
 # Process attributes that support time-varying values
 TIME_VARYING_ATTRS = {
-    "efficiency", "invcost", "fixom", "varom", "life", "cost", "availability_factor",
+    "efficiency", "investment_cost", "fixed_om_cost", "variable_om_cost",
+    "import_price", "lifetime", "availability_factor",
     # Note: emission_factor also supports time-varying but is handled separately
 }
 
 # Map VedaLang attribute names to their TableIR/VEDA column names
 # These must map to CANONICAL VEDA attribute column headers only
 # (from attribute-master.json "column_header" field, NOT aliases)
-#
-# EXPLICIT NAMES (preferred):
-#   investment_cost, fixed_om_cost, variable_om_cost, import_price, lifetime
-#
-# LEGACY NAMES (deprecated, kept for backward compatibility):
-#   invcost, fixom, varom, life, cost
-#
 ATTR_TO_COLUMN = {
-    # Explicit attribute names (preferred)
     "efficiency": "eff",                # ACT_EFF
     "investment_cost": "ncap_cost",     # NCAP_COST - capital cost per capacity
     "fixed_om_cost": "ncap_fom",        # NCAP_FOM - fixed O&M per capacity/year
@@ -63,25 +56,7 @@ ATTR_TO_COLUMN = {
     "lifetime": "ncap_tlife",           # NCAP_TLIFE - technical lifetime
     "availability_factor": "ncap_af",   # NCAP_AF - capacity factor
     "stock": "prc_resid",               # PRC_RESID - residual/existing capacity
-
-    # Legacy names (deprecated - mapped for backward compatibility)
-    "invcost": "ncap_cost",             # → use investment_cost
-    "fixom": "ncap_fom",                # → use fixed_om_cost
-    "varom": "act_cost",                # → use variable_om_cost
-    "life": "ncap_tlife",               # → use lifetime
-    # NOTE: "cost" is context-dependent - see _get_cost_column_for_process()
-    # For IMP/EXP processes: ire_price; for others: act_cost
-    # DEPRECATED: use 'variable_om_cost' or 'import_price' explicitly
-}
-
-# Process sets that use IRE_PRICE for the "cost" attribute
-# (Inter-Regional Export/Import processes)
-IRE_PROCESS_SETS = {"IMP", "EXP", "IRE"}
-
-# Explicit attributes that are NOT context-dependent
-# (they map directly without process-type inference)
-EXPLICIT_COST_ATTRS = {
-    "investment_cost", "fixed_om_cost", "variable_om_cost", "import_price",
+    "existing_capacity": "ncap_pasti",  # NCAP_PASTI - past investment with vintage
 }
 
 # Interpolation mode to VEDA code mapping
@@ -97,7 +72,6 @@ INTERPOLATION_CODES = {
 # Map VedaLang semantic attribute names to canonical TIMES attribute names
 # Used for registry validation (registry uses TIMES names like NCAP_COST)
 SEMANTIC_TO_TIMES = {
-    # Explicit names (preferred)
     "efficiency": "ACT_EFF",
     "investment_cost": "NCAP_COST",
     "fixed_om_cost": "NCAP_FOM",
@@ -106,13 +80,7 @@ SEMANTIC_TO_TIMES = {
     "lifetime": "NCAP_TLIFE",
     "availability_factor": "NCAP_AF",
     "stock": "PRC_RESID",
-
-    # Legacy names (deprecated)
-    "invcost": "NCAP_COST",
-    "fixom": "NCAP_FOM",
-    "varom": "ACT_COST",
-    "life": "NCAP_TLIFE",
-    "cost": "IRE_PRICE",  # Note: context-dependent, but validation uses IRE_PRICE
+    "existing_capacity": "NCAP_PASTI",
 }
 
 # Default category inference from scenario parameter type
@@ -169,30 +137,6 @@ def _normalize_process_flows(process: dict) -> dict:
 def _get_default_unit(commodity_type: str) -> str:
     """Get default unit for a commodity type."""
     return DEFAULT_UNITS.get(commodity_type, "PJ")
-
-
-def _get_cost_column_for_process(process: dict) -> str:
-    """
-    Determine the correct column name for the 'cost' attribute based on process type.
-
-    The 'cost' attribute has different meanings depending on process type:
-    - IMP/EXP/IRE processes: IRE_PRICE (cost of importing/exporting commodity)
-    - Other processes (ELE, DMD, PRE, etc.): ACT_COST (variable operating cost)
-
-    Args:
-        process: Process definition from VedaLang source
-
-    Returns:
-        Column name: 'ire_price' for IMP/EXP/IRE, 'act_cost' for others
-    """
-    process_sets = process.get("sets", [])
-    if isinstance(process_sets, str):
-        process_sets = [process_sets]
-
-    # Check if any of the process sets indicate an inter-regional process
-    if any(s.upper() in IRE_PROCESS_SETS for s in process_sets):
-        return "ire_price"
-    return "act_cost"
 
 
 def _get_scalar_value(value):
@@ -562,6 +506,7 @@ def compile_vedalang_to_tableir(source: dict, validate: bool = True) -> dict:
     # Use lowercase column names for xl2times compatibility
     topology_rows = []
     all_emission_factors = []  # Collected for separate ~TFM_INS table
+    all_pasti_rows = []  # NCAP_PASTI rows for ~TFM_INS table
     for raw_process in model.get("processes", []):
         # Normalize shorthand input/output syntax
         process = _normalize_process_flows(raw_process)
@@ -575,13 +520,9 @@ def compile_vedalang_to_tableir(source: dict, validate: bool = True) -> dict:
         time_varying_attrs = []  # (attr_name, value) tuples for separate rows
 
         # All process attributes that can be emitted
-        # Explicit names first (so they take precedence if both specified)
         process_attrs = [
-            # Explicit names (preferred)
             "investment_cost", "fixed_om_cost", "variable_om_cost",
             "import_price", "lifetime", "stock",
-            # Legacy names (deprecated)
-            "invcost", "fixom", "varom", "life", "cost",
         ]
 
         for attr in process_attrs:
@@ -590,17 +531,7 @@ def compile_vedalang_to_tableir(source: dict, validate: bool = True) -> dict:
 
             _validate_attribute_for_emission(attr, "FI_T")
             val = process[attr]
-
-            # Map VedaLang attr name to canonical column name
-            # Special case: 'cost' is context-dependent on process type
-            if attr == "cost":
-                column = _get_cost_column_for_process(process)
-            else:
-                column = ATTR_TO_COLUMN.get(attr, attr)
-
-            # Skip if column already set by explicit name
-            if column in cost_params:
-                continue
+            column = ATTR_TO_COLUMN.get(attr, attr)
 
             if _is_time_varying(val):
                 time_varying_attrs.append((attr, val))
@@ -743,6 +674,20 @@ def compile_vedalang_to_tableir(source: dict, validate: bool = True) -> dict:
             expanded_rows = _expand_time_varying_attr(attr_name, attr_value, base_row)
             topology_rows.extend(expanded_rows)
 
+        # Handle existing_capacity (NCAP_PASTI) - past investments with vintage years
+        # Unlike PRC_RESID, NCAP_PASTI uses pastyear (vintage) not datayear
+        # Emitted via ~TFM_INS table using attribute/value pattern
+        if "existing_capacity" in process:
+            for pasti in process["existing_capacity"]:
+                pasti_row = {
+                    "region": default_region,
+                    "process": process["name"],
+                    "year": pasti["vintage"],
+                    "attribute": "NCAP_PASTI",
+                    "value": pasti["capacity"],
+                }
+                all_pasti_rows.append(pasti_row)
+
     # Build system settings tables
     regions = model.get("regions", ["REG1"])
 
@@ -754,23 +699,34 @@ def compile_vedalang_to_tableir(source: dict, validate: bool = True) -> dict:
     bookname = model_name.upper()  # Uppercase for xl2times BookRegions_Map matching
     bookregions_rows = [{"bookname": bookname, "region": r} for r in regions]
 
-    # ~STARTYEAR - model start year
-    start_year = model.get("start_year", 2020)
+    # ~STARTYEAR - model start year (first milestone year)
+    milestone_years = model.get("milestone_years", [2020])
+    start_year = milestone_years[0] if milestone_years else 2020
     startyear_rows = [{"value": start_year}]
 
-    # ~ACTIVEPDEF - active period definition (required)
-    # Set P for period-based time representation
-    activepdef_rows = [{"value": "P"}]
-
-    # ~TIMEPERIODS - define time periods (required)
-    # The column name should match the active period definition (lowercased)
-    # "p" means period lengths (years per period)
-    # Default: 10 years per period (4 periods)
-    time_periods = model.get("time_periods", [10, 10, 10, 10])
-    timeperiods_rows = [{"p": period_length} for period_length in time_periods]
+    # ~MILESTONEYEARS - explicit milestone years (alternative to ~TIMEPERIODS)
+    # Format: type column + year column (named after model)
+    # This ensures VedaLang milestone_years appear directly in TIMES MILESTONYR
+    last_year = milestone_years[-1] if milestone_years else 2020
+    milestoneyears_rows = [{"type": "Endyear", "year": last_year + 10}]  # End horizon
+    milestoneyears_rows += [{"type": "milestoneyear", "year": y} for y in milestone_years]
 
     # ~CURRENCIES - default currency
     currencies_rows = [{"currency": "USD"}]
+
+    # G_DRATE - discount rate (required for TIMES to process costs)
+    # Without G_DRATE, rdcur set is empty and all cost parameters are ignored
+    # Default: 5% discount rate; can be overridden via model.discount_rate
+    discount_rate = model.get("discount_rate", 0.05)
+    gdrate_rows = [
+        {
+            "region": r,
+            "attribute": "G_DRATE",
+            "currency": "USD",
+            "value": discount_rate,
+        }
+        for r in regions
+    ]
 
     # Derive model years for time-series expansion
     model_years = _get_model_years(model)
@@ -814,11 +770,12 @@ def compile_vedalang_to_tableir(source: dict, validate: bool = True) -> dict:
         )
 
     # Build SysSets tables list
+    # Note: ~MILESTONEYEARS is an alternative to ~ACTIVEPDEF + ~TIMEPERIODS
+    # We use ~MILESTONEYEARS for explicit control over milestone years
     syssets_tables = [
         {"tag": "~BOOKREGIONS_MAP", "rows": bookregions_rows},
         {"tag": "~STARTYEAR", "rows": startyear_rows},
-        {"tag": "~ACTIVEPDEF", "rows": activepdef_rows},
-        {"tag": "~TIMEPERIODS", "rows": timeperiods_rows},
+        {"tag": "~MILESTONEYEARS", "rows": milestoneyears_rows},
         {"tag": "~CURRENCIES", "rows": currencies_rows},
     ]
 
@@ -832,12 +789,15 @@ def compile_vedalang_to_tableir(source: dict, validate: bool = True) -> dict:
         {"name": "Commodities", "tables": [{"tag": "~FI_COMM", "rows": comm_rows}]},
     ]
 
-    # Add constants sheet with YRFR if timeslices defined
+    # Build constants tables - includes G_DRATE and optionally YRFR
+    constants_tables = [{"tag": "~TFM_INS", "rows": gdrate_rows}]
     if yrfr_rows:
-        syssettings_sheets.append({
-            "name": "constants",
-            "tables": [{"tag": "~TFM_INS", "rows": yrfr_rows}],
-        })
+        constants_tables.append({"tag": "~TFM_INS", "rows": yrfr_rows})
+
+    syssettings_sheets.append({
+        "name": "constants",
+        "tables": constants_tables,
+    })
 
     # Build process file - use VT_{bookname}_ prefix for internal region recognition
     # All regions map to this single bookname via BOOKREGIONS_MAP
@@ -868,7 +828,8 @@ def compile_vedalang_to_tableir(source: dict, validate: bool = True) -> dict:
                         "tables": [
                             {"tag": "~FI_PROCESS", "rows": process_rows},
                             {"tag": "~FI_T", "rows": topology_rows},
-                        ] + ([{"tag": "~TFM_INS", "rows": all_emission_factors}] if all_emission_factors else []),
+                        ] + ([{"tag": "~TFM_INS", "rows": all_emission_factors}] if all_emission_factors else [])
+                          + ([{"tag": "~TFM_INS", "rows": all_pasti_rows}] if all_pasti_rows else []),
                     },
                 ],
             },
@@ -956,7 +917,7 @@ def _commodity_type_to_csets(ctype: str) -> str:
 
 def _get_model_years(model: dict) -> list[int]:
     """
-    Derive the list of model representative years from start_year and time_periods.
+    Get the list of model milestone years.
 
     Args:
         model: The model dictionary from VedaLang source
@@ -964,15 +925,7 @@ def _get_model_years(model: dict) -> list[int]:
     Returns:
         List of model years (e.g., [2020, 2030, 2040, 2050])
     """
-    start_year = model.get("start_year", 2020)
-    time_periods = model.get("time_periods", [10, 10, 10, 10])
-
-    years = []
-    y = start_year
-    for p in time_periods:
-        years.append(y)
-        y += p
-    return years
+    return model.get("milestone_years", [2020])
 
 
 def _expand_series_to_years(

@@ -13,11 +13,12 @@ def format_result_table(result) -> str:
     status = "✓ PASS" if result.success else "✗ FAIL"
 
     lines = [
+        f"Work dir: {result.work_dir}",
+        "",
         "┌" + "─" * 60 + "┐",
         "│ veda_run_times results" + " " * 37 + "│",
         "├" + "─" * 60 + "┤",
         f"│ Case: {result.case}".ljust(61) + "│",
-        f"│ Work dir: {str(result.work_dir)[:48]}".ljust(61) + "│",
         f"│ GAMS return code: {result.return_code}".ljust(61) + "│",
     ]
 

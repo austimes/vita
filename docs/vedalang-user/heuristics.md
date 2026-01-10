@@ -174,9 +174,9 @@ To propose a new heuristic:
 
 ```yaml
 model:
-  start_year: 2020
+  milestone_years: [2020, 2030, 2040, 2050]
   
-processes:
+  processes:
   - name: PP_CCGT
     stock: 10  # Enough for base demand
     invcost: 800  # Investment available for growth

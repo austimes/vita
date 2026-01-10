@@ -256,31 +256,52 @@ def run_pipeline(
                 diag_file = work_dir / "xl2times_diagnostics.json"
                 manifest_file = work_dir / "xl2times_manifest.json"
 
-                # Extract regions from Excel files or model
-                # For now, use a default; in production, parse from model
-                regions = "NORTH,SOUTH"  # TODO: Extract from model
+                # Extract regions from the VedaLang source or TableIR
+                regions = None
+                if vedalang_source:
+                    model_regions = vedalang_source.get("model", {}).get("regions", [])
+                    regions = ",".join(model_regions)
+                elif tableir_file and tableir_file.exists():
+                    # Try to extract from TableIR - look for BOOKREGIONS_MAP
+                    import yaml
+                    with open(tableir_file) as f:
+                        tir = yaml.safe_load(f)
+                    for file_spec in tir.get("files", []):
+                        for sheet in file_spec.get("sheets", []):
+                            for table in sheet.get("tables", []):
+                                if table.get("tag") == "~BOOKREGIONS_MAP":
+                                    rows = table.get("rows", [])
+                                    region_set = {
+                                        r.get("region") for r in rows
+                                        if r.get("region")
+                                    }
+                                    regions = ",".join(sorted(region_set))
+                                    break
+
+                if not regions:
+                    regions = "REG1"  # Fallback default
 
                 cmd = [
                     sys.executable,
                     "-m",
                     "xl2times",
-                    str(excel_dir),
+                    str(excel_dir.resolve()),
                     "--dd",
                     "--output_dir",
-                    str(dd_dir),
+                    str(dd_dir.resolve()),
                     "--regions",
                     regions,
                     "--diagnostics-json",
-                    str(diag_file),
+                    str(diag_file.resolve()),
                     "--manifest-json",
-                    str(manifest_file),
+                    str(manifest_file.resolve()),
                 ]
 
                 if verbose:
                     print(f"[xl2times] Running: {' '.join(cmd)}")
 
                 proc = subprocess.run(
-                    cmd, capture_output=True, text=True, cwd=str(work_dir)
+                    cmd, capture_output=True, text=True
                 )
 
                 xl2times_result.artifacts["dd_dir"] = str(dd_dir)
@@ -488,12 +509,13 @@ def format_result_table(result: PipelineResult) -> str:
     status = "✓ PASS" if result.success else "✗ FAIL"
 
     lines = [
+        f"Work dir: {result.work_dir}",
+        "",
         "┌" + "─" * 65 + "┐",
         "│ veda-dev pipeline results" + " " * 39 + "│",
         "├" + "─" * 65 + "┤",
         f"│ Input: {result.input_path[:55]}".ljust(66) + "│",
         f"│ Kind: {result.input_kind}".ljust(66) + "│",
-        f"│ Work dir: {result.work_dir[:52]}".ljust(66) + "│",
         "├" + "─" * 65 + "┤",
     ]
 

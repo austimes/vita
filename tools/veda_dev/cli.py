@@ -69,6 +69,11 @@ def main():
         help="Stop before running TIMES solver",
     )
     pipeline_parser.add_argument(
+        "--process-results-only",
+        action="store_true",
+        help="Skip pipeline, just process existing GDX results",
+    )
+    pipeline_parser.add_argument(
         "--json",
         action="store_true",
         dest="json_output",
@@ -205,6 +210,56 @@ def main():
     pattern_show.add_argument("name", help="Pattern name")
     pattern_show.add_argument("--json", action="store_true", dest="json_output")
 
+    # times-results subcommand
+    results_parser = subparsers.add_parser(
+        "times-results",
+        help="Extract and display TIMES results from GDX",
+    )
+    results_parser.add_argument(
+        "--gdx",
+        type=Path,
+        default=Path("tmp/gams/scenario.gdx"),
+        help="Path to GDX file (default: tmp/gams/scenario.gdx)",
+    )
+    results_parser.add_argument(
+        "--process",
+        action="append",
+        dest="process_filter",
+        help="Filter to processes containing pattern (can repeat)",
+    )
+    results_parser.add_argument(
+        "--year",
+        dest="year_filter",
+        help="Filter to years (comma-separated, e.g. 2030,2040)",
+    )
+    results_parser.add_argument(
+        "--limit",
+        type=int,
+        default=20,
+        help="Max rows per table (default: 20)",
+    )
+    results_parser.add_argument(
+        "--flows",
+        action="store_true",
+        help="Include VAR_FLO (commodity flows)",
+    )
+    results_parser.add_argument(
+        "--save",
+        type=Path,
+        help="Save results to file/directory (JSON or CSV)",
+    )
+    results_parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="json_output",
+        help="Output as JSON",
+    )
+    results_parser.add_argument(
+        "--quiet",
+        action="store_true",
+        help="Suppress console output (use with --save)",
+    )
+
     args = parser.parse_args()
 
     if args.command == "pipeline":
@@ -217,11 +272,32 @@ def main():
         run_run_times_command(args)
     elif args.command == "pattern":
         run_pattern_command(args)
+    elif args.command == "times-results":
+        run_times_results_command(args)
 
 
 def run_pipeline_command(args):
     """Run the pipeline command."""
     from .pipeline import format_result_table, run_pipeline
+    from .times_results import extract_results, format_results_console
+
+    # Handle --process-results-only mode
+    if args.process_results_only:
+        work_dir = args.work_dir or Path("tmp")
+        gdx_path = work_dir / "gams" / f"{args.case}.gdx"
+
+        if not gdx_path.exists():
+            print(f"Error: GDX file not found: {gdx_path}", file=sys.stderr)
+            sys.exit(2)
+
+        results = extract_results(gdx_path=gdx_path)
+
+        if args.json_output:
+            print(json.dumps(results.to_dict(), indent=2))
+        else:
+            print(format_results_console(results))
+
+        sys.exit(0 if not results.errors else 2)
 
     if not args.input.exists():
         print(f"Error: Input not found: {args.input}", file=sys.stderr)
@@ -382,6 +458,45 @@ def run_pattern_command(args):
     else:
         print("Usage: vedalang-dev pattern {list|show} ...")
         sys.exit(1)
+
+
+def run_times_results_command(args):
+    """Run times-results command."""
+    from .times_results import (
+        extract_results,
+        format_results_console,
+        save_results,
+    )
+
+    year_filter = None
+    if args.year_filter:
+        year_filter = [y.strip() for y in args.year_filter.split(",")]
+
+    results = extract_results(
+        gdx_path=args.gdx,
+        process_filter=args.process_filter,
+        year_filter=year_filter,
+        include_flows=args.flows,
+        limit=args.limit,
+    )
+
+    if results.errors:
+        for err in results.errors:
+            print(f"Error: {err}", file=sys.stderr)
+        sys.exit(2)
+
+    if args.save:
+        created = save_results(results, args.save)
+        if not args.quiet:
+            print(f"Saved results to: {', '.join(str(p) for p in created)}")
+
+    if not args.quiet:
+        if args.json_output:
+            print(json.dumps(results.to_dict(), indent=2))
+        else:
+            print(format_results_console(results, limit=args.limit))
+
+    sys.exit(0)
 
 
 if __name__ == "__main__":

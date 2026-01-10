@@ -1152,6 +1152,59 @@ def process_time_periods(
     if start_year is None:
         return tables
 
+    model.start_year = start_year
+
+    # Check for explicit ~MILESTONEYEARS table first (alternative to ~TIMEPERIODS)
+    # Format: 'type' column with "Endyear"/"milestoneyear" + year value column
+    milestoneyears_table = utils.require_table(
+        tables, Tag.milestoneyears, feature="milestone years", emit_diagnostic=False
+    )
+    if milestoneyears_table is not None:
+        df = milestoneyears_table.dataframe
+        # Find year column (could be 'year' or a named column like 'msy_2060_23p')
+        year_col = None
+        for col in df.columns:
+            if col.lower() not in ("type",):
+                year_col = col
+                break
+
+        if year_col is not None:
+            # Filter to milestoneyear rows (exclude Endyear which is just horizon end)
+            if "type" in df.columns:
+                milestone_df = df[df["type"].str.lower() == "milestoneyear"]
+                years = sorted(milestone_df[year_col].dropna().astype(int).tolist())
+                # Get end year if specified
+                endyear_df = df[df["type"].str.lower() == "endyear"]
+                end_year = None
+                if not endyear_df.empty:
+                    end_year = int(endyear_df[year_col].iloc[0])
+            else:
+                # Simple format: just year values
+                years = sorted(df[year_col].dropna().astype(int).tolist())
+                end_year = None
+
+            if years:
+                # Build time_periods from explicit milestone years
+                periods = []
+                for i, year in enumerate(years):
+                    if i < len(years) - 1:
+                        duration = years[i + 1] - year
+                    elif end_year is not None:
+                        duration = end_year - year
+                    else:
+                        # Last period: default to same as previous or 10
+                        duration = periods[-1]["d"] if periods else 10
+                    periods.append({
+                        "d": duration,
+                        "b": year,
+                        "e": year + duration - 1,
+                        "m": year,  # Use explicit year as milestone (not midpoint)
+                        "year": year,
+                    })
+                model.time_periods = pd.DataFrame(periods).astype(int)
+                return tables
+
+    # Fall back to ~TIMEPERIODS with computed midpoints
     active_pdef = utils.require_scalar(
         Tag.active_p_def, tables, feature="time period processing"
     )
@@ -1164,7 +1217,6 @@ def process_time_periods(
     if time_periods_table is None:
         return tables
 
-    model.start_year = start_year
     df = time_periods_table.dataframe
 
     active_series = df[active_pdef.lower()]
@@ -3101,7 +3153,14 @@ def apply_transform_tables(
         ):
             table = tables[Tag.fi_t]
             index = tables[Tag.tfm_dins]["module_name"] == data_module
-            updates = tables[Tag.tfm_dins][index].filter(table.columns, axis=1)
+            dins_data = tables[Tag.tfm_dins][index]
+
+            # Preserve commodity column for commodity-level attributes (COM_PROJ)
+            if "commodity" in dins_data.columns and "commodity" not in table.columns:
+                table["commodity"] = pd.NA
+                tables[Tag.fi_t] = table
+
+            updates = dins_data.filter(table.columns, axis=1)
             generated_records.append(updates)
         if (
             Tag.tfm_ins in tables

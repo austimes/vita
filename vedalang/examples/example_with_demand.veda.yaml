@@ -4,8 +4,7 @@
 model:
   name: DemandExample
   regions: [REG1]
-  start_year: 2020
-  time_periods: [10, 10, 10, 10]
+  milestone_years: [2020, 2030, 2040, 2050, 2060]
 
   commodities:
     - name: ELC

@@ -32,11 +32,11 @@ output: ELC
 **Complexity**: Low - schema oneOf, compiler normalization
 **Status**: IMPLEMENTING
 
-#### 3. ✅ Default `start_year` and `time_periods`
+#### 3. ✅ Default `milestone_years`
 **Friction**: Must specify even for simple models.
-**Proposal**: Default `start_year: 2020`, `time_periods: [10, 10, 10]` if not specified.
+**Proposal**: Default `milestone_years: [2020]` if not specified.
 **Complexity**: Very low - already defaulted in compiler
-**Status**: Already implemented in compiler, but schema should document this.
+**Status**: Implemented. Uses explicit `milestone_years` list (e.g., `[2020, 2030, 2040, 2050]`) instead of `start_year` + `time_periods` for clarity.
 
 #### 4. ✅ Commodity `unit` Optional with Sensible Defaults
 **Friction**: Every commodity needs explicit unit.

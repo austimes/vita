@@ -6,7 +6,7 @@ from pathlib import Path
 
 EXAMPLES_DIR = Path(__file__).parent.parent / "vedalang" / "examples"
 MINI_PLANT = EXAMPLES_DIR / "mini_plant.veda.yaml"
-MINISYSTEM = EXAMPLES_DIR / "minisystem.veda.yaml"
+MINISYSTEM = EXAMPLES_DIR / "minisystem8.veda.yaml"
 
 
 def run_vedalang(*args: str) -> subprocess.CompletedProcess:

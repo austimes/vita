@@ -18,8 +18,7 @@ class TestH001_FixedNewCapShortLife:
         """Should warn when ncap_bound.fx is set with life < horizon."""
         model = {
             "model": {
-                "start_year": 2020,
-                "time_periods": [10, 10, 10],  # 30 year horizon
+                "milestone_years": [2020, 2030, 2040, 2050],  # 30 year horizon
                 "commodities": [
                     {"name": "ELC", "type": "energy"},
                 ],
@@ -48,8 +47,7 @@ class TestH001_FixedNewCapShortLife:
         """Should not warn when lifetime covers the horizon."""
         model = {
             "model": {
-                "start_year": 2020,
-                "time_periods": [10, 10, 10],
+                "milestone_years": [2020, 2030, 2040, 2050],
                 "commodities": [],
                 "processes": [
                     {
@@ -73,8 +71,7 @@ class TestH001_FixedNewCapShortLife:
         """Should escalate to error when connected to growing demand."""
         model = {
             "model": {
-                "start_year": 2020,
-                "time_periods": [10, 10, 10],
+                "milestone_years": [2020, 2030, 2040, 2050],
                 "commodities": [
                     {"name": "ELC", "type": "energy"},
                     {"name": "RSD", "type": "demand"},
@@ -196,8 +193,7 @@ class TestH003_BaseYearCapacityAdequacy:
         """Should warn when base year capacity is inadequate."""
         model = {
             "model": {
-                "start_year": 2020,
-                "time_periods": [10, 10, 10],
+                "milestone_years": [2020, 2030, 2040, 2050],
                 "commodities": [
                     {"name": "ELC", "type": "energy"},
                     {"name": "RSD", "type": "demand"},
@@ -238,8 +234,7 @@ class TestH003_BaseYearCapacityAdequacy:
         """Should not warn when capacity is sufficient."""
         model = {
             "model": {
-                "start_year": 2020,
-                "time_periods": [10, 10, 10],
+                "milestone_years": [2020, 2030, 2040, 2050],
                 "commodities": [
                     {"name": "ELC", "type": "energy"},
                     {"name": "RSD", "type": "demand"},
@@ -282,8 +277,7 @@ class TestH004_StockCoversAllDemand:
         """Should warn when existing stock can meet all projected demand."""
         model = {
             "model": {
-                "start_year": 2020,
-                "time_periods": [10, 10, 10],
+                "milestone_years": [2020, 2030, 2040, 2050],
                 "commodities": [
                     {"name": "ELC", "type": "energy"},
                     {"name": "RSD", "type": "demand"},
@@ -327,8 +321,7 @@ class TestH004_StockCoversAllDemand:
         """Should not warn when demand exceeds available stock capacity."""
         model = {
             "model": {
-                "start_year": 2020,
-                "time_periods": [10, 10, 10],
+                "milestone_years": [2020, 2030, 2040, 2050],
                 "commodities": [
                     {"name": "ELC", "type": "energy"},
                     {"name": "RSD", "type": "demand"},
@@ -368,8 +361,7 @@ class TestH004_StockCoversAllDemand:
         """Should not warn when processes have no stock (greenfield model)."""
         model = {
             "model": {
-                "start_year": 2020,
-                "time_periods": [10, 10, 10],
+                "milestone_years": [2020, 2030, 2040, 2050],
                 "commodities": [
                     {"name": "ELC", "type": "energy"},
                     {"name": "RSD", "type": "demand"},
@@ -408,8 +400,7 @@ class TestH004_StockCoversAllDemand:
         """Should not warn when there are no demand projections."""
         model = {
             "model": {
-                "start_year": 2020,
-                "time_periods": [10, 10, 10],
+                "milestone_years": [2020, 2030, 2040, 2050],
                 "commodities": [
                     {"name": "ELC", "type": "energy"},
                 ],
@@ -438,8 +429,7 @@ class TestRunHeuristics:
         """Should run all registered rules."""
         model = {
             "model": {
-                "start_year": 2020,
-                "time_periods": [10, 10, 10],
+                "milestone_years": [2020, 2030, 2040, 2050],
                 "commodities": [
                     {"name": "ELC", "type": "energy"},
                     {"name": "RSD", "type": "demand"},

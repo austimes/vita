@@ -66,16 +66,20 @@ class H001_FixedNewCapShortLife(HeuristicRule):
     def apply(self, model: dict) -> list[LintIssue]:
         issues = []
 
-        # Calculate horizon length
+        # Calculate horizon length from milestone_years
         model_data = model.get("model", {})
-        start_year = model_data.get("start_year", 2020)
-        time_periods = model_data.get("time_periods", [])
-        if isinstance(time_periods, list):
-            horizon_years = sum(time_periods)
+        milestone_years = model_data.get("milestone_years", [2020])
+        if isinstance(milestone_years, list) and len(milestone_years) >= 1:
+            start_year = milestone_years[0]
+            if len(milestone_years) > 1:
+                horizon_end = milestone_years[-1]
+            else:
+                horizon_end = start_year
+            horizon_years = horizon_end - start_year
         else:
+            start_year = 2020
             horizon_years = 30  # Default assumption
-
-        horizon_end = start_year + horizon_years
+            horizon_end = start_year + horizon_years
 
         # Check for demand growth (escalates severity if present)
         has_demand_growth = self._has_demand_growth(model_data)
@@ -500,7 +504,8 @@ class H003_BaseYearCapacityAdequacy(HeuristicRule):
     def apply(self, model: dict) -> list[LintIssue]:
         issues = []
         model_data = model.get("model", {})
-        start_year = model_data.get("start_year", 2020)
+        milestone_years = model_data.get("milestone_years", [2020])
+        start_year = milestone_years[0] if milestone_years else 2020
 
         # Build commodity type map
         commodity_types = {}

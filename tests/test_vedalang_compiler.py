@@ -102,10 +102,10 @@ def test_process_cost_attributes():
                     "inputs": [{"commodity": "NG"}],
                     "outputs": [{"commodity": "ELC"}],
                     "efficiency": 0.55,
-                    "invcost": 800,
-                    "fixom": 20,
-                    "varom": 2,
-                    "life": 30,
+                    "investment_cost": 800,
+                    "fixed_om_cost": 20,
+                    "variable_om_cost": 2,
+                    "lifetime": 30,
                 },
                 {
                     "name": "IMP_NG",
@@ -113,7 +113,7 @@ def test_process_cost_attributes():
                     "primary_commodity_group": "NRGO",
                     "outputs": [{"commodity": "NG"}],
                     "efficiency": 1.0,
-                    "cost": 5.0,
+                    "import_price": 5.0,
                 },
             ],
         }
@@ -129,27 +129,23 @@ def test_process_cost_attributes():
                     fit_rows.extend(t["rows"])
 
     # Find the cost row for PP_CCGT (has eff, ncap_cost, ncap_fom, act_cost, ncap_tlife)
-    # Note: VedaLang emits CANONICAL column names, not aliases
     ccgt_cost_rows = [
         r for r in fit_rows if r.get("process") == "PP_CCGT" and "eff" in r
     ]
     assert len(ccgt_cost_rows) == 1
     ccgt_row = ccgt_cost_rows[0]
     assert ccgt_row["eff"] == 0.55
-    assert ccgt_row["ncap_cost"] == 800  # canonical for invcost
-    assert ccgt_row["ncap_fom"] == 20  # canonical for fixom
-    assert ccgt_row["act_cost"] == 2  # canonical for varom
-    assert ccgt_row["ncap_tlife"] == 30  # canonical for life
+    assert ccgt_row["ncap_cost"] == 800
+    assert ccgt_row["ncap_fom"] == 20
+    assert ccgt_row["act_cost"] == 2
+    assert ccgt_row["ncap_tlife"] == 30
 
     # Find the cost row for IMP_NG
-    # VedaLang emits canonical 'ire_price' column (not alias 'cost')
-    # xl2times now handles both canonical and alias names correctly
     imp_cost_rows = [
         r for r in fit_rows if r.get("process") == "IMP_NG" and "ire_price" in r
     ]
     assert len(imp_cost_rows) == 1
     assert imp_cost_rows[0]["ire_price"] == 5.0
-    # eff is merged with ire_price row when efficiency is present
     assert imp_cost_rows[0]["eff"] == 1.0
 
 
@@ -166,8 +162,7 @@ def test_demand_projection_scenario():
         "model": {
             "name": "DemandTest",
             "regions": ["REG1"],
-            "start_year": 2020,
-            "time_periods": [10, 10, 10, 10],
+            "milestone_years": [2020, 2030, 2040, 2050],
             "commodities": [
                 {"name": "ELC", "type": "energy"},
                 {"name": "RSD", "type": "demand"},
@@ -931,8 +926,7 @@ def test_emission_cap_constraint():
         "model": {
             "name": "EmissionCapTest",
             "regions": ["REG1"],
-            "start_year": 2020,
-            "time_periods": [10, 10],
+            "milestone_years": [2020, 2030, 2040],
             "commodities": [
                 {"name": "CO2", "type": "emission"},
                 {"name": "ELC", "type": "energy"},
@@ -961,13 +955,13 @@ def test_emission_cap_constraint():
                 if t["tag"] == "~UC_T":
                     uc_rows.extend(t["rows"])
 
-    # Should have rows for 2 years (2020, 2030)
+    # Should have rows for 3 years (2020, 2030, 2040)
     # Each year: 1 uc_comprd row + 1 uc_rhsrt row = 2 rows
-    assert len(uc_rows) == 4
+    assert len(uc_rows) == 6
 
     # Check uc_comprd rows (VedaOnline format: attribute as column header)
     comprd_rows = [r for r in uc_rows if "uc_comprd" in r]
-    assert len(comprd_rows) == 2
+    assert len(comprd_rows) == 3
     for row in comprd_rows:
         assert row["uc_n"] == "CO2_CAP"
         assert row["commodity"] == "CO2"
@@ -976,7 +970,7 @@ def test_emission_cap_constraint():
 
     # Check uc_rhsrt rows (VedaOnline format: attribute as column header)
     rhs_rows = [r for r in uc_rows if "uc_rhsrt" in r]
-    assert len(rhs_rows) == 2
+    assert len(rhs_rows) == 3
     for row in rhs_rows:
         assert row["uc_n"] == "CO2_CAP"
         assert row["limtype"] == "UP"
@@ -989,8 +983,7 @@ def test_emission_cap_with_year_trajectory():
         "model": {
             "name": "EmissionCapTrajectoryTest",
             "regions": ["REG1"],
-            "start_year": 2020,
-            "time_periods": [10, 10, 10],
+            "milestone_years": [2020, 2030, 2040, 2050],
             "commodities": [
                 {"name": "CO2", "type": "emission"},
             ],
@@ -1037,8 +1030,7 @@ def test_activity_share_minimum():
         "model": {
             "name": "ActivityShareTest",
             "regions": ["REG1"],
-            "start_year": 2020,
-            "time_periods": [10],
+            "milestone_years": [2020, 2030],
             "commodities": [
                 {"name": "ELC", "type": "energy"},
             ],
@@ -1073,31 +1065,34 @@ def test_activity_share_minimum():
                 if t["tag"] == "~UC_T":
                     uc_rows.extend(t["rows"])
 
-    # Should have rows for 1 year (2020):
-    # 2 uc_act (PP_WIND, PP_SOLAR) + 1 uc_comprd + 1 uc_rhsrt = 4 rows
-    assert len(uc_rows) == 4
+    # Should have rows for 2 years (2020, 2030):
+    # Each year: 2 uc_act (PP_WIND, PP_SOLAR) + 1 uc_comprd + 1 uc_rhsrt = 4 rows
+    # Total: 8 rows
+    assert len(uc_rows) == 8
 
     # Check uc_act rows (VedaOnline format: coefficient = 1 for target processes)
     act_rows = [r for r in uc_rows if "uc_act" in r]
-    assert len(act_rows) == 2
+    assert len(act_rows) == 4  # 2 processes × 2 years
     processes = {r["process"] for r in act_rows}
     assert processes == {"PP_WIND", "PP_SOLAR"}
     for row in act_rows:
         assert row["uc_act"] == 1
         assert row["side"] == "LHS"
 
-    # Check uc_comprd row (VedaOnline format: coefficient = -share)
+    # Check uc_comprd rows (VedaOnline format: coefficient = -share)
     comprd_rows = [r for r in uc_rows if "uc_comprd" in r]
-    assert len(comprd_rows) == 1
-    assert comprd_rows[0]["commodity"] == "ELC"
-    assert comprd_rows[0]["uc_comprd"] == -0.30
-    assert comprd_rows[0]["side"] == "LHS"
+    assert len(comprd_rows) == 2  # 1 per year
+    for row in comprd_rows:
+        assert row["commodity"] == "ELC"
+        assert row["uc_comprd"] == -0.30
+        assert row["side"] == "LHS"
 
-    # Check uc_rhsrt row (VedaOnline format: RHS = 0, limtype = LO)
+    # Check uc_rhsrt rows (VedaOnline format: RHS = 0, limtype = LO)
     rhs_rows = [r for r in uc_rows if "uc_rhsrt" in r]
-    assert len(rhs_rows) == 1
-    assert rhs_rows[0]["uc_rhsrt"] == 0
-    assert rhs_rows[0]["limtype"] == "LO"
+    assert len(rhs_rows) == 2  # 1 per year
+    for row in rhs_rows:
+        assert row["uc_rhsrt"] == 0
+        assert row["limtype"] == "LO"
 
 
 def test_activity_share_maximum():
@@ -1106,8 +1101,7 @@ def test_activity_share_maximum():
         "model": {
             "name": "ActivityShareMaxTest",
             "regions": ["REG1"],
-            "start_year": 2020,
-            "time_periods": [10],
+            "milestone_years": [2020, 2030],
             "commodities": [{"name": "ELC", "type": "energy"}],
             "processes": [
                 {"name": "PP_COAL", "sets": ["ELE"], "primary_commodity_group": "NRGO", "efficiency": 0.40},
@@ -1134,14 +1128,16 @@ def test_activity_share_maximum():
                 if t["tag"] == "~UC_T":
                     uc_rows.extend(t["rows"])
 
-    # Check uc_rhsrt has limtype = UP (VedaOnline format)
+    # Check uc_rhsrt has limtype = UP (VedaOnline format) - 2 years
     rhs_rows = [r for r in uc_rows if "uc_rhsrt" in r]
-    assert len(rhs_rows) == 1
-    assert rhs_rows[0]["limtype"] == "UP"
+    assert len(rhs_rows) == 2
+    for row in rhs_rows:
+        assert row["limtype"] == "UP"
 
     # Check uc_comprd has -0.20 (VedaOnline format)
     comprd_rows = [r for r in uc_rows if "uc_comprd" in r]
-    assert comprd_rows[0]["uc_comprd"] == -0.20
+    for row in comprd_rows:
+        assert row["uc_comprd"] == -0.20
 
 
 def test_activity_share_both_min_max():
@@ -1150,8 +1146,7 @@ def test_activity_share_both_min_max():
         "model": {
             "name": "ActivityShareBothTest",
             "regions": ["REG1"],
-            "start_year": 2020,
-            "time_periods": [10],
+            "milestone_years": [2020, 2030],
             "commodities": [{"name": "ELC", "type": "energy"}],
             "processes": [
                 {"name": "PP_WIND", "sets": ["ELE"], "primary_commodity_group": "NRGO", "efficiency": 1.0},
@@ -1182,37 +1177,41 @@ def test_activity_share_both_min_max():
     uc_names = {r["uc_n"] for r in uc_rows}
     assert uc_names == {"WIND_BAND_LO", "WIND_BAND_UP"}
 
-    # Check LO constraint (VedaOnline format)
+    # Check LO constraint (VedaOnline format) - 2 years
     lo_rhs = [
         r
         for r in uc_rows
         if r["uc_n"] == "WIND_BAND_LO" and "uc_rhsrt" in r
     ]
-    assert len(lo_rhs) == 1
-    assert lo_rhs[0]["limtype"] == "LO"
+    assert len(lo_rhs) == 2  # 1 per year
+    for row in lo_rhs:
+        assert row["limtype"] == "LO"
 
     lo_comprd = [
         r
         for r in uc_rows
         if r["uc_n"] == "WIND_BAND_LO" and "uc_comprd" in r
     ]
-    assert lo_comprd[0]["uc_comprd"] == -0.20
+    for row in lo_comprd:
+        assert row["uc_comprd"] == -0.20
 
-    # Check UP constraint (VedaOnline format)
+    # Check UP constraint (VedaOnline format) - 2 years
     up_rhs = [
         r
         for r in uc_rows
         if r["uc_n"] == "WIND_BAND_UP" and "uc_rhsrt" in r
     ]
-    assert len(up_rhs) == 1
-    assert up_rhs[0]["limtype"] == "UP"
+    assert len(up_rhs) == 2  # 1 per year
+    for row in up_rhs:
+        assert row["limtype"] == "UP"
 
     up_comprd = [
         r
         for r in uc_rows
         if r["uc_n"] == "WIND_BAND_UP" and "uc_comprd" in r
     ]
-    assert up_comprd[0]["uc_comprd"] == -0.40
+    for row in up_comprd:
+        assert row["uc_comprd"] == -0.40
 
 
 def test_constraint_file_path():
@@ -1844,8 +1843,8 @@ def test_all_examples_pass_semantic_validation():
 # =============================================================================
 
 
-def test_time_varying_invcost():
-    """Time-varying invcost should emit year-indexed rows with canonical column name."""
+def test_time_varying_investment_cost():
+    """Time-varying investment_cost should emit year-indexed rows."""
     source = {
         "model": {
             "name": "TimeVaryTest",
@@ -1858,7 +1857,7 @@ def test_time_varying_invcost():
                     "primary_commodity_group": "NRGO",
                     "outputs": [{"commodity": "ELC"}],
                     "efficiency": 1.0,
-                    "invcost": {"values": {"2020": 1000, "2030": 600, "2050": 300}},
+                    "investment_cost": {"values": {"2020": 1000, "2030": 600, "2050": 300}},
                 }
             ],
         }
@@ -1875,7 +1874,7 @@ def test_time_varying_invcost():
                         r for r in t["rows"] if r.get("process") == "SolarPV"
                     )
 
-    # Should have rows with year column for ncap_cost (canonical for invcost)
+    # Should have rows with year column for ncap_cost
     ncap_cost_rows = [r for r in fit_rows if "ncap_cost" in r and "year" in r]
     assert len(ncap_cost_rows) == 4  # year=0 (interp) + 3 data years
 
@@ -1949,9 +1948,9 @@ def test_time_varying_mixed_with_scalar():
                     "primary_commodity_group": "NRGO",
                     "outputs": [{"commodity": "ELC"}],
                     "efficiency": 1.0,
-                    "invcost": {"values": {"2020": 1500, "2030": 1000}},
-                    "life": 25,  # Scalar
-                    "fixom": 30,  # Scalar
+                    "investment_cost": {"values": {"2020": 1500, "2030": 1000}},
+                    "lifetime": 25,  # Scalar
+                    "fixed_om_cost": 30,  # Scalar
                 }
             ],
         }
@@ -1965,12 +1964,11 @@ def test_time_varying_mixed_with_scalar():
                 if t["tag"] == "~FI_T":
                     fit_rows.extend(r for r in t["rows"] if r.get("process") == "Wind")
 
-    # Should have year-indexed ncap_cost rows (canonical for invcost)
+    # Should have year-indexed ncap_cost rows
     ncap_cost_rows = [r for r in fit_rows if "ncap_cost" in r and "year" in r]
     assert len(ncap_cost_rows) == 3  # year=0 + 2 data years
 
     # Should have a row with scalar ncap_tlife and ncap_fom (merged)
-    # Using canonical names: life->ncap_tlife, fixom->ncap_fom
     scalar_rows = [r for r in fit_rows if "ncap_tlife" in r or "ncap_fom" in r]
     assert len(scalar_rows) >= 1
     # At least one row should have both
@@ -1994,7 +1992,7 @@ def test_time_varying_no_interpolation():
                     "primary_commodity_group": "NRGO",
                     "outputs": [{"commodity": "ELC"}],
                     "efficiency": 0.40,
-                    "invcost": {
+                    "investment_cost": {
                         "values": {"2020": 2000, "2030": 2100},
                         "interpolation": "none",
                     },
@@ -2358,8 +2356,7 @@ def test_prc_capact_emitted_for_gw_pj_units():
         "model": {
             "name": "Cap2ActTest",
             "regions": ["R1"],
-            "start_year": 2020,
-            "time_periods": [10],
+            "milestone_years": [2020, 2030],
             "commodities": [
                 {"name": "ELC", "type": "energy", "unit": "PJ"},
             ],
@@ -2399,69 +2396,6 @@ def test_prc_capact_emitted_for_gw_pj_units():
     assert eff_row["prc_capact"] == 31.536, (
         f"PRC_CAPACT should be 31.536, got {eff_row.get('prc_capact')}"
     )
-
-
-def test_cost_attribute_context_aware():
-    """DEPRECATED 'cost' attribute should map based on process type.
-
-    For IMP/EXP/IRE processes: cost → ire_price (import/export price)
-    For other processes (ELE, DMD, etc.): cost → act_cost (variable operating cost)
-
-    Note: The 'cost' attribute is DEPRECATED. Use 'variable_om_cost' for activity
-    costs and 'import_price' for IMP/EXP processes.
-    """
-    source = {
-        "model": {
-            "name": "CostContextTest",
-            "regions": ["REG1"],
-            "commodities": [
-                {"name": "NG", "type": "energy"},
-                {"name": "ELC", "type": "energy"},
-            ],
-            "processes": [
-                {
-                    "name": "IMP_NG",
-                    "sets": ["IMP"],
-                    "primary_commodity_group": "NRGO",
-                    "outputs": [{"commodity": "NG"}],
-                    "efficiency": 1.0,
-                    "cost": 5.0,  # Should become ire_price
-                },
-                {
-                    "name": "PP_SIMPLE",
-                    "sets": ["ELE"],
-                    "primary_commodity_group": "NRGO",
-                    "inputs": [{"commodity": "NG"}],
-                    "outputs": [{"commodity": "ELC"}],
-                    "efficiency": 0.5,
-                    "cost": 10.0,  # Should become act_cost
-                },
-            ],
-        }
-    }
-    tableir = compile_vedalang_to_tableir(source)
-
-    # Find ~FI_T table
-    fit_rows = []
-    for f in tableir["files"]:
-        for s in f["sheets"]:
-            for t in s["tables"]:
-                if t["tag"] == "~FI_T":
-                    fit_rows.extend(t["rows"])
-
-    # IMP_NG should have ire_price (not act_cost)
-    imp_rows = [r for r in fit_rows if r.get("process") == "IMP_NG" and "eff" in r]
-    assert len(imp_rows) == 1
-    assert "ire_price" in imp_rows[0], "IMP process should use ire_price"
-    assert imp_rows[0]["ire_price"] == 5.0
-    assert "act_cost" not in imp_rows[0], "IMP process should NOT have act_cost"
-
-    # PP_SIMPLE should have act_cost (not ire_price)
-    pp_rows = [r for r in fit_rows if r.get("process") == "PP_SIMPLE" and "eff" in r]
-    assert len(pp_rows) == 1
-    assert "act_cost" in pp_rows[0], "ELE process should use act_cost"
-    assert pp_rows[0]["act_cost"] == 10.0
-    assert "ire_price" not in pp_rows[0], "ELE process should NOT have ire_price"
 
 
 def test_explicit_cost_attribute_names():
@@ -2531,42 +2465,138 @@ def test_explicit_cost_attribute_names():
     assert ccgt["ncap_tlife"] == 30      # lifetime
 
 
-def test_explicit_names_take_precedence_over_legacy():
-    """Explicit names should take precedence if both specified."""
+def test_existing_capacity_emits_ncap_pasti():
+    """existing_capacity should emit NCAP_PASTI rows in ~TFM_INS table.
+    
+    Unlike 'stock' (PRC_RESID) which decays linearly, existing_capacity uses
+    NCAP_PASTI with vintage years for proper economic life tracking.
+    """
     source = {
         "model": {
-            "name": "PrecedenceTest",
+            "name": "PastiTest",
             "regions": ["REG1"],
+            "milestone_years": [2020, 2030, 2040],
             "commodities": [
-                {"name": "ELC", "type": "energy"},
+                {"name": "ELC", "type": "energy", "unit": "PJ"},
+                {"name": "DEMAND", "type": "demand", "unit": "PJ"},
             ],
             "processes": [
                 {
-                    "name": "PP_TEST",
+                    "name": "PP_LEGACY",
+                    "description": "Legacy power plant with known vintage",
                     "sets": ["ELE"],
                     "primary_commodity_group": "NRGO",
-                    "outputs": [{"commodity": "ELC"}],
-                    "efficiency": 1.0,
-                    "investment_cost": 1000,  # Explicit (should win)
-                    "invcost": 500,           # Legacy (should be ignored)
-                    "variable_om_cost": 10,   # Explicit (should win)
-                    "varom": 5,               # Legacy (should be ignored)
+                    "output": "ELC",
+                    "efficiency": 0.4,
+                    "lifetime": 40,
+                    "existing_capacity": [
+                        {"vintage": 2010, "capacity": 5.0},
+                        {"vintage": 2015, "capacity": 3.0},
+                    ],
+                },
+            ],
+            "scenario_parameters": [
+                {
+                    "name": "Demand",
+                    "type": "demand_projection",
+                    "commodity": "DEMAND",
+                    "interpolation": "interp_extrap",
+                    "values": {"2020": 10},
                 },
             ],
         }
     }
+    
     tableir = compile_vedalang_to_tableir(source)
+    
+    # Find ~TFM_INS tables with NCAP_PASTI attribute
+    pasti_rows = []
+    for f in tableir["files"]:
+        for s in f["sheets"]:
+            for t in s["tables"]:
+                if t["tag"] == "~TFM_INS":
+                    for row in t["rows"]:
+                        if row.get("attribute") == "NCAP_PASTI":
+                            pasti_rows.append(row)
+    
+    # Should have 2 NCAP_PASTI rows (one per vintage)
+    assert len(pasti_rows) == 2
+    
+    # Verify vintage years and capacities
+    pasti_by_year = {r["year"]: r for r in pasti_rows}
+    assert 2010 in pasti_by_year
+    assert 2015 in pasti_by_year
+    assert pasti_by_year[2010]["value"] == 5.0
+    assert pasti_by_year[2015]["value"] == 3.0
+    assert pasti_by_year[2010]["process"] == "PP_LEGACY"
 
-    # Find ~FI_T table
+
+def test_existing_capacity_vs_stock():
+    """existing_capacity and stock can coexist but emit different attributes.
+    
+    - stock → PRC_RESID (in ~FI_T, linear decay)
+    - existing_capacity → NCAP_PASTI (in ~TFM_INS, vintage-tracked)
+    """
+    source = {
+        "model": {
+            "name": "MixedCapTest",
+            "regions": ["REG1"],
+            "milestone_years": [2020, 2030],
+            "commodities": [
+                {"name": "ELC", "type": "energy", "unit": "PJ"},
+                {"name": "DEMAND", "type": "demand", "unit": "PJ"},
+            ],
+            "processes": [
+                {
+                    "name": "PP_MIXED",
+                    "description": "Process with both stock and existing_capacity",
+                    "sets": ["ELE"],
+                    "primary_commodity_group": "NRGO",
+                    "output": "ELC",
+                    "efficiency": 0.5,
+                    "stock": 10.0,  # Aggregate residual
+                    "existing_capacity": [
+                        {"vintage": 2015, "capacity": 2.0},  # Specific vintage
+                    ],
+                },
+            ],
+            "scenario_parameters": [
+                {
+                    "name": "Demand",
+                    "type": "demand_projection",
+                    "commodity": "DEMAND",
+                    "interpolation": "interp_extrap",
+                    "values": {"2020": 5},
+                },
+            ],
+        }
+    }
+    
+    tableir = compile_vedalang_to_tableir(source)
+    
+    # Find PRC_RESID (stock) in ~FI_T
     fit_rows = []
     for f in tableir["files"]:
         for s in f["sheets"]:
             for t in s["tables"]:
                 if t["tag"] == "~FI_T":
                     fit_rows.extend(t["rows"])
+    
+    resid_rows = [r for r in fit_rows if "prc_resid" in r]
+    assert len(resid_rows) >= 1
+    assert resid_rows[0]["prc_resid"] == 10.0
+    
+    # Find NCAP_PASTI in ~TFM_INS
+    pasti_rows = []
+    for f in tableir["files"]:
+        for s in f["sheets"]:
+            for t in s["tables"]:
+                if t["tag"] == "~TFM_INS":
+                    for row in t["rows"]:
+                        if row.get("attribute") == "NCAP_PASTI":
+                            pasti_rows.append(row)
+    
+    assert len(pasti_rows) == 1
+    assert pasti_rows[0]["value"] == 2.0
+    assert pasti_rows[0]["year"] == 2015
 
-    # PP_TEST should use explicit values, not legacy
-    pp_rows = [r for r in fit_rows if r.get("process") == "PP_TEST" and "eff" in r]
-    assert len(pp_rows) == 1
-    assert pp_rows[0]["ncap_cost"] == 1000  # investment_cost wins over invcost
-    assert pp_rows[0]["act_cost"] == 10     # variable_om_cost wins over varom

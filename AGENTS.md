@@ -65,6 +65,16 @@ uv run ruff check .
 uv run xl2times <args>
 ```
 
+## xl2times (Third-Party Library)
+
+`xl2times` is a **third-party open-source library** that we include in-repo for convenience and visibility. **Do not modify xl2times unless absolutely necessary.**
+
+- We keep the source locally so we can see exactly what it does
+- It serves as the validation oracle — its behavior defines correctness
+- Changes to `xl2times/` require strong justification (e.g., critical bug blocking development)
+- Prefer workarounds in VedaLang tooling over modifying xl2times
+- **All changes MUST be documented in [XL2TIMES_CHANGES.md](XL2TIMES_CHANGES.md)** with date, commit, description, and reason
+
 # VEDA DevTools - Agent Instructions
 
 ## Project Vision
@@ -160,6 +170,25 @@ We are NOT porting legacy models. This is for new model development.
 - Agent discovers these through experimentation
 
 **These are kept separate.** VedaLang is a general-purpose VEDA authoring language; heuristics are the "standard library" of patterns.
+
+## Design Principle: Avoid Implicit TIMES Interpolation
+
+**VedaLang should always emit explicit values for all milestone years.** Never rely on TIMES implicit interpolation.
+
+Rationale:
+- TIMES has 5+ interpolation modes with subtle differences
+- Implicit behavior surprises users (e.g., PRC_RESID linear decay)
+- Explicit values are self-documenting and predictable
+
+When the VedaLang compiler encounters a single value that TIMES would interpolate:
+1. Expand to all milestone years with the same value, OR
+2. Require the user to specify values for each year explicitly
+
+Examples of parameters that TIMES interpolates:
+- `PRC_RESID` — residual capacity (decays linearly over TLIFE by default)
+- `NCAP_COST` — investment costs
+- `ACT_BND`, `CAP_BND` — activity/capacity bounds
+- `COM_PROJ` — demand projections
 
 ## Repository Structure
 
@@ -491,21 +520,31 @@ bd create "H0XX: <descriptive name>" --label heuristics
 - Any change that breaks fixture validation is a bug
 - Run `uv run pytest tests/` after any changes
 
-### Schema Evolution Policy
+### Breaking Changes Policy
 
-See [docs/vedalang-design-agent/schema_evolution.md](docs/vedalang-design-agent/schema_evolution.md) for the full policy.
+VedaLang is a **new project under active development**. We prioritize getting the design right over maintaining backward compatibility.
+
+- **Breaking changes are acceptable** — schema, compiler, APIs may all change
+- **No deprecation cycles required** — remove or rename freely when it improves the design
+- **Focus on correctness** — better to fix a design flaw now than carry it forward
+- **Examples and fixtures are updated in-place** — when schema changes, update all examples
+
+This policy applies until VedaLang reaches a stable 1.0 release.
+
+### Schema Evolution
+
+See [docs/vedalang-design-agent/schema_evolution.md](docs/vedalang-design-agent/schema_evolution.md) for details.
 
 **Quick rules:**
-- **Add** optional fields freely
-- **Never remove** required fields without deprecation
-- **Never narrow** enum values (only add new ones)
-- Run `uv run pytest tests/test_schema_compatibility.py` before schema changes
+- **Add** fields freely (optional or required)
+- **Remove** fields that are wrong or unnecessary
+- **Rename** for clarity when it improves the API
+- Run `uv run pytest tests/` after schema changes
 
-### Pattern Versioning
+### Pattern Library
 
-- Patterns in `rules/patterns.yaml` are versioned
-- New versions rather than mutation: `add_power_plant_v2`
-- Old versions remain for backward compatibility
+- Patterns in `rules/patterns.yaml` document known-good VedaLang idioms
+- Update patterns when schema changes — no versioning needed during development
 
 ### Validation Gates
 

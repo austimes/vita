@@ -24,14 +24,11 @@
           "minItems": 1,
           "description": "List of region codes"
         },
-        "start_year": {
-          "type": "integer",
-          "description": "Model start year (default: 2020)"
-        },
-        "time_periods": {
+        "milestone_years": {
           "type": "array",
-          "items": { "type": "integer", "minimum": 1 },
-          "description": "Period lengths in years (e.g., [10, 10, 10] for three 10-year periods)"
+          "items": { "type": "integer", "minimum": 1900 },
+          "minItems": 1,
+          "description": "List of model milestone years (e.g., [2020, 2030, 2040, 2050]). First year is the model start year."
         },
         "timeslices": {
           "$ref": "#/$defs/timeslices",
@@ -410,41 +407,6 @@
           ],
           "description": "Technical lifetime of new capacity (NCAP_TLIFE). Units: years."
         },
-        "invcost": {
-          "oneOf": [
-            { "type": "number", "minimum": 0 },
-            { "$ref": "#/$defs/time_varying_value" }
-          ],
-          "description": "DEPRECATED: Use 'investment_cost'. Investment cost per unit capacity (NCAP_COST)."
-        },
-        "fixom": {
-          "oneOf": [
-            { "type": "number", "minimum": 0 },
-            { "$ref": "#/$defs/time_varying_value" }
-          ],
-          "description": "DEPRECATED: Use 'fixed_om_cost'. Fixed O&M per unit capacity per year (NCAP_FOM)."
-        },
-        "varom": {
-          "oneOf": [
-            { "type": "number", "minimum": 0 },
-            { "$ref": "#/$defs/time_varying_value" }
-          ],
-          "description": "DEPRECATED: Use 'variable_om_cost'. Variable O&M per unit activity (ACT_COST)."
-        },
-        "life": {
-          "oneOf": [
-            { "type": "number", "minimum": 0 },
-            { "$ref": "#/$defs/time_varying_value" }
-          ],
-          "description": "DEPRECATED: Use 'lifetime'. Technical lifetime in years (NCAP_TLIFE)."
-        },
-        "cost": {
-          "oneOf": [
-            { "type": "number", "minimum": 0 },
-            { "$ref": "#/$defs/time_varying_value" }
-          ],
-          "description": "DEPRECATED: Ambiguous - use 'variable_om_cost' for activity cost or 'import_price' for IMP/EXP processes."
-        },
         "availability_factor": {
           "oneOf": [
             { "type": "number", "minimum": 0, "maximum": 1 },
@@ -469,9 +431,32 @@
             { "type": "number", "minimum": 0 },
             { "$ref": "#/$defs/time_varying_value" }
           ],
-          "description": "Initial/residual capacity (PRC_RESID/STOCK). Pre-existing capacity before model start."
+          "description": "Residual capacity stock (PRC_RESID). For aggregate stock of mixed vintages. TIMES decays linearly over TLIFE. Use 'existing_capacity' for specific vintage facilities."
+        },
+        "existing_capacity": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/past_investment" },
+          "description": "Past capacity investments with vintage years (NCAP_PASTI). For specific facilities built in known years. Preferred over 'stock' for new models - provides proper economic life tracking."
         }
       }
+    },
+    "past_investment": {
+      "type": "object",
+      "description": "A past capacity investment with specific vintage year (NCAP_PASTI)",
+      "required": ["vintage", "capacity"],
+      "properties": {
+        "vintage": {
+          "type": "integer",
+          "minimum": 1900,
+          "description": "Year the capacity was built (pastyear in TIMES). Determines when capacity retires based on lifetime."
+        },
+        "capacity": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Installed capacity amount in capacity_unit (e.g., GW)"
+        }
+      },
+      "additionalProperties": false
     },
     "bound": {
       "type": "object",

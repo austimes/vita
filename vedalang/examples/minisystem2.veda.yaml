@@ -11,8 +11,7 @@ model:
   regions:
     - SINGLE
 
-  start_year: 2020
-  time_periods: [10]
+  milestone_years: [2020, 2030]
 
   commodities:
     - name: NG

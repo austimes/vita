@@ -96,8 +96,7 @@ model:
   
   # Optional sections:
   description: <string>
-  start_year: <int>
-  time_periods: [<int>, ...]
+  milestone_years: [<int>, ...]  # e.g., [2020, 2030, 2040, 2050]
   timeslices: {...}
   scenarios: [...]
   trade_links: [...]

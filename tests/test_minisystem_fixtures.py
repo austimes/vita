@@ -41,7 +41,7 @@ MINISYSTEM_FEATURES = {
         "description": "Investment decisions",
         "commodities": {"NG", "ELC", "RSD"},
         "processes": {"IMP_NG", "PP_CCGT", "DMD_RSD"},
-        "features": ["invcost", "fixom", "varom", "life"],
+        "features": ["investment_cost", "fixed_om_cost", "variable_om_cost", "lifetime"],
     },
     4: {
         "description": "Emissions",

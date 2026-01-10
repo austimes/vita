@@ -7,7 +7,6 @@ This document defines the **canonical mapping** between VedaLang attribute names
 1. **Explicit over implicit**: Each VedaLang attribute maps to exactly one TIMES attribute
 2. **Self-documenting names**: Names describe what the attribute represents
 3. **No context inference**: The attribute name alone determines the TIMES mapping
-4. **Backward compatibility**: Legacy names remain supported but deprecated
 
 ---
 
@@ -20,47 +19,6 @@ This document defines the **canonical mapping** between VedaLang attribute names
 | `variable_om_cost` | ACT_COST | act_cost | $/PJ | Variable cost per unit of activity |
 | `import_price` | IRE_PRICE | ire_price | $/PJ | Price for imported commodity (IMP/EXP only) |
 
-### Legacy Names (Deprecated)
-
-| Legacy Name | Preferred Name | Notes |
-|------------|----------------|-------|
-| `invcost` | `investment_cost` | Alias retained for compatibility |
-| `fixom` | `fixed_om_cost` | Alias retained for compatibility |
-| `varom` | `variable_om_cost` | Alias retained for compatibility |
-| `cost` | *context-dependent* | **Deprecated**: Use explicit names |
-
-### Migration Guide
-
-```yaml
-# OLD (deprecated)
-processes:
-  - name: PP_CCGT
-    invcost: 800
-    fixom: 20
-    varom: 2
-
-# NEW (explicit)
-processes:
-  - name: PP_CCGT
-    investment_cost: 800
-    fixed_om_cost: 20
-    variable_om_cost: 2
-```
-
-For import processes:
-
-```yaml
-# OLD (deprecated, ambiguous)
-processes:
-  - name: IMP_NG
-    cost: 5.0  # What kind of cost?
-
-# NEW (explicit)
-processes:
-  - name: IMP_NG
-    import_price: 5.0  # Clearly an import price
-```
-
 ---
 
 ## Process Capacity/Lifetime Attributes
@@ -70,12 +28,6 @@ processes:
 | `lifetime` | NCAP_TLIFE | ncap_tlife | years | Technical lifetime of new capacity |
 | `stock` | PRC_RESID | prc_resid | GW | Pre-existing (residual) capacity |
 | `availability_factor` | NCAP_AF | ncap_af | fraction | Annual availability/capacity factor |
-
-### Legacy Names (Deprecated)
-
-| Legacy Name | Preferred Name |
-|------------|----------------|
-| `life` | `lifetime` |
 
 ---
 
@@ -184,7 +136,7 @@ processes:
     # Efficiency
     efficiency: 0.55                 # ACT_EFF
     
-    # Costs (explicit names)
+    # Costs
     investment_cost: 800             # NCAP_COST ($/GW)
     fixed_om_cost: 20                # NCAP_FOM ($/GW/yr)
     variable_om_cost: 2              # ACT_COST ($/PJ)
@@ -227,8 +179,7 @@ VedaLang validates attribute usage:
 
 1. **`import_price`** only valid on IMP/EXP/IRE processes
 2. **`investment_cost`**, **`fixed_om_cost`**, **`variable_om_cost`** valid on any process
-3. Deprecated **`cost`** will warn and map based on process type (not recommended)
-4. **`emission_factor`** only valid on emission commodity outputs
+3. **`emission_factor`** only valid on emission commodity outputs
 
 ---
 

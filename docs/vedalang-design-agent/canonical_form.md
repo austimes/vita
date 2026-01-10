@@ -147,7 +147,7 @@ scenarios:
 ### Compiler Side: Expand to Dense
 
 The compiler:
-1. Reads model years from `start_year` + `time_periods`
+1. Reads model years from `milestone_years`
 2. Applies the specified interpolation/extrapolation mode
 3. Emits **one row per model year** with explicit numeric values
 
@@ -226,7 +226,7 @@ For `*-TS` tags:
 ### Compiler (`compiler.py`)
 - [ ] Implement `_expand_series_to_years()` helper
 - [ ] Add `interpolation` field to VedaLang scenario schema
-- [ ] Derive model years from `start_year` + `time_periods`
+- [x] Derive model years from `milestone_years`
 - [ ] Densify all time-series before emission
 
 ### Invariants (`invariants.py`)
