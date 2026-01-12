@@ -260,6 +260,57 @@ def main():
         help="Suppress console output (use with --save)",
     )
 
+    # sankey subcommand
+    sankey_parser = subparsers.add_parser(
+        "sankey",
+        help="Generate Sankey diagram from TIMES results",
+    )
+    sankey_parser.add_argument(
+        "--gdx",
+        type=Path,
+        default=Path("tmp/gams/scenario.gdx"),
+        help="Path to GDX file (default: tmp/gams/scenario.gdx)",
+    )
+    sankey_parser.add_argument(
+        "--year",
+        "-y",
+        help="Year to visualize (default: first available)",
+    )
+    sankey_parser.add_argument(
+        "--region",
+        "-r",
+        help="Region to visualize (default: first available)",
+    )
+    sankey_parser.add_argument(
+        "--min-flow",
+        type=float,
+        default=0.01,
+        help="Minimum flow value to include (default: 0.01)",
+    )
+    sankey_parser.add_argument(
+        "--format",
+        "-f",
+        choices=["html", "json", "mermaid"],
+        default="html",
+        help="Output format (default: html)",
+    )
+    sankey_parser.add_argument(
+        "--output",
+        "-o",
+        type=Path,
+        help="Output file (default: stdout for json/mermaid, sankey.html for html)",
+    )
+    sankey_parser.add_argument(
+        "--list-years",
+        action="store_true",
+        help="List available years and exit",
+    )
+    sankey_parser.add_argument(
+        "--list-regions",
+        action="store_true",
+        help="List available regions and exit",
+    )
+
     args = parser.parse_args()
 
     if args.command == "pipeline":
@@ -274,6 +325,8 @@ def main():
         run_pattern_command(args)
     elif args.command == "times-results":
         run_times_results_command(args)
+    elif args.command == "sankey":
+        run_sankey_command(args)
 
 
 def run_pipeline_command(args):
@@ -495,6 +548,75 @@ def run_times_results_command(args):
             print(json.dumps(results.to_dict(), indent=2))
         else:
             print(format_results_console(results, limit=args.limit))
+
+    sys.exit(0)
+
+
+def run_sankey_command(args):
+    """Run the sankey command."""
+    from .sankey import extract_sankey, get_available_regions, get_available_years
+
+    if not args.gdx.exists():
+        print(f"Error: GDX file not found: {args.gdx}", file=sys.stderr)
+        sys.exit(2)
+
+    # Handle list options
+    if args.list_years:
+        years = get_available_years(args.gdx)
+        if years:
+            print("Available years:", ", ".join(years))
+        else:
+            print("No flow data found in GDX file")
+        sys.exit(0)
+
+    if args.list_regions:
+        regions = get_available_regions(args.gdx)
+        if regions:
+            print("Available regions:", ", ".join(regions))
+        else:
+            print("No flow data found in GDX file")
+        sys.exit(0)
+
+    # Extract Sankey data
+    sankey = extract_sankey(
+        gdx_path=args.gdx,
+        year=args.year,
+        region=args.region,
+        min_flow=args.min_flow,
+    )
+
+    if sankey.errors:
+        for err in sankey.errors:
+            print(f"Error: {err}", file=sys.stderr)
+        sys.exit(2)
+
+    if not sankey.links:
+        print("Warning: No flow data found for specified year/region", file=sys.stderr)
+        sys.exit(1)
+
+    # Generate output
+    if args.format == "json":
+        output = json.dumps(sankey.to_dict(), indent=2)
+        if args.output:
+            args.output.write_text(output)
+            print(f"Saved JSON to: {args.output}")
+        else:
+            print(output)
+
+    elif args.format == "mermaid":
+        output = sankey.to_mermaid()
+        if args.output:
+            args.output.write_text(output)
+            print(f"Saved Mermaid to: {args.output}")
+        else:
+            print(output)
+
+    elif args.format == "html":
+        output = sankey.to_html()
+        output_path = args.output or Path("sankey.html")
+        output_path.write_text(output)
+        print(f"Saved HTML to: {output_path}")
+        print(f"Open in browser: file://{output_path.absolute()}")
 
     sys.exit(0)
 

@@ -60,6 +60,14 @@ class TestHelp:
         result = run_vedalang_dev("pattern", "--help")
         assert result.returncode == 0
 
+    def test_vedalang_dev_sankey_help(self):
+        """Sankey subcommand --help works."""
+        result = run_vedalang_dev("sankey", "--help")
+        assert result.returncode == 0
+        assert "--gdx" in result.stdout
+        assert "--year" in result.stdout
+        assert "--format" in result.stdout
+
 
 class TestEmitExcel:
     def test_vedalang_dev_emit_excel(self, tmp_path):
