@@ -220,8 +220,8 @@ patterns:
         default: ""
     vedalang_template: |
       commodities:
-        - name: {{ name }}
-          type: energy
+        - name: C:{{ name }}
+          kind: TRADABLE
           unit: {{ unit }}
           {% if description %}description: {{ description }}{% endif %}
 
@@ -237,8 +237,8 @@ patterns:
         default: Mt
     vedalang_template: |
       commodities:
-        - name: {{ name }}
-          type: emission
+        - name: E:{{ name }}
+          kind: EMISSION
           unit: {{ unit }}
 
   # ============================================================================

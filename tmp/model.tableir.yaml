@@ -1,0 +1,1193 @@
+files:
+- path: syssettings.xlsx
+  sheets:
+  - name: SysSets
+    tables:
+    - tag: ~BOOKREGIONS_MAP
+      rows:
+      - bookname: MINISYSTEM8
+        region: NEM_EAST
+      - bookname: MINISYSTEM8
+        region: NEM_SOUTH
+      - bookname: MINISYSTEM8
+        region: WA
+    - tag: ~STARTYEAR
+      rows:
+      - value: 2020
+    - tag: ~MILESTONEYEARS
+      rows:
+      - type: Endyear
+        year: 2060
+      - type: milestoneyear
+        year: 2020
+      - type: milestoneyear
+        year: 2025
+      - type: milestoneyear
+        year: 2030
+      - type: milestoneyear
+        year: 2040
+      - type: milestoneyear
+        year: 2050
+    - tag: ~CURRENCIES
+      rows:
+      - currency: USD
+    - tag: ~TIMESLICES
+      rows:
+      - season: S
+        weekly: ''
+        daynite: D
+      - season: W
+        weekly: ''
+        daynite: N
+  - name: Commodities
+    tables:
+    - tag: ~FI_COMM
+      rows:
+      - region: NEM_EAST,NEM_SOUTH,WA
+        csets: NRG
+        commodity: NG
+        unit: PJ
+      - region: NEM_EAST,NEM_SOUTH,WA
+        csets: NRG
+        commodity: COAL
+        unit: PJ
+      - region: NEM_EAST,NEM_SOUTH,WA
+        csets: NRG
+        commodity: ELC
+        unit: PJ
+      - region: NEM_EAST,NEM_SOUTH,WA
+        csets: MAT
+        commodity: H2
+        unit: PJ
+      - region: NEM_EAST,NEM_SOUTH,WA
+        csets: ENV
+        commodity: CO2
+        unit: Mt
+      - region: NEM_EAST,NEM_SOUTH,WA
+        csets: DEM
+        commodity: RSD
+        unit: PJ
+      - region: NEM_EAST,NEM_SOUTH,WA
+        csets: DEM
+        commodity: COM
+        unit: PJ
+      - region: NEM_EAST,NEM_SOUTH,WA
+        csets: DEM
+        commodity: IND
+        unit: PJ
+      - region: NEM_EAST,NEM_SOUTH,WA
+        csets: DEM
+        commodity: TRN
+        unit: PJ
+  - name: constants
+    tables:
+    - tag: ~TFM_INS
+      rows:
+      - region: NEM_EAST
+        attribute: G_DRATE
+        currency: USD
+        value: 0.05
+      - region: NEM_SOUTH
+        attribute: G_DRATE
+        currency: USD
+        value: 0.05
+      - region: WA
+        attribute: G_DRATE
+        currency: USD
+        value: 0.05
+    - tag: ~TFM_INS
+      rows:
+      - timeslice: SD
+        attribute: YRFR
+        allregions: 0.25
+      - timeslice: SN
+        attribute: YRFR
+        allregions: 0.22
+      - timeslice: WD
+        attribute: YRFR
+        allregions: 0.28
+      - timeslice: WN
+        attribute: YRFR
+        allregions: 0.25
+- path: vt_minisystem8_minisystem8.xlsx
+  sheets:
+  - name: Processes
+    tables:
+    - tag: ~FI_PROCESS
+      rows:
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: IMP_NG
+        description: Natural gas import supply
+        sets: IMP
+        tact: PJ
+        tcap: GW
+        primarycg: NRGO
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: IMP_COAL
+        description: Coal supply
+        sets: IMP
+        tact: PJ
+        tcap: GW
+        primarycg: NRGO
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: PP_COAL
+        description: Coal-fired power plant
+        sets: ELE
+        tact: PJ
+        tcap: GW
+        primarycg: NRGO
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: PP_CCGT
+        description: Combined cycle gas turbine
+        sets: ELE
+        tact: PJ
+        tcap: GW
+        primarycg: NRGO
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: PP_WIND
+        description: Onshore wind plant
+        sets: ELE
+        tact: PJ
+        tcap: GW
+        primarycg: NRGO
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: PP_SOLAR
+        description: Solar PV plant
+        sets: ELE
+        tact: PJ
+        tcap: GW
+        primarycg: NRGO
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: H2_SMR
+        description: Steam methane reforming (grey hydrogen)
+        sets: PRE
+        tact: PJ
+        tcap: GW
+        primarycg: MATO
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: H2_ELEC
+        description: Electrolysis (green hydrogen)
+        sets: PRE
+        tact: PJ
+        tcap: GW
+        primarycg: MATO
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_RSD_ELC
+        description: Residential electricity demand
+        sets: DMD
+        tact: PJ
+        tcap: GW
+        primarycg: DEMO
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_COM_ELC
+        description: Commercial electricity demand
+        sets: DMD
+        tact: PJ
+        tcap: GW
+        primarycg: DEMO
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_IND_NG
+        description: Industrial gas demand
+        sets: DMD
+        tact: PJ
+        tcap: GW
+        primarycg: DEMO
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_IND_H2
+        description: Industrial hydrogen demand
+        sets: DMD
+        tact: PJ
+        tcap: GW
+        primarycg: DEMO
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_TRN_ELC
+        description: Electric vehicle transport
+        sets: DMD
+        tact: PJ
+        tcap: GW
+        primarycg: DEMO
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_TRN_H2
+        description: Fuel cell vehicle transport
+        sets: DMD
+        tact: PJ
+        tcap: GW
+        primarycg: DEMO
+    - tag: ~FI_T
+      rows:
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: IMP_NG
+        commodity-out: NG
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: IMP_NG
+        eff: 1.0
+        ire_price: 5.0
+        ncap_tlife: 100
+        prc_capact: 31.536
+        limtype: UP
+        year: 2020
+        cap_bnd: 10000
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: IMP_NG
+        commodity-out: NG
+        limtype: UP
+        year: 2025
+        cap_bnd: 10000
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: IMP_NG
+        commodity-out: NG
+        limtype: UP
+        year: 2030
+        cap_bnd: 10000
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: IMP_NG
+        commodity-out: NG
+        limtype: UP
+        year: 2040
+        cap_bnd: 10000
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: IMP_NG
+        commodity-out: NG
+        limtype: UP
+        year: 2050
+        cap_bnd: 10000
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: IMP_COAL
+        commodity-out: COAL
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: IMP_COAL
+        eff: 1.0
+        ire_price: 2.0
+        ncap_tlife: 100
+        prc_capact: 31.536
+        limtype: UP
+        year: 2020
+        cap_bnd: 10000
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: IMP_COAL
+        commodity-out: COAL
+        limtype: UP
+        year: 2025
+        cap_bnd: 10000
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: IMP_COAL
+        commodity-out: COAL
+        limtype: UP
+        year: 2030
+        cap_bnd: 10000
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: IMP_COAL
+        commodity-out: COAL
+        limtype: UP
+        year: 2040
+        cap_bnd: 10000
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: IMP_COAL
+        commodity-out: COAL
+        limtype: UP
+        year: 2050
+        cap_bnd: 10000
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: PP_COAL
+        commodity-in: COAL
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: PP_COAL
+        commodity-out: ELC
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: PP_COAL
+        commodity-out: CO2
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: PP_COAL
+        eff: 0.38
+        ncap_cost: 2500
+        ncap_fom: 40
+        act_cost: 3
+        ncap_tlife: 40
+        prc_capact: 31.536
+        limtype: UP
+        year: 2020
+        cap_bnd: 100
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: PP_COAL
+        commodity-out: ELC
+        limtype: UP
+        year: 2025
+        cap_bnd: 100
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: PP_COAL
+        commodity-out: ELC
+        limtype: UP
+        year: 2030
+        cap_bnd: 100
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: PP_COAL
+        commodity-out: ELC
+        limtype: UP
+        year: 2040
+        cap_bnd: 100
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: PP_COAL
+        commodity-out: ELC
+        limtype: UP
+        year: 2050
+        cap_bnd: 100
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: PP_CCGT
+        commodity-in: NG
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: PP_CCGT
+        commodity-out: ELC
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: PP_CCGT
+        commodity-out: CO2
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: PP_CCGT
+        eff: 0.55
+        ncap_cost: 800
+        ncap_fom: 20
+        act_cost: 2
+        ncap_tlife: 40
+        prc_capact: 31.536
+        limtype: UP
+        year: 2020
+        cap_bnd: 100
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: PP_CCGT
+        commodity-out: ELC
+        limtype: UP
+        year: 2025
+        cap_bnd: 100
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: PP_CCGT
+        commodity-out: ELC
+        limtype: UP
+        year: 2030
+        cap_bnd: 100
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: PP_CCGT
+        commodity-out: ELC
+        limtype: UP
+        year: 2040
+        cap_bnd: 100
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: PP_CCGT
+        commodity-out: ELC
+        limtype: UP
+        year: 2050
+        cap_bnd: 100
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: PP_WIND
+        commodity-out: ELC
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: PP_WIND
+        eff: 1.0
+        ncap_cost: 1200
+        ncap_fom: 25
+        act_cost: 1
+        ncap_tlife: 25
+        prc_capact: 31.536
+        limtype: UP
+        year: 2020
+        cap_bnd: 500
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: PP_WIND
+        commodity-out: ELC
+        limtype: UP
+        year: 2025
+        cap_bnd: 500
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: PP_WIND
+        commodity-out: ELC
+        limtype: UP
+        year: 2030
+        cap_bnd: 500
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: PP_WIND
+        commodity-out: ELC
+        limtype: UP
+        year: 2040
+        cap_bnd: 500
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: PP_WIND
+        commodity-out: ELC
+        limtype: UP
+        year: 2050
+        cap_bnd: 500
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: PP_SOLAR
+        commodity-out: ELC
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: PP_SOLAR
+        eff: 1.0
+        ncap_cost: 1000
+        ncap_fom: 15
+        act_cost: 0.5
+        ncap_tlife: 25
+        prc_capact: 31.536
+        limtype: UP
+        year: 2020
+        cap_bnd: 500
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: PP_SOLAR
+        commodity-out: ELC
+        limtype: UP
+        year: 2025
+        cap_bnd: 500
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: PP_SOLAR
+        commodity-out: ELC
+        limtype: UP
+        year: 2030
+        cap_bnd: 500
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: PP_SOLAR
+        commodity-out: ELC
+        limtype: UP
+        year: 2040
+        cap_bnd: 500
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: PP_SOLAR
+        commodity-out: ELC
+        limtype: UP
+        year: 2050
+        cap_bnd: 500
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: H2_SMR
+        commodity-in: NG
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: H2_SMR
+        commodity-out: H2
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: H2_SMR
+        commodity-out: CO2
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: H2_SMR
+        eff: 0.75
+        ncap_cost: 1500
+        ncap_fom: 50
+        act_cost: 2
+        ncap_tlife: 25
+        prc_capact: 31.536
+        limtype: UP
+        year: 2020
+        cap_bnd: 50
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: H2_SMR
+        commodity-out: H2
+        limtype: UP
+        year: 2025
+        cap_bnd: 50
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: H2_SMR
+        commodity-out: H2
+        limtype: UP
+        year: 2030
+        cap_bnd: 50
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: H2_SMR
+        commodity-out: H2
+        limtype: UP
+        year: 2040
+        cap_bnd: 50
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: H2_SMR
+        commodity-out: H2
+        limtype: UP
+        year: 2050
+        cap_bnd: 50
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: H2_ELEC
+        commodity-in: ELC
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: H2_ELEC
+        commodity-out: H2
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: H2_ELEC
+        eff: 0.7
+        ncap_cost: 2000
+        ncap_fom: 30
+        act_cost: 1
+        ncap_tlife: 20
+        prc_capact: 31.536
+        limtype: UP
+        year: 2020
+        cap_bnd: 100
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: H2_ELEC
+        commodity-out: H2
+        limtype: UP
+        year: 2025
+        cap_bnd: 100
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: H2_ELEC
+        commodity-out: H2
+        limtype: UP
+        year: 2030
+        cap_bnd: 100
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: H2_ELEC
+        commodity-out: H2
+        limtype: UP
+        year: 2040
+        cap_bnd: 100
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: H2_ELEC
+        commodity-out: H2
+        limtype: UP
+        year: 2050
+        cap_bnd: 100
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_RSD_ELC
+        commodity-in: ELC
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_RSD_ELC
+        commodity-out: RSD
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_RSD_ELC
+        eff: 1.0
+        ncap_tlife: 100
+        prc_capact: 31.536
+        limtype: UP
+        year: 2020
+        cap_bnd: 1000
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_RSD_ELC
+        commodity-out: RSD
+        limtype: UP
+        year: 2025
+        cap_bnd: 1000
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_RSD_ELC
+        commodity-out: RSD
+        limtype: UP
+        year: 2030
+        cap_bnd: 1000
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_RSD_ELC
+        commodity-out: RSD
+        limtype: UP
+        year: 2040
+        cap_bnd: 1000
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_RSD_ELC
+        commodity-out: RSD
+        limtype: UP
+        year: 2050
+        cap_bnd: 1000
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_COM_ELC
+        commodity-in: ELC
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_COM_ELC
+        commodity-out: COM
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_COM_ELC
+        eff: 1.0
+        ncap_tlife: 100
+        prc_capact: 31.536
+        limtype: UP
+        year: 2020
+        cap_bnd: 1000
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_COM_ELC
+        commodity-out: COM
+        limtype: UP
+        year: 2025
+        cap_bnd: 1000
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_COM_ELC
+        commodity-out: COM
+        limtype: UP
+        year: 2030
+        cap_bnd: 1000
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_COM_ELC
+        commodity-out: COM
+        limtype: UP
+        year: 2040
+        cap_bnd: 1000
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_COM_ELC
+        commodity-out: COM
+        limtype: UP
+        year: 2050
+        cap_bnd: 1000
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_IND_NG
+        commodity-in: NG
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_IND_NG
+        commodity-out: IND
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_IND_NG
+        eff: 0.85
+        ncap_tlife: 30
+        prc_capact: 31.536
+        limtype: UP
+        year: 2020
+        cap_bnd: 500
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_IND_NG
+        commodity-out: IND
+        limtype: UP
+        year: 2025
+        cap_bnd: 500
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_IND_NG
+        commodity-out: IND
+        limtype: UP
+        year: 2030
+        cap_bnd: 500
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_IND_NG
+        commodity-out: IND
+        limtype: UP
+        year: 2040
+        cap_bnd: 500
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_IND_NG
+        commodity-out: IND
+        limtype: UP
+        year: 2050
+        cap_bnd: 500
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_IND_H2
+        commodity-in: H2
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_IND_H2
+        commodity-out: IND
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_IND_H2
+        eff: 0.9
+        ncap_tlife: 30
+        prc_capact: 31.536
+        limtype: UP
+        year: 2020
+        cap_bnd: 500
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_IND_H2
+        commodity-out: IND
+        limtype: UP
+        year: 2025
+        cap_bnd: 500
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_IND_H2
+        commodity-out: IND
+        limtype: UP
+        year: 2030
+        cap_bnd: 500
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_IND_H2
+        commodity-out: IND
+        limtype: UP
+        year: 2040
+        cap_bnd: 500
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_IND_H2
+        commodity-out: IND
+        limtype: UP
+        year: 2050
+        cap_bnd: 500
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_TRN_ELC
+        commodity-in: ELC
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_TRN_ELC
+        commodity-out: TRN
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_TRN_ELC
+        eff: 0.85
+        ncap_tlife: 15
+        prc_capact: 31.536
+        limtype: UP
+        year: 2020
+        cap_bnd: 500
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_TRN_ELC
+        commodity-out: TRN
+        limtype: UP
+        year: 2025
+        cap_bnd: 500
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_TRN_ELC
+        commodity-out: TRN
+        limtype: UP
+        year: 2030
+        cap_bnd: 500
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_TRN_ELC
+        commodity-out: TRN
+        limtype: UP
+        year: 2040
+        cap_bnd: 500
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_TRN_ELC
+        commodity-out: TRN
+        limtype: UP
+        year: 2050
+        cap_bnd: 500
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_TRN_H2
+        commodity-in: H2
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_TRN_H2
+        commodity-out: TRN
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_TRN_H2
+        eff: 0.55
+        ncap_tlife: 15
+        prc_capact: 31.536
+        limtype: UP
+        year: 2020
+        cap_bnd: 500
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_TRN_H2
+        commodity-out: TRN
+        limtype: UP
+        year: 2025
+        cap_bnd: 500
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_TRN_H2
+        commodity-out: TRN
+        limtype: UP
+        year: 2030
+        cap_bnd: 500
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_TRN_H2
+        commodity-out: TRN
+        limtype: UP
+        year: 2040
+        cap_bnd: 500
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_TRN_H2
+        commodity-out: TRN
+        limtype: UP
+        year: 2050
+        cap_bnd: 500
+    - tag: ~TFM_INS
+      rows:
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: PP_COAL
+        commodity: CO2
+        attribute: ENV_ACT
+        value: 0.09
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: PP_CCGT
+        commodity: CO2
+        attribute: ENV_ACT
+        value: 0.05
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: H2_SMR
+        commodity: CO2
+        attribute: ENV_ACT
+        value: 0.056
+    - tag: ~TFM_INS
+      rows:
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: IMP_NG
+        year: 2010
+        attribute: NCAP_PASTI
+        value: 1000
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: IMP_COAL
+        year: 2010
+        attribute: NCAP_PASTI
+        value: 1000
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: PP_COAL
+        year: 2010
+        attribute: NCAP_PASTI
+        value: 5
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: PP_CCGT
+        year: 2010
+        attribute: NCAP_PASTI
+        value: 2
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: PP_WIND
+        year: 2010
+        attribute: NCAP_PASTI
+        value: 1
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: PP_SOLAR
+        year: 2010
+        attribute: NCAP_PASTI
+        value: 1
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: H2_SMR
+        year: 2010
+        attribute: NCAP_PASTI
+        value: 0.5
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: H2_ELEC
+        year: 2010
+        attribute: NCAP_PASTI
+        value: 0.5
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_RSD_ELC
+        year: 2010
+        attribute: NCAP_PASTI
+        value: 100
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_COM_ELC
+        year: 2010
+        attribute: NCAP_PASTI
+        value: 100
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_IND_NG
+        year: 2010
+        attribute: NCAP_PASTI
+        value: 50
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_IND_H2
+        year: 2010
+        attribute: NCAP_PASTI
+        value: 10
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_TRN_ELC
+        year: 2010
+        attribute: NCAP_PASTI
+        value: 20
+      - region: NEM_EAST,NEM_SOUTH,WA
+        process: DMD_TRN_H2
+        year: 2010
+        attribute: NCAP_PASTI
+        value: 10
+- path: suppxls/scen_baseline_demands.xlsx
+  sheets:
+  - name: Demands
+    tables:
+    - tag: ~TFM_DINS-AT
+      rows:
+      - region: NEM_EAST
+        cset_cn: RSD
+        year: 2020
+        com_proj: 30
+      - region: NEM_EAST
+        cset_cn: RSD
+        year: 2025
+        com_proj: 45.0
+      - region: NEM_EAST
+        cset_cn: RSD
+        year: 2030
+        com_proj: 60
+      - region: NEM_EAST
+        cset_cn: RSD
+        year: 2040
+        com_proj: 80.0
+      - region: NEM_EAST
+        cset_cn: RSD
+        year: 2050
+        com_proj: 100
+      - region: NEM_SOUTH
+        cset_cn: RSD
+        year: 2020
+        com_proj: 30
+      - region: NEM_SOUTH
+        cset_cn: RSD
+        year: 2025
+        com_proj: 45.0
+      - region: NEM_SOUTH
+        cset_cn: RSD
+        year: 2030
+        com_proj: 60
+      - region: NEM_SOUTH
+        cset_cn: RSD
+        year: 2040
+        com_proj: 80.0
+      - region: NEM_SOUTH
+        cset_cn: RSD
+        year: 2050
+        com_proj: 100
+      - region: WA
+        cset_cn: RSD
+        year: 2020
+        com_proj: 30
+      - region: WA
+        cset_cn: RSD
+        year: 2025
+        com_proj: 45.0
+      - region: WA
+        cset_cn: RSD
+        year: 2030
+        com_proj: 60
+      - region: WA
+        cset_cn: RSD
+        year: 2040
+        com_proj: 80.0
+      - region: WA
+        cset_cn: RSD
+        year: 2050
+        com_proj: 100
+      - region: NEM_EAST
+        cset_cn: COM
+        year: 2020
+        com_proj: 20
+      - region: NEM_EAST
+        cset_cn: COM
+        year: 2025
+        com_proj: 30.0
+      - region: NEM_EAST
+        cset_cn: COM
+        year: 2030
+        com_proj: 40
+      - region: NEM_EAST
+        cset_cn: COM
+        year: 2040
+        com_proj: 60.0
+      - region: NEM_EAST
+        cset_cn: COM
+        year: 2050
+        com_proj: 80
+      - region: NEM_SOUTH
+        cset_cn: COM
+        year: 2020
+        com_proj: 20
+      - region: NEM_SOUTH
+        cset_cn: COM
+        year: 2025
+        com_proj: 30.0
+      - region: NEM_SOUTH
+        cset_cn: COM
+        year: 2030
+        com_proj: 40
+      - region: NEM_SOUTH
+        cset_cn: COM
+        year: 2040
+        com_proj: 60.0
+      - region: NEM_SOUTH
+        cset_cn: COM
+        year: 2050
+        com_proj: 80
+      - region: WA
+        cset_cn: COM
+        year: 2020
+        com_proj: 20
+      - region: WA
+        cset_cn: COM
+        year: 2025
+        com_proj: 30.0
+      - region: WA
+        cset_cn: COM
+        year: 2030
+        com_proj: 40
+      - region: WA
+        cset_cn: COM
+        year: 2040
+        com_proj: 60.0
+      - region: WA
+        cset_cn: COM
+        year: 2050
+        com_proj: 80
+      - region: NEM_EAST
+        cset_cn: IND
+        year: 2020
+        com_proj: 50
+      - region: NEM_EAST
+        cset_cn: IND
+        year: 2025
+        com_proj: 65.0
+      - region: NEM_EAST
+        cset_cn: IND
+        year: 2030
+        com_proj: 80
+      - region: NEM_EAST
+        cset_cn: IND
+        year: 2040
+        com_proj: 100.0
+      - region: NEM_EAST
+        cset_cn: IND
+        year: 2050
+        com_proj: 120
+      - region: NEM_SOUTH
+        cset_cn: IND
+        year: 2020
+        com_proj: 50
+      - region: NEM_SOUTH
+        cset_cn: IND
+        year: 2025
+        com_proj: 65.0
+      - region: NEM_SOUTH
+        cset_cn: IND
+        year: 2030
+        com_proj: 80
+      - region: NEM_SOUTH
+        cset_cn: IND
+        year: 2040
+        com_proj: 100.0
+      - region: NEM_SOUTH
+        cset_cn: IND
+        year: 2050
+        com_proj: 120
+      - region: WA
+        cset_cn: IND
+        year: 2020
+        com_proj: 50
+      - region: WA
+        cset_cn: IND
+        year: 2025
+        com_proj: 65.0
+      - region: WA
+        cset_cn: IND
+        year: 2030
+        com_proj: 80
+      - region: WA
+        cset_cn: IND
+        year: 2040
+        com_proj: 100.0
+      - region: WA
+        cset_cn: IND
+        year: 2050
+        com_proj: 120
+      - region: NEM_EAST
+        cset_cn: TRN
+        year: 2020
+        com_proj: 40
+      - region: NEM_EAST
+        cset_cn: TRN
+        year: 2025
+        com_proj: 50.0
+      - region: NEM_EAST
+        cset_cn: TRN
+        year: 2030
+        com_proj: 60
+      - region: NEM_EAST
+        cset_cn: TRN
+        year: 2040
+        com_proj: 80.0
+      - region: NEM_EAST
+        cset_cn: TRN
+        year: 2050
+        com_proj: 100
+      - region: NEM_SOUTH
+        cset_cn: TRN
+        year: 2020
+        com_proj: 40
+      - region: NEM_SOUTH
+        cset_cn: TRN
+        year: 2025
+        com_proj: 50.0
+      - region: NEM_SOUTH
+        cset_cn: TRN
+        year: 2030
+        com_proj: 60
+      - region: NEM_SOUTH
+        cset_cn: TRN
+        year: 2040
+        com_proj: 80.0
+      - region: NEM_SOUTH
+        cset_cn: TRN
+        year: 2050
+        com_proj: 100
+      - region: WA
+        cset_cn: TRN
+        year: 2020
+        com_proj: 40
+      - region: WA
+        cset_cn: TRN
+        year: 2025
+        com_proj: 50.0
+      - region: WA
+        cset_cn: TRN
+        year: 2030
+        com_proj: 60
+      - region: WA
+        cset_cn: TRN
+        year: 2040
+        com_proj: 80.0
+      - region: WA
+        cset_cn: TRN
+        year: 2050
+        com_proj: 100
+- path: suppxls/scen_baseline_prices.xlsx
+  sheets:
+  - name: Prices
+    tables:
+    - tag: ~TFM_DINS-AT
+      rows:
+      - region: NEM_EAST
+        cset_cn: CO2
+        year: 2020
+        com_cstnet: 30
+      - region: NEM_EAST
+        cset_cn: CO2
+        year: 2025
+        com_cstnet: 30
+      - region: NEM_EAST
+        cset_cn: CO2
+        year: 2030
+        com_cstnet: 50
+      - region: NEM_EAST
+        cset_cn: CO2
+        year: 2040
+        com_cstnet: 100.0
+      - region: NEM_EAST
+        cset_cn: CO2
+        year: 2050
+        com_cstnet: 150
+      - region: NEM_SOUTH
+        cset_cn: CO2
+        year: 2020
+        com_cstnet: 30
+      - region: NEM_SOUTH
+        cset_cn: CO2
+        year: 2025
+        com_cstnet: 30
+      - region: NEM_SOUTH
+        cset_cn: CO2
+        year: 2030
+        com_cstnet: 50
+      - region: NEM_SOUTH
+        cset_cn: CO2
+        year: 2040
+        com_cstnet: 100.0
+      - region: NEM_SOUTH
+        cset_cn: CO2
+        year: 2050
+        com_cstnet: 150
+      - region: WA
+        cset_cn: CO2
+        year: 2020
+        com_cstnet: 30
+      - region: WA
+        cset_cn: CO2
+        year: 2025
+        com_cstnet: 30
+      - region: WA
+        cset_cn: CO2
+        year: 2030
+        com_cstnet: 50
+      - region: WA
+        cset_cn: CO2
+        year: 2040
+        com_cstnet: 100.0
+      - region: WA
+        cset_cn: CO2
+        year: 2050
+        com_cstnet: 150
+- path: suppxls/trades/scentrade__trade_links.xlsx
+  sheets:
+  - name: Uni_ELC
+    tables:
+    - tag: ~TRADELINKS
+      rows:
+      - ELC: NEM_EAST
+        NEM_SOUTH: 1
+- path: suppxls/trades/scentrade__trade_attrs.xlsx
+  sheets:
+  - name: Attributes
+    tables:
+    - tag: ~TFM_INS
+      rows:
+      - region: NEM_EAST
+        pset_pn: TB_ELC_*,TU_ELC_*
+        attribute: EFF
+        value: 0.97
+cases:
+- name: baseline
+  description: ''
+  is_baseline: true
+  scenario_files:
+  - suppxls/scen_baseline_demands.xlsx
+  - suppxls/scen_baseline_prices.xlsx
+  tags: []

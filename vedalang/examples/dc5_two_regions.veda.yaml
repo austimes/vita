@@ -10,12 +10,12 @@ model:
     - REG2
   
   commodities:
-    - name: NG
-      type: energy
+    - name: C:GAS
+      kind: TRADABLE
       unit: PJ
       description: Natural Gas
-    - name: ELC
-      type: energy
+    - name: C:ELC
+      kind: TRADABLE
       unit: PJ
       description: Electricity
   
@@ -24,13 +24,12 @@ model:
     - name: PP_CCGT
       description: Combined cycle gas turbine
       sets: [ELE]
-      primary_commodity_group: NRGO
       activity_unit: PJ
       capacity_unit: GW
       inputs:
-        - commodity: NG
+        - commodity: C:GAS
           share: 1.0
       outputs:
-        - commodity: ELC
+        - commodity: C:ELC
           share: 1.0
       efficiency: 0.55

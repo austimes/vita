@@ -1,0 +1,25 @@
+entries:
+  - key: lighting
+    code: LGT
+    kind: SERVICE
+  - key: space_heating
+    code: SPH
+    kind: SERVICE
+  - key: space_cooling
+    code: SPC
+    kind: SERVICE
+  - key: passenger_kilometres
+    code: PKM
+    kind: SERVICE
+  - key: residential_final_energy
+    code: RSD
+    kind: SERVICE
+  - key: commercial_final_energy
+    code: COM
+    kind: SERVICE
+  - key: industrial_final_energy
+    code: IND
+    kind: SERVICE
+  - key: transport_final_energy
+    code: TRN
+    kind: SERVICE

@@ -7,6 +7,8 @@ from .compiler import (
     validate_cross_references,
     validate_vedalang,
 )
+from .demands import DemandError, compile_demands
+from .naming import NamingRegistry
 from .registry import (
     AttributeInfo,
     IndexLayout,
@@ -28,7 +30,9 @@ from .table_schemas import (
 
 __all__ = [
     "AttributeInfo",
+    "DemandError",
     "IndexLayout",
+    "NamingRegistry",
     "SemanticValidationError",
     "TableValidationError",
     "TagInfo",
@@ -38,6 +42,7 @@ __all__ = [
     "VedaRegistry",
     "VedaTableLayout",
     "VedaTableSchema",
+    "compile_demands",
     "compile_vedalang_to_tableir",
     "get_all_schemas",
     "get_registry",

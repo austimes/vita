@@ -1,0 +1,17 @@
+entries:
+  - key: generation
+    code: GEN
+  - key: end_use_service
+    code: EUS
+  - key: conversion
+    code: CNV
+  - key: extraction
+    code: EXT
+  - key: trade
+    code: TRD
+  - key: storage
+    code: STO
+  - key: capture
+    code: CAP
+  - key: sequestration
+    code: SEQ

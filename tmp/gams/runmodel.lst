@@ -1,0 +1,22 @@
+GAMS 51.3.0  38407a9b Oct 27, 2025          DAX-DAC arm 64bit/macOS - 01/13/26 09:24:16 Page 1
+G e n e r a l   A l g e b r a i c   M o d e l i n g   S y s t e m
+Include File Summary
+
+
+   SEQ   GLOBAL TYPE      PARENT   LOCAL  FILENAME
+
+     1        1 INPUT          0       0  /Users/gre538/code/veda-devtools/tmp/gams/runmodel.gms
+     2        5 TERMINATE      1       5  /Users/gre538/code/veda-devtools/tmp/gams/runmodel.gms
+
+
+COMPILATION TIME     =        0.240 SECONDS      2 MB  51.3.0 38407a9b DAX-DAC
+
+
+USER: GAMS Demo, for EULA and demo limitations see   G250826+0003Cc-GEN
+      https://www.gams.com/latest/docs/UG%5FLicense.html         DC0000
+
+
+**** FILE SUMMARY
+
+Input      /Users/gre538/code/veda-devtools/tmp/gams/runmodel.gms
+Output     /Users/gre538/code/veda-devtools/tmp/gams/runmodel.lst

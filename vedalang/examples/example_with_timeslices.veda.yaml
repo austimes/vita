@@ -25,12 +25,12 @@ model:
       WN: 0.25    # Winter-Night
   
   commodities:
-    - name: ELC
-      type: energy
+    - name: C:ELC
+      kind: TRADABLE
       unit: PJ
       description: Electricity
-    - name: NG
-      type: energy
+    - name: C:GAS
+      kind: TRADABLE
       unit: PJ
       description: Natural Gas
   
@@ -38,11 +38,10 @@ model:
     - name: PP_CCGT
       description: Combined Cycle Gas Turbine
       sets: [ELE]
-      primary_commodity_group: NRGO
       activity_unit: PJ
       capacity_unit: GW
       inputs:
-        - commodity: NG
+        - commodity: C:GAS
       outputs:
-        - commodity: ELC
+        - commodity: C:ELC
       efficiency: 0.55

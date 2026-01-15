@@ -1,0 +1,94 @@
+{
+  "name": "vedalang",
+  "displayName": "VedaLang",
+  "description": "Language support for VedaLang - a typed DSL for TIMES energy models",
+  "version": "0.1.0",
+  "publisher": "austimes",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/austimes/vedalang"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters"
+  ],
+  "keywords": [
+    "vedalang",
+    "veda",
+    "times",
+    "energy",
+    "yaml"
+  ],
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "activationEvents": [
+    "onLanguage:vedalang",
+    "workspaceContains:**/*.veda.yaml"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "vedalang",
+        "aliases": [
+          "VedaLang",
+          "vedalang"
+        ],
+        "extensions": [
+          ".veda.yaml"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "vedalang",
+        "scopeName": "source.vedalang",
+        "path": "./syntaxes/vedalang.tmLanguage.json"
+      }
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "VedaLang",
+      "properties": {
+        "vedalang.server.pythonPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to Python executable for the language server (leave empty for auto-detect)"
+        },
+        "vedalang.server.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable the VedaLang language server"
+        },
+        "vedalang.trace.server": {
+          "type": "string",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "default": "off",
+          "description": "Trace communication between VS Code and the language server"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile",
+    "package": "vsce package"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.3.0",
+    "@vscode/vsce": "^2.22.0"
+  }
+}

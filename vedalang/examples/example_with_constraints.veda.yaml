@@ -14,18 +14,18 @@ model:
   milestone_years: [2020, 2030, 2040, 2050]
 
   commodities:
-    - name: NG
-      type: energy
+    - name: C:GAS
+      kind: TRADABLE
       unit: PJ
       description: Natural Gas
 
-    - name: ELC
-      type: energy
+    - name: C:ELC
+      kind: TRADABLE
       unit: PJ
       description: Electricity
 
-    - name: CO2
-      type: emission
+    - name: E:CO2
+      kind: EMISSION
       unit: Mt
       description: Carbon dioxide emissions
 
@@ -33,36 +33,33 @@ model:
     - name: PP_CCGT
       description: Combined cycle gas turbine
       sets: [ELE]
-      primary_commodity_group: NRGO
       inputs:
-        - commodity: NG
+        - commodity: C:GAS
       outputs:
-        - commodity: ELC
-        - commodity: CO2
+        - commodity: C:ELC
+        - commodity: E:CO2
           emission_factor: 0.05  # Mt CO2 per PJ activity
       efficiency: 0.55
 
     - name: PP_WIND
       description: Onshore wind plant
       sets: [ELE]
-      primary_commodity_group: NRGO
       outputs:
-        - commodity: ELC
+        - commodity: C:ELC
       efficiency: 1.0
 
     - name: PP_SOLAR
       description: Solar PV plant
       sets: [ELE]
-      primary_commodity_group: NRGO
       outputs:
-        - commodity: ELC
+        - commodity: C:ELC
       efficiency: 1.0
 
   constraints:
     # Emission cap: limit CO2 to 100 Mt initially, declining to 50 Mt by 2040
     - name: CO2_CAP
       type: emission_cap
-      commodity: CO2
+      commodity: E:CO2
       years:
         "2020": 100
         "2040": 50
@@ -72,6 +69,6 @@ model:
     # Renewable energy target: at least 30% of electricity from wind+solar
     - name: REN_TARGET
       type: activity_share
-      commodity: ELC
+      commodity: C:ELC
       processes: [PP_WIND, PP_SOLAR]
       minimum_share: 0.30

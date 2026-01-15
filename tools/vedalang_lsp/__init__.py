@@ -1,0 +1,1 @@
+"""VedaLang Language Server package."""

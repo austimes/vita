@@ -1,9 +1,7 @@
 # MiniSystem8: Australian Baseline Scaffold
 # Increment 8: Production-aligned multi-sector energy system
-# New capabilities: Multi-sector (RSD/COM/IND/TRN), hydrogen production & use, coal, solar
-# Fixes: IND commodity now consumed by DMD_IND_NG/DMD_IND_H2
-#        H2 commodity now produced by H2_SMR/H2_ELEC, consumed by industry/transport
-# Tests: Complete energy system topology, fuel switching options, all commodities wired
+# New capabilities: Multi-sector (RES/COM/IND/TRN), hydrogen production & use, coal, solar
+# Uses new VedaLang syntax (P4): process_roles, process_variants, availability
 # Issue: vedalang-8pr.8
 
 model:
@@ -35,301 +33,820 @@ model:
       WN: 0.25
 
   commodities:
-    # Energy carriers
-    - name: NG
-      type: energy
+    # Tradable energy carriers
+    - id: gas
+      kind: carrier
       unit: PJ
       description: Natural gas
 
-    - name: COAL
-      type: energy
+    - id: coal
+      kind: carrier
       unit: PJ
       description: Coal
 
-    - name: ELC
-      type: energy
+    - id: electricity
+      kind: carrier
       unit: PJ
       description: Electricity
 
-    - name: H2
-      type: material
+    - id: hydrogen
+      kind: carrier
       unit: PJ
       description: Hydrogen
 
     # Emissions
-    - name: CO2
-      type: emission
+    - id: co2
+      kind: emission
       unit: Mt
       description: Carbon dioxide
 
-    # Demand commodities
-    - name: RSD
-      type: demand
+    # Service demands
+    - id: residential_demand
+      kind: service
       unit: PJ
       description: Residential demand
 
-    - name: COM
-      type: demand
+    - id: commercial_demand
+      kind: service
       unit: PJ
       description: Commercial demand
 
-    - name: IND
-      type: demand
+    - id: industrial_demand
+      kind: service
       unit: PJ
       description: Industrial demand
 
-    - name: TRN
-      type: demand
+    - id: transport_demand
+      kind: service
       unit: PJ
       description: Transport demand
-
-  processes:
-    # === SUPPLY ===
-    - name: IMP_NG
-      description: Natural gas import supply
-      sets: [IMP]
-      primary_commodity_group: NRGO
-      outputs:
-        - commodity: NG
-      efficiency: 1.0
-      import_price: 5.0  # Import commodity price ($/PJ)
-      stock: 1000
-
-    - name: IMP_COAL
-      description: Coal supply
-      sets: [IMP]
-      primary_commodity_group: NRGO
-      outputs:
-        - commodity: COAL
-      efficiency: 1.0
-      import_price: 2.0  # Import commodity price ($/PJ)
-      stock: 1000
-
-    # === POWER GENERATION ===
-    - name: PP_COAL
-      description: Coal-fired power plant
-      sets: [ELE]
-      primary_commodity_group: NRGO
-      inputs:
-        - commodity: COAL
-      outputs:
-        - commodity: ELC
-        - commodity: CO2
-          emission_factor: 0.09
-      efficiency: 0.38
-      investment_cost: 2500  # Capital cost ($/GW)
-      fixed_om_cost: 40  # Fixed O&M ($/GW/yr)
-      variable_om_cost: 3  # Variable O&M ($/PJ)
-      lifetime: 40  # Technical lifetime (years)
-      stock: 5
-
-    - name: PP_CCGT
-      description: Combined cycle gas turbine
-      sets: [ELE]
-      primary_commodity_group: NRGO
-      inputs:
-        - commodity: NG
-      outputs:
-        - commodity: ELC
-        - commodity: CO2
-          emission_factor: 0.05
-      efficiency: 0.55
-      investment_cost: 800  # Capital cost ($/GW)
-      fixed_om_cost: 20  # Fixed O&M ($/GW/yr)
-      variable_om_cost: 2  # Variable O&M ($/PJ)
-      lifetime: 40  # Technical lifetime (years)
-      stock: 2
-
-    - name: PP_WIND
-      description: Onshore wind plant
-      sets: [ELE]
-      primary_commodity_group: NRGO
-      outputs:
-        - commodity: ELC
-      efficiency: 1.0
-      investment_cost: 1200  # Capital cost ($/GW)
-      fixed_om_cost: 25  # Fixed O&M ($/GW/yr)
-      variable_om_cost: 1  # Variable O&M ($/PJ)
-      lifetime: 25  # Technical lifetime (years)
-      stock: 1
-
-    - name: PP_SOLAR
-      description: Solar PV plant
-      sets: [ELE]
-      primary_commodity_group: NRGO
-      outputs:
-        - commodity: ELC
-      efficiency: 1.0
-      investment_cost: 1000  # Capital cost ($/GW)
-      fixed_om_cost: 15  # Fixed O&M ($/GW/yr)
-      variable_om_cost: 0.5  # Variable O&M ($/PJ)
-      lifetime: 25  # Technical lifetime (years)
-      stock: 1
-
-    # === HYDROGEN PRODUCTION ===
-    - name: H2_SMR
-      description: Steam methane reforming (grey hydrogen)
-      sets: [PRE]
-      primary_commodity_group: MATO
-      inputs:
-        - commodity: NG
-      outputs:
-        - commodity: H2
-        - commodity: CO2
-          emission_factor: 0.056
-      efficiency: 0.75
-      investment_cost: 1500  # Capital cost ($/GW)
-      fixed_om_cost: 50  # Fixed O&M ($/GW/yr)
-      variable_om_cost: 2  # Variable O&M ($/PJ)
-      lifetime: 25  # Technical lifetime (years)
-      stock: 0.5
-
-    - name: H2_ELEC
-      description: Electrolysis (green hydrogen)
-      sets: [PRE]
-      primary_commodity_group: MATO
-      inputs:
-        - commodity: ELC
-      outputs:
-        - commodity: H2
-      efficiency: 0.70
-      investment_cost: 2000  # Capital cost ($/GW)
-      fixed_om_cost: 30  # Fixed O&M ($/GW/yr)
-      variable_om_cost: 1  # Variable O&M ($/PJ)
-      lifetime: 20  # Technical lifetime (years)
-      stock: 0.5
-
-    # === DEMAND DEVICES ===
-    # Residential - electricity only
-    - name: DMD_RSD_ELC
-      description: Residential electricity demand
-      sets: [DMD]
-      primary_commodity_group: DEMO
-      inputs:
-        - commodity: ELC
-      outputs:
-        - commodity: RSD
-      efficiency: 1.0
-      stock: 100
-      lifetime: 100  # Technical lifetime (years)
-
-    # Commercial - electricity only
-    - name: DMD_COM_ELC
-      description: Commercial electricity demand
-      sets: [DMD]
-      primary_commodity_group: DEMO
-      inputs:
-        - commodity: ELC
-      outputs:
-        - commodity: COM
-      efficiency: 1.0
-      stock: 100
-      lifetime: 100  # Technical lifetime (years)
-
-    # Industrial - gas and hydrogen options (fixes IND orphan)
-    - name: DMD_IND_NG
-      description: Industrial gas demand
-      sets: [DMD]
-      primary_commodity_group: DEMO
-      inputs:
-        - commodity: NG
-      outputs:
-        - commodity: IND
-      efficiency: 0.85
-      stock: 50
-      lifetime: 30  # Technical lifetime (years)
-
-    - name: DMD_IND_H2
-      description: Industrial hydrogen demand
-      sets: [DMD]
-      primary_commodity_group: DEMO
-      inputs:
-        - commodity: H2
-      outputs:
-        - commodity: IND
-      efficiency: 0.90
-      stock: 10
-      lifetime: 30  # Technical lifetime (years)
-
-    # Transport - electricity and hydrogen options
-    - name: DMD_TRN_ELC
-      description: Electric vehicle transport
-      sets: [DMD]
-      primary_commodity_group: DEMO
-      inputs:
-        - commodity: ELC
-      outputs:
-        - commodity: TRN
-      efficiency: 0.85
-      stock: 20
-      lifetime: 15  # Technical lifetime (years)
-
-    - name: DMD_TRN_H2
-      description: Fuel cell vehicle transport
-      sets: [DMD]
-      primary_commodity_group: DEMO
-      inputs:
-        - commodity: H2
-      outputs:
-        - commodity: TRN
-      efficiency: 0.55
-      stock: 10
-      lifetime: 15  # Technical lifetime (years)
 
   trade_links:
     - origin: NEM_EAST
       destination: NEM_SOUTH
-      commodity: ELC
+      commodity: electricity
       bidirectional: false
       efficiency: 0.97
 
   scenario_parameters:
-    - name: DemandRSD
-      description: Residential demand projection
-      type: demand_projection
-      commodity: RSD
-      interpolation: interp_extrap
-      values:
-        "2020": 30
-        "2030": 60
-        "2050": 100
-
-    - name: DemandCOM
-      description: Commercial demand projection
-      type: demand_projection
-      commodity: COM
-      interpolation: interp_extrap
-      values:
-        "2020": 20
-        "2030": 40
-        "2050": 80
-
-    - name: DemandIND
-      description: Industrial demand projection
-      type: demand_projection
-      commodity: IND
-      interpolation: interp_extrap
-      values:
-        "2020": 50
-        "2030": 80
-        "2050": 120
-
-    - name: DemandTRN
-      description: Transport demand projection
-      type: demand_projection
-      commodity: TRN
-      interpolation: interp_extrap
-      values:
-        "2020": 40
-        "2030": 60
-        "2050": 100
-
-    - name: CO2_Price
+    - name: co2_price
       description: Carbon price trajectory
       type: commodity_price
-      commodity: CO2
+      commodity: co2
       interpolation: interp_extrap
       values:
         "2025": 30
         "2030": 50
         "2050": 150
+
+segments:
+  sectors: [RES, COM, IND, TRN]
+
+process_roles:
+  # === SUPPLY ===
+  - id: import_gas
+    stage: supply
+    inputs: []
+    outputs:
+      - commodity: gas
+
+  - id: import_coal
+    stage: supply
+    inputs: []
+    outputs:
+      - commodity: coal
+
+  # === ELECTRICITY GENERATION ===
+  - id: generate_electricity_gas
+    stage: conversion
+    inputs:
+      - commodity: gas
+    outputs:
+      - commodity: electricity
+
+  - id: generate_electricity_coal
+    stage: conversion
+    inputs:
+      - commodity: coal
+    outputs:
+      - commodity: electricity
+
+  - id: generate_electricity_renewable
+    stage: conversion
+    inputs: []
+    outputs:
+      - commodity: electricity
+
+  # === HYDROGEN PRODUCTION ===
+  - id: produce_hydrogen_gas
+    stage: conversion
+    inputs:
+      - commodity: gas
+    outputs:
+      - commodity: hydrogen
+
+  - id: produce_hydrogen_elec
+    stage: conversion
+    inputs:
+      - commodity: electricity
+    outputs:
+      - commodity: hydrogen
+
+  # === END USE ===
+  - id: deliver_residential
+    stage: end_use
+    inputs:
+      - commodity: electricity
+    outputs:
+      - commodity: residential_demand
+
+  - id: deliver_commercial
+    stage: end_use
+    inputs:
+      - commodity: electricity
+    outputs:
+      - commodity: commercial_demand
+
+  - id: deliver_industrial_gas
+    stage: end_use
+    inputs:
+      - commodity: gas
+    outputs:
+      - commodity: industrial_demand
+
+  - id: deliver_industrial_hydrogen
+    stage: end_use
+    inputs:
+      - commodity: hydrogen
+    outputs:
+      - commodity: industrial_demand
+
+  - id: deliver_transport_elec
+    stage: end_use
+    inputs:
+      - commodity: electricity
+    outputs:
+      - commodity: transport_demand
+
+  - id: deliver_transport_hydrogen
+    stage: end_use
+    inputs:
+      - commodity: hydrogen
+    outputs:
+      - commodity: transport_demand
+
+process_variants:
+  # === SUPPLY ===
+  - id: gas_import
+    role: import_gas
+    efficiency: 1.0
+    lifetime: 100
+
+  - id: coal_import
+    role: import_coal
+    efficiency: 1.0
+    lifetime: 100
+
+  # === GENERATION ===
+  - id: coal_plant
+    role: generate_electricity_coal
+    efficiency: 0.38
+    investment_cost: 2500
+    fixed_om_cost: 40
+    variable_om_cost: 3
+    lifetime: 40
+    emissions:
+      - commodity: co2
+        emission_factor: 0.09
+
+  - id: ccgt
+    role: generate_electricity_gas
+    efficiency: 0.55
+    investment_cost: 800
+    fixed_om_cost: 20
+    variable_om_cost: 2
+    lifetime: 40
+    emissions:
+      - commodity: co2
+        emission_factor: 0.05
+
+  - id: wind
+    role: generate_electricity_renewable
+    efficiency: 1.0
+    investment_cost: 1200
+    fixed_om_cost: 25
+    variable_om_cost: 1
+    lifetime: 25
+
+  - id: solar
+    role: generate_electricity_renewable
+    efficiency: 1.0
+    investment_cost: 1000
+    fixed_om_cost: 15
+    variable_om_cost: 0.5
+    lifetime: 25
+
+  # === HYDROGEN ===
+  - id: smr
+    role: produce_hydrogen_gas
+    efficiency: 0.75
+    investment_cost: 1500
+    fixed_om_cost: 50
+    variable_om_cost: 2
+    lifetime: 25
+    emissions:
+      - commodity: co2
+        emission_factor: 0.056
+
+  - id: electrolyzer
+    role: produce_hydrogen_elec
+    efficiency: 0.70
+    investment_cost: 2000
+    fixed_om_cost: 30
+    variable_om_cost: 1
+    lifetime: 20
+
+  # === DEMAND DEVICES ===
+  - id: residential_device
+    role: deliver_residential
+    efficiency: 1.0
+    lifetime: 100
+
+  - id: commercial_device
+    role: deliver_commercial
+    efficiency: 1.0
+    lifetime: 100
+
+  - id: industrial_gas_device
+    role: deliver_industrial_gas
+    efficiency: 0.85
+    lifetime: 30
+
+  - id: industrial_hydrogen_device
+    role: deliver_industrial_hydrogen
+    efficiency: 0.80
+    lifetime: 30
+
+  - id: transport_elec_device
+    role: deliver_transport_elec
+    efficiency: 0.90
+    lifetime: 15
+
+  - id: transport_hydrogen_device
+    role: deliver_transport_hydrogen
+    efficiency: 0.60
+    lifetime: 15
+
+availability:
+  # Supply - all regions
+  - variant: gas_import
+    regions: [NEM_EAST, NEM_SOUTH, WA]
+
+  - variant: coal_import
+    regions: [NEM_EAST, NEM_SOUTH, WA]
+
+  # Generation - all regions
+  - variant: coal_plant
+    regions: [NEM_EAST, NEM_SOUTH, WA]
+
+  - variant: ccgt
+    regions: [NEM_EAST, NEM_SOUTH, WA]
+
+  - variant: wind
+    regions: [NEM_EAST, NEM_SOUTH, WA]
+
+  - variant: solar
+    regions: [NEM_EAST, NEM_SOUTH, WA]
+
+  # Hydrogen - all regions
+  - variant: smr
+    regions: [NEM_EAST, NEM_SOUTH, WA]
+
+  - variant: electrolyzer
+    regions: [NEM_EAST, NEM_SOUTH, WA]
+
+  # Demand devices - sector specific
+  - variant: residential_device
+    regions: [NEM_EAST, NEM_SOUTH, WA]
+    sectors: [RES]
+
+  - variant: commercial_device
+    regions: [NEM_EAST, NEM_SOUTH, WA]
+    sectors: [COM]
+
+  - variant: industrial_gas_device
+    regions: [NEM_EAST, NEM_SOUTH, WA]
+    sectors: [IND]
+
+  - variant: industrial_hydrogen_device
+    regions: [NEM_EAST, NEM_SOUTH, WA]
+    sectors: [IND]
+
+  - variant: transport_elec_device
+    regions: [NEM_EAST, NEM_SOUTH, WA]
+    sectors: [TRN]
+
+  - variant: transport_hydrogen_device
+    regions: [NEM_EAST, NEM_SOUTH, WA]
+    sectors: [TRN]
+
+process_parameters:
+  # NEM_EAST
+  - selector:
+      variant: gas_import
+      region: NEM_EAST
+    stock: 1000
+    cap_bound:
+      up: 10000
+
+  - selector:
+      variant: coal_import
+      region: NEM_EAST
+    stock: 1000
+    cap_bound:
+      up: 10000
+
+  - selector:
+      variant: coal_plant
+      region: NEM_EAST
+    existing_capacity:
+      - vintage: 2010
+        capacity: 10
+    cap_bound:
+      up: 100
+
+  - selector:
+      variant: ccgt
+      region: NEM_EAST
+    existing_capacity:
+      - vintage: 2010
+        capacity: 2
+    cap_bound:
+      up: 100
+
+  - selector:
+      variant: wind
+      region: NEM_EAST
+    existing_capacity:
+      - vintage: 2010
+        capacity: 1
+    cap_bound:
+      up: 500
+
+  - selector:
+      variant: solar
+      region: NEM_EAST
+    existing_capacity:
+      - vintage: 2010
+        capacity: 1
+    cap_bound:
+      up: 500
+
+  - selector:
+      variant: smr
+      region: NEM_EAST
+    existing_capacity:
+      - vintage: 2010
+        capacity: 0.5
+    cap_bound:
+      up: 50
+
+  - selector:
+      variant: electrolyzer
+      region: NEM_EAST
+    existing_capacity:
+      - vintage: 2010
+        capacity: 0.5
+    cap_bound:
+      up: 100
+
+  - selector:
+      variant: residential_device
+      region: NEM_EAST
+      sector: RES
+    existing_capacity:
+      - vintage: 2010
+        capacity: 100
+    cap_bound:
+      up: 1000
+
+  - selector:
+      variant: commercial_device
+      region: NEM_EAST
+      sector: COM
+    existing_capacity:
+      - vintage: 2010
+        capacity: 100
+    cap_bound:
+      up: 1000
+
+  - selector:
+      variant: industrial_gas_device
+      region: NEM_EAST
+      sector: IND
+    existing_capacity:
+      - vintage: 2010
+        capacity: 50
+    cap_bound:
+      up: 500
+
+  - selector:
+      variant: industrial_hydrogen_device
+      region: NEM_EAST
+      sector: IND
+    existing_capacity:
+      - vintage: 2010
+        capacity: 10
+    cap_bound:
+      up: 500
+
+  - selector:
+      variant: transport_elec_device
+      region: NEM_EAST
+      sector: TRN
+    existing_capacity:
+      - vintage: 2010
+        capacity: 20
+    cap_bound:
+      up: 500
+
+  - selector:
+      variant: transport_hydrogen_device
+      region: NEM_EAST
+      sector: TRN
+    existing_capacity:
+      - vintage: 2010
+        capacity: 10
+    cap_bound:
+      up: 500
+
+  # NEM_SOUTH (copy of NEM_EAST structure)
+  - selector:
+      variant: gas_import
+      region: NEM_SOUTH
+    stock: 1000
+    cap_bound:
+      up: 10000
+
+  - selector:
+      variant: coal_import
+      region: NEM_SOUTH
+    stock: 1000
+    cap_bound:
+      up: 10000
+
+  - selector:
+      variant: coal_plant
+      region: NEM_SOUTH
+    existing_capacity:
+      - vintage: 2010
+        capacity: 5
+    cap_bound:
+      up: 100
+
+  - selector:
+      variant: ccgt
+      region: NEM_SOUTH
+    existing_capacity:
+      - vintage: 2010
+        capacity: 2
+    cap_bound:
+      up: 100
+
+  - selector:
+      variant: wind
+      region: NEM_SOUTH
+    existing_capacity:
+      - vintage: 2010
+        capacity: 2
+    cap_bound:
+      up: 500
+
+  - selector:
+      variant: solar
+      region: NEM_SOUTH
+    existing_capacity:
+      - vintage: 2010
+        capacity: 0.5
+    cap_bound:
+      up: 500
+
+  - selector:
+      variant: smr
+      region: NEM_SOUTH
+    existing_capacity:
+      - vintage: 2010
+        capacity: 0.5
+    cap_bound:
+      up: 50
+
+  - selector:
+      variant: electrolyzer
+      region: NEM_SOUTH
+    existing_capacity:
+      - vintage: 2010
+        capacity: 0.5
+    cap_bound:
+      up: 100
+
+  - selector:
+      variant: residential_device
+      region: NEM_SOUTH
+      sector: RES
+    existing_capacity:
+      - vintage: 2010
+        capacity: 100
+    cap_bound:
+      up: 1000
+
+  - selector:
+      variant: commercial_device
+      region: NEM_SOUTH
+      sector: COM
+    existing_capacity:
+      - vintage: 2010
+        capacity: 100
+    cap_bound:
+      up: 1000
+
+  - selector:
+      variant: industrial_gas_device
+      region: NEM_SOUTH
+      sector: IND
+    existing_capacity:
+      - vintage: 2010
+        capacity: 50
+    cap_bound:
+      up: 500
+
+  - selector:
+      variant: industrial_hydrogen_device
+      region: NEM_SOUTH
+      sector: IND
+    existing_capacity:
+      - vintage: 2010
+        capacity: 10
+    cap_bound:
+      up: 500
+
+  - selector:
+      variant: transport_elec_device
+      region: NEM_SOUTH
+      sector: TRN
+    existing_capacity:
+      - vintage: 2010
+        capacity: 20
+    cap_bound:
+      up: 500
+
+  - selector:
+      variant: transport_hydrogen_device
+      region: NEM_SOUTH
+      sector: TRN
+    existing_capacity:
+      - vintage: 2010
+        capacity: 10
+    cap_bound:
+      up: 500
+
+  # WA
+  - selector:
+      variant: gas_import
+      region: WA
+    stock: 1000
+    cap_bound:
+      up: 10000
+
+  - selector:
+      variant: coal_import
+      region: WA
+    stock: 1000
+    cap_bound:
+      up: 10000
+
+  - selector:
+      variant: coal_plant
+      region: WA
+    existing_capacity:
+      - vintage: 2010
+        capacity: 5
+    cap_bound:
+      up: 100
+
+  - selector:
+      variant: ccgt
+      region: WA
+    existing_capacity:
+      - vintage: 2010
+        capacity: 2
+    cap_bound:
+      up: 100
+
+  - selector:
+      variant: wind
+      region: WA
+    existing_capacity:
+      - vintage: 2010
+        capacity: 1
+    cap_bound:
+      up: 500
+
+  - selector:
+      variant: solar
+      region: WA
+    existing_capacity:
+      - vintage: 2010
+        capacity: 1
+    cap_bound:
+      up: 500
+
+  - selector:
+      variant: smr
+      region: WA
+    existing_capacity:
+      - vintage: 2010
+        capacity: 0.5
+    cap_bound:
+      up: 50
+
+  - selector:
+      variant: electrolyzer
+      region: WA
+    existing_capacity:
+      - vintage: 2010
+        capacity: 0.5
+    cap_bound:
+      up: 100
+
+  - selector:
+      variant: residential_device
+      region: WA
+      sector: RES
+    existing_capacity:
+      - vintage: 2010
+        capacity: 100
+    cap_bound:
+      up: 1000
+
+  - selector:
+      variant: commercial_device
+      region: WA
+      sector: COM
+    existing_capacity:
+      - vintage: 2010
+        capacity: 100
+    cap_bound:
+      up: 1000
+
+  - selector:
+      variant: industrial_gas_device
+      region: WA
+      sector: IND
+    existing_capacity:
+      - vintage: 2010
+        capacity: 50
+    cap_bound:
+      up: 500
+
+  - selector:
+      variant: industrial_hydrogen_device
+      region: WA
+      sector: IND
+    existing_capacity:
+      - vintage: 2010
+        capacity: 10
+    cap_bound:
+      up: 500
+
+  - selector:
+      variant: transport_elec_device
+      region: WA
+      sector: TRN
+    existing_capacity:
+      - vintage: 2010
+        capacity: 20
+    cap_bound:
+      up: 500
+
+  - selector:
+      variant: transport_hydrogen_device
+      region: WA
+      sector: TRN
+    existing_capacity:
+      - vintage: 2010
+        capacity: 10
+    cap_bound:
+      up: 500
+
+demands:
+  # Residential
+  - commodity: residential_demand
+    region: NEM_EAST
+    sector: RES
+    interpolation: interp_extrap
+    values:
+      "2020": 30
+      "2030": 60
+      "2050": 100
+
+  - commodity: residential_demand
+    region: NEM_SOUTH
+    sector: RES
+    interpolation: interp_extrap
+    values:
+      "2020": 30
+      "2030": 60
+      "2050": 100
+
+  - commodity: residential_demand
+    region: WA
+    sector: RES
+    interpolation: interp_extrap
+    values:
+      "2020": 30
+      "2030": 60
+      "2050": 100
+
+  # Commercial
+  - commodity: commercial_demand
+    region: NEM_EAST
+    sector: COM
+    interpolation: interp_extrap
+    values:
+      "2020": 20
+      "2030": 40
+      "2050": 80
+
+  - commodity: commercial_demand
+    region: NEM_SOUTH
+    sector: COM
+    interpolation: interp_extrap
+    values:
+      "2020": 20
+      "2030": 40
+      "2050": 80
+
+  - commodity: commercial_demand
+    region: WA
+    sector: COM
+    interpolation: interp_extrap
+    values:
+      "2020": 20
+      "2030": 40
+      "2050": 80
+
+  # Industrial
+  - commodity: industrial_demand
+    region: NEM_EAST
+    sector: IND
+    interpolation: interp_extrap
+    values:
+      "2020": 50
+      "2030": 80
+      "2050": 120
+
+  - commodity: industrial_demand
+    region: NEM_SOUTH
+    sector: IND
+    interpolation: interp_extrap
+    values:
+      "2020": 50
+      "2030": 80
+      "2050": 120
+
+  - commodity: industrial_demand
+    region: WA
+    sector: IND
+    interpolation: interp_extrap
+    values:
+      "2020": 50
+      "2030": 80
+      "2050": 120
+
+  # Transport
+  - commodity: transport_demand
+    region: NEM_EAST
+    sector: TRN
+    interpolation: interp_extrap
+    values:
+      "2020": 40
+      "2030": 60
+      "2050": 100
+
+  - commodity: transport_demand
+    region: NEM_SOUTH
+    sector: TRN
+    interpolation: interp_extrap
+    values:
+      "2020": 40
+      "2030": 60
+      "2050": 100
+
+  - commodity: transport_demand
+    region: WA
+    sector: TRN
+    interpolation: interp_extrap
+    values:
+      "2020": 40
+      "2030": 60
+      "2050": 100

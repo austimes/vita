@@ -1,0 +1,62 @@
+{
+  "compilation": {
+    "ok": true,
+    "errors": [],
+    "warnings": []
+  },
+  "execution": {
+    "ran_solver": true,
+    "model_status": {
+      "code": 1,
+      "text": "Optimal",
+      "category": "optimal"
+    },
+    "solve_status": {
+      "code": 1,
+      "text": "Normal Completion",
+      "category": "ok"
+    },
+    "objective": {
+      "value": 115443.7789,
+      "name": null,
+      "sense": null
+    },
+    "solver": null
+  },
+  "flags": {
+    "syntax_error": false,
+    "domain_violation": false,
+    "infeasible": false,
+    "unbounded": false,
+    "integer_infeasible": false,
+    "solver_failure": false,
+    "licensing_problem": false,
+    "unknown_symbol": false
+  },
+  "summary": {
+    "ok": true,
+    "problem_type": null,
+    "message": "Solved successfully, objective = 115443.7789"
+  },
+  "messages": {
+    "errors": [],
+    "warnings": [],
+    "info": []
+  },
+  "raw": {
+    "model_status_line": "**** MODEL STATUS      1 Optimal",
+    "solve_status_line": "**** SOLVER STATUS     1 Normal Completion",
+    "objective_line": "**** OBJECTIVE VALUE           115443.7789"
+  },
+  "iis": {
+    "available": false,
+    "counts": {
+      "equations": null,
+      "variables": null,
+      "indicator_constraints": null,
+      "sos_sets": null
+    },
+    "members": [],
+    "raw_section": null
+  }
+}

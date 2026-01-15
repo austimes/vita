@@ -8,7 +8,7 @@
   "properties": {
     "model": {
       "type": "object",
-      "required": ["name", "regions", "commodities", "processes"],
+      "required": ["name", "regions", "commodities"],
       "properties": {
         "name": {
           "type": "string",
@@ -39,11 +39,6 @@
           "items": { "$ref": "#/$defs/commodity" },
           "description": "Commodity definitions"
         },
-        "processes": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/process" },
-          "description": "Process definitions"
-        },
         "scenario_parameters": {
           "type": "array",
           "items": { "$ref": "#/$defs/scenario_parameter" },
@@ -68,16 +63,317 @@
           "type": "array",
           "items": { "$ref": "#/$defs/study" },
           "description": "Studies - collections of cases for comparison"
-        },
-        "scenarios": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/scenario_parameter" },
-          "description": "DEPRECATED: Use 'scenario_parameters' instead. Kept for backward compatibility."
         }
       }
+    },
+    "segments": {
+      "$ref": "#/$defs/segments",
+      "description": "Sector/end_use segmentation for demand-side modeling"
+    },
+    "process_roles": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/process_role" },
+      "description": "Abstract process transformations (topology definitions)"
+    },
+    "process_variants": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/process_variant" },
+      "description": "Concrete technology implementations of process roles"
+    },
+    "availability": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/availability_entry" },
+      "description": "Where variants are available (regions/sectors/segments)"
+    },
+    "process_parameters": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/process_parameter" },
+      "description": "Selector-based parameter blocks for variants"
+    },
+    "demands": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/demand" },
+      "description": "Service commodity demands by region/sector/segment"
     }
   },
   "$defs": {
+    "segments": {
+      "type": "object",
+      "description": "Sector/end_use segmentation configuration",
+      "required": ["sectors"],
+      "properties": {
+        "sectors": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["RES", "COM", "IND", "TRN", "AGR", "NE", "OTH"]
+          },
+          "minItems": 1,
+          "description": "Demand sectors from TIMES DEM_SECT"
+        },
+        "end_uses": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$"
+          },
+          "description": "Optional end-use types for finer granularity (e.g., lighting, heating)"
+        }
+      },
+      "additionalProperties": false
+    },
+    "process_role": {
+      "type": "object",
+      "description": "Abstract process transformation (topology definition)",
+      "required": ["id"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "Role identifier (verb_phrase, snake_case, e.g., generate_electricity)"
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable role description"
+        },
+        "stage": {
+          "type": "string",
+          "enum": ["supply", "conversion", "distribution", "end_use", "storage", "trade", "sink"],
+          "description": "Optional stage classification (descriptive, for layout/sankey)"
+        },
+        "inputs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/role_flow" },
+          "description": "Input commodity references"
+        },
+        "outputs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/role_flow" },
+          "description": "Output commodity references"
+        }
+      },
+      "additionalProperties": false
+    },
+    "role_flow": {
+      "type": "object",
+      "description": "Commodity reference in a role input/output",
+      "required": ["commodity"],
+      "properties": {
+        "commodity": {
+          "type": "string",
+          "description": "Reference to commodity id"
+        }
+      },
+      "additionalProperties": false
+    },
+    "process_variant": {
+      "type": "object",
+      "description": "Concrete technology implementing a process role",
+      "required": ["id", "role"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "Variant identifier (snake_case technology name)"
+        },
+        "role": {
+          "type": "string",
+          "description": "Reference to process_role id"
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable variant description"
+        },
+        "efficiency": {
+          "oneOf": [
+            { "type": "number", "minimum": 0, "maximum": 1 },
+            { "$ref": "#/$defs/time_varying_value" }
+          ],
+          "description": "Conversion efficiency (0-1)"
+        },
+        "lifetime": {
+          "oneOf": [
+            { "type": "number", "minimum": 0 },
+            { "$ref": "#/$defs/time_varying_value" }
+          ],
+          "description": "Technical lifetime in years"
+        },
+        "investment_cost": {
+          "oneOf": [
+            { "type": "number", "minimum": 0 },
+            { "$ref": "#/$defs/time_varying_value" }
+          ],
+          "description": "Capital cost per unit capacity"
+        },
+        "fixed_om_cost": {
+          "oneOf": [
+            { "type": "number", "minimum": 0 },
+            { "$ref": "#/$defs/time_varying_value" }
+          ],
+          "description": "Fixed O&M cost per unit capacity per year"
+        },
+        "variable_om_cost": {
+          "oneOf": [
+            { "type": "number", "minimum": 0 },
+            { "$ref": "#/$defs/time_varying_value" }
+          ],
+          "description": "Variable O&M cost per unit activity"
+        },
+        "emissions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/variant_emission" },
+          "description": "Emission factors per unit activity"
+        }
+      },
+      "additionalProperties": false
+    },
+    "variant_emission": {
+      "type": "object",
+      "description": "Emission factor for a variant",
+      "required": ["commodity", "emission_factor"],
+      "properties": {
+        "commodity": {
+          "type": "string",
+          "description": "Reference to emission commodity id"
+        },
+        "emission_factor": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Emission per unit process activity"
+        }
+      },
+      "additionalProperties": false
+    },
+    "availability_entry": {
+      "type": "object",
+      "description": "Defines where a variant is available",
+      "required": ["variant", "regions"],
+      "properties": {
+        "variant": {
+          "type": "string",
+          "description": "Reference to process_variant id"
+        },
+        "regions": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1,
+          "description": "Regions where the variant is available"
+        },
+        "sectors": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Optional sector filter (from segments.sectors)"
+        },
+        "segments": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Optional segment filter (sector.end_use keys)"
+        }
+      },
+      "additionalProperties": false
+    },
+    "process_parameter": {
+      "type": "object",
+      "description": "Selector-based parameter block for variant instances",
+      "required": ["selector"],
+      "properties": {
+        "selector": {
+          "$ref": "#/$defs/parameter_selector",
+          "description": "Identifies which variant instances this applies to"
+        },
+        "existing_capacity": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/past_investment" },
+          "description": "Past capacity investments (NCAP_PASTI)"
+        },
+        "cap_bound": {
+          "$ref": "#/$defs/bound",
+          "description": "Capacity bounds"
+        },
+        "ncap_bound": {
+          "$ref": "#/$defs/bound",
+          "description": "New capacity bounds"
+        },
+        "activity_bound": {
+          "$ref": "#/$defs/bound",
+          "description": "Activity bounds"
+        },
+        "stock": {
+          "oneOf": [
+            { "type": "number", "minimum": 0 },
+            { "$ref": "#/$defs/time_varying_value" }
+          ],
+          "description": "Stock value"
+        }
+      },
+      "additionalProperties": false
+    },
+    "parameter_selector": {
+      "type": "object",
+      "description": "Selector for parameter blocks",
+      "required": ["variant", "region"],
+      "properties": {
+        "variant": {
+          "type": "string",
+          "description": "Reference to process_variant id"
+        },
+        "region": {
+          "type": "string",
+          "description": "Region code"
+        },
+        "sector": {
+          "type": "string",
+          "description": "Optional sector filter"
+        },
+        "segment": {
+          "type": "string",
+          "description": "Optional segment filter (sector.end_use)"
+        }
+      },
+      "additionalProperties": false
+    },
+    "demand": {
+      "type": "object",
+      "description": "Service commodity demand specification",
+      "required": ["commodity", "region", "values"],
+      "properties": {
+        "commodity": {
+          "type": "string",
+          "description": "Reference to service commodity id"
+        },
+        "region": {
+          "type": "string",
+          "description": "Region code"
+        },
+        "sector": {
+          "type": "string",
+          "description": "Optional sector (from segments.sectors)"
+        },
+        "segment": {
+          "type": "string",
+          "description": "Optional segment (sector.end_use)"
+        },
+        "values": {
+          "type": "object",
+          "description": "Year -> demand value mapping",
+          "additionalProperties": { "type": "number" },
+          "propertyNames": { "pattern": "^[12][0-9]{3}$" }
+        },
+        "interpolation": {
+          "type": "string",
+          "enum": [
+            "none",
+            "interp_only",
+            "interp_extrap_eps",
+            "interp_extrap",
+            "interp_extrap_back",
+            "interp_extrap_forward"
+          ],
+          "description": "VEDA interpolation/extrapolation mode"
+        }
+      },
+      "additionalProperties": false
+    },
     "category": {
       "type": "string",
       "enum": [
@@ -252,57 +548,55 @@
         },
         "bidirectional": {
           "type": "boolean",
-          "default": true,
-          "description": "Whether trade flows in both directions"
+          "default": false,
+          "description": "If true, trade can flow in both directions"
         },
         "efficiency": {
           "type": "number",
           "minimum": 0,
           "maximum": 1,
-          "description": "Transport efficiency (1.0 = no losses)"
-        }
-      },
-      "additionalProperties": false
-    },
-    "timeslice_level": {
-      "type": "object",
-      "description": "A single timeslice code within a level (season/weekly/daynite)",
-      "required": ["code"],
-      "properties": {
-        "code": {
-          "type": "string",
-          "pattern": "^[A-Z]{1,3}$",
-          "description": "Short code (1-3 uppercase chars) for this timeslice"
+          "default": 1.0,
+          "description": "Trade efficiency (losses during transport)"
         },
-        "name": {
-          "type": "string",
-          "description": "Human-readable name (e.g., 'Summer', 'Day')"
+        "cost": {
+          "oneOf": [
+            { "type": "number", "minimum": 0 },
+            { "$ref": "#/$defs/time_varying_value" }
+          ],
+          "description": "Transport cost per unit"
+        },
+        "capacity": {
+          "oneOf": [
+            { "type": "number", "minimum": 0 },
+            { "$ref": "#/$defs/time_varying_value" }
+          ],
+          "description": "Maximum trade capacity"
         }
       },
       "additionalProperties": false
     },
     "timeslices": {
       "type": "object",
-      "description": "Timeslice structure for intra-annual variation",
+      "description": "Timeslice structure for intra-annual temporal resolution",
       "properties": {
         "season": {
           "type": "array",
-          "description": "Seasonal timeslice codes (e.g., Summer, Winter)",
-          "items": { "$ref": "#/$defs/timeslice_level" }
+          "items": { "$ref": "#/$defs/timeslice_level" },
+          "description": "Seasonal level (e.g., Summer, Winter)"
         },
         "weekly": {
           "type": "array",
-          "description": "Weekly timeslice codes (rarely used)",
-          "items": { "$ref": "#/$defs/timeslice_level" }
+          "items": { "$ref": "#/$defs/timeslice_level" },
+          "description": "Weekly level (e.g., Weekday, Weekend)"
         },
         "daynite": {
           "type": "array",
-          "description": "Day/night timeslice codes",
-          "items": { "$ref": "#/$defs/timeslice_level" }
+          "items": { "$ref": "#/$defs/timeslice_level" },
+          "description": "Day/night level (e.g., Day, Night, Peak)"
         },
         "fractions": {
           "type": "object",
-          "description": "Year fraction for each composite timeslice (must sum to 1.0). Keys are auto-generated: SEASON + WEEKLY + DAYNITE.",
+          "description": "Mapping of timeslice code to annual fraction (must sum to 1.0)",
           "additionalProperties": {
             "type": "number",
             "minimum": 0,
@@ -312,133 +606,66 @@
       },
       "additionalProperties": false
     },
+    "timeslice_level": {
+      "type": "object",
+      "required": ["code"],
+      "properties": {
+        "code": {
+          "type": "string",
+          "pattern": "^[A-Z]{1,3}$",
+          "description": "Timeslice code (1-3 uppercase letters)"
+        },
+        "name": {
+          "type": "string",
+          "description": "Human-readable name"
+        }
+      },
+      "additionalProperties": false
+    },
     "commodity": {
       "type": "object",
-      "required": ["name", "type"],
+      "description": "Commodity definition",
+      "required": ["kind"],
       "properties": {
-        "name": { "type": "string", "description": "Commodity identifier (e.g., ELC, NG, CO2)" },
-        "type": { 
+        "id": {
           "type": "string",
-          "enum": ["energy", "material", "emission", "demand"],
-          "description": "Commodity type: energy (fuels, electricity), material (hydrogen, steel), emission (CO2, NOx), demand (end-use services)"
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "Commodity identifier (snake_case noun, preferred over 'name')"
         },
-        "unit": { 
-          "type": "string", 
-          "description": "Unit of measurement. Defaults: energy/demand→PJ, emission/material→Mt"
-        },
-        "description": { "type": "string", "description": "Human-readable commodity description" }
-      }
-    },
-    "process": {
-      "type": "object",
-      "required": ["name", "sets", "primary_commodity_group", "efficiency"],
-      "properties": {
-        "name": { "type": "string", "description": "Process identifier (e.g., PP_CCGT, IMP_NG)" },
-        "description": { "type": "string", "description": "Human-readable process description" },
-        "sets": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "Process set memberships (e.g., ELE for electricity, DMD for demand, IMP for import)"
-        },
-        "primary_commodity_group": {
+        "name": {
           "type": "string",
-          "enum": ["DEMI", "DEMO", "MATI", "MATO", "NRGI", "NRGO", "ENVI", "ENVO", "FINI", "FINO"],
-          "description": "Primary commodity group (PCG). REQUIRED. Defines which commodity flows determine process activity. Common values: NRGO (energy output), DEMO (demand output), MATO (material output)."
+          "description": "Legacy commodity name (deprecated, use 'id' instead)"
         },
-        "activity_unit": { "type": "string", "default": "PJ", "description": "Unit for process activity (default: PJ)" },
-        "capacity_unit": { "type": "string", "default": "GW", "description": "Unit for process capacity (default: GW)" },
-        "input": {
+        "kind": {
           "type": "string",
-          "description": "Single input commodity name (shorthand for inputs with one item)"
+          "enum": ["carrier", "service", "material", "emission", "TRADABLE", "SERVICE", "EMISSION"],
+          "description": "Commodity kind: carrier (NRG), service (DEM), material (MAT), emission (ENV). Legacy values TRADABLE/SERVICE/EMISSION also accepted."
         },
-        "inputs": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/flow" },
-          "description": "Input commodity flows (use 'input' for single commodity shorthand)"
-        },
-        "output": {
+        "unit": {
           "type": "string",
-          "description": "Single output commodity name (shorthand for outputs with one item)"
+          "description": "Unit of measurement (e.g., PJ, Mt)"
         },
-        "outputs": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/flow" },
-          "description": "Output commodity flows (use 'output' for single commodity shorthand)"
+        "description": {
+          "type": "string",
+          "description": "Human-readable commodity description"
         },
-        "efficiency": {
-          "oneOf": [
-            { "type": "number", "minimum": 0, "maximum": 1 },
-            { "$ref": "#/$defs/time_varying_value" }
-          ],
-          "description": "REQUIRED. Process efficiency (0-1), ratio of useful output to input. Must be explicitly specified for all processes, including demand devices and sources. Use 1.0 for lossless pass-through."
+        "tradable": {
+          "type": "boolean",
+          "description": "Whether commodity can be traded between regions (default: true for carrier/material, false for service/emission)"
         },
-        "investment_cost": {
-          "oneOf": [
-            { "type": "number", "minimum": 0 },
-            { "$ref": "#/$defs/time_varying_value" }
-          ],
-          "description": "Investment cost per unit of new capacity (NCAP_COST). Units: $/GW or specified currency/capacity_unit."
+        "timesliced": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether this commodity is tracked at timeslice resolution"
         },
-        "fixed_om_cost": {
-          "oneOf": [
-            { "type": "number", "minimum": 0 },
-            { "$ref": "#/$defs/time_varying_value" }
-          ],
-          "description": "Fixed O&M cost per unit capacity per year (NCAP_FOM). Units: $/GW/yr."
-        },
-        "variable_om_cost": {
-          "oneOf": [
-            { "type": "number", "minimum": 0 },
-            { "$ref": "#/$defs/time_varying_value" }
-          ],
-          "description": "Variable O&M cost per unit of activity (ACT_COST). Units: $/PJ or $/activity_unit."
-        },
-        "import_price": {
-          "oneOf": [
-            { "type": "number", "minimum": 0 },
-            { "$ref": "#/$defs/time_varying_value" }
-          ],
-          "description": "Price for imported commodity (IRE_PRICE). Only valid for IMP/EXP processes. Units: $/PJ."
-        },
-        "lifetime": {
-          "oneOf": [
-            { "type": "number", "minimum": 0 },
-            { "$ref": "#/$defs/time_varying_value" }
-          ],
-          "description": "Technical lifetime of new capacity (NCAP_TLIFE). Units: years."
-        },
-        "availability_factor": {
-          "oneOf": [
-            { "type": "number", "minimum": 0, "maximum": 1 },
-            { "$ref": "#/$defs/time_varying_value" }
-          ],
-          "description": "Availability factor (0-1). Can be scalar or time-varying."
-        },
-        "activity_bound": {
-          "$ref": "#/$defs/bound",
-          "description": "Bounds on annual activity (ACT_BND)"
-        },
-        "cap_bound": {
-          "$ref": "#/$defs/bound",
-          "description": "Bounds on total installed capacity (CAP_BND)"
-        },
-        "ncap_bound": {
-          "$ref": "#/$defs/bound",
-          "description": "Bounds on new capacity per period (NCAP_BND)"
-        },
-        "stock": {
-          "oneOf": [
-            { "type": "number", "minimum": 0 },
-            { "$ref": "#/$defs/time_varying_value" }
-          ],
-          "description": "Residual capacity stock (PRC_RESID). For aggregate stock of mixed vintages. TIMES decays linearly over TLIFE. Use 'existing_capacity' for specific vintage facilities."
-        },
-        "existing_capacity": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/past_investment" },
-          "description": "Past capacity investments with vintage years (NCAP_PASTI). For specific facilities built in known years. Preferred over 'stock' for new models - provides proper economic life tracking."
+        "peak_fraction": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Peak demand fraction for capacity adequacy"
         }
-      }
+      },
+      "additionalProperties": false
     },
     "past_investment": {
       "type": "object",

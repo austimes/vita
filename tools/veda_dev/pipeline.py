@@ -117,6 +117,7 @@ def run_pipeline(
     work_dir: Path | None = None,
     keep_workdir: bool = False,
     no_solver: bool = False,
+    no_sankey: bool = False,
     verbose: bool = False,
 ) -> PipelineResult:
     """Run the full VedaLang -> TIMES pipeline.
@@ -419,6 +420,52 @@ def run_pipeline(
             run_times_result.skipped = True
         result.steps["run_times"] = run_times_result
 
+        # Step 5: Generate Sankey diagram
+        sankey_result = StepResult()
+        gdx_file = None
+
+        if no_sankey or no_solver:
+            sankey_result.skipped = True
+        elif run_times_result.success and run_times_result.artifacts.get("gdx_files"):
+            try:
+                from .sankey import extract_sankey_multi
+
+                gdx_files = run_times_result.artifacts["gdx_files"]
+                gdx_file = Path(gdx_files[0]) if gdx_files else None
+
+                if gdx_file and gdx_file.exists():
+                    if verbose:
+                        print(f"[sankey] Generating from {gdx_file}")
+
+                    sankey = extract_sankey_multi(gdx_path=gdx_file)
+
+                    if sankey.errors:
+                        sankey_result.success = False
+                        sankey_result.errors.extend(sankey.errors)
+                    elif not sankey.years or not sankey.regions:
+                        sankey_result.success = False
+                        sankey_result.errors.append("No flow data found in GDX file")
+                    else:
+                        output_html = sankey.to_html_interactive()
+                        sankey_file = work_dir / "sankey.html"
+                        sankey_file.write_text(output_html)
+
+                        sankey_result.artifacts["sankey_file"] = str(sankey_file)
+                        sankey_result.artifacts["years"] = len(sankey.years)
+                        sankey_result.artifacts["regions"] = len(sankey.regions)
+
+                        if verbose:
+                            print(f"[sankey] Created {sankey_file}")
+                else:
+                    sankey_result.skipped = True
+                    sankey_result.warnings.append("GDX file not found")
+            except Exception as e:
+                sankey_result.success = False
+                sankey_result.errors.append(str(e))
+        else:
+            sankey_result.skipped = True
+        result.steps["sankey"] = sankey_result
+
         # Aggregate success
         result.success = all(
             step.success or step.skipped for step in result.steps.values()
@@ -432,6 +479,8 @@ def run_pipeline(
             result.artifacts["excel_dir"] = str(excel_dir)
         if dd_dir:
             result.artifacts["dd_dir"] = str(dd_dir)
+        if sankey_result.artifacts.get("sankey_file"):
+            result.artifacts["sankey_file"] = sankey_result.artifacts["sankey_file"]
 
     finally:
         # Clean up work dir on success if not keeping
@@ -500,6 +549,12 @@ def _format_step_detail(name: str, step: StepResult) -> str:
             rc = step.artifacts.get("gams_return_code")
             if rc is not None and rc != 0:
                 details.append(f"rc={rc}")
+
+    elif name == "sankey" and not step.skipped:
+        years = step.artifacts.get("years")
+        regions = step.artifacts.get("regions")
+        if years and regions:
+            details.append(f"{years}y/{regions}r")
 
     return ", ".join(details) if details else ""
 

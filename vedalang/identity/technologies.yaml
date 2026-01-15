@@ -1,0 +1,23 @@
+entries:
+  - key: coal_steam_turbine
+    code: STC
+  - key: combined_cycle_gas
+    code: CCG
+  - key: photovoltaic
+    code: PV
+  - key: led_lighting
+    code: LED
+  - key: refinery_crude_distillation
+    code: RCD
+  - key: post_combustion_capture
+    code: PCC
+  - key: steam_methane_reforming
+    code: SMR
+  - key: electrolysis_h2
+    code: ELEC_H2
+  - key: onshore_wind
+    code: WIND
+  - key: generic_demand_device
+    code: DEM
+  - key: import_supply
+    code: IMP

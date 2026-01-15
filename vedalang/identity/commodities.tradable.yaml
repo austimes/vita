@@ -1,0 +1,22 @@
+entries:
+  - key: electricity
+    code: ELC
+    kind: TRADABLE
+  - key: thermal_coal
+    code: COA
+    kind: TRADABLE
+  - key: natural_gas
+    code: GAS
+    kind: TRADABLE
+  - key: hydrogen
+    code: H2
+    kind: TRADABLE
+  - key: steam
+    code: STM
+    kind: TRADABLE
+  - key: limestone
+    code: LMS
+    kind: TRADABLE
+  - key: carbon_dioxide_captured
+    code: CO2C
+    kind: TRADABLE

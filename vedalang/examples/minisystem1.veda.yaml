@@ -4,11 +4,8 @@
 # Tests: VedaLang → TableIR → Excel → DD → solve
 # Issue: vedalang-8pr.1
 #
-# Uses existing_capacity (NCAP_PASTI) with vintage years for proper
-# capacity tracking. Unlike 'stock' (PRC_RESID), NCAP_PASTI:
-# - Tracks specific vintage years
-# - Provides proper economic life tracking
-# - Retires based on lifetime from vintage year
+# Uses new VedaLang syntax (P4): process_roles, process_variants, availability
+# Migrated from old process_templates/processes syntax
 
 model:
   name: MiniSystem1
@@ -20,53 +17,77 @@ model:
   milestone_years: [2020, 2030]
 
   commodities:
-    - name: ELC
-      type: energy
+    - id: electricity
+      kind: carrier
       unit: PJ
       description: Electricity
 
-    - name: RSD
-      type: demand
+    - id: residential_demand
+      kind: service
       unit: PJ
       description: Residential demand
 
-  processes:
-    - name: PP_SIMPLE
-      description: Simple power generator
-      sets: [ELE]
-      primary_commodity_group: NRGO
-      outputs:
-        - commodity: ELC
-      efficiency: 1.0
-      variable_om_cost: 10  # Activity cost ($/PJ)
-      lifetime: 40  # Years - capacity retires after this period
-      existing_capacity:
-        - vintage: 2010
-          capacity: 100  # GW built in 2010, retires 2050
-      cap_bound:
-        up: 1000
+segments:
+  sectors: [RES]
 
-    - name: DMD_RSD
-      description: Residential demand device
-      sets: [DMD]
-      primary_commodity_group: DEMO
-      inputs:
-        - commodity: ELC
-      outputs:
-        - commodity: RSD
-      efficiency: 1.0
-      lifetime: 40
-      existing_capacity:
-        - vintage: 2010
-          capacity: 100  # GW built in 2010, retires 2050
-      cap_bound:
-        up: 1000
+process_roles:
+  - id: generate_electricity
+    stage: conversion
+    inputs: []
+    outputs:
+      - commodity: electricity
 
-  scenario_parameters:
-    - name: DemandRSD
-      description: Residential demand projection
-      type: demand_projection
-      commodity: RSD
-      interpolation: interp_extrap
-      values:
-        "2020": 50
+  - id: deliver_residential
+    stage: end_use
+    inputs:
+      - commodity: electricity
+    outputs:
+      - commodity: residential_demand
+
+process_variants:
+  - id: simple_generator
+    role: generate_electricity
+    efficiency: 1.0
+    variable_om_cost: 10
+    lifetime: 40
+
+  - id: residential_device
+    role: deliver_residential
+    efficiency: 1.0
+    lifetime: 40
+
+availability:
+  - variant: simple_generator
+    regions: [SINGLE]
+
+  - variant: residential_device
+    regions: [SINGLE]
+    sectors: [RES]
+
+process_parameters:
+  - selector:
+      variant: simple_generator
+      region: SINGLE
+    existing_capacity:
+      - vintage: 2010
+        capacity: 100
+    cap_bound:
+      up: 1000
+
+  - selector:
+      variant: residential_device
+      region: SINGLE
+      sector: RES
+    existing_capacity:
+      - vintage: 2010
+        capacity: 100
+    cap_bound:
+      up: 1000
+
+demands:
+  - commodity: residential_demand
+    region: SINGLE
+    sector: RES
+    interpolation: interp_extrap
+    values:
+      "2020": 50

@@ -1,0 +1,794 @@
+{
+  "version": "1.0.0",
+  "xl2times_version": "unknown",
+  "timestamp": "2026-01-13T09:24:16.556620",
+  "inputs": [
+    {
+      "path": "/Users/gre538/code/veda-devtools/tmp/excel/suppxls/trades/scentrade__trade_links.xlsx",
+      "module_type": "trade",
+      "module_name": "TRADE",
+      "submodule": "main",
+      "table_count": 1
+    },
+    {
+      "path": "/Users/gre538/code/veda-devtools/tmp/excel/suppxls/scen_baseline_demands.xlsx",
+      "module_type": "scen",
+      "module_name": "BASELINE_DEMANDS",
+      "submodule": "main",
+      "table_count": 1
+    },
+    {
+      "path": "/Users/gre538/code/veda-devtools/tmp/excel/syssettings.xlsx",
+      "module_type": "syssettings",
+      "module_name": "SYSSETTINGS",
+      "submodule": "main",
+      "table_count": 8
+    },
+    {
+      "path": "/Users/gre538/code/veda-devtools/tmp/excel/suppxls/scen_baseline_prices.xlsx",
+      "module_type": "scen",
+      "module_name": "BASELINE_PRICES",
+      "submodule": "main",
+      "table_count": 1
+    },
+    {
+      "path": "/Users/gre538/code/veda-devtools/tmp/excel/vt_minisystem8_minisystem8.xlsx",
+      "module_type": "base",
+      "module_name": "BASE",
+      "submodule": "main",
+      "table_count": 4
+    },
+    {
+      "path": "/Users/gre538/code/veda-devtools/tmp/excel/suppxls/trades/scentrade__trade_attrs.xlsx",
+      "module_type": "trade",
+      "module_name": "TRADE",
+      "submodule": "trans",
+      "table_count": 1
+    }
+  ],
+  "tables": [
+    {
+      "id": "T-796fa090",
+      "tag": "~TRADELINKS",
+      "file": "/Users/gre538/code/veda-devtools/tmp/excel/suppxls/trades/scentrade__trade_links.xlsx",
+      "sheet": "Uni_ELC",
+      "range": "A2:C4",
+      "row_count": 1,
+      "columns": [
+        "ELC",
+        "NEM_SOUTH"
+      ],
+      "status": "processed"
+    },
+    {
+      "id": "T-f78da5df",
+      "tag": "~TFM_DINS-AT",
+      "file": "/Users/gre538/code/veda-devtools/tmp/excel/suppxls/scen_baseline_demands.xlsx",
+      "sheet": "Demands",
+      "range": "A2:E63",
+      "row_count": 60,
+      "columns": [
+        "region",
+        "cset_cn",
+        "year",
+        "com_proj"
+      ],
+      "status": "processed",
+      "tag_variant": "-AT"
+    },
+    {
+      "id": "T-7dc6c935",
+      "tag": "~BOOKREGIONS_MAP",
+      "file": "/Users/gre538/code/veda-devtools/tmp/excel/syssettings.xlsx",
+      "sheet": "SysSets",
+      "range": "A2:C6",
+      "row_count": 3,
+      "columns": [
+        "bookname",
+        "region"
+      ],
+      "status": "processed"
+    },
+    {
+      "id": "T-6f44afb3",
+      "tag": "~STARTYEAR",
+      "file": "/Users/gre538/code/veda-devtools/tmp/excel/syssettings.xlsx",
+      "sheet": "SysSets",
+      "range": "A8:B9",
+      "row_count": 1,
+      "columns": [
+        "VALUE"
+      ],
+      "status": "processed"
+    },
+    {
+      "id": "T-ca3191ba",
+      "tag": "~MILESTONEYEARS",
+      "file": "/Users/gre538/code/veda-devtools/tmp/excel/syssettings.xlsx",
+      "sheet": "SysSets",
+      "range": "A11:C18",
+      "row_count": 6,
+      "columns": [
+        "type",
+        "year"
+      ],
+      "status": "processed"
+    },
+    {
+      "id": "T-73c25dd1",
+      "tag": "~CURRENCIES",
+      "file": "/Users/gre538/code/veda-devtools/tmp/excel/syssettings.xlsx",
+      "sheet": "SysSets",
+      "range": "A20:B22",
+      "row_count": 1,
+      "columns": [
+        "currency"
+      ],
+      "status": "processed"
+    },
+    {
+      "id": "T-b43ebc0a",
+      "tag": "~TIMESLICES",
+      "file": "/Users/gre538/code/veda-devtools/tmp/excel/syssettings.xlsx",
+      "sheet": "SysSets",
+      "range": "A24:D27",
+      "row_count": 2,
+      "columns": [
+        "season",
+        "weekly",
+        "daynite"
+      ],
+      "status": "processed"
+    },
+    {
+      "id": "T-f46034c8",
+      "tag": "~FI_COMM",
+      "file": "/Users/gre538/code/veda-devtools/tmp/excel/syssettings.xlsx",
+      "sheet": "Commodities",
+      "range": "A2:E12",
+      "row_count": 9,
+      "columns": [
+        "region",
+        "csets",
+        "commodity",
+        "unit"
+      ],
+      "status": "processed"
+    },
+    {
+      "id": "T-5de458dd",
+      "tag": "~TFM_INS",
+      "file": "/Users/gre538/code/veda-devtools/tmp/excel/syssettings.xlsx",
+      "sheet": "constants",
+      "range": "A2:E6",
+      "row_count": 3,
+      "columns": [
+        "region",
+        "attribute",
+        "currency",
+        "value"
+      ],
+      "status": "processed"
+    },
+    {
+      "id": "T-41b6d11a",
+      "tag": "~TFM_INS",
+      "file": "/Users/gre538/code/veda-devtools/tmp/excel/syssettings.xlsx",
+      "sheet": "constants",
+      "range": "A8:D13",
+      "row_count": 4,
+      "columns": [
+        "timeslice",
+        "attribute",
+        "allregions"
+      ],
+      "status": "processed"
+    },
+    {
+      "id": "T-735d0e23",
+      "tag": "~TFM_DINS-AT",
+      "file": "/Users/gre538/code/veda-devtools/tmp/excel/suppxls/scen_baseline_prices.xlsx",
+      "sheet": "Prices",
+      "range": "A2:E18",
+      "row_count": 15,
+      "columns": [
+        "region",
+        "cset_cn",
+        "year",
+        "com_cstnet"
+      ],
+      "status": "processed",
+      "tag_variant": "-AT"
+    },
+    {
+      "id": "T-db67ac85",
+      "tag": "~FI_PROCESS",
+      "file": "/Users/gre538/code/veda-devtools/tmp/excel/vt_minisystem8_minisystem8.xlsx",
+      "sheet": "Processes",
+      "range": "A2:H17",
+      "row_count": 14,
+      "columns": [
+        "region",
+        "process",
+        "description",
+        "sets",
+        "tact",
+        "tcap",
+        "primarycg"
+      ],
+      "status": "processed"
+    },
+    {
+      "id": "T-4f598d36",
+      "tag": "~FI_T",
+      "file": "/Users/gre538/code/veda-devtools/tmp/excel/vt_minisystem8_minisystem8.xlsx",
+      "sheet": "Processes",
+      "range": "A19:O117",
+      "row_count": 97,
+      "columns": [
+        "region",
+        "process",
+        "commodity-out",
+        "eff",
+        "ire_price",
+        "ncap_tlife",
+        "prc_capact",
+        "limtype",
+        "year",
+        "cap_bnd",
+        "commodity-in",
+        "ncap_cost",
+        "ncap_fom",
+        "act_cost"
+      ],
+      "status": "processed"
+    },
+    {
+      "id": "T-e44d8c80",
+      "tag": "~TFM_INS",
+      "file": "/Users/gre538/code/veda-devtools/tmp/excel/vt_minisystem8_minisystem8.xlsx",
+      "sheet": "Processes",
+      "range": "A119:F123",
+      "row_count": 3,
+      "columns": [
+        "region",
+        "process",
+        "commodity",
+        "attribute",
+        "value"
+      ],
+      "status": "processed"
+    },
+    {
+      "id": "T-e01d58bd",
+      "tag": "~TFM_INS",
+      "file": "/Users/gre538/code/veda-devtools/tmp/excel/vt_minisystem8_minisystem8.xlsx",
+      "sheet": "Processes",
+      "range": "A125:F140",
+      "row_count": 14,
+      "columns": [
+        "region",
+        "process",
+        "year",
+        "attribute",
+        "value"
+      ],
+      "status": "processed"
+    },
+    {
+      "id": "T-74558f09",
+      "tag": "~TFM_INS",
+      "file": "/Users/gre538/code/veda-devtools/tmp/excel/suppxls/trades/scentrade__trade_attrs.xlsx",
+      "sheet": "Attributes",
+      "range": "A2:E4",
+      "row_count": 1,
+      "columns": [
+        "region",
+        "pset_pn",
+        "attribute",
+        "value"
+      ],
+      "status": "processed"
+    }
+  ],
+  "symbols": {
+    "processes": [
+      {
+        "name": "IMP_NG",
+        "description": "NATURAL GAS IMPORT SUPPLY",
+        "sets": [
+          "IRE"
+        ]
+      },
+      {
+        "name": "IMP_NG",
+        "description": "NATURAL GAS IMPORT SUPPLY",
+        "sets": [
+          "IRE"
+        ]
+      },
+      {
+        "name": "IMP_NG",
+        "description": "NATURAL GAS IMPORT SUPPLY",
+        "sets": [
+          "IRE"
+        ]
+      },
+      {
+        "name": "IMP_COAL",
+        "description": "COAL SUPPLY",
+        "sets": [
+          "IRE"
+        ]
+      },
+      {
+        "name": "IMP_COAL",
+        "description": "COAL SUPPLY",
+        "sets": [
+          "IRE"
+        ]
+      },
+      {
+        "name": "IMP_COAL",
+        "description": "COAL SUPPLY",
+        "sets": [
+          "IRE"
+        ]
+      },
+      {
+        "name": "PP_COAL",
+        "description": "COAL-FIRED POWER PLANT",
+        "sets": [
+          "ELE"
+        ]
+      },
+      {
+        "name": "PP_COAL",
+        "description": "COAL-FIRED POWER PLANT",
+        "sets": [
+          "ELE"
+        ]
+      },
+      {
+        "name": "PP_COAL",
+        "description": "COAL-FIRED POWER PLANT",
+        "sets": [
+          "ELE"
+        ]
+      },
+      {
+        "name": "PP_CCGT",
+        "description": "COMBINED CYCLE GAS TURBINE",
+        "sets": [
+          "ELE"
+        ]
+      },
+      {
+        "name": "PP_CCGT",
+        "description": "COMBINED CYCLE GAS TURBINE",
+        "sets": [
+          "ELE"
+        ]
+      },
+      {
+        "name": "PP_CCGT",
+        "description": "COMBINED CYCLE GAS TURBINE",
+        "sets": [
+          "ELE"
+        ]
+      },
+      {
+        "name": "PP_WIND",
+        "description": "ONSHORE WIND PLANT",
+        "sets": [
+          "ELE"
+        ]
+      },
+      {
+        "name": "PP_WIND",
+        "description": "ONSHORE WIND PLANT",
+        "sets": [
+          "ELE"
+        ]
+      },
+      {
+        "name": "PP_WIND",
+        "description": "ONSHORE WIND PLANT",
+        "sets": [
+          "ELE"
+        ]
+      },
+      {
+        "name": "PP_SOLAR",
+        "description": "SOLAR PV PLANT",
+        "sets": [
+          "ELE"
+        ]
+      },
+      {
+        "name": "PP_SOLAR",
+        "description": "SOLAR PV PLANT",
+        "sets": [
+          "ELE"
+        ]
+      },
+      {
+        "name": "PP_SOLAR",
+        "description": "SOLAR PV PLANT",
+        "sets": [
+          "ELE"
+        ]
+      },
+      {
+        "name": "H2_SMR",
+        "description": "STEAM METHANE REFORMING (GREY HYDROGEN)",
+        "sets": [
+          "PRE"
+        ]
+      },
+      {
+        "name": "H2_SMR",
+        "description": "STEAM METHANE REFORMING (GREY HYDROGEN)",
+        "sets": [
+          "PRE"
+        ]
+      },
+      {
+        "name": "H2_SMR",
+        "description": "STEAM METHANE REFORMING (GREY HYDROGEN)",
+        "sets": [
+          "PRE"
+        ]
+      },
+      {
+        "name": "H2_ELEC",
+        "description": "ELECTROLYSIS (GREEN HYDROGEN)",
+        "sets": [
+          "PRE"
+        ]
+      },
+      {
+        "name": "H2_ELEC",
+        "description": "ELECTROLYSIS (GREEN HYDROGEN)",
+        "sets": [
+          "PRE"
+        ]
+      },
+      {
+        "name": "H2_ELEC",
+        "description": "ELECTROLYSIS (GREEN HYDROGEN)",
+        "sets": [
+          "PRE"
+        ]
+      },
+      {
+        "name": "DMD_RSD_ELC",
+        "description": "RESIDENTIAL ELECTRICITY DEMAND",
+        "sets": [
+          "DMD"
+        ]
+      },
+      {
+        "name": "DMD_RSD_ELC",
+        "description": "RESIDENTIAL ELECTRICITY DEMAND",
+        "sets": [
+          "DMD"
+        ]
+      },
+      {
+        "name": "DMD_RSD_ELC",
+        "description": "RESIDENTIAL ELECTRICITY DEMAND",
+        "sets": [
+          "DMD"
+        ]
+      },
+      {
+        "name": "DMD_COM_ELC",
+        "description": "COMMERCIAL ELECTRICITY DEMAND",
+        "sets": [
+          "DMD"
+        ]
+      },
+      {
+        "name": "DMD_COM_ELC",
+        "description": "COMMERCIAL ELECTRICITY DEMAND",
+        "sets": [
+          "DMD"
+        ]
+      },
+      {
+        "name": "DMD_COM_ELC",
+        "description": "COMMERCIAL ELECTRICITY DEMAND",
+        "sets": [
+          "DMD"
+        ]
+      },
+      {
+        "name": "DMD_IND_NG",
+        "description": "INDUSTRIAL GAS DEMAND",
+        "sets": [
+          "DMD"
+        ]
+      },
+      {
+        "name": "DMD_IND_NG",
+        "description": "INDUSTRIAL GAS DEMAND",
+        "sets": [
+          "DMD"
+        ]
+      },
+      {
+        "name": "DMD_IND_NG",
+        "description": "INDUSTRIAL GAS DEMAND",
+        "sets": [
+          "DMD"
+        ]
+      },
+      {
+        "name": "DMD_IND_H2",
+        "description": "INDUSTRIAL HYDROGEN DEMAND",
+        "sets": [
+          "DMD"
+        ]
+      },
+      {
+        "name": "DMD_IND_H2",
+        "description": "INDUSTRIAL HYDROGEN DEMAND",
+        "sets": [
+          "DMD"
+        ]
+      },
+      {
+        "name": "DMD_IND_H2",
+        "description": "INDUSTRIAL HYDROGEN DEMAND",
+        "sets": [
+          "DMD"
+        ]
+      },
+      {
+        "name": "DMD_TRN_ELC",
+        "description": "ELECTRIC VEHICLE TRANSPORT",
+        "sets": [
+          "DMD"
+        ]
+      },
+      {
+        "name": "DMD_TRN_ELC",
+        "description": "ELECTRIC VEHICLE TRANSPORT",
+        "sets": [
+          "DMD"
+        ]
+      },
+      {
+        "name": "DMD_TRN_ELC",
+        "description": "ELECTRIC VEHICLE TRANSPORT",
+        "sets": [
+          "DMD"
+        ]
+      },
+      {
+        "name": "DMD_TRN_H2",
+        "description": "FUEL CELL VEHICLE TRANSPORT",
+        "sets": [
+          "DMD"
+        ]
+      },
+      {
+        "name": "DMD_TRN_H2",
+        "description": "FUEL CELL VEHICLE TRANSPORT",
+        "sets": [
+          "DMD"
+        ]
+      },
+      {
+        "name": "DMD_TRN_H2",
+        "description": "FUEL CELL VEHICLE TRANSPORT",
+        "sets": [
+          "DMD"
+        ]
+      },
+      {
+        "name": "TU_ELC_NEM_EAST_NEM_SOUTH_01",
+        "description": "nan",
+        "sets": [
+          "IRE"
+        ]
+      },
+      {
+        "name": "TU_ELC_NEM_EAST_NEM_SOUTH_01",
+        "description": "nan",
+        "sets": [
+          "IRE"
+        ]
+      }
+    ],
+    "commodities": [
+      {
+        "name": "NG",
+        "sets": [
+          "NRG"
+        ]
+      },
+      {
+        "name": "NG",
+        "sets": [
+          "NRG"
+        ]
+      },
+      {
+        "name": "NG",
+        "sets": [
+          "NRG"
+        ]
+      },
+      {
+        "name": "COAL",
+        "sets": [
+          "NRG"
+        ]
+      },
+      {
+        "name": "COAL",
+        "sets": [
+          "NRG"
+        ]
+      },
+      {
+        "name": "COAL",
+        "sets": [
+          "NRG"
+        ]
+      },
+      {
+        "name": "ELC",
+        "sets": [
+          "NRG"
+        ]
+      },
+      {
+        "name": "ELC",
+        "sets": [
+          "NRG"
+        ]
+      },
+      {
+        "name": "ELC",
+        "sets": [
+          "NRG"
+        ]
+      },
+      {
+        "name": "H2",
+        "sets": [
+          "MAT"
+        ]
+      },
+      {
+        "name": "H2",
+        "sets": [
+          "MAT"
+        ]
+      },
+      {
+        "name": "H2",
+        "sets": [
+          "MAT"
+        ]
+      },
+      {
+        "name": "CO2",
+        "sets": [
+          "ENV"
+        ]
+      },
+      {
+        "name": "CO2",
+        "sets": [
+          "ENV"
+        ]
+      },
+      {
+        "name": "CO2",
+        "sets": [
+          "ENV"
+        ]
+      },
+      {
+        "name": "RSD",
+        "sets": [
+          "DEM"
+        ]
+      },
+      {
+        "name": "RSD",
+        "sets": [
+          "DEM"
+        ]
+      },
+      {
+        "name": "RSD",
+        "sets": [
+          "DEM"
+        ]
+      },
+      {
+        "name": "COM",
+        "sets": [
+          "DEM"
+        ]
+      },
+      {
+        "name": "COM",
+        "sets": [
+          "DEM"
+        ]
+      },
+      {
+        "name": "COM",
+        "sets": [
+          "DEM"
+        ]
+      },
+      {
+        "name": "IND",
+        "sets": [
+          "DEM"
+        ]
+      },
+      {
+        "name": "IND",
+        "sets": [
+          "DEM"
+        ]
+      },
+      {
+        "name": "IND",
+        "sets": [
+          "DEM"
+        ]
+      },
+      {
+        "name": "TRN",
+        "sets": [
+          "DEM"
+        ]
+      },
+      {
+        "name": "TRN",
+        "sets": [
+          "DEM"
+        ]
+      },
+      {
+        "name": "TRN",
+        "sets": [
+          "DEM"
+        ]
+      }
+    ],
+    "regions": [
+      "IMPEXP",
+      "MINRNW",
+      "NEM_EAST",
+      "NEM_SOUTH",
+      "WA"
+    ]
+  },
+  "data_modules": [
+    "BASE",
+    "TRADE",
+    "BASELINE_DEMANDS",
+    "BASELINE_PRICES",
+    "SYSSETTINGS"
+  ],
+  "time_horizon": {
+    "start_year": 2020,
+    "milestone_years": [
+      2020,
+      2025,
+      2030,
+      2040,
+      2050
+    ]
+  }
+}

@@ -1,0 +1,10 @@
+entries:
+  - key: carbon_dioxide
+    code: CO2
+    kind: EMISSION
+  - key: methane
+    code: CH4
+    kind: EMISSION
+  - key: nitrous_oxide
+    code: N2O
+    kind: EMISSION

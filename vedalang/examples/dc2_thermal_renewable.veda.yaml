@@ -1,5 +1,5 @@
 # DC2: Thermal + Renewable plants sharing output commodity
-# Extends DC1 with a wind plant that also outputs ELC.
+# Extends DC1 with a wind plant that also outputs C:ELC.
 # Pattern sources:
 #   - add_power_plant: PP_CCGT (thermal)
 #   - add_renewable_plant: PP_WIND (renewable)
@@ -11,12 +11,12 @@ model:
     - REG1
   
   commodities:
-    - name: NG
-      type: energy
+    - name: C:GAS
+      kind: TRADABLE
       unit: PJ
       description: Natural Gas
-    - name: ELC
-      type: energy
+    - name: C:ELC
+      kind: TRADABLE
       unit: PJ
       description: Electricity
   
@@ -25,14 +25,13 @@ model:
     - name: PP_CCGT
       description: Combined cycle gas turbine
       sets: [ELE]
-      primary_commodity_group: NRGO
       activity_unit: PJ
       capacity_unit: GW
       inputs:
-        - commodity: NG
+        - commodity: C:GAS
           share: 1.0
       outputs:
-        - commodity: ELC
+        - commodity: C:ELC
           share: 1.0
       efficiency: 0.55
     
@@ -40,9 +39,8 @@ model:
     - name: PP_WIND
       description: Onshore wind plant
       sets: [ELE]
-      primary_commodity_group: NRGO
       capacity_unit: GW
       outputs:
-        - commodity: ELC
+        - commodity: C:ELC
           share: 1.0
       efficiency: 1.0

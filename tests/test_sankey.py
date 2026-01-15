@@ -6,7 +6,13 @@ from unittest.mock import patch
 
 import pytest
 
-from tools.veda_dev.sankey import SankeyData, SankeyLink, extract_sankey
+from tools.veda_dev.sankey import (
+    SankeyData,
+    SankeyDataMulti,
+    SankeyLink,
+    extract_sankey,
+    extract_sankey_multi,
+)
 
 
 class TestSankeyData:
@@ -142,6 +148,138 @@ class TestExtractSankey:
         assert len(result.links) == 2
 
 
+class TestSankeyDataMulti:
+    """Tests for SankeyDataMulti (interactive visualization)."""
+
+    def test_to_html_interactive_basic(self):
+        """Interactive HTML contains expected elements."""
+        data = SankeyDataMulti(
+            nodes=["ProcessA", "[ELC]"],
+            years=["2020", "2030"],
+            regions=["R1", "R2"],
+            links={
+                "2020": {
+                    "R1": [
+                        {"source": 0, "target": 1, "value": 100.0, "commodity": "ELC"}
+                    ],
+                    "R2": [
+                        {"source": 0, "target": 1, "value": 50.0, "commodity": "ELC"}
+                    ],
+                },
+                "2030": {
+                    "R1": [
+                        {"source": 0, "target": 1, "value": 120.0, "commodity": "ELC"}
+                    ],
+                    "R2": [
+                        {"source": 0, "target": 1, "value": 60.0, "commodity": "ELC"}
+                    ],
+                },
+            },
+            title="Test Interactive Sankey",
+        )
+        html = data.to_html_interactive()
+
+        # Check for Plotly
+        assert "plotly" in html.lower()
+        assert "sankey" in html.lower()
+
+        # Check for collapsible sidebar
+        assert "sidebar" in html
+        assert "toggle-btn" in html
+
+        # Check for year dropdown (not slider)
+        assert "year-select" in html
+
+        # Check for region multi-select
+        assert "region-select" in html
+        assert "All regions" in html
+
+        # Check data is embedded
+        assert "2020" in html
+        assert "2030" in html
+        assert "R1" in html
+        assert "R2" in html
+
+        # Check JavaScript functions
+        assert "renderSankey" in html
+        assert "aggregateLinks" in html
+        assert "Plotly.react" in html
+
+
+class TestExtractSankeyMulti:
+    """Tests for extract_sankey_multi."""
+
+    def test_missing_gdx_file(self, tmp_path):
+        """Returns error when GDX file doesn't exist."""
+        result = extract_sankey_multi(tmp_path / "nonexistent.gdx")
+        assert len(result.errors) > 0
+        assert "not found" in result.errors[0].lower()
+
+    @patch("tools.veda_dev.sankey.find_gdxdump")
+    def test_missing_gdxdump(self, mock_find, tmp_path):
+        """Returns error when gdxdump is not available."""
+        mock_find.return_value = None
+        gdx_file = tmp_path / "test.gdx"
+        gdx_file.touch()
+        result = extract_sankey_multi(gdx_file)
+        assert len(result.errors) > 0
+        assert "gdxdump not found" in result.errors[0]
+
+    @patch("tools.veda_dev.sankey.dump_symbol_csv")
+    @patch("tools.veda_dev.sankey.find_gdxdump")
+    def test_extracts_multi_year_region_data(self, mock_find, mock_dump, tmp_path):
+        """Correctly extracts data for all years and regions."""
+        mock_find.return_value = "/usr/bin/gdxdump"
+
+        # Multi-year, multi-region data
+        f_in_csv = (
+            '"R","ALLYEAR","T","P","C","S","Val"\n'
+            '"R1","2020","2020","DMD","ELC","ANNUAL",50.0\n'
+            '"R1","2030","2030","DMD","ELC","ANNUAL",60.0\n'
+            '"R2","2020","2020","DMD","ELC","ANNUAL",40.0\n'
+            '"R2","2030","2030","DMD","ELC","ANNUAL",45.0'
+        )
+        f_out_csv = (
+            '"R","ALLYEAR","T","P","C","S","Val"\n'
+            '"R1","2020","2020","DMD","HEAT","ANNUAL",45.0\n'
+            '"R1","2030","2030","DMD","HEAT","ANNUAL",55.0\n'
+            '"R2","2020","2020","DMD","HEAT","ANNUAL",35.0\n'
+            '"R2","2030","2030","DMD","HEAT","ANNUAL",40.0'
+        )
+
+        def side_effect(gdx_path, symbol, gdxdump):
+            if symbol == "F_IN":
+                return f_in_csv
+            elif symbol == "F_OUT":
+                return f_out_csv
+            return None
+
+        mock_dump.side_effect = side_effect
+
+        gdx_file = tmp_path / "test.gdx"
+        gdx_file.touch()
+
+        result = extract_sankey_multi(gdx_file)
+
+        assert len(result.errors) == 0
+        assert result.years == ["2020", "2030"]
+        assert result.regions == ["R1", "R2"]
+        assert len(result.nodes) == 3  # DMD, [ELC], [HEAT]
+        assert "[ELC]" in result.nodes
+        assert "[HEAT]" in result.nodes
+        assert "DMD" in result.nodes
+
+        # Check links structure
+        assert "2020" in result.links
+        assert "2030" in result.links
+        assert "R1" in result.links["2020"]
+        assert "R2" in result.links["2020"]
+
+        # Check link values (indices)
+        r1_2020_links = result.links["2020"]["R1"]
+        assert len(r1_2020_links) == 2  # one F_IN, one F_OUT
+
+
 class TestSankeyCLI:
     """Test sankey CLI subcommand."""
 
@@ -216,3 +354,27 @@ class TestSankeyWithRealGDX:
         data = json.loads(output)
         assert "nodes" in data
         assert "links" in data
+
+    def test_extract_multi_real_gdx(self, gdx_path):
+        """Extracts multi-year/region Sankey data from real GDX."""
+        result = extract_sankey_multi(gdx_path)
+        assert len(result.errors) == 0
+        assert len(result.years) >= 1
+        assert len(result.regions) >= 1
+        assert len(result.nodes) >= 1
+
+    def test_interactive_html_real_gdx(self, gdx_path):
+        """Interactive HTML generation works with real GDX."""
+        result = extract_sankey_multi(gdx_path)
+        assert len(result.errors) == 0
+
+        html = result.to_html_interactive()
+        assert "plotly" in html.lower()
+        assert "sidebar" in html
+        assert "year-select" in html
+        assert "region-select" in html
+        # Check that data is embedded
+        for year in result.years:
+            assert year in html
+        for region in result.regions:
+            assert region in html

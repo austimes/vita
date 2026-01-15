@@ -1,0 +1,89 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "VedaLang",
+  "scopeName": "source.vedalang",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#keywords" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#attributes" },
+    { "include": "#types" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.number-sign.vedalang",
+          "match": "#.*$"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.vedalang",
+          "match": "\\b(model|regions|commodities|processes|scenario_parameters|trade_links|constraints|cases|studies|timeslices)\\b"
+        },
+        {
+          "name": "keyword.other.vedalang",
+          "match": "\\b(name|description|id|type|unit|region|inputs|outputs|input|output)\\b"
+        }
+      ]
+    },
+    "attributes": {
+      "patterns": [
+        {
+          "name": "variable.parameter.vedalang",
+          "match": "\\b(efficiency|investment_cost|fixed_om_cost|variable_om_cost|import_price|lifetime|availability_factor|stock|existing_capacity|emission_factor|cap2act|activity_unit|capacity_unit)\\b"
+        }
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "name": "support.type.vedalang",
+          "match": "\\b(energy|emission|material|demand|financial|environment|standard|storage|interregional_exchange)\\b"
+        },
+        {
+          "name": "constant.language.vedalang",
+          "match": "\\b(true|false|null)\\b"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.vedalang",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.vedalang",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.vedalang",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            {
+              "name": "constant.character.escape.vedalang",
+              "match": "\\\\."
+            }
+          ]
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.vedalang",
+          "match": "\\b[0-9]+(\\.[0-9]+)?\\b"
+        }
+      ]
+    }
+  }
+}

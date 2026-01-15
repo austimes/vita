@@ -69,6 +69,11 @@ def main():
         help="Stop before running TIMES solver",
     )
     pipeline_parser.add_argument(
+        "--no-sankey",
+        action="store_true",
+        help="Skip Sankey diagram generation",
+    )
+    pipeline_parser.add_argument(
         "--process-results-only",
         action="store_true",
         help="Skip pipeline, just process existing GDX results",
@@ -310,6 +315,28 @@ def main():
         action="store_true",
         help="List available regions and exit",
     )
+    sankey_parser.add_argument(
+        "--static",
+        action="store_true",
+        help="Generate static HTML (single year/region) instead of interactive",
+    )
+
+    # check-pcg subcommand
+    check_pcg_parser = subparsers.add_parser(
+        "check-pcg",
+        help="Compare explicit vs inferred PCG for migration help",
+    )
+    check_pcg_parser.add_argument(
+        "input",
+        type=Path,
+        help="VedaLang model file (.veda.yaml)",
+    )
+    check_pcg_parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="json_output",
+        help="Output as JSON",
+    )
 
     args = parser.parse_args()
 
@@ -327,6 +354,8 @@ def main():
         run_times_results_command(args)
     elif args.command == "sankey":
         run_sankey_command(args)
+    elif args.command == "check-pcg":
+        run_check_pcg_command(args)
 
 
 def run_pipeline_command(args):
@@ -369,6 +398,7 @@ def run_pipeline_command(args):
         work_dir=args.work_dir,
         keep_workdir=args.keep_workdir,
         no_solver=args.no_solver,
+        no_sankey=args.no_sankey,
         verbose=verbose,
     )
 
@@ -554,7 +584,12 @@ def run_times_results_command(args):
 
 def run_sankey_command(args):
     """Run the sankey command."""
-    from .sankey import extract_sankey, get_available_regions, get_available_years
+    from .sankey import (
+        extract_sankey,
+        extract_sankey_multi,
+        get_available_regions,
+        get_available_years,
+    )
 
     if not args.gdx.exists():
         print(f"Error: GDX file not found: {args.gdx}", file=sys.stderr)
@@ -577,7 +612,35 @@ def run_sankey_command(args):
             print("No flow data found in GDX file")
         sys.exit(0)
 
-    # Extract Sankey data
+    # For HTML format, use interactive mode by default (unless --static)
+    use_interactive = args.format == "html" and not args.static
+
+    if use_interactive:
+        # Extract all years/regions for interactive visualization
+        sankey = extract_sankey_multi(
+            gdx_path=args.gdx,
+            min_flow=args.min_flow,
+        )
+
+        if sankey.errors:
+            for err in sankey.errors:
+                print(f"Error: {err}", file=sys.stderr)
+            sys.exit(2)
+
+        if not sankey.years or not sankey.regions:
+            print("Warning: No flow data found in GDX file", file=sys.stderr)
+            sys.exit(1)
+
+        output = sankey.to_html_interactive()
+        output_path = args.output or Path("sankey.html")
+        output_path.write_text(output)
+        print(f"Saved interactive HTML to: {output_path}")
+        print(f"  Years: {len(sankey.years)} ({sankey.years[0]} - {sankey.years[-1]})")
+        print(f"  Regions: {len(sankey.regions)} ({', '.join(sankey.regions)})")
+        print(f"Open in browser: file://{output_path.absolute()}")
+        sys.exit(0)
+
+    # Static mode: single year/region
     sankey = extract_sankey(
         gdx_path=args.gdx,
         year=args.year,
@@ -615,8 +678,26 @@ def run_sankey_command(args):
         output = sankey.to_html()
         output_path = args.output or Path("sankey.html")
         output_path.write_text(output)
-        print(f"Saved HTML to: {output_path}")
+        print(f"Saved static HTML to: {output_path}")
         print(f"Open in browser: file://{output_path.absolute()}")
+
+    sys.exit(0)
+
+
+def run_check_pcg_command(args):
+    """Run the check-pcg command."""
+    from .pcg_checker import check_pcg, format_pcg_result
+
+    if not args.input.exists():
+        print(f"Error: File not found: {args.input}", file=sys.stderr)
+        sys.exit(2)
+
+    result = check_pcg(args.input)
+
+    if args.json_output:
+        print(json.dumps(result.to_dict(), indent=2))
+    else:
+        print(format_pcg_result(result))
 
     sys.exit(0)
 

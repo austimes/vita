@@ -1,6 +1,6 @@
 # DC1: Thermal plant generated from patterns
 # This model was created by combining pattern expansions:
-#   - add_energy_commodity: NG, ELC
+#   - add_energy_commodity: C:GAS, C:ELC
 #   - add_power_plant: PP_CCGT
 model:
   name: MiniModel
@@ -10,12 +10,12 @@ model:
     - REG1
   
   commodities:
-    - name: NG
-      type: energy
+    - name: C:GAS
+      kind: TRADABLE
       unit: PJ
       description: Natural Gas
-    - name: ELC
-      type: energy
+    - name: C:ELC
+      kind: TRADABLE
       unit: PJ
       description: Electricity
   
@@ -23,13 +23,12 @@ model:
     - name: PP_CCGT
       description: Thermal power plant
       sets: [ELE]
-      primary_commodity_group: NRGO
       activity_unit: PJ
       capacity_unit: GW
       inputs:
-        - commodity: NG
+        - commodity: C:GAS
           share: 1.0
       outputs:
-        - commodity: ELC
+        - commodity: C:ELC
           share: 1.0
       efficiency: 0.55

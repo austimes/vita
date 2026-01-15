@@ -11,15 +11,15 @@ model:
   
   commodities:
     # No unit needed - energy defaults to PJ
-    - name: ELC
-      type: energy
+    - name: C:ELC
+      kind: TRADABLE
       description: Electricity
-    - name: NG
-      type: energy
+    - name: C:GAS
+      kind: TRADABLE
       description: Natural Gas
     # Emission defaults to Mt
-    - name: CO2
-      type: emission
+    - name: E:CO2
+      kind: EMISSION
       description: Carbon dioxide
   
   processes:
@@ -27,9 +27,8 @@ model:
     - name: PP_CCGT
       description: Combined Cycle Gas Turbine
       sets: [ELE]
-      primary_commodity_group: NRGO
-      input: NG           # Shorthand for inputs: [{commodity: NG}]
-      output: ELC         # Shorthand for outputs: [{commodity: ELC}]
+      input: C:GAS          # Shorthand for inputs: [{commodity: C:GAS}]
+      output: C:ELC         # Shorthand for outputs: [{commodity: C:ELC}]
       efficiency: 0.55
       invcost: 800
       life: 30
@@ -38,7 +37,6 @@ model:
     - name: IMP_NG
       description: Natural gas import
       sets: [IMP]
-      primary_commodity_group: NRGO
-      output: NG          # Shorthand
+      output: C:GAS         # Shorthand
       efficiency: 1.0
       cost: 5.0

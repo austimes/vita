@@ -1,32 +1,39 @@
 # Minimal VedaLang example: A simple thermal power plant
+# Uses new VedaLang syntax (P4): process_roles, process_variants, availability
+
 model:
   name: MiniModel
   description: A minimal test model with one power plant
-  
+
   regions:
     - REG1
-  
+
+  milestone_years: [2020, 2030]
+
   commodities:
-    - name: ELC
-      type: energy
+    - id: electricity
+      kind: carrier
       unit: PJ
       description: Electricity
-    - name: NG
-      type: energy
+
+    - id: gas
+      kind: carrier
       unit: PJ
       description: Natural Gas
-  
-  processes:
-    - name: PP_CCGT
-      description: Combined Cycle Gas Turbine
-      sets: [ELE]
-      primary_commodity_group: NRGO
-      activity_unit: PJ
-      capacity_unit: GW
-      inputs:
-        - commodity: NG
-          share: 1.0
-      outputs:
-        - commodity: ELC
-          share: 1.0
-      efficiency: 0.55
+
+process_roles:
+  - id: generate_electricity
+    stage: conversion
+    inputs:
+      - commodity: gas
+    outputs:
+      - commodity: electricity
+
+process_variants:
+  - id: ccgt
+    role: generate_electricity
+    efficiency: 0.55
+
+availability:
+  - variant: ccgt
+    regions: [REG1]

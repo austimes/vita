@@ -1,14 +1,11 @@
 """
 Schema Compatibility Tests
 
-These tests ensure backward compatibility of vedalang.schema.json.
-They catch accidental breaking changes by verifying that:
-1. Required fields from the baseline are preserved
-2. Enum values are not removed (only added)
-3. Property types remain unchanged
+These tests verify the VedaLang schema structure.
 
-If these tests fail, you've likely made a breaking schema change.
-See docs/schema_evolution.md for the evolution policy.
+Note: As of January 2026, VedaLang underwent a breaking change to introduce
+roles/variants/segments syntax. The old process/process_template constructs
+were removed. See docs/reference/vedalang-syntax.prd.txt for details.
 """
 
 import json
@@ -28,22 +25,26 @@ def load_schema() -> dict:
 
 
 # =============================================================================
-# Baseline Definitions (LOCKED - do not remove items from these lists)
+# Current Schema Definitions (January 2026 roles/variants/segments syntax)
 # =============================================================================
 
 REQUIRED_ROOT_FIELDS = ["model"]
 
-REQUIRED_MODEL_FIELDS = ["name", "regions", "commodities", "processes"]
+REQUIRED_MODEL_FIELDS = ["name", "regions", "commodities"]
 
-REQUIRED_COMMODITY_FIELDS = ["name", "type"]
-
-REQUIRED_PROCESS_FIELDS = ["name", "sets"]
+# Commodity now uses 'id' (preferred) or 'name' (legacy), plus 'kind'
+REQUIRED_COMMODITY_FIELDS = ["kind"]
 
 REQUIRED_FLOW_FIELDS = ["commodity"]
 
 REQUIRED_SCENARIO_FIELDS = ["name", "type"]
 
-BASELINE_COMMODITY_TYPES = ["energy", "material", "emission", "demand"]
+# New: process_role and process_variant replace the old 'process' definition
+REQUIRED_PROCESS_ROLE_FIELDS = ["id"]
+REQUIRED_PROCESS_VARIANT_FIELDS = ["id", "role"]
+
+# Commodity kinds: new names + legacy names for compatibility
+BASELINE_COMMODITY_KINDS = ["carrier", "service", "material", "emission", "TRADABLE", "SERVICE", "EMISSION"]
 
 BASELINE_SCENARIO_TYPES = ["commodity_price", "demand_projection"]
 
@@ -54,7 +55,7 @@ BASELINE_SCENARIO_TYPES = ["commodity_price", "demand_projection"]
 
 
 class TestRequiredFieldsPreserved:
-    """Verify that all baseline required fields still exist in the schema."""
+    """Verify that all required fields exist in the schema."""
 
     @pytest.fixture
     def schema(self) -> dict:
@@ -65,8 +66,7 @@ class TestRequiredFieldsPreserved:
         current_required = schema.get("required", [])
         for field in REQUIRED_ROOT_FIELDS:
             assert field in current_required, (
-                f"Required root field '{field}' was removed! "
-                "This is a breaking change. See docs/schema_evolution.md"
+                f"Required root field '{field}' was removed!"
             )
 
     def test_model_required_fields(self, schema: dict):
@@ -75,8 +75,7 @@ class TestRequiredFieldsPreserved:
         current_required = model_props.get("required", [])
         for field in REQUIRED_MODEL_FIELDS:
             assert field in current_required, (
-                f"Required model field '{field}' was removed! "
-                "This is a breaking change. See docs/schema_evolution.md"
+                f"Required model field '{field}' was removed!"
             )
 
     def test_commodity_required_fields(self, schema: dict):
@@ -85,18 +84,25 @@ class TestRequiredFieldsPreserved:
         current_required = commodity_def.get("required", [])
         for field in REQUIRED_COMMODITY_FIELDS:
             assert field in current_required, (
-                f"Required commodity field '{field}' was removed! "
-                "This is a breaking change. See docs/schema_evolution.md"
+                f"Required commodity field '{field}' was removed!"
             )
 
-    def test_process_required_fields(self, schema: dict):
-        """Process definition must require baseline fields."""
-        process_def = schema.get("$defs", {}).get("process", {})
-        current_required = process_def.get("required", [])
-        for field in REQUIRED_PROCESS_FIELDS:
+    def test_process_role_required_fields(self, schema: dict):
+        """Process role definition must require baseline fields."""
+        role_def = schema.get("$defs", {}).get("process_role", {})
+        current_required = role_def.get("required", [])
+        for field in REQUIRED_PROCESS_ROLE_FIELDS:
             assert field in current_required, (
-                f"Required process field '{field}' was removed! "
-                "This is a breaking change. See docs/schema_evolution.md"
+                f"Required process_role field '{field}' was removed!"
+            )
+
+    def test_process_variant_required_fields(self, schema: dict):
+        """Process variant definition must require baseline fields."""
+        variant_def = schema.get("$defs", {}).get("process_variant", {})
+        current_required = variant_def.get("required", [])
+        for field in REQUIRED_PROCESS_VARIANT_FIELDS:
+            assert field in current_required, (
+                f"Required process_variant field '{field}' was removed!"
             )
 
     def test_flow_required_fields(self, schema: dict):
@@ -105,23 +111,16 @@ class TestRequiredFieldsPreserved:
         current_required = flow_def.get("required", [])
         for field in REQUIRED_FLOW_FIELDS:
             assert field in current_required, (
-                f"Required flow field '{field}' was removed! "
-                "This is a breaking change. See docs/schema_evolution.md"
+                f"Required flow field '{field}' was removed!"
             )
 
     def test_scenario_required_fields(self, schema: dict):
-        """Scenario parameter definition must require baseline fields.
-
-        Note: 'scenario' was renamed to 'scenario_parameter' in the schema,
-        with 'scenarios' kept as a deprecated alias for backward compatibility.
-        """
-        # Use the new 'scenario_parameter' definition
+        """Scenario parameter definition must require baseline fields."""
         scenario_def = schema.get("$defs", {}).get("scenario_parameter", {})
         current_required = scenario_def.get("required", [])
         for field in REQUIRED_SCENARIO_FIELDS:
             assert field in current_required, (
-                f"Required scenario_parameter field '{field}' was removed! "
-                "This is a breaking change. See docs/schema_evolution.md"
+                f"Required scenario_parameter field '{field}' was removed!"
             )
 
 
@@ -131,37 +130,32 @@ class TestRequiredFieldsPreserved:
 
 
 class TestEnumValuesPreserved:
-    """Verify that baseline enum values haven't been removed."""
+    """Verify that enum values exist in the schema."""
 
     @pytest.fixture
     def schema(self) -> dict:
         return load_schema()
 
-    def test_commodity_type_enum_values(self, schema: dict):
-        """Commodity type enum must include all baseline values."""
+    def test_commodity_kind_enum_values(self, schema: dict):
+        """Commodity kind enum must include all expected values."""
         commodity_def = schema.get("$defs", {}).get("commodity", {})
-        type_prop = commodity_def.get("properties", {}).get("type", {})
-        current_enum = type_prop.get("enum", [])
+        kind_prop = commodity_def.get("properties", {}).get("kind", {})
+        current_enum = kind_prop.get("enum", [])
 
-        for value in BASELINE_COMMODITY_TYPES:
+        for value in BASELINE_COMMODITY_KINDS:
             assert value in current_enum, (
-                f"Commodity type '{value}' was removed from enum! "
-                "This is a breaking change. See docs/schema_evolution.md"
+                f"Commodity kind '{value}' was removed from enum!"
             )
 
     def test_scenario_type_enum_values(self, schema: dict):
-        """Scenario parameter type enum must include all baseline values.
-
-        Note: 'scenario' was renamed to 'scenario_parameter' in the schema.
-        """
+        """Scenario parameter type enum must include all expected values."""
         scenario_def = schema.get("$defs", {}).get("scenario_parameter", {})
         type_prop = scenario_def.get("properties", {}).get("type", {})
         current_enum = type_prop.get("enum", [])
 
         for value in BASELINE_SCENARIO_TYPES:
             assert value in current_enum, (
-                f"Scenario parameter type '{value}' was removed from enum! "
-                "This is a breaking change. See docs/schema_evolution.md"
+                f"Scenario parameter type '{value}' was removed from enum!"
             )
 
 
@@ -171,45 +165,44 @@ class TestEnumValuesPreserved:
 
 
 class TestPropertyTypesPreserved:
-    """Verify that property types haven't changed."""
+    """Verify that property types are correct."""
 
     @pytest.fixture
     def schema(self) -> dict:
         return load_schema()
 
     def test_model_name_is_string(self, schema: dict):
-        """model.name must remain a string type."""
+        """model.name must be a string type."""
         model_props = schema.get("properties", {}).get("model", {})
         name_prop = model_props.get("properties", {}).get("name", {})
         assert name_prop.get("type") == "string", (
-            "model.name type was changed! This is a breaking change."
+            "model.name type was changed!"
         )
 
     def test_model_regions_is_array(self, schema: dict):
-        """model.regions must remain an array type."""
+        """model.regions must be an array type."""
         model_props = schema.get("properties", {}).get("model", {})
         regions_prop = model_props.get("properties", {}).get("regions", {})
         assert regions_prop.get("type") == "array", (
-            "model.regions type was changed! This is a breaking change."
+            "model.regions type was changed!"
         )
 
-    def test_process_efficiency_accepts_number(self, schema: dict):
-        """process.efficiency must accept number type (scalar or in oneOf)."""
-        process_def = schema.get("$defs", {}).get("process", {})
-        eff_prop = process_def.get("properties", {}).get("efficiency", {})
+    def test_process_variant_efficiency_accepts_number(self, schema: dict):
+        """process_variant.efficiency must accept number type (scalar or in oneOf)."""
+        variant_def = schema.get("$defs", {}).get("process_variant", {})
+        eff_prop = variant_def.get("properties", {}).get("efficiency", {})
         # Can be direct type or oneOf (for time-varying support)
         if "oneOf" in eff_prop:
-            # Check that at least one option accepts number
             number_options = [
                 opt for opt in eff_prop["oneOf"]
                 if opt.get("type") == "number"
             ]
             assert len(number_options) >= 1, (
-                "process.efficiency oneOf must include a number option"
+                "process_variant.efficiency oneOf must include a number option"
             )
         else:
             assert eff_prop.get("type") == "number", (
-                "process.efficiency type was changed! This is a breaking change."
+                "process_variant.efficiency type was changed!"
             )
 
 
@@ -235,10 +228,16 @@ class TestSchemaStructure:
             "Commodity type definition was removed!"
         )
 
-    def test_process_def_exists(self, schema: dict):
-        """Process definition must exist."""
-        assert "process" in schema.get("$defs", {}), (
-            "Process type definition was removed!"
+    def test_process_role_def_exists(self, schema: dict):
+        """Process role definition must exist."""
+        assert "process_role" in schema.get("$defs", {}), (
+            "Process role type definition was removed!"
+        )
+
+    def test_process_variant_def_exists(self, schema: dict):
+        """Process variant definition must exist."""
+        assert "process_variant" in schema.get("$defs", {}), (
+            "Process variant type definition was removed!"
         )
 
     def test_flow_def_exists(self, schema: dict):
@@ -248,11 +247,7 @@ class TestSchemaStructure:
         )
 
     def test_scenario_def_exists(self, schema: dict):
-        """Scenario parameter definition must exist.
-
-        Note: 'scenario' was renamed to 'scenario_parameter' in the schema,
-        with 'scenarios' kept as a deprecated alias for backward compatibility.
-        """
+        """Scenario parameter definition must exist."""
         assert "scenario_parameter" in schema.get("$defs", {}), (
             "Scenario parameter type definition was removed!"
         )
@@ -267,4 +262,77 @@ class TestSchemaStructure:
         """Timeslice level definition must exist."""
         assert "timeslice_level" in schema.get("$defs", {}), (
             "Timeslice level type definition was removed!"
+        )
+
+
+# =============================================================================
+# New Schema Construct Tests
+# =============================================================================
+
+
+class TestNewSchemaConstructs:
+    """Verify new roles/variants/segments constructs exist."""
+
+    @pytest.fixture
+    def schema(self) -> dict:
+        return load_schema()
+
+    def test_segments_def_exists(self, schema: dict):
+        """Segments definition must exist."""
+        assert "segments" in schema.get("$defs", {}), (
+            "Segments type definition is missing!"
+        )
+
+    def test_availability_entry_def_exists(self, schema: dict):
+        """Availability entry definition must exist."""
+        assert "availability_entry" in schema.get("$defs", {}), (
+            "Availability entry type definition is missing!"
+        )
+
+    def test_process_parameter_def_exists(self, schema: dict):
+        """Process parameter definition must exist."""
+        assert "process_parameter" in schema.get("$defs", {}), (
+            "Process parameter type definition is missing!"
+        )
+
+    def test_demand_def_exists(self, schema: dict):
+        """Demand definition must exist."""
+        assert "demand" in schema.get("$defs", {}), (
+            "Demand type definition is missing!"
+        )
+
+    def test_top_level_segments_property_exists(self, schema: dict):
+        """Top-level segments property must exist."""
+        assert "segments" in schema.get("properties", {}), (
+            "Top-level segments property is missing!"
+        )
+
+    def test_top_level_process_roles_property_exists(self, schema: dict):
+        """Top-level process_roles property must exist."""
+        assert "process_roles" in schema.get("properties", {}), (
+            "Top-level process_roles property is missing!"
+        )
+
+    def test_top_level_process_variants_property_exists(self, schema: dict):
+        """Top-level process_variants property must exist."""
+        assert "process_variants" in schema.get("properties", {}), (
+            "Top-level process_variants property is missing!"
+        )
+
+    def test_top_level_availability_property_exists(self, schema: dict):
+        """Top-level availability property must exist."""
+        assert "availability" in schema.get("properties", {}), (
+            "Top-level availability property is missing!"
+        )
+
+    def test_top_level_process_parameters_property_exists(self, schema: dict):
+        """Top-level process_parameters property must exist."""
+        assert "process_parameters" in schema.get("properties", {}), (
+            "Top-level process_parameters property is missing!"
+        )
+
+    def test_top_level_demands_property_exists(self, schema: dict):
+        """Top-level demands property must exist."""
+        assert "demands" in schema.get("properties", {}), (
+            "Top-level demands property is missing!"
         )

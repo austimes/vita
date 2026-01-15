@@ -1,9 +1,9 @@
 # DC3: Thermal + Renewable plants with emission tracking
-# Extends DC2 with CO2 emission commodity.
+# Extends DC2 with E:CO2 emission commodity.
 # Pattern sources:
 #   - add_power_plant: PP_CCGT (thermal)
 #   - add_renewable_plant: PP_WIND (renewable)
-#   - add_emission_commodity: CO2
+#   - add_emission_commodity: E:CO2
 model:
   name: MiniModel
   description: Thermal and renewable plants with CO2 emissions
@@ -12,16 +12,16 @@ model:
     - REG1
   
   commodities:
-    - name: NG
-      type: energy
+    - name: C:GAS
+      kind: TRADABLE
       unit: PJ
       description: Natural Gas
-    - name: ELC
-      type: energy
+    - name: C:ELC
+      kind: TRADABLE
       unit: PJ
       description: Electricity
-    - name: CO2
-      type: emission
+    - name: E:CO2
+      kind: EMISSION
       unit: Mt
       description: Carbon dioxide emissions
   
@@ -31,15 +31,14 @@ model:
     - name: PP_CCGT
       description: Combined cycle gas turbine
       sets: [ELE]
-      primary_commodity_group: NRGO
       activity_unit: PJ
       capacity_unit: GW
       inputs:
-        - commodity: NG
+        - commodity: C:GAS
           share: 1.0
       outputs:
-        - commodity: ELC
-        - commodity: CO2
+        - commodity: C:ELC
+        - commodity: E:CO2
           emission_factor: 0.05  # Mt CO2 per PJ activity
       efficiency: 0.55
     
@@ -48,9 +47,8 @@ model:
     - name: PP_WIND
       description: Onshore wind plant
       sets: [ELE]
-      primary_commodity_group: NRGO
       capacity_unit: GW
       outputs:
-        - commodity: ELC
+        - commodity: C:ELC
           share: 1.0
       efficiency: 1.0

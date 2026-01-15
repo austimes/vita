@@ -7,7 +7,17 @@ from pathlib import Path
 import jsonschema
 import yaml
 
+from .demands import compile_demands
+from .ir import (
+    apply_process_parameters,
+    build_roles,
+    build_variants,
+    expand_availability,
+    lower_instances_to_tableir,
+)
+from .naming import NamingRegistry
 from .registry import VedaLangError, get_registry
+from .segments import build_segments, normalize_commodity
 
 SCHEMA_DIR = Path(__file__).parent.parent / "schema"
 
@@ -16,8 +26,12 @@ ENERGY_UNITS = {"PJ", "TJ", "GJ", "MWh", "GWh", "TWh", "MTOE", "KTOE"}
 POWER_UNITS = {"GW", "MW", "kW", "TW"}
 MASS_UNITS = {"Mt", "kt", "t", "Gt"}
 
-# Default units by commodity type
+# Default units by commodity kind (new naming convention)
 DEFAULT_UNITS = {
+    "TRADABLE": "PJ",
+    "SERVICE": "PJ",
+    "EMISSION": "Mt",
+    # Legacy names (for backward compatibility)
     "energy": "PJ",
     "demand": "PJ",
     "emission": "Mt",
@@ -384,10 +398,18 @@ def validate_cross_references(model: dict) -> tuple[list[str], list[str]]:
     errors: list[str] = []
     warnings: list[str] = []
 
-    # Build lookup sets
-    commodities = {c["name"]: c for c in model.get("commodities", [])}
+    # Build lookup sets - support both new syntax ('id') and old syntax ('name')
+    commodities = {}
+    for c in model.get("commodities", []):
+        comm_id = c.get("id") or c.get("name")
+        if comm_id:
+            commodities[comm_id] = c
     commodity_names = set(commodities.keys())
-    processes = {p["name"] for p in model.get("processes", [])}
+    processes = set()
+    for p in model.get("processes", []):
+        proc_name = p.get("name") or p.get("id")
+        if proc_name:
+            processes.add(proc_name)
     regions = set(model.get("regions", []))
 
     def suggest_commodity(name: str) -> str:
@@ -408,11 +430,11 @@ def validate_cross_references(model: dict) -> tuple[list[str], list[str]]:
             return f" Did you mean '{matches[0]}'?"
         return ""
 
-    # Validate process references
+    # Validate process references (only for legacy processes array)
     for raw_process in model.get("processes", []):
         # Normalize shorthand syntax before validation
         process = _normalize_process_flows(raw_process)
-        proc_name = process["name"]
+        proc_name = process.get("name") or process.get("id", "unknown")
 
         # Check input commodity references
         for i, inp in enumerate(process.get("inputs", [])):
@@ -510,24 +532,27 @@ def validate_cross_references(model: dict) -> tuple[list[str], list[str]]:
                     f"'{scenario_name}'.{hint}"
                 )
             else:
-                # Check commodity type matches scenario type
+                # Check commodity kind matches scenario type
+                # New naming convention uses 'kind': TRADABLE/SERVICE/EMISSION
                 comm_info = commodities[commodity]
-                comm_type = comm_info.get("type", "energy")
+                comm_kind = comm_info.get("kind", "TRADABLE")
 
                 if scenario_type == "demand_projection":
-                    if comm_type != "demand":
+                    # demand_projection targets SERVICE commodities (S:* names)
+                    if comm_kind != "SERVICE":
                         errors.append(
                             f"demand_projection scenario '{scenario_name}' targets "
-                            f"commodity '{commodity}' (type '{comm_type}'), "
-                            "expected 'demand'"
+                            f"commodity '{commodity}' (kind '{comm_kind}'), "
+                            "expected 'SERVICE'"
                         )
 
                 elif scenario_type == "commodity_price":
-                    if comm_type == "demand":
+                    # commodity_price targets TRADABLE or EMISSION (not SERVICE)
+                    if comm_kind == "SERVICE":
                         errors.append(
                             f"commodity_price scenario '{scenario_name}' targets "
-                            f"commodity '{commodity}' (type 'demand'), "
-                            "expected non-demand type"
+                            f"commodity '{commodity}' (kind 'SERVICE'), "
+                            "expected TRADABLE or EMISSION"
                         )
 
     return errors, warnings
@@ -551,6 +576,316 @@ def validate_vedalang(source: dict) -> None:
     jsonschema.validate(source, schema)
 
 
+def _compile_new_syntax(source: dict, validate: bool = True) -> dict:
+    """
+    Compile VedaLang source using new P4 syntax (process_roles/variants/availability).
+
+    This is the new compilation pipeline that uses:
+    - process_roles: abstract transformations (topology)
+    - process_variants: concrete technologies with parameters
+    - availability: where variants exist (region/sector/segment)
+    - process_parameters: selector-based parameter overrides
+    - demands: service commodity demands
+
+    Args:
+        source: VedaLang source dict with new syntax
+        validate: Whether to validate output
+
+    Returns:
+        TableIR dict
+    """
+    model = source["model"]
+    regions = model.get("regions", ["REG1"])
+    default_region = ",".join(regions)
+    milestone_years = model.get("milestone_years", [2020])
+
+    # Build normalized commodities dict
+    commodities: dict[str, dict] = {}
+    for raw in model.get("commodities", []):
+        norm = normalize_commodity(raw)
+        commodities[norm["id"]] = norm
+
+    # Build segment keys
+    seg_cfg = source.get("segments") or {}
+    segment_keys = build_segments({"segments": seg_cfg})
+
+    # Build roles from process_roles
+    roles = build_roles(source, commodities)
+
+    # Build variants from process_variants
+    variants = build_variants(source, roles)
+
+    # Expand availability to process instances
+    instances = expand_availability(source, variants, segment_keys)
+
+    # Apply process_parameters overrides
+    apply_process_parameters(instances, source)
+
+    # Create naming registry for deterministic symbols
+    registry = NamingRegistry()
+
+    # Lower instances to TableIR process rows
+    process_instance_rows = lower_instances_to_tableir(
+        instances, commodities, segment_keys, registry
+    )
+
+    # Compile demands to scenario parameters
+    demand_params = compile_demands(source, commodities, segment_keys, registry)
+
+    # Build commodity rows for ~FI_COMM
+    comm_rows = []
+    for comm_id, comm in commodities.items():
+        comm_rows.append({
+            "region": default_region,
+            "csets": _commodity_type_to_csets(comm.get("kind", "carrier")),
+            "commodity": registry.get_commodity_symbol(comm_id, None),
+            "unit": comm.get("unit", "PJ"),
+        })
+        # For non-tradable commodities with segments, emit scoped versions
+        if not comm.get("tradable", True) and segment_keys:
+            for seg in segment_keys:
+                scoped_sym = registry.get_commodity_symbol(comm_id, seg)
+                if scoped_sym != comm_id:  # Only add if different
+                    comm_rows.append({
+                        "region": default_region,
+                        "csets": _commodity_type_to_csets(comm.get("kind", "carrier")),
+                        "commodity": scoped_sym,
+                        "unit": comm.get("unit", "PJ"),
+                    })
+
+    # Build ~FI_PROCESS rows from instances
+    fi_process_rows = []
+    for key, instance in sorted(instances.items()):
+        prc_name = registry.get_process_symbol(key.variant_id, key.region, key.segment)
+        row = {
+            "region": key.region,
+            "process": prc_name,
+            "sets": ",".join(["DMD"] if _produces_service_comm(instance.role.outputs, commodities) else []),
+            "tact": "PJ",
+            "tcap": "GW",
+        }
+        fi_process_rows.append(row)
+
+    # Build ~FI_T topology rows from instances
+    fi_t_rows = []
+    pasti_rows = []
+    for key, instance in sorted(instances.items()):
+        prc_name = registry.get_process_symbol(key.variant_id, key.region, key.segment)
+        role = instance.role
+        attrs = instance.attrs
+
+        # Input commodities
+        for inp_id in role.inputs:
+            comm = commodities.get(inp_id, {})
+            tradable = comm.get("tradable", True)
+            if tradable:
+                scoped_id = registry.get_commodity_symbol(inp_id, None)
+            else:
+                scoped_id = registry.get_commodity_symbol(inp_id, key.segment)
+            fi_t_rows.append({
+                "region": key.region,
+                "process": prc_name,
+                "commodity-in": scoped_id,
+            })
+
+        # Output commodities
+        for out_id in role.outputs:
+            comm = commodities.get(out_id, {})
+            tradable = comm.get("tradable", True)
+            if tradable:
+                scoped_id = registry.get_commodity_symbol(out_id, None)
+            else:
+                scoped_id = registry.get_commodity_symbol(out_id, key.segment)
+            fi_t_rows.append({
+                "region": key.region,
+                "process": prc_name,
+                "commodity-out": scoped_id,
+            })
+
+        # Efficiency row with other attributes
+        if "efficiency" in attrs:
+            eff_row = {
+                "region": key.region,
+                "process": prc_name,
+                "eff": attrs["efficiency"],
+            }
+            # Add costs if present
+            if "investment_cost" in attrs:
+                eff_row["ncap_cost"] = attrs["investment_cost"]
+            if "fixed_om_cost" in attrs:
+                eff_row["ncap_fom"] = attrs["fixed_om_cost"]
+            if "variable_om_cost" in attrs:
+                eff_row["act_cost"] = attrs["variable_om_cost"]
+            if "lifetime" in attrs:
+                eff_row["ncap_tlife"] = attrs["lifetime"]
+            fi_t_rows.append(eff_row)
+
+        # Stock (PRC_RESID) - use TFM_INS pattern to avoid commodity requirement
+        if "stock" in attrs:
+            for year in milestone_years:
+                pasti_rows.append({
+                    "region": key.region,
+                    "process": prc_name,
+                    "year": year,
+                    "attribute": "PRC_RESID",
+                    "value": attrs["stock"],
+                })
+
+        # Existing capacity (NCAP_PASTI) via ~TFM_INS
+        if "existing_capacity" in attrs:
+            for pasti in attrs["existing_capacity"]:
+                pasti_rows.append({
+                    "region": key.region,
+                    "process": prc_name,
+                    "year": pasti["vintage"],
+                    "attribute": "NCAP_PASTI",
+                    "value": pasti["capacity"],
+                })
+
+        # Bounds - use TFM_INS pattern to avoid commodity requirement
+        # Maps to TIMES attributes: CAP_BND, NCAP_BND, ACT_BND
+        bound_attr_map = {
+            "cap_bound": "CAP_BND",
+            "ncap_bound": "NCAP_BND",
+            "activity_bound": "ACT_BND",
+        }
+        for bound_type in ["cap_bound", "ncap_bound", "activity_bound"]:
+            if bound_type not in attrs:
+                continue
+            bound_spec = attrs[bound_type]
+            attr_name = bound_attr_map[bound_type]
+            for lim_key, lim_val in bound_spec.items():
+                limtype = {"up": "UP", "lo": "LO", "fx": "FX"}.get(lim_key)
+                if not limtype:
+                    continue
+                for year in milestone_years:
+                    pasti_rows.append({
+                        "region": key.region,
+                        "process": prc_name,
+                        "year": year,
+                        "limtype": limtype,
+                        "attribute": attr_name,
+                        "value": lim_val,
+                    })
+
+        # Emissions
+        if "emissions" in attrs:
+            for em in attrs["emissions"]:
+                em_comm = em["commodity"]
+                em_factor = em["emission_factor"]
+                fi_t_rows.append({
+                    "region": key.region,
+                    "process": prc_name,
+                    "commodity-out": registry.get_commodity_symbol(em_comm, None),
+                })
+                # Would need TFM_INS for ENV_ACT but keeping simple for now
+
+    # Build system settings
+    model_name = model.get("name", "Model")
+    bookname = model_name.upper()
+    start_year = milestone_years[0] if milestone_years else 2020
+    last_year = milestone_years[-1] if milestone_years else 2020
+
+    bookregions_rows = [{"bookname": bookname, "region": r} for r in regions]
+    startyear_rows = [{"value": start_year}]
+    milestoneyears_rows = [{"type": "Endyear", "year": last_year + 10}]
+    milestoneyears_rows += [{"type": "milestoneyear", "year": y} for y in milestone_years]
+    currencies_rows = [{"currency": "USD"}]
+
+    discount_rate = model.get("discount_rate", 0.05)
+    gdrate_rows = [
+        {"region": r, "attribute": "G_DRATE", "currency": "USD", "value": discount_rate}
+        for r in regions
+    ]
+
+    # Timeslice handling
+    timeslice_rows = []
+    yrfr_rows = []
+    if "timeslices" in model:
+        timeslice_rows, yrfr_rows = _compile_timeslices(model["timeslices"], regions)
+
+    syssets_tables = [
+        {"tag": "~BOOKREGIONS_MAP", "rows": bookregions_rows},
+        {"tag": "~STARTYEAR", "rows": startyear_rows},
+        {"tag": "~MILESTONEYEARS", "rows": milestoneyears_rows},
+        {"tag": "~CURRENCIES", "rows": currencies_rows},
+    ]
+    if timeslice_rows:
+        syssets_tables.append({"tag": "~TIMESLICES", "rows": timeslice_rows})
+
+    syssettings_sheets = [
+        {"name": "SysSets", "tables": syssets_tables},
+        {"name": "Commodities", "tables": [{"tag": "~FI_COMM", "rows": comm_rows}]},
+    ]
+
+    constants_tables = [{"tag": "~TFM_INS", "rows": gdrate_rows}]
+    if yrfr_rows:
+        constants_tables.append({"tag": "~TFM_INS", "rows": yrfr_rows})
+    syssettings_sheets.append({"name": "constants", "tables": constants_tables})
+
+    # Process file
+    process_file_path = f"vt_{bookname.lower()}_{model_name.lower()}.xlsx"
+    process_tables = [
+        {"tag": "~FI_PROCESS", "rows": fi_process_rows},
+        {"tag": "~FI_T", "rows": fi_t_rows},
+    ]
+    if pasti_rows:
+        process_tables.append({"tag": "~TFM_INS", "rows": pasti_rows})
+
+    # Compile scenario files from demands + model scenario_parameters
+    all_scenario_params = list(model.get("scenario_parameters", []))
+    all_scenario_params.extend(demand_params)
+
+    cases = model.get("cases", [])
+    if not cases:
+        cases = [{"name": "baseline", "is_baseline": True}]
+
+    scenario_files, cases_json = _compile_scenario_files(
+        all_scenario_params,
+        model.get("constraints", []),
+        cases,
+        regions,
+        milestone_years,
+        default_region,
+    )
+
+    # Trade links
+    trade_link_files, _ = _compile_trade_links(
+        model.get("trade_links", []),
+        model.get("commodities", []),
+    )
+
+    tableir = {
+        "files": [
+            {"path": "syssettings.xlsx", "sheets": syssettings_sheets},
+            {"path": process_file_path, "sheets": [{"name": "Processes", "tables": process_tables}]},
+            *scenario_files,
+            *trade_link_files,
+        ],
+        "cases": cases_json,
+    }
+
+    if validate:
+        tableir_schema = load_tableir_schema()
+        jsonschema.validate(tableir, tableir_schema)
+
+        from .table_schemas import TableValidationError, validate_tableir
+        table_errors = validate_tableir(tableir)
+        if table_errors:
+            raise TableValidationError(table_errors)
+
+    return tableir
+
+
+def _produces_service_comm(outputs: list[str], commodities: dict[str, dict]) -> bool:
+    """Check if any output is a service commodity."""
+    for out_id in outputs:
+        if out_id in commodities:
+            if commodities[out_id].get("kind") == "service":
+                return True
+    return False
+
+
 def compile_vedalang_to_tableir(source: dict, validate: bool = True) -> dict:
     """
     Transform VedaLang source to TableIR structure.
@@ -568,6 +903,10 @@ def compile_vedalang_to_tableir(source: dict, validate: bool = True) -> dict:
     """
     if validate:
         validate_vedalang(source)
+
+    # Detect new syntax: process_roles is at top-level (not in model)
+    if source.get("process_roles"):
+        return _compile_new_syntax(source, validate)
 
     model = source["model"]
 
@@ -594,32 +933,36 @@ def compile_vedalang_to_tableir(source: dict, validate: bool = True) -> dict:
     # Use lowercase column names for xl2times compatibility
     comm_rows = []
     for commodity in model.get("commodities", []):
-        comm_type = commodity.get("type", "energy")
-        # Use explicit unit or default based on commodity type
-        unit = commodity.get("unit") or _get_default_unit(comm_type)
+        # Use 'kind' (new naming convention) with fallback to 'type' (legacy)
+        comm_kind = commodity.get("kind") or commodity.get("type", "TRADABLE")
+        # Use explicit unit or default based on commodity kind
+        unit = commodity.get("unit") or _get_default_unit(comm_kind)
         comm_rows.append({
             "region": default_region,
-            "csets": _commodity_type_to_csets(comm_type),
+            "csets": _commodity_type_to_csets(comm_kind),
             "commodity": commodity["name"],
             "unit": unit,
         })
 
     # Build process table (~FI_PROCESS)
     # Use lowercase column names for xl2times compatibility
-    # primary_commodity_group is REQUIRED in schema - use directly, no inference
+    # primarycg is OPTIONAL - only emit when explicitly specified, else xl2times infers
     process_rows = []
     for raw_process in model.get("processes", []):
         # Normalize shorthand input/output syntax
         process = _normalize_process_flows(raw_process)
-        process_rows.append({
+        row = {
             "region": default_region,
             "process": process["name"],
             "description": process.get("description", ""),
             "sets": ",".join(process.get("sets", [])),
             "tact": process.get("activity_unit", "PJ"),
             "tcap": process.get("capacity_unit", "GW"),
-            "primarycg": process["primary_commodity_group"],
-        })
+        }
+        pcg_override = process.get("primary_commodity_group")
+        if pcg_override is not None:
+            row["primarycg"] = pcg_override
+        process_rows.append(row)
 
     # Build topology table (~FI_T) for inputs/outputs
     # Use lowercase column names for xl2times compatibility
@@ -1096,8 +1439,13 @@ def _collect_bound_params(
 
 
 def _commodity_type_to_csets(ctype: str) -> str:
-    """Map VedaLang commodity type to VEDA Csets."""
+    """Map VedaLang commodity kind/type to VEDA Csets."""
     mapping = {
+        # New naming convention (kind)
+        "TRADABLE": "NRG",
+        "SERVICE": "DEM",
+        "EMISSION": "ENV",
+        # Legacy names (type) for backward compatibility
         "energy": "NRG",
         "material": "MAT",
         "emission": "ENV",

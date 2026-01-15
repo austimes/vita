@@ -3,7 +3,7 @@
 # Pattern sources:
 #   - add_power_plant: PP_CCGT (thermal)
 #   - add_renewable_plant: PP_WIND (renewable)
-#   - add_emission_commodity: CO2
+#   - add_emission_commodity: E:CO2
 #   - co2_price_trajectory: CO2_Price scenario
 model:
   name: MiniModel
@@ -13,16 +13,16 @@ model:
     - REG1
   
   commodities:
-    - name: NG
-      type: energy
+    - name: C:GAS
+      kind: TRADABLE
       unit: PJ
       description: Natural Gas
-    - name: ELC
-      type: energy
+    - name: C:ELC
+      kind: TRADABLE
       unit: PJ
       description: Electricity
-    - name: CO2
-      type: emission
+    - name: E:CO2
+      kind: EMISSION
       unit: Mt
       description: Carbon dioxide emissions
   
@@ -32,15 +32,14 @@ model:
     - name: PP_CCGT
       description: Combined cycle gas turbine
       sets: [ELE]
-      primary_commodity_group: NRGO
       activity_unit: PJ
       capacity_unit: GW
       inputs:
-        - commodity: NG
+        - commodity: C:GAS
           share: 1.0
       outputs:
-        - commodity: ELC
-        - commodity: CO2
+        - commodity: C:ELC
+        - commodity: E:CO2
           emission_factor: 0.05  # Mt CO2 per PJ activity
       efficiency: 0.55
     
@@ -49,10 +48,9 @@ model:
     - name: PP_WIND
       description: Onshore wind plant
       sets: [ELE]
-      primary_commodity_group: NRGO
       capacity_unit: GW
       outputs:
-        - commodity: ELC
+        - commodity: C:ELC
           share: 1.0
       efficiency: 1.0
   
@@ -60,7 +58,7 @@ model:
     - name: CO2_Price
       description: Carbon price trajectory 2025-2050
       type: commodity_price
-      commodity: CO2
+      commodity: E:CO2
       interpolation: interp_extrap  # Full interpolation and extrapolation
       values:
         2025: 50

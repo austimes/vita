@@ -1,5 +1,5 @@
 # VedaLang example demonstrating demand_projection scenario type
-# This model includes a demand commodity with time-varying demand levels
+# Uses new VedaLang syntax (P4): process_roles, process_variants, demands
 
 model:
   name: DemandExample
@@ -7,45 +7,70 @@ model:
   milestone_years: [2020, 2030, 2040, 2050, 2060]
 
   commodities:
-    - name: ELC
-      type: energy
+    - id: electricity
+      kind: carrier
       unit: PJ
       description: Electricity
 
-    - name: RSD
-      type: demand
+    - id: residential_demand
+      kind: service
       unit: PJ
       description: Residential electricity demand
 
-  processes:
-    - name: PP_GENERIC
-      description: Generic power supply
-      sets: [ELE]
-      primary_commodity_group: NRGO
-      activity_unit: PJ
-      capacity_unit: GW
-      outputs:
-        - commodity: ELC
-      efficiency: 1.0
+segments:
+  sectors: [RES]
 
-    - name: DEM_RSD
-      description: Residential demand device
-      sets: [DMD]
-      primary_commodity_group: DEMO
-      activity_unit: PJ
-      capacity_unit: GW
-      inputs:
-        - commodity: ELC
-      outputs:
-        - commodity: RSD
-      efficiency: 1.0
+process_roles:
+  - id: generate_electricity
+    stage: conversion
+    inputs: []
+    outputs:
+      - commodity: electricity
 
-  scenarios:
-    - name: BaseDemand
-      type: demand_projection
-      commodity: RSD
-      interpolation: interp_extrap
-      values:
-        "2020": 100.0
-        "2030": 120.0
-        "2050": 160.0
+  - id: deliver_residential
+    stage: end_use
+    inputs:
+      - commodity: electricity
+    outputs:
+      - commodity: residential_demand
+
+process_variants:
+  - id: generic_supply
+    role: generate_electricity
+    efficiency: 1.0
+    lifetime: 100
+
+  - id: residential_device
+    role: deliver_residential
+    efficiency: 1.0
+    lifetime: 100
+
+availability:
+  - variant: generic_supply
+    regions: [REG1]
+
+  - variant: residential_device
+    regions: [REG1]
+    sectors: [RES]
+
+process_parameters:
+  - selector:
+      variant: generic_supply
+      region: REG1
+    stock: 1000
+
+  - selector:
+      variant: residential_device
+      region: REG1
+      sector: RES
+    stock: 1000
+
+demands:
+  - commodity: residential_demand
+    region: REG1
+    sector: RES
+    interpolation: interp_extrap
+    values:
+      "2020": 100.0
+      "2030": 120.0
+      "2050": 160.0
