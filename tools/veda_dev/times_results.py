@@ -20,8 +20,7 @@ class TimesResults:
     var_act: list[dict[str, Any]] = field(default_factory=list)
     var_ncap: list[dict[str, Any]] = field(default_factory=list)
     var_cap: list[dict[str, Any]] = field(default_factory=list)
-    flow_in: list[dict[str, Any]] = field(default_factory=list)  # F_IN inflows
-    flow_out: list[dict[str, Any]] = field(default_factory=list)  # F_OUT outflows
+    var_flo: list[dict[str, Any]] = field(default_factory=list)
     par_pasti: list[dict[str, Any]] = field(default_factory=list)  # NCAP_PASTI input
     par_resid: list[dict[str, Any]] = field(default_factory=list)  # PRC_RESID input
     errors: list[str] = field(default_factory=list)
@@ -34,8 +33,7 @@ class TimesResults:
             "var_act": self.var_act,
             "var_ncap": self.var_ncap,
             "var_cap": self.var_cap,
-            "flow_in": self.flow_in,
-            "flow_out": self.flow_out,
+            "var_flo": self.var_flo,
             "par_pasti": self.par_pasti,
             "par_resid": self.par_resid,
             "errors": self.errors,
@@ -217,45 +215,40 @@ def extract_results(
     results.var_cap.sort(key=lambda r: (r["year"], -abs(r["level"])))
     results.var_cap = results.var_cap[:limit]
 
-    # Extract commodity flows from F_IN/F_OUT (derived flow symbols)
-    # These are more reliable than VAR_FLO which may be empty after TIMES reduction
+    # Extract VAR_FLO (commodity flows) - optional
     if include_flows:
-        flow_symbols = [("F_IN", results.flow_in), ("F_OUT", results.flow_out)]
-        for symbol, target_list in flow_symbols:
-            flow_csv = dump_symbol_csv(gdx_path, symbol, gdxdump)
-            if flow_csv:
-                for row in parse_csv(flow_csv):
-                    try:
-                        val = float(row.get("Val", 0))
-                        if abs(val) < 1e-9:
-                            continue
-                        process = row.get("P", "")
-                        year = row.get("ALLYEAR", "") or row.get("T", "")
+        var_flo_csv = dump_symbol_csv(gdx_path, "VAR_FLO", gdxdump)
+        if var_flo_csv:
+            for row in parse_csv(var_flo_csv):
+                try:
+                    val = float(row.get("Val", 0))
+                    if abs(val) < 1e-9:
+                        continue
+                    process = row.get("P", "")
+                    year = row.get("ALLYEAR", "")
 
-                        if process_filter and not any(
-                            f.lower() in process.lower() for f in process_filter
-                        ):
-                            continue
-                        if year_filter and year not in year_filter:
-                            continue
+                    if process_filter and not any(
+                        f.lower() in process.lower() for f in process_filter
+                    ):
+                        continue
+                    if year_filter and year not in year_filter:
+                        continue
 
-                        target_list.append(
-                            {
-                                "region": row.get("R", ""),
-                                "year": year,
-                                "process": process,
-                                "commodity": row.get("C", ""),
-                                "timeslice": row.get("S", ""),
-                                "level": val,
-                            }
-                        )
-                    except (ValueError, KeyError):
-                        pass
+                    results.var_flo.append(
+                        {
+                            "region": row.get("R", ""),
+                            "year": year,
+                            "process": process,
+                            "commodity": row.get("C", ""),
+                            "timeslice": row.get("S", ""),
+                            "level": val,
+                        }
+                    )
+                except (ValueError, KeyError):
+                    pass
 
-        results.flow_in.sort(key=lambda r: abs(r["level"]), reverse=True)
-        results.flow_in = results.flow_in[:limit]
-        results.flow_out.sort(key=lambda r: abs(r["level"]), reverse=True)
-        results.flow_out = results.flow_out[:limit]
+        results.var_flo.sort(key=lambda r: abs(r["level"]), reverse=True)
+        results.var_flo = results.var_flo[:limit]
 
     # Extract NCAP_PASTI (past investments / existing capacity with vintage)
     # This is INPUT data (parameter), not a result variable
@@ -425,24 +418,12 @@ def format_results_console(results: TimesResults, limit: int = 20) -> str:
     )
     lines.append("")
 
-    # Commodity Inflows (F_IN)
-    if results.flow_in:
+    # VAR_FLO (if present)
+    if results.var_flo:
         lines.append(
             format_table(
-                "Commodity Inflows (F_IN)",
-                results.flow_in,
-                ["year", "process", "commodity", "level"],
-                limit,
-            )
-        )
-        lines.append("")
-
-    # Commodity Outflows (F_OUT)
-    if results.flow_out:
-        lines.append(
-            format_table(
-                "Commodity Outflows (F_OUT)",
-                results.flow_out,
+                "Commodity Flows (VAR_FLO)",
+                results.var_flo,
                 ["year", "process", "commodity", "level"],
                 limit,
             )
