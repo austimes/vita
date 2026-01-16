@@ -246,7 +246,7 @@ def main():
     results_parser.add_argument(
         "--flows",
         action="store_true",
-        help="Include VAR_FLO (commodity flows)",
+        help="Include commodity flows (F_IN/F_OUT)",
     )
     results_parser.add_argument(
         "--save",

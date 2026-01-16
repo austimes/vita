@@ -477,6 +477,117 @@ def parse_csv(csv_text: str) -> list[dict[str, str]]:
     return list(reader)
 
 
+def _as_float(value: Any) -> float | None:
+    try:
+        return float(value)
+    except Exception:
+        return None
+
+
+def _normalize_flow_row(row: dict[str, str]) -> dict[str, str]:
+    """Normalize various GDX CSV schemas into the F_IN/F_OUT schema.
+
+    Canonical keys used by this module:
+    - R, ALLYEAR, T, P, C, S, Val
+    """
+    region = row.get("R") or row.get("REG") or row.get("Region") or ""
+    year = row.get("ALLYEAR") or row.get("T") or row.get("DATAYEAR") or ""
+    t = row.get("T") or row.get("ALLYEAR") or year
+    process = row.get("P") or row.get("PRC") or ""
+    commodity = row.get("C") or row.get("COM") or ""
+    timeslice = row.get("S") or row.get("TS") or ""
+    val = row.get("Val") or row.get("VALUE") or row.get("Level") or row.get("LEVEL") or ""
+    return {
+        "R": region,
+        "ALLYEAR": year,
+        "T": t,
+        "P": process,
+        "C": commodity,
+        "S": timeslice,
+        "Val": str(val),
+    }
+
+
+def _load_flow_data(
+    *,
+    gdx_path: Path,
+    gdxdump: str,
+) -> tuple[list[dict[str, str]], list[dict[str, str]], list[str]]:
+    """Load process in/out flows from a GDX file.
+
+    Priority order:
+    1) F_IN / F_OUT (preferred if present)
+    2) Derive from PAR_FLO split by TOP (works even when VAR_FLO is eliminated by reduction)
+    """
+    errors: list[str] = []
+
+    f_in_csv = dump_symbol_csv(gdx_path, "F_IN", gdxdump)
+    f_out_csv = dump_symbol_csv(gdx_path, "F_OUT", gdxdump)
+    f_in_rows = parse_csv(f_in_csv) if f_in_csv else []
+    f_out_rows = parse_csv(f_out_csv) if f_out_csv else []
+    if f_in_rows or f_out_rows:
+        return f_in_rows, f_out_rows, errors
+
+    par_flo_csv = dump_symbol_csv(gdx_path, "PAR_FLO", gdxdump)
+    top_csv = dump_symbol_csv(gdx_path, "TOP", gdxdump)
+    par_flo_rows = parse_csv(par_flo_csv) if par_flo_csv else []
+    top_rows = parse_csv(top_csv) if top_csv else []
+
+    if not par_flo_rows:
+        errors.append("No flow data found: missing/empty symbols F_IN/F_OUT and PAR_FLO")
+        return [], [], errors
+    if not top_rows:
+        errors.append(
+            "Cannot derive in/out flows: missing/empty TOP (process-commodity IO topology)"
+        )
+        return [], [], errors
+
+    topo: dict[tuple[str, str, str], str] = {}
+    for tr in top_rows:
+        reg = tr.get("REG") or tr.get("R") or ""
+        prc = tr.get("PRC") or tr.get("P") or ""
+        com = tr.get("COM") or tr.get("C") or ""
+        io = (tr.get("IO") or "").upper()
+        if reg and prc and com and io:
+            topo[(reg, prc, com)] = io
+
+    derived_in: list[dict[str, str]] = []
+    derived_out: list[dict[str, str]] = []
+    dropped = 0
+
+    for r in par_flo_rows:
+        nr = _normalize_flow_row(r)
+        reg = nr["R"]
+        prc = nr["P"]
+        com = nr["C"]
+        val = _as_float(nr["Val"])
+        if val is None:
+            continue
+        if not reg or not prc or not com:
+            continue
+
+        io = topo.get((reg, prc, com))
+        if io == "IN":
+            derived_in.append(nr)
+        elif io == "OUT":
+            derived_out.append(nr)
+        else:
+            dropped += 1
+
+    if not derived_in and not derived_out:
+        errors.append(
+            "Flow derivation failed: PAR_FLO present but could not match any rows to TOP (no IN/OUT classification)"
+        )
+        return [], [], errors
+
+    if dropped:
+        errors.append(
+            f"Warning: dropped {dropped} PAR_FLO rows with no matching TOP IO classification"
+        )
+
+    return derived_in, derived_out, errors
+
+
 def extract_sankey(
     gdx_path: Path,
     year: str | None = None,
@@ -507,16 +618,13 @@ def extract_sankey(
         sankey.errors.append(f"GDX file not found: {gdx_path}")
         return sankey
 
-    # Extract F_IN (inputs to processes)
-    f_in_csv = dump_symbol_csv(gdx_path, "F_IN", gdxdump)
-    f_in_rows = parse_csv(f_in_csv) if f_in_csv else []
-
-    # Extract F_OUT (outputs from processes)
-    f_out_csv = dump_symbol_csv(gdx_path, "F_OUT", gdxdump)
-    f_out_rows = parse_csv(f_out_csv) if f_out_csv else []
-
+    f_in_rows, f_out_rows, flow_errors = _load_flow_data(
+        gdx_path=gdx_path, gdxdump=gdxdump
+    )
+    sankey.errors.extend(flow_errors)
     if not f_in_rows and not f_out_rows:
-        sankey.errors.append("No flow data (F_IN/F_OUT) found in GDX file")
+        if not sankey.errors:
+            sankey.errors.append("No flow data found in GDX file")
         return sankey
 
     # Determine available years and regions
@@ -650,15 +758,13 @@ def extract_sankey_multi(
         sankey.errors.append(f"GDX file not found: {gdx_path}")
         return sankey
 
-    # Extract F_IN and F_OUT
-    f_in_csv = dump_symbol_csv(gdx_path, "F_IN", gdxdump)
-    f_in_rows = parse_csv(f_in_csv) if f_in_csv else []
-
-    f_out_csv = dump_symbol_csv(gdx_path, "F_OUT", gdxdump)
-    f_out_rows = parse_csv(f_out_csv) if f_out_csv else []
-
+    f_in_rows, f_out_rows, flow_errors = _load_flow_data(
+        gdx_path=gdx_path, gdxdump=gdxdump
+    )
+    sankey.errors.extend(flow_errors)
     if not f_in_rows and not f_out_rows:
-        sankey.errors.append("No flow data (F_IN/F_OUT) found in GDX file")
+        if not sankey.errors:
+            sankey.errors.append("No flow data found in GDX file")
         return sankey
 
     # Collect all years, regions, and nodes across all data
@@ -765,14 +871,12 @@ def get_available_years(gdx_path: Path) -> list[str]:
     if not gdxdump:
         return []
 
-    f_in_csv = dump_symbol_csv(gdx_path, "F_IN", gdxdump)
-    if not f_in_csv:
-        return []
-
+    f_in_rows, f_out_rows, _ = _load_flow_data(gdx_path=gdx_path, gdxdump=gdxdump)
     years = set()
-    for row in parse_csv(f_in_csv):
-        years.add(row.get("ALLYEAR", row.get("T", "")))
-
+    for row in f_in_rows + f_out_rows:
+        y = row.get("ALLYEAR", row.get("T", ""))
+        if y:
+            years.add(y)
     return sorted(years)
 
 
@@ -782,12 +886,10 @@ def get_available_regions(gdx_path: Path) -> list[str]:
     if not gdxdump:
         return []
 
-    f_in_csv = dump_symbol_csv(gdx_path, "F_IN", gdxdump)
-    if not f_in_csv:
-        return []
-
+    f_in_rows, f_out_rows, _ = _load_flow_data(gdx_path=gdx_path, gdxdump=gdxdump)
     regions = set()
-    for row in parse_csv(f_in_csv):
-        regions.add(row.get("R", ""))
-
+    for row in f_in_rows + f_out_rows:
+        r = row.get("R", "")
+        if r:
+            regions.add(r)
     return sorted(regions)

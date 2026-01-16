@@ -147,6 +147,50 @@ class TestExtractSankey:
         assert "DMD" in result.nodes
         assert len(result.links) == 2
 
+    @patch("tools.veda_dev.sankey.dump_symbol_csv")
+    @patch("tools.veda_dev.sankey.find_gdxdump")
+    def test_fallback_derives_flows_from_par_flo_and_top(
+        self, mock_find, mock_dump, tmp_path
+    ):
+        """Falls back to PAR_FLO split by TOP when F_IN/F_OUT are absent."""
+        mock_find.return_value = "/usr/bin/gdxdump"
+
+        # F_IN/F_OUT missing, but PAR_FLO and TOP present
+        top_csv = (
+            '"REG","PRC","COM","IO"\n'
+            '"R1","P1","ELC","IN"\n'
+            '"R1","P1","HEAT","OUT"\n'
+        )
+        par_flo_csv = (
+            '"R","ALLYEAR","ALLYEAR","P","C","S","Val"\n'
+            '"R1","2020","2020","P1","ELC","ANNUAL",50.0\n'
+            '"R1","2020","2020","P1","HEAT","ANNUAL",45.0\n'
+        )
+
+        def side_effect(gdx_path, symbol, gdxdump):
+            if symbol in {"F_IN", "F_OUT"}:
+                return None
+            if symbol == "TOP":
+                return top_csv
+            if symbol == "PAR_FLO":
+                return par_flo_csv
+            return None
+
+        mock_dump.side_effect = side_effect
+
+        gdx_file = tmp_path / "test.gdx"
+        gdx_file.touch()
+
+        result = extract_sankey(gdx_file)
+        assert result.errors == [] or all(
+            e.lower().startswith("warning:") for e in result.errors
+        )
+        assert result.year == "2020"
+        assert result.region == "R1"
+        # Links: [ELC] -> P1 and P1 -> [HEAT]
+        assert any(l.source == "[ELC]" and l.target == "P1" and l.value == 50.0 for l in result.links)
+        assert any(l.source == "P1" and l.target == "[HEAT]" and l.value == 45.0 for l in result.links)
+
 
 class TestSankeyDataMulti:
     """Tests for SankeyDataMulti (interactive visualization)."""
@@ -278,6 +322,50 @@ class TestExtractSankeyMulti:
         # Check link values (indices)
         r1_2020_links = result.links["2020"]["R1"]
         assert len(r1_2020_links) == 2  # one F_IN, one F_OUT
+
+    @patch("tools.veda_dev.sankey.dump_symbol_csv")
+    @patch("tools.veda_dev.sankey.find_gdxdump")
+    def test_multi_fallback_derives_flows_from_par_flo_and_top(
+        self, mock_find, mock_dump, tmp_path
+    ):
+        """Multi-year/region fallback uses PAR_FLO + TOP when F_IN/F_OUT are absent."""
+        mock_find.return_value = "/usr/bin/gdxdump"
+
+        top_csv = (
+            '"REG","PRC","COM","IO"\n'
+            '"R1","P1","ELC","IN"\n'
+            '"R1","P1","HEAT","OUT"\n'
+            '"R2","P1","ELC","IN"\n'
+            '"R2","P1","HEAT","OUT"\n'
+        )
+        par_flo_csv = (
+            '"R","ALLYEAR","ALLYEAR","P","C","S","Val"\n'
+            '"R1","2020","2020","P1","ELC","ANNUAL",50.0\n'
+            '"R1","2020","2020","P1","HEAT","ANNUAL",45.0\n'
+            '"R2","2020","2020","P1","ELC","ANNUAL",40.0\n'
+            '"R2","2020","2020","P1","HEAT","ANNUAL",35.0\n'
+        )
+
+        def side_effect(gdx_path, symbol, gdxdump):
+            if symbol in {"F_IN", "F_OUT"}:
+                return None
+            if symbol == "TOP":
+                return top_csv
+            if symbol == "PAR_FLO":
+                return par_flo_csv
+            return None
+
+        mock_dump.side_effect = side_effect
+
+        gdx_file = tmp_path / "test.gdx"
+        gdx_file.touch()
+
+        result = extract_sankey_multi(gdx_file)
+        assert "2020" in result.links
+        assert "R1" in result.links["2020"]
+        assert "R2" in result.links["2020"]
+        assert len(result.links["2020"]["R1"]) == 2
+        assert len(result.links["2020"]["R2"]) == 2
 
 
 class TestSankeyCLI:
