@@ -298,24 +298,56 @@ timeslices:
 
 ## Attributes & TIMES Mapping
 
-Reference `veda/attribute-master.json` for the complete list. **Always use canonical TIMES attribute names** (middle column below), never VEDA aliases.
+Reference `vedalang/schema/attribute-master.json` for the complete list. **Always use canonical TIMES attribute names** (middle column below), never VEDA aliases.
 
-### Common VedaLang → TIMES Mappings
+### Complete VedaLang → TIMES Mapping
 
-The VedaLang compiler translates ergonomic field names to canonical TIMES attributes:
+The VedaLang compiler translates ergonomic snake_case field names to canonical UPPERCASE TIMES attributes. VedaLang enforces **canonical names only** — no aliases are accepted.
 
-| VedaLang Field | TIMES Attribute | Description |
-|----------------|-----------------|-------------|
-| `efficiency` | `EFF` / `ACT_EFF` | Process efficiency |
-| `invcost` | `NCAP_COST` | Investment cost |
-| `fixom` | `NCAP_FOM` | Fixed O&M |
-| `varom` | `ACT_COST` | Variable O&M |
-| `life` | `NCAP_TLIFE` | Technical lifetime |
-| `cost` | `ACT_COST` | Activity cost (supply) |
-| `activity_bound.up` | `ACT_BND:UP` | Activity upper bound |
-| `cap_bound.up` | `CAP_BND:UP` | Capacity upper bound |
-| `ncap_bound.up` | `NCAP_BND:UP` | New capacity upper bound |
-| `availability_factor` | `NCAP_AF` | Availability factor |
+#### Process Parameters
+
+| VedaLang Field | TIMES Attribute | VEDA Aliases (DO NOT USE) | Description |
+|----------------|-----------------|---------------------------|-------------|
+| `efficiency` | `EFF` / `ACT_EFF` | — | Process efficiency (0-1) |
+| `invcost` | `NCAP_COST` | `INVCOST` | Investment cost per capacity unit |
+| `fixom` | `NCAP_FOM` | `FIXOM` | Fixed O&M per capacity-year |
+| `varom` | `ACT_COST` | `VAROM`, `ACTCOST` | Variable O&M per activity unit |
+| `life` | `NCAP_TLIFE` | `TLIFE`, `LIFE` | Technical lifetime (years) |
+| `availability_factor` | `NCAP_AF` | `AF` | Capacity availability factor (0-1) |
+
+#### Bounds
+
+| VedaLang Field | TIMES Attribute | VEDA Aliases (DO NOT USE) | Description |
+|----------------|-----------------|---------------------------|-------------|
+| `activity_bound.up/lo/fx` | `ACT_BND` | `BNDACT`, `ACTBND` | Activity bound |
+| `cap_bound.up/lo/fx` | `CAP_BND` | `BNDCAP`, `CAPBND` | Total capacity bound |
+| `ncap_bound.up/lo/fx` | `NCAP_BND` | `BNDNCAP`, `NCAPBND` | New capacity bound |
+| `flow_bound.up/lo/fx` | `FLO_BND` | `BNDFLO`, `FLOBND` | Flow bound |
+
+#### Commodity Parameters
+
+| VedaLang Field | TIMES Attribute | VEDA Aliases (DO NOT USE) | Description |
+|----------------|-----------------|---------------------------|-------------|
+| `price` | `COM_BPRICE` | — | Commodity base price |
+| `projection` | `COM_PROJ` | `CPROJ`, `DEMAND` | Demand projection |
+| `fraction` | `COM_FR` | `CFR` | Commodity fraction |
+
+#### Capacity & Investment
+
+| VedaLang Field | TIMES Attribute | VEDA Aliases (DO NOT USE) | Description |
+|----------------|-----------------|---------------------------|-------------|
+| `past_investments` | `NCAP_PASTI` | `PASTI`, `STOCK` | Existing capacity by vintage |
+| `residual_capacity` | `PRC_RESID` | `RESID` | Residual capacity |
+| `construction_time` | `NCAP_ILED` | `ILED` | Lead time for construction |
+| `economic_life` | `NCAP_ELIFE` | `ELIFE` | Economic lifetime |
+
+### Why Canonical Names Only?
+
+VedaLang intentionally rejects aliases to:
+1. **Eliminate ambiguity** — One name per concept
+2. **Improve tooling** — Simpler validation and error messages
+3. **Ensure consistency** — All VedaLang files use the same vocabulary
+4. **Match TIMES docs** — Canonical names match TIMES documentation
 
 ### Attribute Lookup
 
@@ -330,6 +362,12 @@ for name, info in attrs.items():
     if "VAROM" in info.get("aliases", []):
         print(f"Canonical: {name}")  # ACT_COST
 ```
+
+### Debugging Tip
+
+When xl2times reports an error like `Invalid ACT_COST value`, trace back:
+1. Find `ACT_COST` in the mapping table above → VedaLang field is `varom`
+2. Search your VedaLang source for `varom:` to locate the issue
 
 ---
 
