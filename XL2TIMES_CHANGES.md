@@ -11,6 +11,7 @@ This file tracks all local modifications made to the xl2times library, which is 
 | 2025-12-23 | 675ee0c | (entire library) | Initial import of xl2times into repository | Include source locally for visibility and validation oracle |
 | 2025-12-26 | b9ef966 | gams_scaffold/runmodel.gms | Changed GAMS call: `action=c` → `action=ce`, added `optfile=1` | Enable IIS/Conflict Refiner support for CPLEX to diagnose infeasible models |
 | 2026-01-09 | (pending) | transforms.py | Added support for `~MILESTONEYEARS` tag in `process_time_periods()` | VedaLang emits explicit milestone years; xl2times had the tag defined but unimplemented |
+| 2026-01-27 | (pending) | transforms.py | Fixed pandas 3.0 compatibility issues | Two bugs caused by pandas 3.0 breaking changes |
 
 ## Details
 
@@ -31,3 +32,23 @@ Modified `xl2times/transforms.py`:
 - Endyear row defines the model horizon end for computing last period duration
 
 The `~MILESTONEYEARS` tag was already defined in xl2times (`datatypes.py` and `veda-tags.json`) but had no processing logic. This change completes that feature, enabling VedaLang to use `~MILESTONEYEARS` as an alternative to `~ACTIVEPDEF` + `~TIMEPERIODS` (per VEDA documentation).
+
+### (pending) - Pandas 3.0 Compatibility Fixes (2026-01-27)
+
+Modified `xl2times/transforms.py` with two fixes for pandas 3.0 breaking changes:
+
+1. **`_process_comm_groups_vectorised()`** (lines 1636-1652):
+   - In pandas 3.0, `groupby().apply()` no longer includes the groupby columns in the output
+   - The previous code used `as_index=False` which now causes columns to be lost
+   - Fix: Use regular groupby and reset the MultiIndex to recover group columns
+   - This caused KeyError: "['region', 'process'] not in index" downstream
+
+2. **`prepare_for_querying()`** (lines 1465-1476):
+   - In pandas 3.0, stricter type coercion rejects assigning string values (e.g., 'EOH') to numeric columns
+   - Fix: Convert column to object type before assigning string values
+   - This caused TypeError: Invalid value 'EOH' for dtype 'float64'
+
+3. **`include_cgs_in_topology()`** (lines 1526-1532):
+   - Added early return guard when merge produces empty result
+   - Preserves original topology columns with added nullable columns
+   - Defensive measure to prevent downstream crashes with minimal models

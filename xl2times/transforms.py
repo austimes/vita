@@ -1462,13 +1462,18 @@ def prepare_for_querying(
                     if any(isna):
                         key = mapping_to_defaults[colname]
                         for value in config.veda_attr_defaults[key].keys():
-                            df.loc[
-                                isna
-                                & df["attribute"].isin(
-                                    config.veda_attr_defaults[key][value]
-                                ),
-                                colname,
-                            ] = value
+                            mask = isna & df["attribute"].isin(
+                                config.veda_attr_defaults[key][value]
+                            )
+                            if any(mask):
+                                # Convert to object if needed for string values
+                                needs_convert = (
+                                    df[colname].dtype != object
+                                    and isinstance(value, str)
+                                )
+                                if needs_convert:
+                                    df[colname] = df[colname].astype(object)
+                                df.loc[mask, colname] = value
                 elif colname == "year":
                     df.loc[df[colname].isna(), [colname]] = model.start_year
                 elif colname == "currency":
@@ -1517,6 +1522,14 @@ def include_cgs_in_topology(
     comm_groups = pd.merge(
         model.topology, comm_set, on=["region", "commodity"]
     ).drop_duplicates(keep="last")
+
+    # If merge produced no results, preserve original topology with added columns
+    if comm_groups.empty:
+        model.topology = model.topology.copy()
+        for col in ["csets", "commoditygroup", "DefaultVedaPCG"]:
+            if col not in model.topology.columns:
+                model.topology[col] = None
+        return tables
 
     # Add columns for the number of IN/OUT commodities of each type
     _count_comm_group_vectorised(comm_groups)
@@ -1626,12 +1639,17 @@ def _process_comm_groups_vectorised(
         return group
 
     comm_groups["DefaultVedaPCG"] = None
+    group_cols = ["region", "process"]
     comm_groups_subset = comm_groups.groupby(
-        ["region", "process"], sort=False, as_index=False
+        group_cols, sort=False
     ).apply(_set_default_veda_pcg)
-    comm_groups_subset = comm_groups_subset.reset_index(
-        level=0, drop=True
-    ).sort_index()  # back to the original index and row order
+    # In pandas 3.0+, groupby columns become part of the MultiIndex after apply
+    # We need to reset them back to columns
+    if isinstance(comm_groups_subset.index, pd.MultiIndex):
+        comm_groups_subset = comm_groups_subset.reset_index(
+            level=list(range(len(group_cols))), drop=False
+        )
+    comm_groups_subset = comm_groups_subset.reset_index(drop=True)
     return comm_groups_subset
 
 
@@ -1830,11 +1848,18 @@ def fill_in_missing_pcgs(
     if any(i):
         # Specify primary commodity group based on suffix and the process name.
         df.loc[i, "primarycg"] = df["process"][i] + "_" + df["primarycg"][i]
-    default_pcgs = model.topology
-    default_pcgs = default_pcgs.loc[
-        default_pcgs["DefaultVedaPCG"] == 1,
-        ["region", "process", "commoditygroup"],
-    ]
+
+    # Handle case where topology doesn't have commodity group columns
+    # (can happen with minimal models that don't have full topology)
+    required_cols = {"DefaultVedaPCG", "region", "process", "commoditygroup"}
+    if not required_cols.issubset(model.topology.columns):
+        default_pcgs = pd.DataFrame(columns=["region", "process", "primarycg"])
+    else:
+        default_pcgs = model.topology
+        default_pcgs = default_pcgs.loc[
+            default_pcgs["DefaultVedaPCG"] == 1,
+            ["region", "process", "commoditygroup"],
+        ]
     default_pcgs = default_pcgs.rename(columns={"commoditygroup": "primarycg"})
     default_pcgs = pd.merge(
         default_pcgs,
