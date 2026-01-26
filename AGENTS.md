@@ -193,20 +193,24 @@ Examples of parameters that TIMES interpolates:
 ## Repository Structure
 
 ```
-veda-devtools/
+vedalang/
 ├── AGENTS.md                    # This file
 ├── docs/
 │   └── VEDA2_NL_to_VEDA_PRD_v0_3.txt
 ├── vedalang/
+│   ├── cli.py                   # User CLI (vedalang lint/compile/validate)
 │   ├── schema/                  # JSON Schema definitions
 │   │   ├── vedalang.schema.json # VedaLang source schema
 │   │   └── tableir.schema.json  # TableIR schema
 │   ├── compiler/                # VedaLang → TableIR
 │   └── examples/                # Example VedaLang sources
 ├── tools/
-│   ├── vedalang_cli/            # User CLI (vedalang lint/compile/validate)
-│   ├── vedalang_dev_cli/        # Design agent CLI (vedalang-dev)
-│   └── emit_excel/              # TableIR → Excel emitter
+│   ├── veda_dev/                # Design agent CLI (vedalang-dev)
+│   ├── veda_emit_excel/         # TableIR → Excel emitter
+│   ├── veda_check/              # Model validation utilities
+│   ├── veda_patterns/           # Pattern library tools
+│   ├── veda_run_times/          # TIMES solver runner
+│   └── vedalang_lsp/            # Language server protocol
 ├── rules/
 │   ├── patterns.yaml            # Concept → VedaLang templates
 │   ├── decision_tree.yaml       # Intent routing
