@@ -9,14 +9,23 @@ wheels/
 # Virtual environments
 .venv
 
+# Environment files (use .env.example as template)
+.env
+
 # OS files
 .DS_Store
 
 # Generated output
 output/
 output_invalid/
+tmp/
 *.log
 
 # Embedded repos (use submodule if needed)
 experiments/trade/dd_output/
 experiments/trade/diagnostics.json
+
+# VS Code extension build artifacts
+tools/vedalang_lsp/extension/node_modules/
+tools/vedalang_lsp/extension/out/
+*.vsix
