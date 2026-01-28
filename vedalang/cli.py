@@ -109,6 +109,15 @@ def _add_viz_parser(subparsers):
     p.add_argument(
         "--no-browser", action="store_true", help="Don't auto-open browser"
     )
+    p.add_argument(
+        "--mermaid", action="store_true", help="Output Mermaid syntax instead of web UI"
+    )
+    p.add_argument(
+        "--variants", action="store_true", help="Include process variants in diagram"
+    )
+    p.add_argument(
+        "--debug", action="store_true", help="Print debug info about nodes and edges"
+    )
 
 
 def cmd_lint(args) -> int:
@@ -361,6 +370,42 @@ def _error(message: str, as_json: bool, source: str):
 
 def cmd_viz(args) -> int:
     """Run viz command: real-time RES visualization."""
+    file_path: Path = args.file
+
+    if not file_path.exists():
+        print(f"Error: File not found: {file_path}", file=sys.stderr)
+        return 2
+
+    # Mermaid mode: just output the diagram and exit
+    if getattr(args, "mermaid", False):
+        import yaml
+
+        from vedalang.viz.res_mermaid import build_res_graph, graph_to_mermaid
+
+        with open(file_path) as f:
+            parsed = yaml.safe_load(f)
+
+        include_variants = getattr(args, "variants", False)
+        graph = build_res_graph(parsed, include_variants=include_variants)
+
+        if getattr(args, "debug", False):
+            print("=== Nodes ===", file=sys.stderr)
+            for n in graph["nodes"]:
+                kind, nid = n['kind'], n['id']
+                ntype, stage = n.get('type'), n.get('stage')
+                parent = n.get('parentRole', '')
+                parent_str = f" (parent={parent})" if parent else ""
+                msg = f"  {kind}: {nid} (type={ntype}, stage={stage}){parent_str}"
+                print(msg, file=sys.stderr)
+            print("=== Edges ===", file=sys.stderr)
+            for e in graph["edges"]:
+                print(f"  {e['from']} --{e['kind']}--> {e['to']}", file=sys.stderr)
+            print("", file=sys.stderr)
+
+        print(graph_to_mermaid(graph))
+        return 0
+
+    # Web server mode
     import asyncio
     import webbrowser
 
@@ -368,13 +413,8 @@ def cmd_viz(args) -> int:
 
     from vedalang.viz.server import create_app
 
-    file_path: Path = args.file
     port: int = args.port
     no_browser: bool = args.no_browser
-
-    if not file_path.exists():
-        print(f"Error: File not found: {file_path}", file=sys.stderr)
-        return 2
 
     app, server = create_app(file_path)
 

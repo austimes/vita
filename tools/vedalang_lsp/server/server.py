@@ -1076,6 +1076,38 @@ def code_action(
     return actions
 
 
+# Import shared RES graph builder
+from vedalang.viz.res_mermaid import build_res_graph  # noqa: E402
+
+
+@server.feature("veda/resGraph")
+def res_graph(ls: VedaLangServer, params) -> dict:
+    """Return the RES graph for the given document."""
+    # Handle both {uri: ...} and {textDocument: {uri: ...}} formats
+    include_variants = False
+    if hasattr(params, "textDocument"):
+        td = params.textDocument
+        uri = td.get("uri") if isinstance(td, dict) else td.uri
+        include_variants = getattr(params, "includeVariants", False)
+    elif hasattr(params, "uri"):
+        uri = params.uri
+        include_variants = getattr(params, "includeVariants", False)
+    elif isinstance(params, dict):
+        uri = params.get("textDocument", {}).get("uri") or params.get("uri")
+        include_variants = params.get("includeVariants", False)
+    else:
+        return {"nodes": [], "edges": [], "error": "Invalid params: no uri found"}
+
+    doc = ls.workspace.get_text_document(uri)
+    try:
+        parsed = yaml.safe_load(doc.source)
+        if not parsed:
+            return {"nodes": [], "edges": [], "error": "Empty document"}
+        return build_res_graph(parsed, include_variants=include_variants)
+    except yaml.YAMLError as e:
+        return {"nodes": [], "edges": [], "error": str(e)}
+
+
 def main():
     """Run the VedaLang language server."""
     import sys

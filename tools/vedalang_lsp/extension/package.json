@@ -48,6 +48,24 @@
         "path": "./syntaxes/vedalang.tmLanguage.json"
       }
     ],
+    "commands": [
+      {
+        "command": "vedalang.showResPreview",
+        "title": "VedaLang: Show RES Preview"
+      },
+      {
+        "command": "vedalang.restartServer",
+        "title": "VedaLang: Restart Language Server"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "vedalang.showResPreview",
+        "key": "ctrl+shift+r",
+        "mac": "cmd+shift+r",
+        "when": "editorLangId == vedalang"
+      }
+    ],
     "configuration": {
       "type": "object",
       "title": "VedaLang",

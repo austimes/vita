@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run VedaLang Extension",
+      "type": "extensionHost",
+      "request": "launch",
+      "args": ["--extensionDevelopmentPath=${workspaceFolder}/tools/vedalang_lsp/extension"],
+      "outFiles": ["${workspaceFolder}/tools/vedalang_lsp/extension/out/**/*.js"],
+      "preLaunchTask": "npm: watch - tools/vedalang_lsp/extension"
+    }
+  ]
+}

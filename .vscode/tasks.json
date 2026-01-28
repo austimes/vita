@@ -1,0 +1,14 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "type": "npm",
+      "script": "watch",
+      "path": "tools/vedalang_lsp/extension",
+      "label": "npm: watch - tools/vedalang_lsp/extension",
+      "isBackground": true,
+      "problemMatcher": "$tsc-watch",
+      "group": "build"
+    }
+  ]
+}

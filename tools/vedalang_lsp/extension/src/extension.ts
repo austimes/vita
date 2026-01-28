@@ -6,6 +6,7 @@ import {
   LanguageClientOptions,
   ServerOptions,
 } from "vscode-languageclient/node";
+import { ResPreviewPanel } from "./resPreview";
 
 let client: LanguageClient | undefined;
 
@@ -91,6 +92,18 @@ export async function activate(context: vscode.ExtensionContext) {
         await client.start();
         vscode.window.showInformationMessage(
           "VedaLang language server restarted"
+        );
+      }
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("vedalang.showResPreview", () => {
+      if (client) {
+        ResPreviewPanel.createOrShow(context.extensionUri, client);
+      } else {
+        vscode.window.showErrorMessage(
+          "VedaLang language server is not running"
         );
       }
     })
