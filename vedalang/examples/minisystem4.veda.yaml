@@ -63,6 +63,7 @@ process_roles:
       - commodity: gas
     outputs:
       - commodity: electricity
+      - commodity: co2
 
   - id: deliver_residential
     stage: end_use
@@ -84,9 +85,8 @@ process_variants:
     fixed_om_cost: 20
     variable_om_cost: 2
     lifetime: 40
-    emissions:
-      - commodity: co2
-        emission_factor: 0.05
+    emission_factors:
+      co2: 0.05
 
   - id: residential_device
     role: deliver_residential

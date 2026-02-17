@@ -1,0 +1,165 @@
+# Toy Agriculture: Methane Abatement and Carbon Sequestration
+# Agricultural emissions reduction + sequestration (ENV-as-input pattern)
+# Tests: ENV commodity as process input, sequestration consuming emissions
+# Design: VedaLang enforces physicality — trees consume CO2, not emit negative CO2
+# Issue: vedalang-248.6
+
+model:
+  name: ToyAgriculture
+  description: Agricultural emissions reduction with sequestration
+
+  regions:
+    - SINGLE
+
+  milestone_years: [2020, 2030, 2040, 2050]
+
+  commodities:
+    - id: agricultural_output
+      kind: service
+      unit: Mt
+      description: Agricultural production
+
+    - id: co2e
+      kind: emission
+      unit: Mt
+      tradable: true
+      description: CO2-equivalent greenhouse gas emissions
+
+  scenario_parameters: []
+
+  constraints:
+    - name: CO2E_CAP
+      type: emission_cap
+      commodity: co2e
+      years:
+        "2020": 50
+        "2030": 35
+        "2040": 20
+        "2050": 10
+      interpolation: interp_extrap
+      limtype: up
+
+segments:
+  sectors: [AGR]
+
+process_roles:
+  - id: produce_agriculture
+    stage: end_use
+    inputs: []
+    outputs:
+      - commodity: agricultural_output
+      - commodity: co2e
+
+  - id: produce_agriculture_improved
+    stage: end_use
+    inputs: []
+    outputs:
+      - commodity: agricultural_output
+      - commodity: co2e
+
+  - id: sequester_carbon
+    stage: sink
+    inputs:
+      - commodity: co2e
+    outputs: []
+
+process_variants:
+  - id: baseline_agriculture
+    role: produce_agriculture
+    efficiency: 1.0
+    lifetime: 50
+    emission_factors:
+      co2e: 5.0
+
+  - id: feed_additives
+    role: produce_agriculture_improved
+    efficiency: 1.0
+    lifetime: 50
+    investment_cost: 20
+    emission_factors:
+      co2e: 3.0
+
+  - id: improved_manure
+    role: produce_agriculture_improved
+    efficiency: 1.0
+    lifetime: 50
+    investment_cost: 10
+    emission_factors:
+      co2e: 3.75
+
+  - id: soil_carbon
+    role: sequester_carbon
+    efficiency: 1.0
+    lifetime: 30
+    investment_cost: 30
+
+  - id: reforestation
+    role: sequester_carbon
+    efficiency: 1.0
+    lifetime: 50
+    investment_cost: 15
+
+availability:
+  - variant: baseline_agriculture
+    regions: [SINGLE]
+    sectors: [AGR]
+
+  - variant: feed_additives
+    regions: [SINGLE]
+    sectors: [AGR]
+
+  - variant: improved_manure
+    regions: [SINGLE]
+    sectors: [AGR]
+
+  - variant: soil_carbon
+    regions: [SINGLE]
+
+  - variant: reforestation
+    regions: [SINGLE]
+
+process_parameters:
+  - selector:
+      variant: baseline_agriculture
+      region: SINGLE
+      sector: AGR
+    stock: 10
+
+  - selector:
+      variant: feed_additives
+      region: SINGLE
+      sector: AGR
+    stock: 0.5
+    ncap_bound:
+      up: 4
+
+  - selector:
+      variant: improved_manure
+      region: SINGLE
+      sector: AGR
+    stock: 0.5
+    ncap_bound:
+      up: 6
+
+  - selector:
+      variant: soil_carbon
+      region: SINGLE
+    stock: 0.5
+    ncap_bound:
+      up: 2
+
+  - selector:
+      variant: reforestation
+      region: SINGLE
+    stock: 0.5
+    ncap_bound:
+      up: 3
+
+demands:
+  - commodity: agricultural_output
+    region: SINGLE
+    sector: AGR
+    interpolation: interp_extrap
+    values:
+      "2020": 10
+      "2050": 10

@@ -183,7 +183,7 @@ def build_variants(
         "investment_cost",
         "fixed_om_cost",
         "variable_om_cost",
-        "emissions",
+        "emission_factors",
     }
 
     for raw in process_variants:
@@ -366,6 +366,11 @@ def apply_process_parameters(
         "stock",
     }
 
+    # Dict-valued keys use merge semantics (update, not replace)
+    merge_keys = {
+        "emission_factors",
+    }
+
     for param_block in process_params:
         selector = param_block["selector"]
 
@@ -374,6 +379,10 @@ def apply_process_parameters(
                 for attr_key in override_keys:
                     if attr_key in param_block:
                         instance.attrs[attr_key] = param_block[attr_key]
+                for attr_key in merge_keys:
+                    if attr_key in param_block:
+                        existing = instance.attrs.get(attr_key, {})
+                        instance.attrs[attr_key] = {**existing, **param_block[attr_key]}
 
 
 def _produces_service(role: Role, commodities: dict[str, dict]) -> bool:

@@ -1,0 +1,211 @@
+# Toy Industry: Industrial Heat Decarbonisation
+# Gas vs electricity vs hydrogen competing for industrial heat under tightening CO2 cap
+# Tests: Time-varying H2 import price, emission_cap constraint, fuel switching
+# Issue: vedalang-248.4
+
+model:
+  name: ToyIndustry
+  description: Industrial heat decarbonisation with gas, electricity, and hydrogen competing under tightening CO2 cap
+
+  regions:
+    - SINGLE
+
+  milestone_years: [2020, 2030, 2040, 2050]
+
+  commodities:
+    - id: industrial_heat
+      kind: service
+      unit: PJ
+      description: Industrial heat demand
+
+    - id: electricity
+      kind: carrier
+      unit: PJ
+      description: Electricity
+
+    - id: natural_gas
+      kind: carrier
+      unit: PJ
+      description: Natural gas
+
+    - id: hydrogen
+      kind: carrier
+      unit: PJ
+      description: Hydrogen
+
+    - id: co2
+      kind: emission
+      unit: Mt
+      description: Carbon dioxide
+
+  constraints:
+    - name: CO2_CAP
+      type: emission_cap
+      commodity: co2
+      limtype: up
+      interpolation: interp_extrap
+      years:
+        "2020": 5
+        "2030": 3
+        "2040": 1
+        "2050": 0.5
+
+segments:
+  sectors: [IND]
+
+process_roles:
+  - id: import_gas
+    stage: supply
+    inputs: []
+    outputs:
+      - commodity: natural_gas
+
+  - id: import_electricity
+    stage: supply
+    inputs: []
+    outputs:
+      - commodity: electricity
+
+  - id: import_hydrogen
+    stage: supply
+    inputs: []
+    outputs:
+      - commodity: hydrogen
+
+  - id: heat_from_gas
+    stage: end_use
+    inputs:
+      - commodity: natural_gas
+    outputs:
+      - commodity: industrial_heat
+      - commodity: co2
+
+  - id: heat_from_electricity
+    stage: end_use
+    inputs:
+      - commodity: electricity
+    outputs:
+      - commodity: industrial_heat
+
+  - id: heat_from_hydrogen
+    stage: end_use
+    inputs:
+      - commodity: hydrogen
+    outputs:
+      - commodity: industrial_heat
+
+process_variants:
+  - id: gas_import
+    role: import_gas
+    efficiency: 1.0
+    lifetime: 100
+    variable_om_cost: 8
+
+  - id: electricity_import
+    role: import_electricity
+    efficiency: 1.0
+    lifetime: 100
+    variable_om_cost: 25
+
+  - id: hydrogen_import
+    role: import_hydrogen
+    efficiency: 1.0
+    lifetime: 100
+    variable_om_cost:
+      values:
+        "2020": 40
+        "2030": 30
+        "2040": 22
+        "2050": 18
+      interpolation: interp_extrap
+
+  - id: gas_boiler
+    role: heat_from_gas
+    efficiency: 0.90
+    lifetime: 30
+    investment_cost: 50
+    emission_factors:
+      co2: 0.056
+
+  - id: electric_heater
+    role: heat_from_electricity
+    efficiency: 0.95
+    lifetime: 30
+    investment_cost: 80
+
+  - id: h2_boiler
+    role: heat_from_hydrogen
+    efficiency: 0.85
+    lifetime: 30
+    investment_cost: 100
+
+availability:
+  - variant: gas_import
+    regions: [SINGLE]
+
+  - variant: electricity_import
+    regions: [SINGLE]
+
+  - variant: hydrogen_import
+    regions: [SINGLE]
+
+  - variant: gas_boiler
+    regions: [SINGLE]
+    sectors: [IND]
+
+  - variant: electric_heater
+    regions: [SINGLE]
+    sectors: [IND]
+
+  - variant: h2_boiler
+    regions: [SINGLE]
+    sectors: [IND]
+
+process_parameters:
+  - selector:
+      variant: gas_import
+      region: SINGLE
+    stock: 1000
+
+  - selector:
+      variant: electricity_import
+      region: SINGLE
+    stock: 1000
+
+  - selector:
+      variant: hydrogen_import
+      region: SINGLE
+    stock: 1000
+
+  - selector:
+      variant: gas_boiler
+      region: SINGLE
+      sector: IND
+    stock: 5
+    cap_bound:
+      up: 100
+
+  - selector:
+      variant: electric_heater
+      region: SINGLE
+      sector: IND
+    stock: 1
+    cap_bound:
+      up: 100
+
+  - selector:
+      variant: h2_boiler
+      region: SINGLE
+      sector: IND
+    stock: 0.5
+    cap_bound:
+      up: 100
+
+demands:
+  - commodity: industrial_heat
+    region: SINGLE
+    sector: IND
+    interpolation: interp_extrap
+    values:
+      "2020": 50
+      "2050": 50

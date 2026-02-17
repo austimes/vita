@@ -1,0 +1,254 @@
+# Toy Electricity (4 timeslices): VRE + Gas + Storage under CO2 cap
+# Summer/Winter × Day/Night — seasonal + diurnal resolution
+# Tests: timeslice sensitivity, VRE seasonal variation, storage dispatch
+# Issue: vedalang-248.1
+
+model:
+  name: ToyElectricity4TS
+  description: Electricity system with VRE, gas, storage and CO2 cap (seasonal + day/night resolution)
+
+  regions:
+    - SINGLE
+
+  milestone_years: [2020, 2025, 2030, 2035, 2040, 2050]
+
+  timeslices:
+    season:
+      - code: S
+        name: Summer
+      - code: W
+        name: Winter
+    daynite:
+      - code: D
+        name: Day
+      - code: N
+        name: Night
+    fractions:
+      SD: 0.25
+      SN: 0.22
+      WD: 0.28
+      WN: 0.25
+
+  commodities:
+    - id: electricity
+      kind: carrier
+      unit: PJ
+      description: Electricity
+
+    - id: electricity_service
+      kind: service
+      unit: PJ
+      description: Electricity service demand
+
+    - id: natural_gas
+      kind: carrier
+      unit: PJ
+      description: Natural gas
+
+    - id: co2
+      kind: emission
+      unit: Mt
+      description: Carbon dioxide
+
+  scenario_parameters:
+    - name: co2_price
+      description: Carbon price trajectory
+      type: commodity_price
+      commodity: co2
+      interpolation: interp_extrap
+      values:
+        "2020": 10
+        "2030": 50
+        "2050": 100
+
+  constraints:
+    - name: CO2_CAP
+      type: emission_cap
+      commodity: co2
+      years:
+        "2020": 10
+        "2030": 5
+        "2040": 2
+        "2050": 0.5
+      interpolation: interp_extrap
+      limtype: up
+
+segments:
+  sectors: [RES]
+
+process_roles:
+  - id: import_gas
+    stage: supply
+    inputs: []
+    outputs:
+      - commodity: natural_gas
+
+  - id: generate_electricity_gas
+    stage: conversion
+    inputs:
+      - commodity: natural_gas
+    outputs:
+      - commodity: electricity
+      - commodity: co2
+
+  - id: generate_electricity_gas_peak
+    stage: conversion
+    inputs:
+      - commodity: natural_gas
+    outputs:
+      - commodity: electricity
+      - commodity: co2
+
+  - id: generate_electricity_renewable
+    stage: conversion
+    inputs: []
+    outputs:
+      - commodity: electricity
+
+  - id: store_electricity
+    stage: storage
+    inputs:
+      - commodity: electricity
+    outputs:
+      - commodity: electricity
+
+  - id: deliver_electricity
+    stage: end_use
+    inputs:
+      - commodity: electricity
+    outputs:
+      - commodity: electricity_service
+
+process_variants:
+  - id: gas_import
+    role: import_gas
+    efficiency: 1.0
+    lifetime: 100
+    variable_om_cost: 8
+
+  - id: ccgt
+    role: generate_electricity_gas
+    efficiency: 0.55
+    lifetime: 40
+    investment_cost: 800
+    fixed_om_cost: 20
+    variable_om_cost: 2
+    emission_factors:
+      co2: 0.05
+
+  - id: ocgt
+    role: generate_electricity_gas_peak
+    efficiency: 0.35
+    lifetime: 30
+    investment_cost: 400
+    fixed_om_cost: 10
+    variable_om_cost: 5
+    emission_factors:
+      co2: 0.08
+
+  - id: solar_pv
+    role: generate_electricity_renewable
+    efficiency: 1.0
+    lifetime: 25
+    investment_cost: 1000
+    fixed_om_cost: 15
+    variable_om_cost: 0.5
+
+  - id: onshore_wind
+    role: generate_electricity_renewable
+    efficiency: 1.0
+    lifetime: 25
+    investment_cost: 1200
+    fixed_om_cost: 25
+    variable_om_cost: 1
+
+  - id: battery
+    role: store_electricity
+    efficiency: 0.85
+    lifetime: 15
+    investment_cost: 300
+    fixed_om_cost: 5
+
+  - id: grid_delivery
+    role: deliver_electricity
+    efficiency: 0.95
+    lifetime: 100
+
+availability:
+  - variant: gas_import
+    regions: [SINGLE]
+
+  - variant: ccgt
+    regions: [SINGLE]
+
+  - variant: ocgt
+    regions: [SINGLE]
+
+  - variant: solar_pv
+    regions: [SINGLE]
+
+  - variant: onshore_wind
+    regions: [SINGLE]
+
+  - variant: battery
+    regions: [SINGLE]
+
+  - variant: grid_delivery
+    regions: [SINGLE]
+    sectors: [RES]
+
+process_parameters:
+  - selector:
+      variant: gas_import
+      region: SINGLE
+    stock: 1000
+
+  - selector:
+      variant: ccgt
+      region: SINGLE
+    stock: 5
+    cap_bound:
+      up: 100
+
+  - selector:
+      variant: ocgt
+      region: SINGLE
+    stock: 2
+    cap_bound:
+      up: 100
+
+  - selector:
+      variant: solar_pv
+      region: SINGLE
+    stock: 1
+    cap_bound:
+      up: 500
+
+  - selector:
+      variant: onshore_wind
+      region: SINGLE
+    stock: 1
+    cap_bound:
+      up: 500
+
+  - selector:
+      variant: battery
+      region: SINGLE
+    stock: 0.5
+    cap_bound:
+      up: 200
+
+  - selector:
+      variant: grid_delivery
+      region: SINGLE
+      sector: RES
+    stock: 1000
+
+demands:
+  - commodity: electricity_service
+    region: SINGLE
+    sector: RES
+    interpolation: interp_extrap
+    values:
+      "2020": 50
+      "2050": 100

@@ -414,9 +414,7 @@ def test_process_variants_validates():
                 "investment_cost": 1500,
                 "fixed_om_cost": 30,
                 "variable_om_cost": 5,
-                "emissions": [
-                    {"commodity": "co2", "emission_factor": 0.09},
-                ],
+                "emission_factors": {"co2": 0.09},
             },
         ],
     }

@@ -252,7 +252,7 @@ class TestBuildVariants:
                     "investment_cost": 1000,
                     "fixed_om_cost": 50,
                     "variable_om_cost": 10,
-                    "emissions": [{"commodity": "co2", "emission_factor": 0.1}],
+                    "emission_factors": {"co2": 0.1},
                 }
             ]
         }
@@ -264,7 +264,7 @@ class TestBuildVariants:
         assert attrs["investment_cost"] == 1000
         assert attrs["fixed_om_cost"] == 50
         assert attrs["variable_om_cost"] == 10
-        assert attrs["emissions"] == [{"commodity": "co2", "emission_factor": 0.1}]
+        assert attrs["emission_factors"] == {"co2": 0.1}
 
     def test_duplicate_variant_id_raises(self):
         """Duplicate variant id raises IRError."""

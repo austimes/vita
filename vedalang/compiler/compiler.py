@@ -55,7 +55,7 @@ CAP2ACT_CONVERSIONS = {
 TIME_VARYING_ATTRS = {
     "efficiency", "investment_cost", "fixed_om_cost", "variable_om_cost",
     "import_price", "lifetime", "availability_factor",
-    # Note: emission_factor also supports time-varying but is handled separately
+    # emission_factors values also support time-varying
 }
 
 # Attributes that MUST be expanded to all milestone years (even for scalars)
@@ -691,8 +691,10 @@ def _compile_new_syntax(source: dict, validate: bool = True) -> dict:
         # Output commodities
         for out_id in role.outputs:
             comm = commodities.get(out_id, {})
+            comm_kind = comm.get("kind", "carrier")
             tradable = comm.get("tradable", True)
-            if tradable:
+            # Emission commodities are always region-wide (never segment-scoped)
+            if comm_kind in ("emission", "EMISSION") or tradable:
                 scoped_id = registry.get_commodity_symbol(out_id, None)
             else:
                 scoped_id = registry.get_commodity_symbol(out_id, key.segment)
@@ -709,15 +711,31 @@ def _compile_new_syntax(source: dict, validate: bool = True) -> dict:
                 "process": prc_name,
                 "eff": attrs["efficiency"],
             }
-            # Add costs if present
-            if "investment_cost" in attrs:
-                eff_row["ncap_cost"] = attrs["investment_cost"]
-            if "fixed_om_cost" in attrs:
-                eff_row["ncap_fom"] = attrs["fixed_om_cost"]
-            if "variable_om_cost" in attrs:
-                eff_row["act_cost"] = attrs["variable_om_cost"]
-            if "lifetime" in attrs:
-                eff_row["ncap_tlife"] = attrs["lifetime"]
+            # Add scalar costs to FI_T row; time-varying costs go to TFM_INS
+            cost_attrs = {
+                "investment_cost": ("ncap_cost", "NCAP_COST"),
+                "fixed_om_cost": ("ncap_fom", "NCAP_FOM"),
+                "variable_om_cost": ("act_cost", "ACT_COST"),
+                "lifetime": ("ncap_tlife", "NCAP_TLIFE"),
+            }
+            for attr_name, (col_name, times_name) in cost_attrs.items():
+                if attr_name not in attrs:
+                    continue
+                val = attrs[attr_name]
+                if _is_time_varying(val):
+                    sparse = val.get("values", {})
+                    interp = val.get("interpolation", "interp_extrap")
+                    dense = _expand_series_to_years(sparse, milestone_years, interp)
+                    for year, v in sorted(dense.items()):
+                        pasti_rows.append({
+                            "region": key.region,
+                            "process": prc_name,
+                            "year": year,
+                            "attribute": times_name,
+                            "value": v,
+                        })
+                else:
+                    eff_row[col_name] = val
             fi_t_rows.append(eff_row)
 
         # Stock (PRC_RESID) - use TFM_INS pattern to avoid commodity requirement
@@ -768,17 +786,21 @@ def _compile_new_syntax(source: dict, validate: bool = True) -> dict:
                         "value": lim_val,
                     })
 
-        # Emissions
-        if "emissions" in attrs:
-            for em in attrs["emissions"]:
-                em_comm = em["commodity"]
-                em_factor = em["emission_factor"]
-                fi_t_rows.append({
+        # Emission factors (ENV_ACT) via ~TFM_INS
+        # Emission commodities are now regular role outputs; emission_factors
+        # parameterizes the per-activity emission rate for each.
+        if "emission_factors" in attrs:
+            for em_comm, em_factor in attrs["emission_factors"].items():
+                if em_factor == 0:
+                    continue  # No ENV_ACT row needed for zero emission factor
+                em_sym = registry.get_commodity_symbol(em_comm, None)
+                pasti_rows.append({
                     "region": key.region,
                     "process": prc_name,
-                    "commodity-out": registry.get_commodity_symbol(em_comm, None),
+                    "commodity": em_sym,
+                    "attribute": "ENV_ACT",
+                    "value": em_factor,
                 })
-                # Would need TFM_INS for ENV_ACT but keeping simple for now
 
     # Build system settings
     model_name = model.get("name", "Model")

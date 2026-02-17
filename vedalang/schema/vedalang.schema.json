@@ -219,27 +219,15 @@
           ],
           "description": "Variable O&M cost per unit activity"
         },
-        "emissions": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/variant_emission" },
-          "description": "Emission factors per unit activity"
-        }
-      },
-      "additionalProperties": false
-    },
-    "variant_emission": {
-      "type": "object",
-      "description": "Emission factor for a variant",
-      "required": ["commodity", "emission_factor"],
-      "properties": {
-        "commodity": {
-          "type": "string",
-          "description": "Reference to emission commodity id"
-        },
-        "emission_factor": {
-          "type": "number",
-          "minimum": 0,
-          "description": "Emission per unit process activity"
+        "emission_factors": {
+          "type": "object",
+          "description": "Per-emission-commodity factors keyed by commodity id, per unit PROCESS ACTIVITY (TIMES ENV_ACT). Keys must be emission commodities listed in the role's outputs. Values are scalars or time-varying specs. Omitted emission outputs default to factor 0.",
+          "additionalProperties": {
+            "oneOf": [
+              { "type": "number", "minimum": 0 },
+              { "$ref": "#/$defs/time_varying_value" }
+            ]
+          }
         }
       },
       "additionalProperties": false

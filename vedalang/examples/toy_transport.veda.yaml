@@ -1,0 +1,158 @@
+# Toy Transport: EV Uptake and Electrification
+# ICE vs EV competition with activity_share constraint for EV adoption
+# Tests: activity_share constraint, transport sector, fuel switching
+# Issue: vedalang-248.2
+#
+# Uses composable P4 syntax: model, segments, process_roles, process_variants,
+# availability, process_parameters, demands
+
+model:
+  name: ToyTransport
+  description: EV uptake model with S-curve adoption constraint
+
+  regions:
+    - SINGLE
+
+  milestone_years: [2020, 2025, 2030, 2035, 2040, 2050]
+
+  commodities:
+    - id: passenger_km
+      kind: service
+      unit: Bvkm
+      description: Passenger travel demand
+
+    - id: electricity
+      kind: carrier
+      unit: PJ
+      description: Electricity
+
+    - id: petrol
+      kind: carrier
+      unit: PJ
+      description: Petrol/gasoline
+
+    - id: co2
+      kind: emission
+      unit: Mt
+      description: Carbon dioxide
+
+  constraints:
+    # EV adoption target: at least 30% of passenger_km from EVs
+    # NOTE: Ideally time-varying for S-curve {2020: 0.05, 2025: 0.15,
+    # 2030: 0.30, 2035: 0.60, 2040: 0.75, 2050: 0.85} but schema
+    # currently supports only a scalar minimum_share (future enhancement).
+    - name: EV_SHARE
+      type: activity_share
+      commodity: passenger_km
+      processes: [ev_car_SINGLE_TRN]
+      minimum_share: 0.30
+
+segments:
+  sectors: [TRN]
+
+process_roles:
+  - id: import_petrol
+    stage: supply
+    inputs: []
+    outputs:
+      - commodity: petrol
+
+  - id: import_electricity
+    stage: supply
+    inputs: []
+    outputs:
+      - commodity: electricity
+
+  - id: drive_ice
+    stage: end_use
+    inputs:
+      - commodity: petrol
+    outputs:
+      - commodity: passenger_km
+      - commodity: co2
+
+  - id: drive_ev
+    stage: end_use
+    inputs:
+      - commodity: electricity
+    outputs:
+      - commodity: passenger_km
+
+process_variants:
+  - id: petrol_import
+    role: import_petrol
+    efficiency: 1.0
+    lifetime: 100
+    variable_om_cost: 15
+
+  - id: electricity_import
+    role: import_electricity
+    efficiency: 1.0
+    lifetime: 100
+    variable_om_cost: 25
+
+  - id: ice_car
+    role: drive_ice
+    efficiency: 1.0
+    lifetime: 15
+    variable_om_cost: 5
+    emission_factors:
+      co2: 0.067
+
+  - id: ev_car
+    role: drive_ev
+    efficiency: 1.0
+    lifetime: 15
+    investment_cost: 100
+    variable_om_cost: 2
+
+availability:
+  - variant: petrol_import
+    regions: [SINGLE]
+
+  - variant: electricity_import
+    regions: [SINGLE]
+
+  - variant: ice_car
+    regions: [SINGLE]
+    sectors: [TRN]
+
+  - variant: ev_car
+    regions: [SINGLE]
+    sectors: [TRN]
+
+process_parameters:
+  - selector:
+      variant: petrol_import
+      region: SINGLE
+    stock: 1000
+
+  - selector:
+      variant: electricity_import
+      region: SINGLE
+    stock: 1000
+
+  - selector:
+      variant: ice_car
+      region: SINGLE
+      sector: TRN
+    stock: 200
+    cap_bound:
+      up: 500
+
+  - selector:
+      variant: ev_car
+      region: SINGLE
+      sector: TRN
+    stock: 10
+    cap_bound:
+      up: 500
+
+demands:
+  - commodity: passenger_km
+    region: SINGLE
+    sector: TRN
+    interpolation: interp_extrap
+    values:
+      "2020": 200
+      "2050": 200

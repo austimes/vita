@@ -123,6 +123,7 @@ process_roles:
       - commodity: gas
     outputs:
       - commodity: electricity
+      - commodity: co2
 
   - id: generate_electricity_coal
     stage: conversion
@@ -130,6 +131,7 @@ process_roles:
       - commodity: coal
     outputs:
       - commodity: electricity
+      - commodity: co2
 
   - id: generate_electricity_renewable
     stage: conversion
@@ -144,6 +146,7 @@ process_roles:
       - commodity: gas
     outputs:
       - commodity: hydrogen
+      - commodity: co2
 
   - id: produce_hydrogen_elec
     stage: conversion
@@ -215,9 +218,8 @@ process_variants:
     fixed_om_cost: 40
     variable_om_cost: 3
     lifetime: 40
-    emissions:
-      - commodity: co2
-        emission_factor: 0.09
+    emission_factors:
+      co2: 0.09
 
   - id: ccgt
     role: generate_electricity_gas
@@ -226,9 +228,8 @@ process_variants:
     fixed_om_cost: 20
     variable_om_cost: 2
     lifetime: 40
-    emissions:
-      - commodity: co2
-        emission_factor: 0.05
+    emission_factors:
+      co2: 0.05
 
   - id: wind
     role: generate_electricity_renewable
@@ -254,9 +255,8 @@ process_variants:
     fixed_om_cost: 50
     variable_om_cost: 2
     lifetime: 25
-    emissions:
-      - commodity: co2
-        emission_factor: 0.056
+    emission_factors:
+      co2: 0.056
 
   - id: electrolyzer
     role: produce_hydrogen_elec
