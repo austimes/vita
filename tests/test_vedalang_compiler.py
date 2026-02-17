@@ -517,16 +517,21 @@ def test_compile_example_with_timeslices():
     assert has_timeslices
 
 
-def test_no_timeslices_when_not_defined():
-    """Models without timeslices should not emit ~TIMESLICES table."""
+def test_default_annual_timeslice_when_not_defined():
+    """Models without explicit timeslices get default ANNUAL timeslice."""
     source = load_vedalang(EXAMPLES_DIR / "mini_plant.veda.yaml")
     tableir = compile_vedalang_to_tableir(source)
 
-    # Should NOT have timeslice table
+    # Should have default ANNUAL timeslice
+    found_ts = False
     for f in tableir["files"]:
         for s in f["sheets"]:
             for t in s["tables"]:
-                assert t["tag"] != "~TIMESLICES"
+                if t["tag"] == "~TIMESLICES":
+                    found_ts = True
+                    assert len(t["rows"]) == 1
+                    assert t["rows"][0]["season"] == "AN"
+    assert found_ts
 
 
 def test_compile_trade_links():

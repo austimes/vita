@@ -46,7 +46,7 @@ model:
     - name: ELC_SHARE
       type: activity_share
       commodity: haul_work
-      processes: [electric_haul_SINGLE_IND]
+      processes: [electric_haul]
       minimum_share: 0.30
 
 segments:

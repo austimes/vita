@@ -164,7 +164,7 @@ def cmd_lint(args) -> int:
         )
 
     model = source.get("model", source)
-    xref_errors, xref_warnings = validate_cross_references(model)
+    xref_errors, xref_warnings = validate_cross_references(model, source=source)
     for msg in xref_errors:
         diagnostics.append({
             "code": "XREF_ERROR",

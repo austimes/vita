@@ -44,7 +44,7 @@ model:
     - name: EV_SHARE
       type: activity_share
       commodity: passenger_km
-      processes: [ev_car_SINGLE_TRN]
+      processes: [ev_car]
       minimum_share: 0.30
 
 segments:

@@ -382,7 +382,9 @@ class SemanticValidationError(Exception):
         return "\n".join(parts)
 
 
-def validate_cross_references(model: dict) -> tuple[list[str], list[str]]:
+def validate_cross_references(
+    model: dict, source: dict | None = None,
+) -> tuple[list[str], list[str]]:
     """
     Validate semantic cross-references in the model.
 
@@ -391,6 +393,7 @@ def validate_cross_references(model: dict) -> tuple[list[str], list[str]]:
 
     Args:
         model: The model dictionary from VedaLang source
+        source: Optional full source dict (for P4 syntax with process_variants)
 
     Returns:
         Tuple of (errors, warnings)
@@ -410,6 +413,12 @@ def validate_cross_references(model: dict) -> tuple[list[str], list[str]]:
         proc_name = p.get("name") or p.get("id")
         if proc_name:
             processes.add(proc_name)
+    # P4 syntax: include process_variants from top-level source
+    if source:
+        for v in source.get("process_variants", []):
+            variant_id = v.get("id")
+            if variant_id:
+                processes.add(variant_id)
     regions = set(model.get("regions", []))
 
     def suggest_commodity(name: str) -> str:
@@ -820,20 +829,26 @@ def _compile_new_syntax(source: dict, validate: bool = True) -> dict:
         for r in regions
     ]
 
-    # Timeslice handling
+    # Timeslice handling — always emit at least ANNUAL
     timeslice_rows = []
     yrfr_rows = []
     if "timeslices" in model:
         timeslice_rows, yrfr_rows = _compile_timeslices(model["timeslices"], regions)
+    else:
+        # Default: single ANNUAL timeslice (required by TIMES)
+        timeslice_rows = [{"season": "AN"}]
+        yrfr_rows = [
+            {"region": r, "attribute": "YRFR", "timeslice": "AN", "value": 1.0}
+            for r in regions
+        ]
 
     syssets_tables = [
         {"tag": "~BOOKREGIONS_MAP", "rows": bookregions_rows},
         {"tag": "~STARTYEAR", "rows": startyear_rows},
         {"tag": "~MILESTONEYEARS", "rows": milestoneyears_rows},
         {"tag": "~CURRENCIES", "rows": currencies_rows},
+        {"tag": "~TIMESLICES", "rows": timeslice_rows},
     ]
-    if timeslice_rows:
-        syssets_tables.append({"tag": "~TIMESLICES", "rows": timeslice_rows})
 
     syssettings_sheets = [
         {"name": "SysSets", "tables": syssets_tables},
@@ -1268,27 +1283,28 @@ def compile_vedalang_to_tableir(source: dict, validate: bool = True) -> dict:
         default_region,
     )
 
-    # Compile timeslices if defined
+    # Compile timeslices — always emit at least ANNUAL
     timeslice_rows = []
     yrfr_rows = []
     if "timeslices" in model:
         timeslice_rows, yrfr_rows = _compile_timeslices(
             model["timeslices"], regions
         )
+    else:
+        timeslice_rows = [{"season": "AN"}]
+        yrfr_rows = [
+            {"region": r, "attribute": "YRFR", "timeslice": "AN", "value": 1.0}
+            for r in regions
+        ]
 
     # Build SysSets tables list
-    # Note: ~MILESTONEYEARS is an alternative to ~ACTIVEPDEF + ~TIMEPERIODS
-    # We use ~MILESTONEYEARS for explicit control over milestone years
     syssets_tables = [
         {"tag": "~BOOKREGIONS_MAP", "rows": bookregions_rows},
         {"tag": "~STARTYEAR", "rows": startyear_rows},
         {"tag": "~MILESTONEYEARS", "rows": milestoneyears_rows},
         {"tag": "~CURRENCIES", "rows": currencies_rows},
+        {"tag": "~TIMESLICES", "rows": timeslice_rows},
     ]
-
-    # Add timeslice table if defined
-    if timeslice_rows:
-        syssets_tables.append({"tag": "~TIMESLICES", "rows": timeslice_rows})
 
     # Build SysSettings sheets list
     syssettings_sheets = [
