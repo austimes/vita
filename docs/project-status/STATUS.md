@@ -1,10 +1,10 @@
 # VedaLang Project Status
 
-**Last updated:** 2025-12-23
+**Last updated:** 2026-02-21
 
 ## Executive Summary
 
-VedaLang is a typed DSL that compiles to VEDA Excel tables for TIMES energy models. **Primitives Exploration Phase is complete** — all schema extensions implemented. Now entering **MiniSystem Stress Test phase**.
+VedaLang is a typed DSL that compiles to VEDA Excel tables for TIMES energy models. **All core phases (P0–P3) are complete.** The project has a mature toolchain, comprehensive test suite, and a progressive fixture series (minisystem1–8) validating end-to-end correctness.
 
 | Milestone | Status |
 |-----------|--------|
@@ -12,35 +12,67 @@ VedaLang is a typed DSL that compiles to VEDA Excel tables for TIMES energy mode
 | xl2times diagnostics | ✅ Hardened |
 | Design challenges (DC1-DC5) | ✅ All passing |
 | Schema evolution policy | ✅ In place |
-| Test coverage | ✅ 230+ tests passing |
+| Test coverage | ✅ 755 tests passing, 11 skipped |
 | Primitives Exploration | ✅ Complete |
 | Schema Extensions | ✅ All implemented |
-| **MiniSystem Stress Test** | 🔄 **ACTIVE** |
+| MiniSystem Stress Test | ✅ Complete |
+| Naming Conventions | ✅ Complete |
+| RES Visualization | ✅ Complete |
+| LSP / VSCode Plugin | ✅ Complete |
+| Emissions Refactor | ✅ Complete |
+| Progressive Fixtures (ms1-8) | ✅ All passing |
 
 ---
 
-## Current Phase: MiniSystem Stress Test
+## Current Status: Maintenance & Extension
 
-**Epic:** `vedalang-93s` — Phase 2: MiniSystem Stress Test
+**162 issues closed.** All core design phases complete.
 
-### Completed Tasks
+### Active Work
 
-| Issue | Description | Outcome |
-|-------|-------------|---------|
-| `vedalang-5dw` | Design MiniSystem model specification | ✅ docs/minisystem_spec.md |
-| `vedalang-scv` | Implement MiniSystem model in VedaLang | ✅ vedalang/examples/minisystem.veda.yaml |
-| `vedalang-4t8` | Wire MiniSystem as golden CI test | ✅ 18 tests passing |
-| `vedalang-6qs` | Add time-varying process attributes | ✅ Compiler + 4 tests |
-| `vedalang-1lb` | Ergonomic improvements based on authoring friction | ✅ 3 improvements + 9 tests |
-| `vedalang-sqh` | VedaOnline/Veda2 directory structure compatibility | ✅ Fixed |
-
-### Open Tasks
+**Hygiene audit** (`vedalang-qv4`) — repository cleanup and documentation sync:
 
 | Issue | Priority | Description | Status |
 |-------|----------|-------------|--------|
-| `vedalang-iil` | P2 | xl2times --force-veda flag | 🔄 Open |
+| `vedalang-qv4` | P2 | Repository hygiene audit — 2026-02 | ○ Open (epic) |
+| `vedalang-qv4.1` | P1 | Sync STATUS.md with reality | 🔄 In progress |
+| `vedalang-qv4.2` | P1 | Update AGENTS.md phase status and fix stale paths | ○ Open |
+| `vedalang-qv4.3` | P2 | Fix 99 ruff lint errors | ○ Open |
+| `vedalang-qv4.4` | P2 | Delete stale experiments/ directory | ○ Open |
+| `vedalang-qv4.5` | P3 | Clean stale build artifacts in output/, output_invalid/, tmp/ | ○ Open |
+| `vedalang-qv4.6` | P3 | Remove orphan one-off scripts | ○ Open |
+| `vedalang-qv4.7` | P3 | Review stale test artifacts | ○ Open |
 
-### Future Work (P3)
+**Toy model structural refactor** (`vedalang-0pt`) — PRD-driven three-layer convention framework: ✅ **Complete**
+
+All 13 subtasks closed. Deliverables:
+- Compiler hard enforcement: stage enum, commodity typing, primary-output, fuel-pathway duplication, physical-only end_use
+- Lint layer: RES JSON/Mermaid export, optional LLM structural assessment
+- Modeling conventions SKILL.md
+- All toy_* examples refactored (buildings, industry, transport, resources, electricity, agriculture)
+- Cases overlay system for multi-case models
+- A1-A8 acceptance test matrix (`tests/test_prd_acceptance.py`)
+- Migration guide (`docs/migration_guide_toy_refactor.md`)
+
+**Sector toy problems** (`vedalang-248`) — DSL syntax exploration via sector-specific models:
+
+| Issue | Priority | Description | Status |
+|-------|----------|-------------|--------|
+| `vedalang-248` | P2 | Sector toy problem examples (epic) | ○ Open |
+| `vedalang-248.1` | P2 | Toy 1: Electricity & Energy | ○ Open |
+| `vedalang-248.2` | P2 | Toy 2: Transport — EV uptake | ○ Open |
+| `vedalang-248.3` | P2 | Toy 3: Built Environment — heat pumps | ○ Open |
+| `vedalang-248.4` | P2 | Toy 4: Industry — industrial heat decarb | ○ Open |
+| `vedalang-248.5` | P2 | Toy 5: Resources — mining electrification | ○ Open |
+| `vedalang-248.6` | P2 | Toy 6: Agriculture & Land — methane abatement | ○ Open |
+
+**Other open issues:**
+
+| Issue | Priority | Description | Status |
+|-------|----------|-------------|--------|
+| `vedalang-iil` | P2 | xl2times: Add --force-veda flag | ○ Open |
+
+### Future Work (P4)
 
 | Issue | Description |
 |-------|-------------|
@@ -50,21 +82,20 @@ VedaLang is a typed DSL that compiles to VEDA Excel tables for TIMES energy mode
 
 ---
 
-## Completed Work Summary
-
-**60 issues closed** across all phases.
+## Completed Phases
 
 ### Phase 0: Toolchain Validation ✅
 - `vedalang compile` works
 - `vedalang-dev emit-excel` emits valid Excel
 - `vedalang validate` orchestrates pipeline
-- xl2times emits structured diagnostics
+- xl2times emits structured diagnostics (hardened — graceful failures, never crashes)
 
 ### Phase 1: TableIR Experimentation ✅
 - Design challenges DC1-DC5 complete
 - Golden fixture regression tests
 - Schema evolution policy
 - Failure tracking infrastructure
+- TableIR schema + roundtrip validation
 
 ### Phase 2: Primitives Exploration ✅
 
@@ -85,6 +116,23 @@ All 10 energy system primitives explored and implemented:
 | Trade | Schema extension | `trade_links` array |
 | User constraints | Schema extension | `emission_cap`, `activity_share` |
 
+### Phase 3: MiniSystem Stress Test ✅
+
+- MiniSystem specification designed and implemented
+- Progressive fixture series (minisystem1–8) all passing
+- Time-varying process attributes
+- Ergonomic improvements (shorthand syntax, defaults)
+- VedaOnline/Veda2 directory compatibility
+- Opinionated naming conventions (process templates, abbreviation registry)
+- Emissions refactored to role-output pattern
+- Curated attribute/tag registry with compile-time validation
+- GAMS/TIMES solver integration and results interpretation
+- RES visualization (Cytoscape.js + WebSocket live reload)
+- Language Server Protocol (LSP) with TIMES attribute docs
+- Heuristic linter (H001–H004)
+- LLMS.txt for AI agent guidance
+- CLI overhaul (vedalang + vedalang-dev)
+
 ---
 
 ## VedaLang Capabilities
@@ -102,7 +150,7 @@ All 10 energy system primitives explored and implemented:
 | Process efficiency | ✅ |
 | Process costs | ✅ |
 | Capacity/activity bounds | ✅ |
-| Emission factors | ✅ |
+| Emission factors (role-output pattern) | ✅ |
 | CO2 price scenarios | ✅ |
 | Demand projections | ✅ |
 | Timeslices | ✅ |
@@ -112,14 +160,20 @@ All 10 energy system primitives explored and implemented:
 | Time-varying process attributes | ✅ |
 | Shorthand input/output syntax | ✅ |
 | Default commodity units | ✅ |
+| Process templates & instances | ✅ |
+| Opinionated naming conventions | ✅ |
+| Explicit milestone years | ✅ |
+| Existing stock vs facility capacity | ✅ |
+| PRC_CAPACT (unit conversion) | ✅ |
+| Primary commodity group (explicit + inferred) | ✅ |
 
 ### Not Yet Implemented
 
 | Concept | Issue | Priority |
 |---------|-------|----------|
-| Storage primitives (enhanced) | `vedalang-jis` | P3 |
-| Scenario composition | `vedalang-9xy` | P3 |
-| Units/dimension checking | `vedalang-a9m` | P3 |
+| Storage primitives (enhanced) | `vedalang-jis` | P4 |
+| Scenario composition | `vedalang-9xy` | P4 |
+| Units/dimension checking | `vedalang-a9m` | P4 |
 | Vintage/age tracking | — | Future |
 | Growth rate constraints | — | Future |
 
@@ -139,6 +193,9 @@ uv run vedalang compile model.veda.yaml --tableir output.yaml
 
 # Emit Excel from TableIR (design agent)
 uv run vedalang-dev emit-excel tableir.yaml --out output_dir/
+
+# Visualize model RES
+uv run vedalang viz model.veda.yaml
 
 # Run all tests
 uv run pytest tests/ -v
@@ -165,7 +222,7 @@ bd list --all | grep " open "
 bd list --all | grep " open "
 
 # Count closed issues
-bd list --all | grep " closed " | wc -l
+bd list --all | grep "^✓" | wc -l
 ```
 
 ---
@@ -173,19 +230,26 @@ bd list --all | grep " closed " | wc -l
 ## Repository Structure
 
 ```
-veda-devtools/
+vedalang/
 ├── AGENTS.md                 # Agent instructions
 ├── docs/
-│   ├── STATUS.md             # This file (living status)
-│   └── ...
-├── experiments/              # Primitive exploration results
+│   ├── project-status/
+│   │   └── STATUS.md         # This file (living status)
+│   ├── vedalang-user/        # User documentation
+│   └── vedalang-design-agent/# Design agent docs
 ├── vedalang/
 │   ├── schema/               # JSON Schema (complete)
 │   ├── compiler/             # Compiler (complete)
-│   └── examples/             # 10+ example files
+│   ├── heuristics/           # Heuristic linter (H001-H004)
+│   └── examples/             # minisystem1-8 + other examples
 ├── tools/
-├── rules/
-├── tests/                    # 230+ tests
-├── fixtures/
-└── xl2times/                 # Submodule (hardened)
+│   ├── veda_dev/             # Design agent CLI
+│   ├── veda_emit_excel/      # TableIR → Excel emitter
+│   ├── veda_check/           # Model validation
+│   ├── veda_run_times/       # TIMES solver runner
+│   └── vedalang_lsp/         # Language server
+├── rules/                    # Pattern library
+├── tests/                    # 755 tests
+├── fixtures/                 # MiniVEDA2 + golden fixtures
+└── xl2times/                 # Validation oracle (third-party)
 ```
