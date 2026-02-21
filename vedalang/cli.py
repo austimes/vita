@@ -69,6 +69,16 @@ def _add_lint_parser(subparsers):
         metavar="PATH",
         help="Export RES graph as Mermaid diagram to the given path",
     )
+    p.add_argument(
+        "--llm-assess",
+        action="store_true",
+        help="Enable optional LLM-based structural RES assessment",
+    )
+    p.add_argument(
+        "--strict",
+        action="store_true",
+        help="Fail with exit code 2 on critical LLM assessment findings",
+    )
 
 
 def _add_compile_parser(subparsers):
@@ -148,11 +158,13 @@ def _add_viz_parser(subparsers):
 
 
 def cmd_lint(args) -> int:
-    """Run lint command: schema + cross-refs + heuristics."""
+    """Run lint command: schema + cross-refs + heuristics + optional LLM assessment."""
     file_path: Path = args.file
     output_json: bool = args.json
     res_json_path: Path | None = getattr(args, "res_json", None)
     res_mermaid_path: Path | None = getattr(args, "res_mermaid", None)
+    llm_assess: bool = getattr(args, "llm_assess", False)
+    strict_mode: bool = getattr(args, "strict", False)
 
     if not file_path.exists():
         _error(f"File not found: {file_path}", output_json, str(file_path))
@@ -239,6 +251,31 @@ def cmd_lint(args) -> int:
                 f.write("\n")
             if not output_json:
                 print(f"RES Mermaid diagram: {res_mermaid_path}")
+
+    # Optional LLM-based structural assessment
+    llm_result = None
+    if llm_assess:
+        from vedalang.lint.llm_assessment import run_llm_assessment
+
+        try:
+            llm_result = run_llm_assessment(source)
+            for finding in llm_result.findings:
+                diagnostics.append(finding.to_dict())
+                if finding.severity == "critical":
+                    if strict_mode:
+                        errors += 1
+                    else:
+                        warnings += 1
+                elif finding.severity == "warning":
+                    warnings += 1
+                # suggestions don't affect counts
+        except Exception as e:
+            diagnostics.append({
+                "code": "LLM_ASSESS_ERROR",
+                "severity": "warning",
+                "message": f"LLM assessment failed: {e}",
+            })
+            warnings += 1
 
     return _output_lint_result(file_path, diagnostics, errors, warnings, output_json)
 
