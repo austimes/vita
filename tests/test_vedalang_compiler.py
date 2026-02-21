@@ -12,6 +12,11 @@ from vedalang.compiler import (
     load_vedalang,
     validate_cross_references,
 )
+from vedalang.compiler.compiler import (
+    _detect_service_role_duplication,
+    _normalize_commodities_for_new_syntax,
+)
+from vedalang.compiler.ir import build_roles
 
 PROJECT_ROOT = Path(__file__).parent.parent
 EXAMPLES_DIR = PROJECT_ROOT / "vedalang" / "examples"
@@ -93,8 +98,8 @@ def test_process_cost_attributes():
             "name": "CostTest",
             "regions": ["REG1"],
             "commodities": [
-                {"name": "C:GAS", "kind": "TRADABLE"},
-                {"name": "C:ELC", "kind": "TRADABLE"},
+                {"name": "C:GAS", "type": "fuel"},
+                {"name": "C:ELC", "type": "energy"},
             ],
             "processes": [
                 {
@@ -152,14 +157,13 @@ def test_process_cost_attributes():
 
 
 def test_demand_projection_scenario():
-    """demand_projection scenario should emit to ~TFM_DINS-AT in Scen_{case}_{category}.xlsx file.
+    """demand_projection scenario should emit to ~TFM_DINS-AT.
 
     Architecture/scenario separation: demand projections are scenario data,
     not model architecture. They go to separate Scen_* files to avoid
     forward-fill contamination in xl2times.
 
-    File naming: Scen_{case}_{category}.xlsx (e.g., Scen_baseline_demands.xlsx)
-
+    File naming: Scen_{case}_{category}.xlsx
     Uses new P4 syntax (demands block) instead of old scenarios array.
     """
     source = {
@@ -168,8 +172,8 @@ def test_demand_projection_scenario():
             "regions": ["REG1"],
             "milestone_years": [2020, 2030, 2040, 2050],
             "commodities": [
-                {"id": "electricity", "kind": "carrier"},
-                {"id": "residential_demand", "kind": "service"},
+                {"id": "electricity", "type": "energy"},
+                {"id": "residential_demand", "type": "service"},
             ],
         },
         "segments": {"sectors": ["RES"]},
@@ -179,10 +183,19 @@ def test_demand_projection_scenario():
              "outputs": [{"commodity": "residential_demand"}]},
         ],
         "process_variants": [
-            {"id": "residential_device", "role": "deliver_residential", "efficiency": 1.0},
+            {
+                "id": "residential_device",
+                "role": "deliver_residential",
+                "kind": "demand_measure",
+                "efficiency": 1.0,
+            },
         ],
         "availability": [
-            {"variant": "residential_device", "regions": ["REG1"], "sectors": ["RES"]},
+            {
+                "variant": "residential_device",
+                "regions": ["REG1"],
+                "sectors": ["RES"],
+            },
         ],
         "demands": [
             {
@@ -225,12 +238,11 @@ def test_demand_projection_scenario():
 
 
 def test_demand_projection_creates_scenario_file():
-    """demand_projection SHOULD create a separate Scen_{case}_{category}.xlsx scenario file.
+    """demand_projection SHOULD create a separate scenario file.
 
-    This is the correct architecture/scenario separation: demand projections
-    are scenario data and belong in Scen_* files, not VT_* architecture files.
-
-    Uses new P4 syntax.
+    This is the correct architecture/scenario separation: demand
+    projections are scenario data and belong in Scen_* files, not
+    VT_* architecture files. Uses new P4 syntax.
     """
     source = {
         "model": {
@@ -238,7 +250,7 @@ def test_demand_projection_creates_scenario_file():
             "regions": ["REG1"],
             "milestone_years": [2020],
             "commodities": [
-                {"id": "residential_demand", "kind": "service"},
+                {"id": "residential_demand", "type": "service"},
             ],
         },
         "segments": {"sectors": ["RES"]},
@@ -247,10 +259,19 @@ def test_demand_projection_creates_scenario_file():
              "inputs": [], "outputs": [{"commodity": "residential_demand"}]},
         ],
         "process_variants": [
-            {"id": "residential_device", "role": "deliver_residential", "efficiency": 1.0},
+            {
+                "id": "residential_device",
+                "role": "deliver_residential",
+                "kind": "demand_measure",
+                "efficiency": 1.0,
+            },
         ],
         "availability": [
-            {"variant": "residential_device", "regions": ["REG1"], "sectors": ["RES"]},
+            {
+                "variant": "residential_device",
+                "regions": ["REG1"],
+                "sectors": ["RES"],
+            },
         ],
         "demands": [
             {
@@ -276,7 +297,7 @@ def test_process_capacity_bounds():
             "name": "BoundsTest",
             "regions": ["REG1"],
             "commodities": [
-                {"name": "C:ELC", "kind": "TRADABLE"},
+                {"name": "C:ELC", "type": "energy"},
             ],
             "processes": [
                 {
@@ -329,7 +350,7 @@ def test_process_activity_bound():
             "name": "ActBoundTest",
             "regions": ["REG1"],
             "commodities": [
-                {"name": "C:GAS", "kind": "TRADABLE"},
+                {"name": "C:GAS", "type": "fuel"},
             ],
             "processes": [
                 {
@@ -382,7 +403,10 @@ def test_compile_example_with_bounds():
                     tfm_rows.extend(t["rows"])
 
     # Check that bounds are present (as TFM_INS attribute rows)
-    bound_rows = [r for r in tfm_rows if r.get("attribute") in ("CAP_BND", "NCAP_BND", "ACT_BND")]
+    bound_attrs = ("CAP_BND", "NCAP_BND", "ACT_BND")
+    bound_rows = [
+        r for r in tfm_rows if r.get("attribute") in bound_attrs
+    ]
     assert len(bound_rows) >= 4  # Multiple bounds across processes and years
 
 
@@ -409,7 +433,7 @@ def test_compile_timeslices():
                 },
             },
             "commodities": [
-                {"name": "C:ELC", "kind": "TRADABLE"},
+                {"name": "C:ELC", "type": "energy"},
             ],
             "processes": [
                 {
@@ -469,9 +493,13 @@ def test_compile_timeslices_yrfr():
                     "WN": 0.25,
                 },
             },
-            "commodities": [{"name": "C:ELC", "kind": "TRADABLE"}],
+            "commodities": [{"name": "C:ELC", "type": "energy"}],
             "processes": [
-                {"name": "PP_CCGT", "sets": ["ELE"], "primary_commodity_group": "NRGO", "efficiency": 0.55}
+                {
+                    "name": "PP_CCGT", "sets": ["ELE"],
+                    "primary_commodity_group": "NRGO",
+                    "efficiency": 0.55,
+                }
             ],
         }
     }
@@ -550,8 +578,8 @@ def test_compile_trade_links():
             "name": "TradeTest",
             "regions": ["REG1", "REG2"],
             "commodities": [
-                {"name": "C:ELC", "kind": "TRADABLE"},
-                {"name": "C:GAS", "kind": "TRADABLE"},
+                {"name": "C:ELC", "type": "energy"},
+                {"name": "C:GAS", "type": "fuel"},
             ],
             "processes": [
                 {
@@ -620,9 +648,13 @@ def test_trade_links_file_path():
         "model": {
             "name": "TestModel",
             "regions": ["REG1", "REG2"],
-            "commodities": [{"name": "C:ELC", "kind": "TRADABLE"}],
+            "commodities": [{"name": "C:ELC", "type": "energy"}],
             "processes": [
-                {"name": "PP", "sets": ["ELE"], "primary_commodity_group": "NRGO", "efficiency": 1.0}
+                {
+                    "name": "PP", "sets": ["ELE"],
+                    "primary_commodity_group": "NRGO",
+                    "efficiency": 1.0,
+                }
             ],
             "trade_links": [
                 {"origin": "REG1", "destination": "REG2", "commodity": "C:ELC"},
@@ -689,9 +721,13 @@ def test_trade_link_efficiency():
         "model": {
             "name": "TradeEffTest",
             "regions": ["REG1", "REG2"],
-            "commodities": [{"name": "C:ELC", "kind": "TRADABLE"}],
+            "commodities": [{"name": "C:ELC", "type": "energy"}],
             "processes": [
-                {"name": "PP", "sets": ["ELE"], "primary_commodity_group": "NRGO", "efficiency": 1.0}
+                {
+                    "name": "PP", "sets": ["ELE"],
+                    "primary_commodity_group": "NRGO",
+                    "efficiency": 1.0,
+                }
             ],
             "trade_links": [
                 {
@@ -762,9 +798,13 @@ def test_trade_link_no_efficiency():
         "model": {
             "name": "TradeNoEffTest",
             "regions": ["REG1", "REG2"],
-            "commodities": [{"name": "C:ELC", "kind": "TRADABLE"}],
+            "commodities": [{"name": "C:ELC", "type": "energy"}],
             "processes": [
-                {"name": "PP", "sets": ["ELE"], "primary_commodity_group": "NRGO", "efficiency": 1.0}
+                {
+                    "name": "PP", "sets": ["ELE"],
+                    "primary_commodity_group": "NRGO",
+                    "efficiency": 1.0,
+                }
             ],
             "trade_links": [
                 {
@@ -806,9 +846,13 @@ def test_trade_links_emit_tradelinks_only():
         "model": {
             "name": "TradeExplicitTest",
             "regions": ["REG1", "REG2"],
-            "commodities": [{"name": "C:ELC", "kind": "TRADABLE", "unit": "PJ"}],
+            "commodities": [{"name": "C:ELC", "type": "energy", "unit": "PJ"}],
             "processes": [
-                {"name": "PP", "sets": ["ELE"], "primary_commodity_group": "NRGO", "efficiency": 1.0}
+                {
+                    "name": "PP", "sets": ["ELE"],
+                    "primary_commodity_group": "NRGO",
+                    "efficiency": 1.0,
+                }
             ],
             "trade_links": [
                 {
@@ -872,9 +916,13 @@ def test_trade_links_unidirectional():
         "model": {
             "name": "TradeUniTest",
             "regions": ["REG1", "REG2"],
-            "commodities": [{"name": "C:ELC", "kind": "TRADABLE"}],
+            "commodities": [{"name": "C:ELC", "type": "energy"}],
             "processes": [
-                {"name": "PP", "sets": ["ELE"], "primary_commodity_group": "NRGO", "efficiency": 1.0}
+                {
+                    "name": "PP", "sets": ["ELE"],
+                    "primary_commodity_group": "NRGO",
+                    "efficiency": 1.0,
+                }
             ],
             "trade_links": [
                 {
@@ -919,11 +967,15 @@ def test_emission_cap_constraint():
             "regions": ["REG1"],
             "milestone_years": [2020, 2030, 2040],
             "commodities": [
-                {"name": "E:CO2", "kind": "EMISSION"},
-                {"name": "C:ELC", "kind": "TRADABLE"},
+                {"name": "E:CO2", "type": "emission"},
+                {"name": "C:ELC", "type": "energy"},
             ],
             "processes": [
-                {"name": "PP_CCGT", "sets": ["ELE"], "primary_commodity_group": "NRGO", "efficiency": 0.55},
+                {
+                    "name": "PP_CCGT", "sets": ["ELE"],
+                    "primary_commodity_group": "NRGO",
+                    "efficiency": 0.55,
+                },
             ],
             "constraints": [
                 {
@@ -976,10 +1028,14 @@ def test_emission_cap_with_year_trajectory():
             "regions": ["REG1"],
             "milestone_years": [2020, 2030, 2040, 2050],
             "commodities": [
-                {"name": "E:CO2", "kind": "EMISSION"},
+                {"name": "E:CO2", "type": "emission"},
             ],
             "processes": [
-                {"name": "PP", "sets": ["ELE"], "primary_commodity_group": "NRGO", "efficiency": 1.0}
+                {
+                    "name": "PP", "sets": ["ELE"],
+                    "primary_commodity_group": "NRGO",
+                    "efficiency": 1.0,
+                }
             ],
             "constraints": [
                 {
@@ -1023,17 +1079,25 @@ def test_activity_share_minimum():
             "regions": ["REG1"],
             "milestone_years": [2020, 2030],
             "commodities": [
-                {"name": "C:ELC", "kind": "TRADABLE"},
+                {"name": "C:ELC", "type": "energy"},
             ],
             "processes": [
-                {"name": "PP_WIND", "sets": ["ELE"], "primary_commodity_group": "NRGO", "efficiency": 1.0},
+                {
+                    "name": "PP_WIND", "sets": ["ELE"],
+                    "primary_commodity_group": "NRGO",
+                    "efficiency": 1.0,
+                },
                 {
                     "name": "PP_SOLAR",
                     "sets": ["ELE"],
                     "primary_commodity_group": "NRGO",
                     "efficiency": 1.0,
                 },
-                {"name": "PP_CCGT", "sets": ["ELE"], "primary_commodity_group": "NRGO", "efficiency": 0.55},
+                {
+                    "name": "PP_CCGT", "sets": ["ELE"],
+                    "primary_commodity_group": "NRGO",
+                    "efficiency": 0.55,
+                },
             ],
             "constraints": [
                 {
@@ -1093,10 +1157,18 @@ def test_activity_share_maximum():
             "name": "ActivityShareMaxTest",
             "regions": ["REG1"],
             "milestone_years": [2020, 2030],
-            "commodities": [{"name": "C:ELC", "kind": "TRADABLE"}],
+            "commodities": [{"name": "C:ELC", "type": "energy"}],
             "processes": [
-                {"name": "PP_COAL", "sets": ["ELE"], "primary_commodity_group": "NRGO", "efficiency": 0.40},
-                {"name": "PP_CCGT", "sets": ["ELE"], "primary_commodity_group": "NRGO", "efficiency": 0.55},
+                {
+                    "name": "PP_COAL", "sets": ["ELE"],
+                    "primary_commodity_group": "NRGO",
+                    "efficiency": 0.40,
+                },
+                {
+                    "name": "PP_CCGT", "sets": ["ELE"],
+                    "primary_commodity_group": "NRGO",
+                    "efficiency": 0.55,
+                },
             ],
             "constraints": [
                 {
@@ -1138,9 +1210,13 @@ def test_activity_share_both_min_max():
             "name": "ActivityShareBothTest",
             "regions": ["REG1"],
             "milestone_years": [2020, 2030],
-            "commodities": [{"name": "C:ELC", "kind": "TRADABLE"}],
+            "commodities": [{"name": "C:ELC", "type": "energy"}],
             "processes": [
-                {"name": "PP_WIND", "sets": ["ELE"], "primary_commodity_group": "NRGO", "efficiency": 1.0},
+                {
+                    "name": "PP_WIND", "sets": ["ELE"],
+                    "primary_commodity_group": "NRGO",
+                    "efficiency": 1.0,
+                },
             ],
             "constraints": [
                 {
@@ -1215,9 +1291,13 @@ def test_constraint_file_path():
         "model": {
             "name": "ConstraintFileTest",
             "regions": ["REG1"],
-            "commodities": [{"name": "E:CO2", "kind": "EMISSION"}],
+            "commodities": [{"name": "E:CO2", "type": "emission"}],
             "processes": [
-                {"name": "PP", "sets": ["ELE"], "primary_commodity_group": "NRGO", "efficiency": 1.0}
+                {
+                    "name": "PP", "sets": ["ELE"],
+                    "primary_commodity_group": "NRGO",
+                    "efficiency": 1.0,
+                }
             ],
             "constraints": [
                 {
@@ -1250,7 +1330,10 @@ def test_pcg_missing_raises_validation_error():
     NOTE: This test uses legacy 'processes' syntax which is deprecated.
     The new P4 syntax uses process_roles/variants/availability instead.
     """
-    pytest.skip("Legacy 'processes' syntax is deprecated in P4 - use process_roles/variants")
+    pytest.skip(
+        "Legacy 'processes' syntax is deprecated"
+        " in P4 - use process_roles/variants"
+    )
 
 
 def test_pcg_invalid_value_raises_validation_error():
@@ -1258,7 +1341,10 @@ def test_pcg_invalid_value_raises_validation_error():
 
     NOTE: Legacy 'processes' syntax is deprecated in P4.
     """
-    pytest.skip("Legacy 'processes' syntax is deprecated in P4 - use process_roles/variants")
+    pytest.skip(
+        "Legacy 'processes' syntax is deprecated"
+        " in P4 - use process_roles/variants"
+    )
 
 
 def test_pcg_explicit_nrgo():
@@ -1266,7 +1352,10 @@ def test_pcg_explicit_nrgo():
 
     NOTE: Legacy 'processes' syntax is deprecated in P4.
     """
-    pytest.skip("Legacy 'processes' syntax is deprecated in P4 - use process_roles/variants")
+    pytest.skip(
+        "Legacy 'processes' syntax is deprecated"
+        " in P4 - use process_roles/variants"
+    )
 
 
 def test_pcg_explicit_demo():
@@ -1274,7 +1363,10 @@ def test_pcg_explicit_demo():
 
     NOTE: Legacy 'processes' syntax is deprecated in P4.
     """
-    pytest.skip("Legacy 'processes' syntax is deprecated in P4 - use process_roles/variants")
+    pytest.skip(
+        "Legacy 'processes' syntax is deprecated"
+        " in P4 - use process_roles/variants"
+    )
 
 
 def test_pcg_always_emitted():
@@ -1283,7 +1375,10 @@ def test_pcg_always_emitted():
     NOTE: The new P4 syntax uses process_roles/variants, and primarycg
     inference is compiler-owned. We no longer require user-specified PCG.
     """
-    pytest.skip("Legacy 'processes' syntax is deprecated - P4 uses compiler-owned PCG inference")
+    pytest.skip(
+        "Legacy 'processes' syntax is deprecated"
+        " - P4 uses compiler-owned PCG inference"
+    )
 
 
 def test_no_constraints_when_not_defined():
@@ -1305,9 +1400,13 @@ def test_emission_cap_lower_bound():
         "model": {
             "name": "EmissionMinTest",
             "regions": ["REG1"],
-            "commodities": [{"name": "E:CO2", "kind": "EMISSION"}],
+            "commodities": [{"name": "E:CO2", "type": "emission"}],
             "processes": [
-                {"name": "PP", "sets": ["ELE"], "primary_commodity_group": "NRGO", "efficiency": 1.0}
+                {
+                    "name": "PP", "sets": ["ELE"],
+                    "primary_commodity_group": "NRGO",
+                    "efficiency": 1.0,
+                }
             ],
             "constraints": [
                 {
@@ -1341,9 +1440,13 @@ def test_uc_table_has_uc_sets_metadata():
         "model": {
             "name": "UCSetTest",
             "regions": ["REG1"],
-            "commodities": [{"name": "E:CO2", "kind": "EMISSION"}],
+            "commodities": [{"name": "E:CO2", "type": "emission"}],
             "processes": [
-                {"name": "PP", "sets": ["ELE"], "primary_commodity_group": "NRGO", "efficiency": 1.0}
+                {
+                    "name": "PP", "sets": ["ELE"],
+                    "primary_commodity_group": "NRGO",
+                    "efficiency": 1.0,
+                }
             ],
             "constraints": [
                 {
@@ -1386,7 +1489,7 @@ def test_unknown_commodity_in_process_input():
             "name": "BadInputTest",
             "regions": ["REG1"],
             "commodities": [
-                {"name": "C:ELC", "kind": "TRADABLE"},
+                {"name": "C:ELC", "type": "energy"},
             ],
             "processes": [
                 {
@@ -1414,7 +1517,7 @@ def test_unknown_commodity_in_process_output():
             "name": "BadOutputTest",
             "regions": ["REG1"],
             "commodities": [
-                {"name": "C:GAS", "kind": "TRADABLE"},
+                {"name": "C:GAS", "type": "fuel"},
             ],
             "processes": [
                 {
@@ -1442,7 +1545,7 @@ def test_unknown_commodity_suggests_similar():
             "name": "SuggestTest",
             "regions": ["REG1"],
             "commodities": [
-                {"name": "C:ELC", "kind": "TRADABLE"},
+                {"name": "C:ELC", "type": "energy"},
             ],
             "processes": [
                 {
@@ -1467,7 +1570,7 @@ def test_unknown_process_in_constraint():
             "name": "BadConstraintTest",
             "regions": ["REG1"],
             "commodities": [
-                {"name": "C:ELC", "kind": "TRADABLE"},
+                {"name": "C:ELC", "type": "energy"},
             ],
             "processes": [
                 {
@@ -1502,7 +1605,7 @@ def test_unknown_region_in_trade_link():
             "name": "BadTradeTest",
             "regions": ["REG1", "REG2"],
             "commodities": [
-                {"name": "C:ELC", "kind": "TRADABLE"},
+                {"name": "C:ELC", "type": "energy"},
             ],
             "processes": [
                 {
@@ -1535,7 +1638,7 @@ def test_unknown_commodity_in_trade_link():
             "name": "BadTradeCommTest",
             "regions": ["REG1", "REG2"],
             "commodities": [
-                {"name": "C:ELC", "kind": "TRADABLE"},
+                {"name": "C:ELC", "type": "energy"},
             ],
             "processes": [
                 {
@@ -1567,7 +1670,7 @@ def test_demand_projection_wrong_commodity_type():
             "name": "BadDemandTest",
             "regions": ["REG1"],
             "commodities": [
-                {"name": "C:GAS", "kind": "TRADABLE"},
+                {"name": "C:GAS", "type": "fuel"},
             ],
             "processes": [
                 {
@@ -1594,7 +1697,7 @@ def test_demand_projection_wrong_commodity_type():
     assert "demand_projection" in str(exc_info.value)
     assert "BaseDemand" in str(exc_info.value)
     assert "C:GAS" in str(exc_info.value)
-    assert "TRADABLE" in str(exc_info.value)
+    assert "fuel" in str(exc_info.value)
 
 
 def test_commodity_price_wrong_commodity_type():
@@ -1602,7 +1705,10 @@ def test_commodity_price_wrong_commodity_type():
 
     NOTE: Legacy 'processes' syntax with 'context' field is deprecated.
     """
-    pytest.skip("Legacy 'processes' syntax is deprecated in P4 - use process_roles/variants")
+    pytest.skip(
+        "Legacy 'processes' syntax is deprecated"
+        " in P4 - use process_roles/variants"
+    )
 
 
 def test_unit_warning_for_unusual_activity_unit():
@@ -1610,7 +1716,7 @@ def test_unit_warning_for_unusual_activity_unit():
     model = {
         "name": "UnitWarningTest",
         "regions": ["REG1"],
-        "commodities": [{"name": "C:ELC", "kind": "TRADABLE"}],
+        "commodities": [{"name": "C:ELC", "type": "energy"}],
         "processes": [
             {
                 "name": "PP_CCGT",
@@ -1635,7 +1741,7 @@ def test_unit_warning_for_unusual_capacity_unit():
     model = {
         "name": "CapUnitWarningTest",
         "regions": ["REG1"],
-        "commodities": [{"name": "C:ELC", "kind": "TRADABLE"}],
+        "commodities": [{"name": "C:ELC", "type": "energy"}],
         "processes": [
             {
                 "name": "PP_CCGT",
@@ -1661,7 +1767,7 @@ def test_multiple_errors_collected():
             "name": "MultiErrorTest",
             "regions": ["REG1"],
             "commodities": [
-                {"name": "C:ELC", "kind": "TRADABLE"},
+                {"name": "C:ELC", "type": "energy"},
             ],
             "processes": [
                 {
@@ -1684,7 +1790,7 @@ def test_multiple_errors_collected():
 
 def test_all_examples_pass_semantic_validation():
     """All example files should pass semantic validation.
-    
+
     Note: Template-based examples (minisystem*.veda.yaml) are skipped because
     template resolution is not yet implemented in the compiler.
     """
@@ -1711,7 +1817,7 @@ def test_time_varying_investment_cost():
         "model": {
             "name": "TimeVaryTest",
             "regions": ["REG1"],
-            "commodities": [{"name": "C:ELC", "kind": "TRADABLE"}],
+            "commodities": [{"name": "C:ELC", "type": "energy"}],
             "processes": [
                 {
                     "name": "SolarPV",
@@ -1719,7 +1825,9 @@ def test_time_varying_investment_cost():
                     "primary_commodity_group": "NRGO",
                     "outputs": [{"commodity": "C:ELC"}],
                     "efficiency": 1.0,
-                    "investment_cost": {"values": {"2020": 1000, "2030": 600, "2050": 300}},
+                    "investment_cost": {
+                        "values": {"2020": 1000, "2030": 600, "2050": 300},
+                    },
                 }
             ],
         }
@@ -1758,8 +1866,8 @@ def test_time_varying_efficiency():
             "name": "TimeVaryTest",
             "regions": ["REG1"],
             "commodities": [
-                {"name": "C:GAS", "kind": "TRADABLE"},
-                {"name": "C:ELC", "kind": "TRADABLE"},
+                {"name": "C:GAS", "type": "fuel"},
+                {"name": "C:ELC", "type": "energy"},
             ],
             "processes": [
                 {
@@ -1802,7 +1910,7 @@ def test_time_varying_mixed_with_scalar():
         "model": {
             "name": "MixedTest",
             "regions": ["REG1"],
-            "commodities": [{"name": "C:ELC", "kind": "TRADABLE"}],
+            "commodities": [{"name": "C:ELC", "type": "energy"}],
             "processes": [
                 {
                     "name": "Wind",
@@ -1846,7 +1954,7 @@ def test_time_varying_no_interpolation():
         "model": {
             "name": "NoInterpTest",
             "regions": ["REG1"],
-            "commodities": [{"name": "C:ELC", "kind": "TRADABLE"}],
+            "commodities": [{"name": "C:ELC", "type": "energy"}],
             "processes": [
                 {
                     "name": "Coal",
@@ -1892,8 +2000,8 @@ def test_single_input_string_shorthand():
             "name": "ShorthandInputTest",
             "regions": ["REG1"],
             "commodities": [
-                {"name": "C:GAS", "kind": "TRADABLE"},
-                {"name": "C:ELC", "kind": "TRADABLE"},
+                {"name": "C:GAS", "type": "fuel"},
+                {"name": "C:ELC", "type": "energy"},
             ],
             "processes": [
                 {
@@ -1930,8 +2038,8 @@ def test_single_output_string_shorthand():
             "name": "ShorthandOutputTest",
             "regions": ["REG1"],
             "commodities": [
-                {"name": "C:GAS", "kind": "TRADABLE"},
-                {"name": "C:ELC", "kind": "TRADABLE"},
+                {"name": "C:GAS", "type": "fuel"},
+                {"name": "C:ELC", "type": "energy"},
             ],
             "processes": [
                 {
@@ -1967,8 +2075,8 @@ def test_both_input_output_shorthand():
             "name": "BothShorthandTest",
             "regions": ["REG1"],
             "commodities": [
-                {"name": "C:GAS", "kind": "TRADABLE"},
-                {"name": "C:ELC", "kind": "TRADABLE"},
+                {"name": "C:GAS", "type": "fuel"},
+                {"name": "C:ELC", "type": "energy"},
             ],
             "processes": [
                 {
@@ -2006,7 +2114,7 @@ def test_default_commodity_units_energy():
             "name": "DefaultUnitTest",
             "regions": ["REG1"],
             "commodities": [
-                {"name": "C:ELC", "kind": "TRADABLE"},  # No unit specified
+                {"name": "C:ELC", "type": "energy"},  # No unit specified
             ],
             "processes": [
                 {
@@ -2041,8 +2149,8 @@ def test_default_commodity_units_emission():
             "name": "EmissionUnitTest",
             "regions": ["REG1"],
             "commodities": [
-                {"name": "E:CO2", "kind": "EMISSION"},  # No unit specified
-                {"name": "C:ELC", "kind": "TRADABLE"},
+                {"name": "E:CO2", "type": "emission"},  # No unit specified
+                {"name": "C:ELC", "type": "energy"},
             ],
             "processes": [
                 {
@@ -2078,7 +2186,7 @@ def test_default_commodity_units_demand():
             "regions": ["REG1"],
             "milestone_years": [2020],
             "commodities": [
-                {"id": "residential_demand", "kind": "service"},  # No unit specified
+                {"id": "residential_demand", "type": "service"},  # No unit specified
             ],
         },
         "segments": {"sectors": ["RES"]},
@@ -2087,10 +2195,19 @@ def test_default_commodity_units_demand():
              "inputs": [], "outputs": [{"commodity": "residential_demand"}]},
         ],
         "process_variants": [
-            {"id": "residential_device", "role": "deliver_residential", "efficiency": 1.0},
+            {
+                "id": "residential_device",
+                "role": "deliver_residential",
+                "kind": "demand_measure",
+                "efficiency": 1.0,
+            },
         ],
         "availability": [
-            {"variant": "residential_device", "regions": ["REG1"], "sectors": ["RES"]},
+            {
+                "variant": "residential_device",
+                "regions": ["REG1"],
+                "sectors": ["RES"],
+            },
         ],
     }
     tableir = compile_vedalang_to_tableir(source)
@@ -2104,24 +2221,28 @@ def test_default_commodity_units_demand():
                     comm_rows.extend(t["rows"])
 
     # residential_demand should have default unit PJ
-    rsd_row = [r for r in comm_rows if r["commodity"] == "residential_demand"][0]
+    rsd_row = [
+        r for r in comm_rows if r["commodity"] == "residential_demand"
+    ][0]
     assert rsd_row["unit"] == "PJ"
 
 
 def test_default_commodity_units_material():
     """TRADABLE commodities default to PJ unit.
-    
-    Note: With the new naming convention, there is no separate 'material' kind.
-    TRADABLE is used for all physical flow commodities. If you need Mt units
-    for material commodities (like H2), specify the unit explicitly.
+
+    Note: With the new naming convention, there is no separate
+    'material' kind. TRADABLE is used for all physical flow
+    commodities. If you need Mt units for material commodities
+    (like H2), specify the unit explicitly.
     """
     source = {
         "model": {
             "name": "MaterialUnitTest",
             "regions": ["REG1"],
             "commodities": [
-                {"name": "C:H2", "kind": "TRADABLE", "unit": "Mt"},  # Explicit Mt for material
-                {"name": "C:ELC", "kind": "TRADABLE"},
+                # Explicit Mt for material
+                {"name": "C:H2", "type": "fuel", "unit": "Mt"},
+                {"name": "C:ELC", "type": "energy"},
             ],
             "processes": [
                 {
@@ -2157,7 +2278,7 @@ def test_explicit_unit_overrides_default():
             "name": "ExplicitUnitTest",
             "regions": ["REG1"],
             "commodities": [
-                {"name": "C:ELC", "kind": "TRADABLE", "unit": "TWh"},  # Explicit unit
+                {"name": "C:ELC", "type": "energy", "unit": "TWh"},  # Explicit unit
             ],
             "processes": [
                 {
@@ -2192,7 +2313,7 @@ def test_shorthand_validation_unknown_commodity():
             "name": "BadShorthandTest",
             "regions": ["REG1"],
             "commodities": [
-                {"name": "C:ELC", "kind": "TRADABLE"},
+                {"name": "C:ELC", "type": "energy"},
             ],
             "processes": [
                 {
@@ -2226,7 +2347,7 @@ def test_prc_capact_emitted_for_gw_pj_units():
             "regions": ["R1"],
             "milestone_years": [2020, 2030],
             "commodities": [
-                {"name": "C:ELC", "kind": "TRADABLE", "unit": "PJ"},
+                {"name": "C:ELC", "type": "energy", "unit": "PJ"},
             ],
             "processes": [
                 {
@@ -2281,8 +2402,8 @@ def test_explicit_cost_attribute_names():
             "name": "ExplicitCostTest",
             "regions": ["REG1"],
             "commodities": [
-                {"name": "C:GAS", "kind": "TRADABLE"},
-                {"name": "C:ELC", "kind": "TRADABLE"},
+                {"name": "C:GAS", "type": "fuel"},
+                {"name": "C:ELC", "type": "energy"},
             ],
             "processes": [
                 {
@@ -2335,13 +2456,16 @@ def test_explicit_cost_attribute_names():
 
 def test_existing_capacity_emits_ncap_pasti():
     """existing_capacity should emit NCAP_PASTI rows in ~TFM_INS table.
-    
+
     Unlike 'stock' (PRC_RESID) which decays linearly, existing_capacity uses
     NCAP_PASTI with vintage years for proper economic life tracking.
 
     NOTE: Legacy 'processes' syntax with 'context' field is deprecated.
     """
-    pytest.skip("Legacy 'processes' syntax is deprecated in P4 - use process_roles/variants")
+    pytest.skip(
+        "Legacy 'processes' syntax is deprecated"
+        " in P4 - use process_roles/variants"
+    )
 
 
 def test_existing_capacity_vs_stock():
@@ -2349,12 +2473,15 @@ def test_existing_capacity_vs_stock():
 
     NOTE: Legacy 'processes' syntax with 'context' field is deprecated.
     """
-    pytest.skip("Legacy 'processes' syntax is deprecated in P4 - use process_roles/variants")
+    pytest.skip(
+        "Legacy 'processes' syntax is deprecated"
+        " in P4 - use process_roles/variants"
+    )
 
 
 def test_bounds_expand_to_all_milestone_years():
     """Bounds should be expanded to explicit rows for all milestone years.
-    
+
     Per VedaLang design principle: never rely on TIMES implicit interpolation.
     Bounds (ACT_BND, CAP_BND, NCAP_BND) are period-indexed and should have
     explicit values for each milestone year.
@@ -2365,7 +2492,7 @@ def test_bounds_expand_to_all_milestone_years():
             "regions": ["REG1"],
             "milestone_years": [2020, 2030, 2040],
             "commodities": [
-                {"name": "C:ELC", "kind": "TRADABLE"},
+                {"name": "C:ELC", "type": "energy"},
             ],
             "processes": [
                 {
@@ -2411,7 +2538,7 @@ def test_bounds_expand_to_all_milestone_years():
 
 def test_stock_expands_to_all_milestone_years():
     """Stock (PRC_RESID) should be expanded to explicit rows for all years.
-    
+
     Per VedaLang design principle: PRC_RESID has surprising default behavior
     (linear decay over TLIFE), so scalar stock values must be expanded.
     """
@@ -2421,7 +2548,7 @@ def test_stock_expands_to_all_milestone_years():
             "regions": ["REG1"],
             "milestone_years": [2020, 2030],
             "commodities": [
-                {"name": "C:ELC", "kind": "TRADABLE"},
+                {"name": "C:ELC", "type": "energy"},
             ],
             "processes": [
                 {
@@ -2455,3 +2582,369 @@ def test_stock_expands_to_all_milestone_years():
     # All rows should have the same value
     assert all(r["prc_resid"] == 50.0 for r in resid_rows)
 
+
+def _base_new_syntax_source() -> dict:
+    return {
+        "model": {
+            "name": "InvariantTest",
+            "regions": ["REG1"],
+            "milestone_years": [2020],
+            "commodities": [
+                {"id": "electricity", "type": "energy"},
+                {"id": "space_heat", "type": "service"},
+                {"id": "co2", "type": "emission"},
+            ],
+            "constraints": [
+                {
+                    "name": "co2_cap",
+                    "type": "emission_cap",
+                    "commodity": "co2",
+                    "limit": 100.0,
+                }
+            ],
+        },
+        "segments": {"sectors": ["RES"]},
+        "process_roles": [
+            {
+                "id": "provide_space_heat",
+                "stage": "end_use",
+                "inputs": [{"commodity": "electricity"}],
+                "outputs": [{"commodity": "space_heat"}],
+            }
+        ],
+        "process_variants": [
+            {
+                "id": "heat_pump",
+                "role": "provide_space_heat",
+                "kind": "device",
+                "efficiency": 1.0,
+                "emission_factors": {"co2": 0.0},
+            }
+        ],
+        "availability": [
+            {
+                "variant": "heat_pump",
+                "regions": ["REG1"],
+                "sectors": ["RES"],
+            }
+        ],
+        "demands": [
+            {
+                "commodity": "space_heat",
+                "region": "REG1",
+                "sector": "RES",
+                "values": {"2020": 10.0},
+            }
+        ],
+    }
+
+
+def test_new_syntax_structural_invariants_valid_model_compiles():
+    source = _base_new_syntax_source()
+    tableir = compile_vedalang_to_tableir(source)
+    assert "files" in tableir
+
+
+def test_new_syntax_invalid_commodity_type_is_deterministic_error():
+    source = _base_new_syntax_source()
+    source["model"]["commodities"][0]["type"] = "invalid_type"
+
+    with pytest.raises(Exception, match=r"\[E_COMMODITY_TYPE_ENUM\]"):
+        compile_vedalang_to_tableir(source, validate=False)
+
+
+def test_new_syntax_demand_must_reference_service_commodity():
+    source = _base_new_syntax_source()
+    source["demands"][0]["commodity"] = "electricity"
+
+    with pytest.raises(Exception, match=r"\[E_DEMAND_COMMODITY_TYPE\]"):
+        compile_vedalang_to_tableir(source)
+
+
+def test_new_syntax_emission_constraints_require_emission_commodity():
+    source = _base_new_syntax_source()
+    source["model"]["constraints"][0]["commodity"] = "electricity"
+
+    with pytest.raises(Exception, match=r"\[E_EMISSION_COMMODITY_TYPE\]"):
+        compile_vedalang_to_tableir(source)
+
+
+def test_new_syntax_role_primary_output_invariant_enforced():
+    source = _base_new_syntax_source()
+    source["process_roles"][0]["outputs"] = [
+        {"commodity": "space_heat"},
+        {"commodity": "electricity"},
+    ]
+
+    with pytest.raises(Exception, match=r"\[E_ROLE_PRIMARY_OUTPUT\]"):
+        compile_vedalang_to_tableir(source)
+
+
+def test_new_syntax_stage_enum_violation_reports_structural_code():
+    source = _base_new_syntax_source()
+    source["process_roles"][0]["stage"] = "distribution"
+
+    with pytest.raises(Exception, match=r"\[E_STAGE_ENUM\]"):
+        compile_vedalang_to_tableir(source, validate=False)
+
+
+def test_new_syntax_detects_duplicate_service_roles_with_merge_hint():
+    source = _base_new_syntax_source()
+    source["model"]["commodities"].append({"id": "gas", "type": "fuel"})
+    source["process_roles"].append(
+        {
+            "id": "heat_from_gas",
+            "stage": "end_use",
+            "inputs": [{"commodity": "gas"}],
+            "outputs": [{"commodity": "space_heat"}],
+        }
+    )
+    source["process_variants"].append(
+        {
+            "id": "gas_heater",
+            "role": "heat_from_gas",
+            "kind": "device",
+            "efficiency": 0.9,
+        }
+    )
+    source["availability"].append(
+        {
+            "variant": "gas_heater",
+            "regions": ["REG1"],
+            "sectors": ["RES"],
+        }
+    )
+
+    with pytest.raises(Exception) as exc:
+        compile_vedalang_to_tableir(source)
+
+    message = str(exc.value)
+    assert "[E1_DUPLICATE_SERVICE_ROLES]" in message
+    assert "provide_space_heat" in message
+    assert "heat_from_gas" in message
+
+
+def test_new_syntax_w1_detects_identical_io_split_across_roles():
+    source = _base_new_syntax_source()
+    source["process_roles"].append(
+        {
+            "id": "space_heat_with_alt_grid",
+            "stage": "end_use",
+            "inputs": [{"commodity": "electricity"}],
+            "outputs": [{"commodity": "space_heat"}],
+        }
+    )
+
+    commodities = _normalize_commodities_for_new_syntax(source["model"]["commodities"])
+    roles = build_roles(source, commodities)
+    errors, warnings = _detect_service_role_duplication(roles, commodities)
+
+    assert any(e["code"] == "E1_DUPLICATE_SERVICE_ROLES" for e in errors)
+    assert any(w["code"] == "W1_SPLIT_IDENTICAL_IO_ROLES" for w in warnings)
+
+
+def test_new_syntax_w2_warning_is_machine_readable_and_non_blocking():
+    source = _base_new_syntax_source()
+    source["process_roles"][0]["id"] = "space_heat_from_electricity"
+    source["process_variants"][0]["role"] = "space_heat_from_electricity"
+
+    tableir = compile_vedalang_to_tableir(source)
+    warnings = tableir["convention_diagnostics"]["warnings"]
+
+    assert any(w["code"] == "W2_FUEL_PATHWAY_ROLE_NAME" for w in warnings)
+
+
+def test_new_syntax_false_positive_guard_different_service_outputs():
+    source = _base_new_syntax_source()
+    source["model"]["commodities"].append({"id": "water_heat", "type": "service"})
+    source["process_roles"].append(
+        {
+            "id": "provide_water_heat",
+            "stage": "end_use",
+            "inputs": [{"commodity": "electricity"}],
+            "outputs": [{"commodity": "water_heat"}],
+        }
+    )
+    source["process_variants"].append(
+        {
+            "id": "electric_boiler",
+            "role": "provide_water_heat",
+            "kind": "device",
+            "efficiency": 0.95,
+        }
+    )
+    source["availability"].append(
+        {
+            "variant": "electric_boiler",
+            "regions": ["REG1"],
+            "sectors": ["RES"],
+        }
+    )
+
+    tableir = compile_vedalang_to_tableir(source)
+    warnings = tableir["convention_diagnostics"]["warnings"]
+    assert "convention_diagnostics" in tableir
+    assert all(w["code"] != "W1_SPLIT_IDENTICAL_IO_ROLES" for w in warnings)
+
+
+def test_toy_agriculture_uses_service_role_and_sink_sequestration_conventions():
+    source = load_vedalang(EXAMPLES_DIR / "toy_agriculture.veda.yaml")
+
+    commodity_types = {
+        commodity["id"]: commodity["type"]
+        for commodity in source["model"]["commodities"]
+    }
+    assert commodity_types["ag_inputs"] == "material"
+    assert commodity_types["agricultural_output"] == "service"
+    assert commodity_types["co2e"] == "emission"
+
+    roles = {role["id"]: role for role in source["process_roles"]}
+    assert set(roles) == {"supply_ag_inputs", "provide_ag_output", "sequester_carbon"}
+    assert roles["supply_ag_inputs"]["stage"] == "supply"
+    assert roles["provide_ag_output"]["stage"] == "end_use"
+    assert roles["provide_ag_output"]["inputs"] == [{"commodity": "ag_inputs"}]
+    assert roles["sequester_carbon"]["stage"] == "sink"
+    assert roles["sequester_carbon"]["inputs"] == [{"commodity": "co2e"}]
+    assert roles["sequester_carbon"]["outputs"] == []
+
+    variant_roles = {
+        variant["id"]: variant["role"]
+        for variant in source["process_variants"]
+    }
+    assert variant_roles["ag_inputs_supply"] == "supply_ag_inputs"
+    assert variant_roles["baseline_agriculture"] == "provide_ag_output"
+    assert variant_roles["feed_additives"] == "provide_ag_output"
+    assert variant_roles["improved_manure"] == "provide_ag_output"
+    assert variant_roles["soil_carbon"] == "sequester_carbon"
+    assert variant_roles["reforestation"] == "sequester_carbon"
+
+
+def test_toy_agriculture_example_compiles_after_refactor():
+    source = load_vedalang(EXAMPLES_DIR / "toy_agriculture.veda.yaml")
+    tableir = compile_vedalang_to_tableir(source)
+    assert "files" in tableir
+
+def test_toy_buildings_uses_service_role_and_case_demand_override_conventions():
+    source = load_vedalang(EXAMPLES_DIR / "toy_buildings.veda.yaml")
+
+    roles = {role["id"]: role for role in source["process_roles"]}
+    assert "provide_space_heat" in roles
+    assert roles["provide_space_heat"]["stage"] == "end_use"
+    assert roles["provide_space_heat"]["inputs"] == [{"commodity": "delivered_heat"}]
+    assert roles["provide_space_heat"]["outputs"] == [{"commodity": "space_heat"}]
+
+    assert "heat_from_gas" not in roles
+    assert "heat_from_electricity" not in roles
+    assert "reduce_heat_demand" not in roles
+
+    cases = {case["name"]: case for case in source["model"]["cases"]}
+    assert "baseline" in cases
+    assert cases["baseline"]["is_baseline"] is True
+    assert "retrofit_policy" in cases
+
+    demand_overrides = cases["retrofit_policy"]["demand_overrides"]
+    assert len(demand_overrides) == 1
+    assert demand_overrides[0]["commodity"] == "space_heat"
+    assert demand_overrides[0]["sector"] == "RES"
+
+def test_toy_industry_uses_service_role_with_pathway_variants():
+    source = load_vedalang(EXAMPLES_DIR / "toy_industry.veda.yaml")
+
+    roles = {role["id"]: role for role in source["process_roles"]}
+    assert "provide_industrial_heat" in roles
+    assert roles["provide_industrial_heat"]["stage"] == "end_use"
+    assert roles["provide_industrial_heat"]["inputs"] == [
+        {"commodity": "industrial_heat_input"}
+    ]
+    assert roles["provide_industrial_heat"]["outputs"] == [
+        {"commodity": "industrial_heat"}
+    ]
+
+    assert "heat_from_gas" not in roles
+    assert "heat_from_electricity" not in roles
+    assert "heat_from_hydrogen" not in roles
+
+    variants = {
+        variant["id"]: variant["role"]
+        for variant in source["process_variants"]
+    }
+    assert variants["gas_boiler"] == "convert_gas_to_industrial_heat"
+    assert variants["electric_heater"] == "convert_electricity_to_industrial_heat"
+    assert variants["h2_boiler"] == "convert_hydrogen_to_industrial_heat"
+    assert variants["industrial_heat_delivery"] == "provide_industrial_heat"
+
+def test_toy_transport_uses_service_role_with_pathway_variants():
+    source = load_vedalang(EXAMPLES_DIR / "toy_transport.veda.yaml")
+
+    roles = {role["id"]: role for role in source["process_roles"]}
+    assert "provide_passenger_km" in roles
+    assert roles["provide_passenger_km"]["stage"] == "end_use"
+    assert roles["provide_passenger_km"]["inputs"] == [
+        {"commodity": "mobility_service_input"}
+    ]
+    assert roles["provide_passenger_km"]["outputs"] == [{"commodity": "passenger_km"}]
+
+    assert "drive_ice" not in roles
+    assert "drive_ev" not in roles
+
+    variants = {
+        variant["id"]: variant["role"]
+        for variant in source["process_variants"]
+    }
+    assert variants["ice_car"] == "convert_petrol_to_mobility"
+    assert variants["ev_car"] == "convert_electricity_to_mobility"
+    assert variants["passenger_service_delivery"] == "provide_passenger_km"
+
+def test_toy_resources_uses_service_role_with_case_overlays():
+    source = load_vedalang(EXAMPLES_DIR / "toy_resources.veda.yaml")
+
+    roles = {role["id"]: role for role in source["process_roles"]}
+    assert "provide_haul_work" in roles
+    assert roles["provide_haul_work"]["stage"] == "end_use"
+    assert roles["provide_haul_work"]["inputs"] == [{"commodity": "haul_energy_input"}]
+    assert roles["provide_haul_work"]["outputs"] == [{"commodity": "haul_work"}]
+
+    assert "haul_with_diesel" not in roles
+    assert "haul_with_electricity" not in roles
+    assert "haul_with_biodiesel" not in roles
+
+    variants = {
+        variant["id"]: variant["role"]
+        for variant in source["process_variants"]
+    }
+    assert variants["diesel_haul"] == "convert_diesel_to_haul_energy"
+    assert variants["electric_haul"] == "convert_electricity_to_haul_energy"
+    assert variants["biodiesel_haul"] == "convert_biodiesel_to_haul_energy"
+    assert variants["haul_work_delivery"] == "provide_haul_work"
+
+    cases = {case["name"]: case for case in source["model"]["cases"]}
+    assert cases["ref"]["is_baseline"] is True
+    assert "co2cap" in cases
+    assert "force_shift" in cases
+
+def test_toy_refactored_examples_compile_under_new_invariants():
+    for filename in (
+        "toy_buildings.veda.yaml",
+        "toy_industry.veda.yaml",
+        "toy_transport.veda.yaml",
+        "toy_resources.veda.yaml",
+    ):
+        source = load_vedalang(EXAMPLES_DIR / filename)
+        tableir = compile_vedalang_to_tableir(source)
+        assert "files" in tableir
+
+def test_new_syntax_end_use_requires_physical_input_unless_demand_measure():
+    source = _base_new_syntax_source()
+    source["process_roles"][0]["inputs"] = []
+    source["process_variants"][0].pop("kind")
+
+    with pytest.raises(Exception, match=r"\[E_END_USE_PHYSICAL_INPUT\]"):
+        compile_vedalang_to_tableir(source)
+
+def test_new_syntax_end_use_zero_input_demand_measure_is_allowed():
+    source = _base_new_syntax_source()
+    source["process_roles"][0]["inputs"] = []
+    source["process_variants"][0]["kind"] = "demand_measure"
+
+    tableir = compile_vedalang_to_tableir(source)
+    assert "files" in tableir
