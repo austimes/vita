@@ -35,49 +35,49 @@ model:
   commodities:
     # Tradable energy carriers
     - id: gas
-      kind: carrier
+      type: fuel
       unit: PJ
       description: Natural gas
 
     - id: coal
-      kind: carrier
+      type: fuel
       unit: PJ
       description: Coal
 
     - id: electricity
-      kind: carrier
+      type: energy
       unit: PJ
       description: Electricity
 
     - id: hydrogen
-      kind: carrier
+      type: fuel
       unit: PJ
       description: Hydrogen
 
     # Emissions
     - id: co2
-      kind: emission
+      type: emission
       unit: Mt
       description: Carbon dioxide
 
     # Service demands
     - id: residential_demand
-      kind: service
+      type: service
       unit: PJ
       description: Residential demand
 
     - id: commercial_demand
-      kind: service
+      type: service
       unit: PJ
       description: Commercial demand
 
     - id: industrial_demand
-      kind: service
+      type: service
       unit: PJ
       description: Industrial demand
 
     - id: transport_demand
-      kind: service
+      type: service
       unit: PJ
       description: Transport demand
 
@@ -170,31 +170,15 @@ process_roles:
     outputs:
       - commodity: commercial_demand
 
-  - id: deliver_industrial_gas
+  - id: provide_industrial_demand
     stage: end_use
-    inputs:
-      - commodity: gas
+    inputs: []
     outputs:
       - commodity: industrial_demand
 
-  - id: deliver_industrial_hydrogen
+  - id: provide_transport_demand
     stage: end_use
-    inputs:
-      - commodity: hydrogen
-    outputs:
-      - commodity: industrial_demand
-
-  - id: deliver_transport_elec
-    stage: end_use
-    inputs:
-      - commodity: electricity
-    outputs:
-      - commodity: transport_demand
-
-  - id: deliver_transport_hydrogen
-    stage: end_use
-    inputs:
-      - commodity: hydrogen
+    inputs: []
     outputs:
       - commodity: transport_demand
 
@@ -278,22 +262,30 @@ process_variants:
     lifetime: 100
 
   - id: industrial_gas_device
-    role: deliver_industrial_gas
+    role: provide_industrial_demand
+    inputs:
+      - commodity: gas
     efficiency: 0.85
     lifetime: 30
 
   - id: industrial_hydrogen_device
-    role: deliver_industrial_hydrogen
+    role: provide_industrial_demand
+    inputs:
+      - commodity: hydrogen
     efficiency: 0.80
     lifetime: 30
 
   - id: transport_elec_device
-    role: deliver_transport_elec
+    role: provide_transport_demand
+    inputs:
+      - commodity: electricity
     efficiency: 0.90
     lifetime: 15
 
   - id: transport_hydrogen_device
-    role: deliver_transport_hydrogen
+    role: provide_transport_demand
+    inputs:
+      - commodity: hydrogen
     efficiency: 0.60
     lifetime: 15
 

@@ -2830,12 +2830,23 @@ def test_toy_buildings_uses_service_role_and_case_demand_override_conventions():
     roles = {role["id"]: role for role in source["process_roles"]}
     assert "provide_space_heat" in roles
     assert roles["provide_space_heat"]["stage"] == "end_use"
-    assert roles["provide_space_heat"]["inputs"] == [{"commodity": "delivered_heat"}]
-    assert roles["provide_space_heat"]["outputs"] == [{"commodity": "space_heat"}]
+    assert roles["provide_space_heat"]["inputs"] == []
+    assert {"commodity": "space_heat"} in roles["provide_space_heat"]["outputs"]
 
+    # No fuel-pathway or intermediate carrier roles
     assert "heat_from_gas" not in roles
     assert "heat_from_electricity" not in roles
     assert "reduce_heat_demand" not in roles
+    assert "convert_gas_to_delivered_heat" not in roles
+    assert "convert_electricity_to_delivered_heat" not in roles
+
+    # Variants use variant-level inputs
+    variants = {v["id"]: v for v in source["process_variants"]}
+    assert variants["gas_heater"]["role"] == "provide_space_heat"
+    assert variants["gas_heater"]["inputs"] == [{"commodity": "natural_gas"}]
+    assert variants["heat_pump"]["role"] == "provide_space_heat"
+    assert variants["heat_pump"]["inputs"] == [{"commodity": "electricity"}]
+    assert "space_heat_delivery" not in variants
 
     cases = {case["name"]: case for case in source["model"]["cases"]}
     assert "baseline" in cases
@@ -2847,31 +2858,33 @@ def test_toy_buildings_uses_service_role_and_case_demand_override_conventions():
     assert demand_overrides[0]["commodity"] == "space_heat"
     assert demand_overrides[0]["sector"] == "RES"
 
-def test_toy_industry_uses_service_role_with_pathway_variants():
+def test_toy_industry_uses_variant_level_inputs():
     source = load_vedalang(EXAMPLES_DIR / "toy_industry.veda.yaml")
 
     roles = {role["id"]: role for role in source["process_roles"]}
     assert "provide_industrial_heat" in roles
     assert roles["provide_industrial_heat"]["stage"] == "end_use"
-    assert roles["provide_industrial_heat"]["inputs"] == [
-        {"commodity": "industrial_heat_input"}
-    ]
+    assert roles["provide_industrial_heat"]["inputs"] == []
     assert roles["provide_industrial_heat"]["outputs"] == [
-        {"commodity": "industrial_heat"}
+        {"commodity": "industrial_heat"},
+        {"commodity": "co2"},
     ]
 
-    assert "heat_from_gas" not in roles
-    assert "heat_from_electricity" not in roles
-    assert "heat_from_hydrogen" not in roles
+    assert "convert_gas_to_industrial_heat" not in roles
+    assert "convert_electricity_to_industrial_heat" not in roles
+    assert "convert_hydrogen_to_industrial_heat" not in roles
 
     variants = {
-        variant["id"]: variant["role"]
+        variant["id"]: variant
         for variant in source["process_variants"]
     }
-    assert variants["gas_boiler"] == "convert_gas_to_industrial_heat"
-    assert variants["electric_heater"] == "convert_electricity_to_industrial_heat"
-    assert variants["h2_boiler"] == "convert_hydrogen_to_industrial_heat"
-    assert variants["industrial_heat_delivery"] == "provide_industrial_heat"
+    assert variants["gas_boiler"]["role"] == "provide_industrial_heat"
+    assert variants["gas_boiler"]["inputs"] == [{"commodity": "natural_gas"}]
+    assert variants["electric_heater"]["role"] == "provide_industrial_heat"
+    assert variants["electric_heater"]["inputs"] == [{"commodity": "electricity"}]
+    assert variants["h2_boiler"]["role"] == "provide_industrial_heat"
+    assert variants["h2_boiler"]["inputs"] == [{"commodity": "hydrogen"}]
+    assert "industrial_heat_delivery" not in variants
 
 def test_toy_transport_uses_service_role_with_pathway_variants():
     source = load_vedalang(EXAMPLES_DIR / "toy_transport.veda.yaml")
@@ -2879,21 +2892,22 @@ def test_toy_transport_uses_service_role_with_pathway_variants():
     roles = {role["id"]: role for role in source["process_roles"]}
     assert "provide_passenger_km" in roles
     assert roles["provide_passenger_km"]["stage"] == "end_use"
-    assert roles["provide_passenger_km"]["inputs"] == [
-        {"commodity": "mobility_service_input"}
+    assert roles["provide_passenger_km"]["inputs"] == []
+    assert roles["provide_passenger_km"]["outputs"] == [
+        {"commodity": "passenger_km"},
+        {"commodity": "co2"},
     ]
-    assert roles["provide_passenger_km"]["outputs"] == [{"commodity": "passenger_km"}]
 
-    assert "drive_ice" not in roles
-    assert "drive_ev" not in roles
+    # No intermediate conversion roles
+    assert "convert_petrol_to_mobility" not in roles
+    assert "convert_electricity_to_mobility" not in roles
 
-    variants = {
-        variant["id"]: variant["role"]
-        for variant in source["process_variants"]
-    }
-    assert variants["ice_car"] == "convert_petrol_to_mobility"
-    assert variants["ev_car"] == "convert_electricity_to_mobility"
-    assert variants["passenger_service_delivery"] == "provide_passenger_km"
+    variants = {v["id"]: v for v in source["process_variants"]}
+    assert variants["ice_car"]["role"] == "provide_passenger_km"
+    assert variants["ice_car"]["inputs"] == [{"commodity": "petrol"}]
+    assert variants["ev_car"]["role"] == "provide_passenger_km"
+    assert variants["ev_car"]["inputs"] == [{"commodity": "electricity"}]
+    assert "passenger_service_delivery" not in variants
 
 def test_toy_resources_uses_service_role_with_case_overlays():
     source = load_vedalang(EXAMPLES_DIR / "toy_resources.veda.yaml")

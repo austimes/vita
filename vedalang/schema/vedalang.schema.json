@@ -94,6 +94,10 @@
       "type": "array",
       "items": { "$ref": "#/$defs/demand" },
       "description": "Service commodity demands by region/sector/segment"
+    },
+    "diagnostics": {
+      "$ref": "#/$defs/diagnostics_spec",
+      "description": "Solve-independent diagnostics boundaries and metric definitions"
     }
   },
   "$defs": {
@@ -138,7 +142,7 @@
         },
         "stage": {
           "type": "string",
-          "enum": ["supply", "conversion", "distribution", "end_use", "storage", "trade", "sink"],
+          "enum": ["supply", "conversion", "storage", "end_use", "sink"],
           "description": "Optional stage classification (descriptive, for layout/sankey)"
         },
         "inputs": {
@@ -183,6 +187,16 @@
         "description": {
           "type": "string",
           "description": "Human-readable variant description"
+        },
+        "inputs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/role_flow" },
+          "description": "Optional variant-level input override. When present, replaces role.inputs for this variant's topology (FI_T generation and physical-input validation). Use when a merged service role has variants consuming different fuels."
+        },
+        "kind": {
+          "type": "string",
+          "enum": ["device", "storage", "generator", "demand_measure"],
+          "description": "Optional semantic kind for diagnostics metadata. When omitted, compiler derives it."
         },
         "efficiency": {
           "oneOf": [
@@ -407,6 +421,26 @@
           "type": "array",
           "items": { "type": "string" },
           "description": "Optional labels for categorizing cases (e.g., 'policy', 'reference', 'sensitivity')"
+        },
+        "demand_overrides": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/case_demand_override" },
+          "description": "Per-case demand overrides/scaling"
+        },
+        "fuel_price_overrides": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/case_price_override" },
+          "description": "Per-case commodity price overrides"
+        },
+        "constraint_overrides": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/case_constraint_override" },
+          "description": "Per-case enable/disable and parameter overrides for constraints"
+        },
+        "variant_overrides": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/case_variant_override" },
+          "description": "Per-case variant overrides (cost/performance, or disable via generated bounds)"
         }
       },
       "additionalProperties": false
@@ -613,7 +647,7 @@
     "commodity": {
       "type": "object",
       "description": "Commodity definition",
-      "required": ["kind"],
+      "required": ["type"],
       "properties": {
         "id": {
           "type": "string",
@@ -624,10 +658,10 @@
           "type": "string",
           "description": "Legacy commodity name (deprecated, use 'id' instead)"
         },
-        "kind": {
+        "type": {
           "type": "string",
-          "enum": ["carrier", "service", "material", "emission", "TRADABLE", "SERVICE", "EMISSION"],
-          "description": "Commodity kind: carrier (NRG), service (DEM), material (MAT), emission (ENV). Legacy values TRADABLE/SERVICE/EMISSION also accepted."
+          "enum": ["fuel", "energy", "service", "material", "emission", "other"],
+          "description": "Canonical commodity type used by diagnostics semantics and COM_TYPE mapping."
         },
         "unit": {
           "type": "string",
@@ -639,7 +673,7 @@
         },
         "tradable": {
           "type": "boolean",
-          "description": "Whether commodity can be traded between regions (default: true for carrier/material, false for service/emission)"
+          "description": "Whether commodity can be traded between regions (default: true for fuel/energy/material/other, false for service/emission)"
         },
         "timesliced": {
           "type": "boolean",
@@ -651,6 +685,223 @@
           "minimum": 0,
           "maximum": 1,
           "description": "Peak demand fraction for capacity adequacy"
+        }
+      },
+      "additionalProperties": false
+    },
+    "case_demand_override": {
+      "type": "object",
+      "required": ["commodity"],
+      "properties": {
+        "commodity": { "type": "string" },
+        "region": { "type": "string" },
+        "sector": { "type": "string" },
+        "segment": { "type": "string" },
+        "scale": { "type": "number", "minimum": 0 },
+        "values": {
+          "type": "object",
+          "additionalProperties": { "type": "number" },
+          "propertyNames": { "pattern": "^[12][0-9]{3}$" }
+        },
+        "interpolation": {
+          "type": "string",
+          "enum": [
+            "none",
+            "interp_only",
+            "interp_extrap_eps",
+            "interp_extrap",
+            "interp_extrap_back",
+            "interp_extrap_forward"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "case_price_override": {
+      "type": "object",
+      "required": ["commodity", "values"],
+      "properties": {
+        "commodity": { "type": "string" },
+        "values": {
+          "type": "object",
+          "additionalProperties": { "type": "number" },
+          "propertyNames": { "pattern": "^[12][0-9]{3}$" }
+        },
+        "interpolation": {
+          "type": "string",
+          "enum": [
+            "none",
+            "interp_only",
+            "interp_extrap_eps",
+            "interp_extrap",
+            "interp_extrap_back",
+            "interp_extrap_forward"
+          ],
+          "default": "interp_extrap"
+        }
+      },
+      "additionalProperties": false
+    },
+    "case_constraint_override": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string" },
+        "enabled": { "type": "boolean", "default": true },
+        "limit": { "type": "number" },
+        "limtype": {
+          "type": "string",
+          "enum": ["up", "lo", "fx"]
+        },
+        "minimum_share": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "maximum_share": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "years": {
+          "type": "object",
+          "additionalProperties": { "type": "number" },
+          "propertyNames": { "pattern": "^[12][0-9]{3}$" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "case_variant_override": {
+      "type": "object",
+      "required": ["variant"],
+      "properties": {
+        "variant": { "type": "string" },
+        "enabled": { "type": "boolean", "default": true },
+        "efficiency": {
+          "oneOf": [
+            { "type": "number", "minimum": 0, "maximum": 1 },
+            { "$ref": "#/$defs/time_varying_value" }
+          ]
+        },
+        "investment_cost": {
+          "oneOf": [
+            { "type": "number", "minimum": 0 },
+            { "$ref": "#/$defs/time_varying_value" }
+          ]
+        },
+        "fixed_om_cost": {
+          "oneOf": [
+            { "type": "number", "minimum": 0 },
+            { "$ref": "#/$defs/time_varying_value" }
+          ]
+        },
+        "variable_om_cost": {
+          "oneOf": [
+            { "type": "number", "minimum": 0 },
+            { "$ref": "#/$defs/time_varying_value" }
+          ]
+        },
+        "lifetime": {
+          "oneOf": [
+            { "type": "number", "minimum": 0 },
+            { "$ref": "#/$defs/time_varying_value" }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "diagnostics_boundary": {
+      "type": "object",
+      "required": ["id", "measure"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "measure": {
+          "type": "string",
+          "enum": ["end_use_inputs", "service_outputs", "generation_outputs", "emissions_net"]
+        },
+        "selectors": { "$ref": "#/$defs/diagnostics_selectors" }
+      },
+      "additionalProperties": false
+    },
+    "diagnostics_selectors": {
+      "type": "object",
+      "properties": {
+        "stage_in": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["supply", "conversion", "storage", "end_use", "sink"]
+          }
+        },
+        "sector_in": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "service_in": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "kind_in": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["device", "storage", "generator", "demand_measure"]
+          }
+        },
+        "include_any": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "exclude_any": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "diagnostics_metric": {
+      "type": "object",
+      "required": ["id", "type", "boundary"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "fuel_use_by_carrier",
+            "fuel_switch",
+            "share_change",
+            "intensity_change",
+            "demand_change",
+            "delta"
+          ]
+        },
+        "boundary": { "type": "string" },
+        "from_case": { "type": "string" },
+        "to_case": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "diagnostics_spec": {
+      "type": "object",
+      "properties": {
+        "on_empty_boundary": {
+          "type": "string",
+          "enum": ["warn", "error"],
+          "default": "warn"
+        },
+        "boundaries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/diagnostics_boundary" }
+        },
+        "metrics": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/diagnostics_metric" }
         }
       },
       "additionalProperties": false

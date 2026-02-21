@@ -1,0 +1,557 @@
+# Toy Integrated: 6-Sector Energy System
+# Complete RES → end-use model with shared upstream grids and economy-wide CO2 cap
+# Sectors: RES (residential), COM (commercial), IND (industrial), TRN (transport), AGR (agriculture), OTH (other)
+# Tests: multi-sector fuel competition, shared commodity grids, economy-wide emission_cap
+#
+# Topology:
+#   Primary: gas, oil, renewables, hydrogen
+#   Conversion: CCGT (gas→elec), refinery (oil→petrol), electrolyser (elec→H2)
+#   Distribution: electricity grid, gas grid
+#   End-use: 2 fuel options per sector (gas/elec or petrol/elec)
+#   Constraint: tightening CO2 cap forces cross-sector decarbonisation
+
+model:
+  name: ToyIntegrated6Sector
+  description: Minimal integrated 6-sector model with shared grids and economy-wide CO2 cap
+
+  regions:
+    - SINGLE
+
+  milestone_years: [2020, 2030, 2040, 2050]
+
+  commodities:
+    # Primary carriers
+    - id: natural_gas
+      type: fuel
+      unit: PJ
+      description: Bulk natural gas
+
+    - id: crude_oil
+      type: fuel
+      unit: PJ
+      description: Crude oil
+
+    # Converted/distributed carriers
+    - id: electricity
+      type: energy
+      unit: PJ
+      description: Bulk electricity (generation bus)
+
+    - id: electricity_grid
+      type: energy
+      unit: PJ
+      description: Delivered electricity
+
+    - id: natural_gas_grid
+      type: fuel
+      unit: PJ
+      description: Delivered natural gas
+
+    - id: petrol
+      type: fuel
+      unit: PJ
+      description: Refined petrol/diesel proxy
+
+    - id: hydrogen
+      type: fuel
+      unit: PJ
+      description: Hydrogen
+
+    # Service demands
+    - id: space_heat
+      type: service
+      unit: PJ
+      description: Space heating (RES/COM/OTH)
+
+    - id: industrial_heat
+      type: service
+      unit: PJ
+      description: Industrial process heat
+
+    - id: passenger_km
+      type: service
+      unit: Bvkm
+      description: Passenger travel
+
+    - id: farm_work
+      type: service
+      unit: PJ
+      description: Agricultural machinery service
+
+    # Emissions
+    - id: co2
+      type: emission
+      unit: Mt
+      description: Carbon dioxide
+
+  constraints:
+    - name: CO2_CAP
+      type: emission_cap
+      commodity: co2
+      limtype: up
+      interpolation: interp_extrap
+      years:
+        "2020": 30
+        "2030": 20
+        "2040": 10
+        "2050": 2
+
+segments:
+  sectors: [RES, COM, IND, TRN, AGR, OTH]
+
+# ── Process Roles (topology) ──────────────────────────────────────────
+
+process_roles:
+  # Supply
+  - id: import_gas
+    stage: supply
+    inputs: []
+    outputs:
+      - commodity: natural_gas
+
+  - id: import_oil
+    stage: supply
+    inputs: []
+    outputs:
+      - commodity: crude_oil
+
+  - id: import_hydrogen
+    stage: supply
+    inputs: []
+    outputs:
+      - commodity: hydrogen
+
+  # Conversion
+  - id: generate_electricity_gas
+    stage: conversion
+    inputs:
+      - commodity: natural_gas
+    outputs:
+      - commodity: electricity
+      - commodity: co2
+
+  - id: generate_electricity_renewable
+    stage: conversion
+    inputs: []
+    outputs:
+      - commodity: electricity
+
+  - id: refine_oil
+    stage: conversion
+    inputs:
+      - commodity: crude_oil
+    outputs:
+      - commodity: petrol
+      - commodity: co2
+
+  - id: electrolyse
+    stage: conversion
+    inputs:
+      - commodity: electricity
+    outputs:
+      - commodity: hydrogen
+
+  # Distribution
+  - id: deliver_electricity
+    stage: conversion
+    inputs:
+      - commodity: electricity
+    outputs:
+      - commodity: electricity_grid
+
+  - id: deliver_gas
+    stage: conversion
+    inputs:
+      - commodity: natural_gas
+    outputs:
+      - commodity: natural_gas_grid
+
+  # End-use: space heat (RES/COM/OTH)
+  - id: provide_space_heat
+    stage: end_use
+    inputs: []
+    outputs:
+      - commodity: space_heat
+      - commodity: co2
+
+  # End-use: industrial heat (IND)
+  - id: provide_industrial_heat
+    stage: end_use
+    inputs: []
+    outputs:
+      - commodity: industrial_heat
+      - commodity: co2
+
+  # End-use: transport (TRN)
+  - id: provide_passenger_km
+    stage: end_use
+    inputs: []
+    outputs:
+      - commodity: passenger_km
+      - commodity: co2
+
+  # End-use: agriculture (AGR)
+  - id: provide_farm_work
+    stage: end_use
+    inputs: []
+    outputs:
+      - commodity: farm_work
+      - commodity: co2
+
+# ── Process Variants (technologies) ───────────────────────────────────
+
+process_variants:
+  # Supply
+  - id: gas_import
+    role: import_gas
+    efficiency: 1.0
+    lifetime: 100
+    variable_om_cost: 8
+
+  - id: oil_import
+    role: import_oil
+    efficiency: 1.0
+    lifetime: 100
+    variable_om_cost: 10
+
+  - id: hydrogen_import
+    role: import_hydrogen
+    efficiency: 1.0
+    lifetime: 100
+    variable_om_cost:
+      values:
+        "2020": 40
+        "2030": 30
+        "2040": 22
+        "2050": 18
+      interpolation: interp_extrap
+
+  # Conversion
+  - id: ccgt
+    role: generate_electricity_gas
+    efficiency: 0.55
+    lifetime: 40
+    investment_cost: 800
+    fixed_om_cost: 20
+    variable_om_cost: 2
+    emission_factors:
+      co2: 0.05
+
+  - id: solar_pv
+    role: generate_electricity_renewable
+    efficiency: 1.0
+    lifetime: 25
+    investment_cost:
+      values:
+        "2020": 1000
+        "2030": 600
+        "2050": 400
+      interpolation: interp_extrap
+    fixed_om_cost: 15
+
+  - id: onshore_wind
+    role: generate_electricity_renewable
+    efficiency: 1.0
+    lifetime: 25
+    investment_cost: 1200
+    fixed_om_cost: 25
+
+  - id: refinery
+    role: refine_oil
+    efficiency: 0.90
+    lifetime: 40
+    investment_cost: 200
+    variable_om_cost: 2
+    emission_factors:
+      co2: 0.01
+
+  - id: electrolyser
+    role: electrolyse
+    efficiency: 0.70
+    lifetime: 25
+    investment_cost: 600
+    fixed_om_cost: 10
+
+  # Distribution
+  - id: elec_grid
+    role: deliver_electricity
+    efficiency: 0.95
+    lifetime: 100
+
+  - id: gas_grid
+    role: deliver_gas
+    efficiency: 0.98
+    lifetime: 100
+
+  # End-use: space heat
+  - id: gas_space_heater
+    role: provide_space_heat
+    inputs: [{commodity: natural_gas_grid}]
+    efficiency: 0.90
+    lifetime: 20
+    investment_cost: 30
+    emission_factors:
+      co2: 0.056
+
+  - id: electric_space_heater
+    role: provide_space_heat
+    inputs: [{commodity: electricity_grid}]
+    efficiency: 0.95
+    lifetime: 20
+    investment_cost: 120
+
+  # End-use: industrial heat
+  - id: gas_industrial_boiler
+    role: provide_industrial_heat
+    inputs: [{commodity: natural_gas_grid}]
+    efficiency: 0.90
+    lifetime: 30
+    investment_cost: 50
+    emission_factors:
+      co2: 0.056
+
+  - id: electric_industrial_heater
+    role: provide_industrial_heat
+    inputs: [{commodity: electricity_grid}]
+    efficiency: 0.95
+    lifetime: 30
+    investment_cost: 80
+
+  - id: h2_industrial_boiler
+    role: provide_industrial_heat
+    inputs: [{commodity: hydrogen}]
+    efficiency: 0.85
+    lifetime: 30
+    investment_cost: 100
+
+  # End-use: transport
+  - id: ice_car
+    role: provide_passenger_km
+    inputs: [{commodity: petrol}]
+    efficiency: 1.0
+    lifetime: 15
+    variable_om_cost: 5
+    emission_factors:
+      co2: 0.067
+
+  - id: ev_car
+    role: provide_passenger_km
+    inputs: [{commodity: electricity_grid}]
+    efficiency: 1.0
+    lifetime: 15
+    investment_cost: 100
+    variable_om_cost: 2
+
+  # End-use: agriculture
+  - id: diesel_tractor
+    role: provide_farm_work
+    inputs: [{commodity: petrol}]
+    efficiency: 1.0
+    lifetime: 20
+    variable_om_cost: 4
+    emission_factors:
+      co2: 0.074
+
+  - id: electric_tractor
+    role: provide_farm_work
+    inputs: [{commodity: electricity_grid}]
+    efficiency: 1.0
+    lifetime: 20
+    investment_cost: 120
+    variable_om_cost: 2
+
+# ── Availability ──────────────────────────────────────────────────────
+
+availability:
+  # Supply + conversion + distribution (no sector)
+  - variant: gas_import
+    regions: [SINGLE]
+  - variant: oil_import
+    regions: [SINGLE]
+  - variant: hydrogen_import
+    regions: [SINGLE]
+  - variant: ccgt
+    regions: [SINGLE]
+  - variant: solar_pv
+    regions: [SINGLE]
+  - variant: onshore_wind
+    regions: [SINGLE]
+  - variant: refinery
+    regions: [SINGLE]
+  - variant: electrolyser
+    regions: [SINGLE]
+  - variant: elec_grid
+    regions: [SINGLE]
+  - variant: gas_grid
+    regions: [SINGLE]
+
+  # End-use: space heat in RES, COM, OTH
+  - variant: gas_space_heater
+    regions: [SINGLE]
+    sectors: [RES, COM, OTH]
+  - variant: electric_space_heater
+    regions: [SINGLE]
+    sectors: [RES, COM, OTH]
+
+  # End-use: industrial heat in IND
+  - variant: gas_industrial_boiler
+    regions: [SINGLE]
+    sectors: [IND]
+  - variant: electric_industrial_heater
+    regions: [SINGLE]
+    sectors: [IND]
+  - variant: h2_industrial_boiler
+    regions: [SINGLE]
+    sectors: [IND]
+
+  # End-use: transport in TRN
+  - variant: ice_car
+    regions: [SINGLE]
+    sectors: [TRN]
+  - variant: ev_car
+    regions: [SINGLE]
+    sectors: [TRN]
+
+  # End-use: agriculture in AGR
+  - variant: diesel_tractor
+    regions: [SINGLE]
+    sectors: [AGR]
+  - variant: electric_tractor
+    regions: [SINGLE]
+    sectors: [AGR]
+
+# ── Process Parameters ────────────────────────────────────────────────
+
+process_parameters:
+  # Supply (unconstrained)
+  - selector: { variant: gas_import, region: SINGLE }
+    stock: 1000
+  - selector: { variant: oil_import, region: SINGLE }
+    stock: 1000
+  - selector: { variant: hydrogen_import, region: SINGLE }
+    stock: 1000
+
+  # Conversion
+  - selector: { variant: ccgt, region: SINGLE }
+    stock: 10
+    cap_bound: { up: 300 }
+  - selector: { variant: solar_pv, region: SINGLE }
+    stock: 5
+    cap_bound: { up: 800 }
+  - selector: { variant: onshore_wind, region: SINGLE }
+    stock: 5
+    cap_bound: { up: 800 }
+  - selector: { variant: refinery, region: SINGLE }
+    stock: 5
+    cap_bound: { up: 200 }
+  - selector: { variant: electrolyser, region: SINGLE }
+    stock: 0.5
+    cap_bound: { up: 300 }
+
+  # Distribution (unconstrained)
+  - selector: { variant: elec_grid, region: SINGLE }
+    stock: 1000
+  - selector: { variant: gas_grid, region: SINGLE }
+    stock: 1000
+
+  # End-use: space heat — RES
+  - selector: { variant: gas_space_heater, region: SINGLE, sector: RES }
+    stock: 60
+    cap_bound: { up: 200 }
+  - selector: { variant: electric_space_heater, region: SINGLE, sector: RES }
+    stock: 10
+    cap_bound: { up: 200 }
+
+  # End-use: space heat — COM
+  - selector: { variant: gas_space_heater, region: SINGLE, sector: COM }
+    stock: 30
+    cap_bound: { up: 150 }
+  - selector: { variant: electric_space_heater, region: SINGLE, sector: COM }
+    stock: 5
+    cap_bound: { up: 150 }
+
+  # End-use: space heat — OTH
+  - selector: { variant: gas_space_heater, region: SINGLE, sector: OTH }
+    stock: 10
+    cap_bound: { up: 80 }
+  - selector: { variant: electric_space_heater, region: SINGLE, sector: OTH }
+    stock: 2
+    cap_bound: { up: 80 }
+
+  # End-use: industrial heat — IND
+  - selector: { variant: gas_industrial_boiler, region: SINGLE, sector: IND }
+    stock: 20
+    cap_bound: { up: 200 }
+  - selector: { variant: electric_industrial_heater, region: SINGLE, sector: IND }
+    stock: 2
+    cap_bound: { up: 200 }
+  - selector: { variant: h2_industrial_boiler, region: SINGLE, sector: IND }
+    stock: 1
+    cap_bound: { up: 200 }
+
+  # End-use: transport — TRN
+  - selector: { variant: ice_car, region: SINGLE, sector: TRN }
+    stock: 200
+    cap_bound: { up: 500 }
+  - selector: { variant: ev_car, region: SINGLE, sector: TRN }
+    stock: 10
+    cap_bound: { up: 500 }
+
+  # End-use: agriculture — AGR
+  - selector: { variant: diesel_tractor, region: SINGLE, sector: AGR }
+    stock: 15
+    cap_bound: { up: 80 }
+  - selector: { variant: electric_tractor, region: SINGLE, sector: AGR }
+    stock: 1
+    cap_bound: { up: 80 }
+
+# ── Demands ───────────────────────────────────────────────────────────
+
+demands:
+  - commodity: space_heat
+    region: SINGLE
+    sector: RES
+    interpolation: interp_extrap
+    values:
+      "2020": 80
+      "2050": 80
+
+  - commodity: space_heat
+    region: SINGLE
+    sector: COM
+    interpolation: interp_extrap
+    values:
+      "2020": 40
+      "2050": 40
+
+  - commodity: space_heat
+    region: SINGLE
+    sector: OTH
+    interpolation: interp_extrap
+    values:
+      "2020": 20
+      "2050": 20
+
+  - commodity: industrial_heat
+    region: SINGLE
+    sector: IND
+    interpolation: interp_extrap
+    values:
+      "2020": 50
+      "2050": 50
+
+  - commodity: passenger_km
+    region: SINGLE
+    sector: TRN
+    interpolation: interp_extrap
+    values:
+      "2020": 200
+      "2050": 200
+
+  - commodity: farm_work
+    region: SINGLE
+    sector: AGR
+    interpolation: interp_extrap
+    values:
+      "2020": 15
+      "2050": 15

@@ -56,11 +56,19 @@ class Variant:
         id: Variant identifier (snake_case technology name)
         role: The Role this variant implements
         attrs: Dict of variant attributes (efficiency, lifetime, costs, etc.)
+        inputs: Optional variant-level input override. When set, replaces
+            role.inputs for this variant's topology and validation.
     """
 
     id: str
     role: Role
     attrs: dict = field(default_factory=dict)
+    inputs: list[str] | None = None
+
+    @property
+    def effective_inputs(self) -> list[str]:
+        """Return variant inputs if overridden, else role inputs."""
+        return self.inputs if self.inputs is not None else self.role.inputs
 
 
 class InstanceKey(NamedTuple):
@@ -161,23 +169,26 @@ def build_roles(
 def build_variants(
     model: dict,
     roles: dict[str, Role],
+    commodities: dict[str, dict] | None = None,
 ) -> dict[str, Variant]:
     """Build Variant objects from process_variants, resolving role refs.
 
     Args:
         model: Model dict with 'process_variants' key
         roles: Dict mapping role id to Role object
+        commodities: Optional commodity dict for validating variant-level inputs
 
     Returns:
         Dict mapping variant id to Variant object
 
     Raises:
-        IRError: If duplicate variant id or invalid role reference
+        IRError: If duplicate variant id or invalid role/commodity reference
     """
     variants: dict[str, Variant] = {}
     process_variants = model.get("process_variants") or []
 
     attr_keys = {
+        "kind",
         "efficiency",
         "lifetime",
         "investment_cost",
@@ -203,10 +214,24 @@ def build_variants(
             if key in raw:
                 attrs[key] = raw[key]
 
+        variant_inputs: list[str] | None = None
+        raw_inputs = raw.get("inputs")
+        if raw_inputs is not None:
+            variant_inputs = []
+            for inp in raw_inputs:
+                comm_id = inp["commodity"]
+                if commodities is not None and comm_id not in commodities:
+                    raise IRError(
+                        f"Variant '{variant_id}' references unknown input "
+                        f"commodity: {comm_id}"
+                    )
+                variant_inputs.append(comm_id)
+
         variants[variant_id] = Variant(
             id=variant_id,
             role=roles[role_id],
             attrs=attrs,
+            inputs=variant_inputs,
         )
 
     return variants
@@ -451,7 +476,7 @@ def lower_instances_to_tableir(
         prc_name = _generate_process_name(key, registry)
 
         inputs_scoped = []
-        for inp_id in role.inputs:
+        for inp_id in instance.variant.effective_inputs:
             comm = commodities.get(inp_id, {})
             tradable = comm.get("tradable", True)
             kind = comm.get("kind", "carrier")

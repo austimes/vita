@@ -1,6 +1,8 @@
 """VedaLang to TableIR compiler."""
 
 import json
+import re
+from copy import deepcopy
 from difflib import get_close_matches
 from pathlib import Path
 
@@ -26,16 +28,15 @@ ENERGY_UNITS = {"PJ", "TJ", "GJ", "MWh", "GWh", "TWh", "MTOE", "KTOE"}
 POWER_UNITS = {"GW", "MW", "kW", "TW"}
 MASS_UNITS = {"Mt", "kt", "t", "Gt"}
 
-# Default units by commodity kind (new naming convention)
+# Default units by canonical commodity type
 DEFAULT_UNITS = {
-    "TRADABLE": "PJ",
-    "SERVICE": "PJ",
-    "EMISSION": "Mt",
-    # Legacy names (for backward compatibility)
+    # Canonical commodity types
+    "fuel": "PJ",
     "energy": "PJ",
-    "demand": "PJ",
-    "emission": "Mt",
+    "service": "PJ",
     "material": "Mt",
+    "emission": "Mt",
+    "other": "PJ",
 }
 
 # Capacity-to-activity conversion factors (PRC_CAPACT)
@@ -136,6 +137,208 @@ VALID_CATEGORIES = {
     "resource_availability",
     "global_settings",
 }
+
+VALID_PROCESS_STAGES = ("supply", "conversion", "storage", "end_use", "sink")
+VALID_COMMODITY_TYPES = ("fuel", "energy", "service", "material", "emission", "other")
+
+ROLE_FUEL_PATHWAY_PATTERN = re.compile(
+    r"(?:^|_)(?:from|with|using|via)_(?:[a-z0-9_]+)$"
+)
+
+
+def _format_structural_errors(errors: list[dict[str, str]]) -> str:
+    """Format structural invariant errors as deterministic diagnostics."""
+    ordered = sorted(
+        errors,
+        key=lambda err: (err["code"], err["location"], err["message"]),
+    )
+    lines = [f"{len(ordered)} structural invariant violation(s):"]
+    for err in ordered:
+        lines.append(
+            f"  - [{err['code']}] {err['location']}: {err['message']}"
+        )
+    return "\n".join(lines)
+
+
+def _normalize_commodities_for_new_syntax(
+    raw_commodities: list[dict],
+) -> dict[str, dict]:
+    """Normalize commodities with deterministic structural diagnostics."""
+    normalized: dict[str, dict] = {}
+    errors: list[dict[str, str]] = []
+
+    for idx, raw in enumerate(raw_commodities):
+        comm_id = raw.get("id") or raw.get("name") or f"<commodity#{idx}>"
+        comm_type = raw.get("type")
+        if comm_type not in VALID_COMMODITY_TYPES:
+            allowed = ", ".join(VALID_COMMODITY_TYPES)
+            errors.append(
+                {
+                    "code": "E_COMMODITY_TYPE_ENUM",
+                    "location": f"model.commodities[{comm_id}]",
+                    "message": (
+                        "Commodity type must be one of "
+                        f"[{allowed}], got '{comm_type}'."
+                    ),
+                }
+            )
+            continue
+
+        try:
+            norm = normalize_commodity(raw)
+        except ValueError as exc:
+            errors.append(
+                {
+                    "code": "E_COMMODITY_TYPE_ENUM",
+                    "location": f"model.commodities[{comm_id}]",
+                    "message": str(exc),
+                }
+            )
+            continue
+
+        normalized[norm["id"]] = norm
+
+    if errors:
+        raise VedaLangError(_format_structural_errors(errors))
+
+    return normalized
+
+
+def _validate_new_syntax_structural_invariants(
+    source: dict,
+    roles: dict,
+    commodities: dict[str, dict],
+) -> list[dict[str, str]]:
+    """Validate compiler-enforced structural invariants for new syntax."""
+    errors: list[dict[str, str]] = []
+    warnings: list[dict[str, str]] = []
+
+    for role_id, role in sorted(roles.items()):
+        if role.stage not in VALID_PROCESS_STAGES:
+            errors.append(
+                {
+                    "code": "E_STAGE_ENUM",
+                    "location": f"process_roles[{role_id}]",
+                    "message": (
+                        "Stage must be one of "
+                        f"{list(VALID_PROCESS_STAGES)}, got '{role.stage}'."
+                    ),
+                }
+            )
+
+    for role_id, issue in _validate_role_primary_outputs(roles, commodities):
+        errors.append(
+            {
+                "code": "E_ROLE_PRIMARY_OUTPUT",
+                "location": f"process_roles[{role_id}]",
+                "message": issue,
+            }
+        )
+
+    dup_errors, dup_warnings = _detect_service_role_duplication(roles, commodities)
+    errors.extend(dup_errors)
+    warnings.extend(dup_warnings)
+
+    for variant in source.get("process_variants") or []:
+        variant_id = variant.get("id", "<variant>")
+        role = roles.get(variant.get("role"))
+        if role is None or role.stage != "end_use":
+            continue
+
+        # Use variant-level inputs if provided, else role-level inputs
+        raw_inputs = variant.get("inputs")
+        if raw_inputs is not None:
+            effective_inputs = [inp["commodity"] for inp in raw_inputs]
+        else:
+            effective_inputs = role.inputs
+
+        physical_inputs = [
+            inp
+            for inp in effective_inputs
+            if _commodity_kind(commodities.get(inp, {})) not in {"service", "emission"}
+        ]
+        if physical_inputs:
+            continue
+        if variant.get("kind") == "demand_measure":
+            continue
+
+        errors.append(
+            {
+                "code": "E_END_USE_PHYSICAL_INPUT",
+                "location": f"process_variants[{variant_id}]",
+                "message": (
+                    "End-use variants must have at least one physical input "
+                    "(fuel/energy/material), unless kind='demand_measure'."
+                ),
+            }
+        )
+
+    for demand in source.get("demands") or []:
+        commodity = demand.get("commodity")
+        comm = commodities.get(commodity)
+        if not comm:
+            continue
+        if comm.get("type") != "service":
+            errors.append(
+                {
+                    "code": "E_DEMAND_COMMODITY_TYPE",
+                    "location": f"demands[{commodity}]",
+                    "message": (
+                        "Demand commodity must be type='service', "
+                        f"got type='{comm.get('type')}'."
+                    ),
+                }
+            )
+
+    for variant in source.get("process_variants") or []:
+        variant_id = variant.get("id", "<variant>")
+        emission_factors = variant.get("emission_factors") or {}
+        for emission_comm in sorted(emission_factors.keys()):
+            comm = commodities.get(emission_comm)
+            if not comm:
+                continue
+            if comm.get("type") != "emission":
+                errors.append(
+                    {
+                        "code": "E_EMISSION_COMMODITY_TYPE",
+                        "location": (
+                            f"process_variants[{variant_id}]."
+                            f"emission_factors[{emission_comm}]"
+                        ),
+                        "message": (
+                            "Emission commodity must be type='emission', "
+                            f"got type='{comm.get('type')}'."
+                        ),
+                    }
+                )
+
+    for constraint in source.get("model", {}).get("constraints", []):
+        if constraint.get("type") != "emission_cap":
+            continue
+        commodity = constraint.get("commodity")
+        comm = commodities.get(commodity)
+        if not comm:
+            continue
+        if comm.get("type") != "emission":
+            constraint_name = constraint.get("name", "<constraint>")
+            errors.append(
+                {
+                    "code": "E_EMISSION_COMMODITY_TYPE",
+                    "location": f"model.constraints[{constraint_name}]",
+                    "message": (
+                        "Emission cap commodity must be type='emission', "
+                        f"got type='{comm.get('type')}'."
+                    ),
+                }
+            )
+
+    if errors:
+        raise VedaLangError(_format_structural_errors(errors))
+
+    return sorted(
+        warnings,
+        key=lambda warn: (warn["code"], warn["location"], warn["message"]),
+    )
 
 
 def _is_time_varying(value) -> bool:
@@ -544,25 +747,153 @@ def validate_cross_references(
                 # Check commodity kind matches scenario type
                 # New naming convention uses 'kind': TRADABLE/SERVICE/EMISSION
                 comm_info = commodities[commodity]
-                comm_kind = comm_info.get("kind", "TRADABLE")
+                comm_type = comm_info.get("type", "energy")
 
                 if scenario_type == "demand_projection":
-                    # demand_projection targets SERVICE commodities (S:* names)
-                    if comm_kind != "SERVICE":
+                    # demand_projection targets service commodities
+                    if comm_type != "service":
                         errors.append(
                             f"demand_projection scenario '{scenario_name}' targets "
-                            f"commodity '{commodity}' (kind '{comm_kind}'), "
-                            "expected 'SERVICE'"
+                            f"commodity '{commodity}' (type '{comm_type}'), "
+                            "expected 'service'"
                         )
 
                 elif scenario_type == "commodity_price":
-                    # commodity_price targets TRADABLE or EMISSION (not SERVICE)
-                    if comm_kind == "SERVICE":
+                    # commodity_price targets non-service commodities
+                    if comm_type == "service":
                         errors.append(
                             f"commodity_price scenario '{scenario_name}' targets "
-                            f"commodity '{commodity}' (kind 'SERVICE'), "
-                            "expected TRADABLE or EMISSION"
+                            f"commodity '{commodity}' (type 'service'), "
+                            "expected non-service type"
                         )
+
+    # Validate case overlay references and conflict-prone selectors
+    case_names_seen: set[str] = set()
+    baseline_cases: list[str] = []
+    constraints_by_name = {c["name"] for c in model.get("constraints", [])}
+    scenario_param_names = {
+        p["name"] for p in model.get("scenario_parameters", []) if "name" in p
+    }
+    for scenario in model.get("scenarios", []):
+        if "name" in scenario:
+            scenario_param_names.add(scenario["name"])
+
+    for case in model.get("cases", []):
+        case_name = case["name"]
+        if case_name in case_names_seen:
+            errors.append(f"Duplicate case name '{case_name}'")
+        case_names_seen.add(case_name)
+
+        if case.get("is_baseline"):
+            baseline_cases.append(case_name)
+
+        includes = set(case.get("includes", []))
+        excludes = set(case.get("excludes", []))
+        overlap = sorted(includes.intersection(excludes))
+        if overlap:
+            errors.append(
+                f"Case '{case_name}' has names in both includes and excludes:"
+                f" {', '.join(overlap)}"
+            )
+
+        unknown_includes = sorted(
+            name
+            for name in includes
+            if name not in scenario_param_names and name not in constraints_by_name
+        )
+        if unknown_includes:
+            errors.append(
+                f"Case '{case_name}' includes unknown names:"
+                f" {', '.join(unknown_includes)}"
+            )
+
+        unknown_excludes = sorted(
+            name
+            for name in excludes
+            if name not in scenario_param_names and name not in constraints_by_name
+        )
+        if unknown_excludes:
+            errors.append(
+                f"Case '{case_name}' excludes unknown names:"
+                f" {', '.join(unknown_excludes)}"
+            )
+
+        demand_selectors_seen: set[tuple[str, str, str]] = set()
+        for idx, override in enumerate(case.get("demand_overrides", [])):
+            commodity = override["commodity"]
+            if commodity not in commodity_names:
+                hint = suggest_commodity(commodity)
+                errors.append(
+                    f"Unknown commodity '{commodity}' in case '{case_name}'"
+                    f" demand_overrides[{idx}].{hint}"
+                )
+
+            region = override.get("region")
+            if region and region not in regions:
+                hint = suggest_region(region)
+                errors.append(
+                    f"Unknown region '{region}' in case '{case_name}'"
+                    f" demand_overrides[{idx}].{hint}"
+                )
+
+            selector = (
+                commodity,
+                region or "",
+                override.get("segment") or override.get("sector") or "",
+            )
+            if selector in demand_selectors_seen:
+                errors.append(
+                    f"Case '{case_name}' has duplicate demand_overrides selectors"
+                    f" {selector}"
+                )
+            demand_selectors_seen.add(selector)
+
+        price_commodities_seen: set[str] = set()
+        for idx, override in enumerate(case.get("fuel_price_overrides", [])):
+            commodity = override["commodity"]
+            if commodity not in commodity_names:
+                hint = suggest_commodity(commodity)
+                errors.append(
+                    f"Unknown commodity '{commodity}' in case '{case_name}'"
+                    f" fuel_price_overrides[{idx}].{hint}"
+                )
+            if commodity in price_commodities_seen:
+                errors.append(
+                    f"Case '{case_name}' has duplicate fuel_price_overrides"
+                    f" for commodity '{commodity}'"
+                )
+            price_commodities_seen.add(commodity)
+
+        constraint_override_names: set[str] = set()
+        for idx, override in enumerate(case.get("constraint_overrides", [])):
+            name = override["name"]
+            if name in constraint_override_names:
+                errors.append(
+                    f"Case '{case_name}' has duplicate constraint_overrides"
+                    f" for '{name}'"
+                )
+            constraint_override_names.add(name)
+            if name not in constraints_by_name:
+                errors.append(
+                    f"Case '{case_name}' constraint_overrides[{idx}] references"
+                    f" unknown constraint '{name}'"
+                )
+
+        variant_override_names: set[str] = set()
+        for override in case.get("variant_overrides", []):
+            variant = override["variant"]
+            if variant in variant_override_names:
+                errors.append(
+                    f"Case '{case_name}' has duplicate variant_overrides"
+                    f" for variant '{variant}'"
+                )
+            variant_override_names.add(variant)
+
+    if len(baseline_cases) > 1:
+        errors.append(
+            "Only one case may be marked is_baseline=true. Found: "
+            + ", ".join(sorted(baseline_cases))
+        )
 
     return errors, warnings
 
@@ -585,7 +916,11 @@ def validate_vedalang(source: dict) -> None:
     jsonschema.validate(source, schema)
 
 
-def _compile_new_syntax(source: dict, validate: bool = True) -> dict:
+def _compile_new_syntax(
+    source: dict,
+    validate: bool = True,
+    selected_cases: list[str] | None = None,
+) -> dict:
     """
     Compile VedaLang source using new P4 syntax (process_roles/variants/availability).
 
@@ -609,10 +944,7 @@ def _compile_new_syntax(source: dict, validate: bool = True) -> dict:
     milestone_years = model.get("milestone_years", [2020])
 
     # Build normalized commodities dict
-    commodities: dict[str, dict] = {}
-    for raw in model.get("commodities", []):
-        norm = normalize_commodity(raw)
-        commodities[norm["id"]] = norm
+    commodities = _normalize_commodities_for_new_syntax(model.get("commodities", []))
 
     # Build segment keys
     seg_cfg = source.get("segments") or {}
@@ -620,9 +952,14 @@ def _compile_new_syntax(source: dict, validate: bool = True) -> dict:
 
     # Build roles from process_roles
     roles = build_roles(source, commodities)
+    convention_warnings = _validate_new_syntax_structural_invariants(
+        source,
+        roles,
+        commodities,
+    )
 
     # Build variants from process_variants
-    variants = build_variants(source, roles)
+    variants = build_variants(source, roles, commodities)
 
     # Expand availability to process instances
     instances = expand_availability(source, variants, segment_keys)
@@ -633,10 +970,22 @@ def _compile_new_syntax(source: dict, validate: bool = True) -> dict:
     # Create naming registry for deterministic symbols
     registry = NamingRegistry()
 
-    # Lower instances to TableIR process rows
-    process_instance_rows = lower_instances_to_tableir(
-        instances, commodities, segment_keys, registry
+    # Build solve-independent metadata map for diagnostics resolution
+    metadata_map = _build_metadata_map(instances, commodities, registry)
+    variant_symbol_map: dict[str, list[dict[str, str]]] = {}
+    for process_symbol, meta in metadata_map.items():
+        variant_symbol_map.setdefault(meta["variant"], []).append(
+            {
+                "process": process_symbol,
+                "region": meta["region"],
+            }
+        )
+    diagnostics_export = _resolve_diagnostics_boundaries(
+        source.get("diagnostics"), metadata_map
     )
+
+    # Lowering is intentionally deferred to explicit FI_* row construction below.
+    lower_instances_to_tableir(instances, commodities, segment_keys, registry)
 
     # Compile demands to scenario parameters
     demand_params = compile_demands(source, commodities, segment_keys, registry)
@@ -646,7 +995,7 @@ def _compile_new_syntax(source: dict, validate: bool = True) -> dict:
     for comm_id, comm in commodities.items():
         comm_rows.append({
             "region": default_region,
-            "csets": _commodity_type_to_csets(comm.get("kind", "carrier")),
+            "csets": _commodity_type_to_csets(comm.get("type", "energy")),
             "commodity": registry.get_commodity_symbol(comm_id, None),
             "unit": comm.get("unit", "PJ"),
         })
@@ -657,7 +1006,9 @@ def _compile_new_syntax(source: dict, validate: bool = True) -> dict:
                 if scoped_sym != comm_id:  # Only add if different
                     comm_rows.append({
                         "region": default_region,
-                        "csets": _commodity_type_to_csets(comm.get("kind", "carrier")),
+                        "csets": _commodity_type_to_csets(
+                            comm.get("type", "energy")
+                        ),
                         "commodity": scoped_sym,
                         "unit": comm.get("unit", "PJ"),
                     })
@@ -669,7 +1020,11 @@ def _compile_new_syntax(source: dict, validate: bool = True) -> dict:
         row = {
             "region": key.region,
             "process": prc_name,
-            "sets": ",".join(["DMD"] if _produces_service_comm(instance.role.outputs, commodities) else []),
+            "sets": ",".join(
+                ["DMD"]
+                if _produces_service_comm(instance.role.outputs, commodities)
+                else []
+            ),
             "tact": "PJ",
             "tcap": "GW",
         }
@@ -683,8 +1038,9 @@ def _compile_new_syntax(source: dict, validate: bool = True) -> dict:
         role = instance.role
         attrs = instance.attrs
 
-        # Input commodities
-        for inp_id in role.inputs:
+        # Input commodities (use variant-level override if present)
+        effective_inputs = instance.variant.effective_inputs
+        for inp_id in effective_inputs:
             comm = commodities.get(inp_id, {})
             tradable = comm.get("tradable", True)
             if tradable:
@@ -700,10 +1056,10 @@ def _compile_new_syntax(source: dict, validate: bool = True) -> dict:
         # Output commodities
         for out_id in role.outputs:
             comm = commodities.get(out_id, {})
-            comm_kind = comm.get("kind", "carrier")
+            comm_kind = _commodity_kind(comm)
             tradable = comm.get("tradable", True)
             # Emission commodities are always region-wide (never segment-scoped)
-            if comm_kind in ("emission", "EMISSION") or tradable:
+            if comm_kind == "emission" or tradable:
                 scoped_id = registry.get_commodity_symbol(out_id, None)
             else:
                 scoped_id = registry.get_commodity_symbol(out_id, key.segment)
@@ -820,7 +1176,9 @@ def _compile_new_syntax(source: dict, validate: bool = True) -> dict:
     bookregions_rows = [{"bookname": bookname, "region": r} for r in regions]
     startyear_rows = [{"value": start_year}]
     milestoneyears_rows = [{"type": "Endyear", "year": last_year + 10}]
-    milestoneyears_rows += [{"type": "milestoneyear", "year": y} for y in milestone_years]
+    milestoneyears_rows += [
+        {"type": "milestoneyear", "year": y} for y in milestone_years
+    ]
     currencies_rows = [{"currency": "USD"}]
 
     discount_rate = model.get("discount_rate", 0.05)
@@ -876,6 +1234,7 @@ def _compile_new_syntax(source: dict, validate: bool = True) -> dict:
     cases = model.get("cases", [])
     if not cases:
         cases = [{"name": "baseline", "is_baseline": True}]
+    cases = _select_cases(cases, selected_cases)
 
     scenario_files, cases_json = _compile_scenario_files(
         all_scenario_params,
@@ -884,6 +1243,7 @@ def _compile_new_syntax(source: dict, validate: bool = True) -> dict:
         regions,
         milestone_years,
         default_region,
+        variant_symbol_map=variant_symbol_map,
     )
 
     # Trade links
@@ -895,11 +1255,20 @@ def _compile_new_syntax(source: dict, validate: bool = True) -> dict:
     tableir = {
         "files": [
             {"path": "syssettings.xlsx", "sheets": syssettings_sheets},
-            {"path": process_file_path, "sheets": [{"name": "Processes", "tables": process_tables}]},
+            {
+                "path": process_file_path,
+                "sheets": [{"name": "Processes", "tables": process_tables}],
+            },
             *scenario_files,
             *trade_link_files,
         ],
         "cases": cases_json,
+        "metadata_map": {"processes": metadata_map},
+        "diagnostics_export": diagnostics_export,
+        "convention_diagnostics": {
+            "contract": "res_conventions_v1",
+            "warnings": convention_warnings,
+        },
     }
 
     if validate:
@@ -918,12 +1287,351 @@ def _produces_service_comm(outputs: list[str], commodities: dict[str, dict]) -> 
     """Check if any output is a service commodity."""
     for out_id in outputs:
         if out_id in commodities:
-            if commodities[out_id].get("kind") == "service":
+            if _commodity_kind(commodities[out_id]) == "service":
                 return True
     return False
 
 
-def compile_vedalang_to_tableir(source: dict, validate: bool = True) -> dict:
+def _commodity_kind(comm: dict) -> str:
+    """Return canonical commodity kind."""
+    ctype = comm.get("type")
+    return {
+        "fuel": "carrier",
+        "energy": "carrier",
+        "service": "service",
+        "material": "material",
+        "emission": "emission",
+        "other": "carrier",
+    }.get(ctype, "carrier")
+
+
+def _primary_output_for_role(role, commodities: dict[str, dict]) -> str | None:
+    """Select primary output as first non-emission output, fallback to first output."""
+    non_emission = [
+        out
+        for out in role.outputs
+        if _commodity_kind(commodities.get(out, {})) != "emission"
+    ]
+    if non_emission:
+        return non_emission[0]
+    if role.outputs:
+        return role.outputs[0]
+    return None
+
+
+def _validate_role_primary_outputs(
+    roles: dict,
+    commodities: dict[str, dict],
+) -> list[tuple[str, str]]:
+    """Enforce one primary non-emission output for non-storage/sink roles."""
+    errors: list[tuple[str, str]] = []
+    for role in roles.values():
+        if role.stage in {"storage", "sink"}:
+            continue
+        non_emission = [
+            out
+            for out in role.outputs
+            if _commodity_kind(commodities.get(out, {})) != "emission"
+        ]
+        if len(non_emission) != 1:
+            errors.append(
+                (
+                    role.id,
+                    (
+                        "Role must have exactly one primary non-emission output "
+                        f"for stage '{role.stage}' (found {len(non_emission)})."
+                    ),
+                )
+            )
+    return errors
+
+
+def _is_service_end_use_role(role, commodities: dict[str, dict]) -> bool:
+    """Return True for end-use roles whose primary output is a service commodity."""
+    if role.stage != "end_use":
+        return False
+    primary = _primary_output_for_role(role, commodities)
+    if primary is None:
+        return False
+    return commodities.get(primary, {}).get("type") == "service"
+
+
+def _suggest_merged_service_role_name(service_commodity: str) -> str:
+    """Build deterministic merge suggestion from the shared service commodity."""
+    return f"provide_{service_commodity}"
+
+
+def _detect_service_role_duplication(
+    roles: dict,
+    commodities: dict[str, dict],
+) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
+    """Detect duplicated fuel-pathway service roles and emit E1/W1/W2 diagnostics."""
+    grouped: dict[str, list] = {}
+    errors: list[dict[str, str]] = []
+    warnings: list[dict[str, str]] = []
+
+    for role in roles.values():
+        if not _is_service_end_use_role(role, commodities):
+            continue
+        primary = _primary_output_for_role(role, commodities)
+        if primary is None:
+            continue
+        grouped.setdefault(primary, []).append(role)
+
+        # W2: role names should describe the service, not fuel pathways.
+        fuelish_inputs = [
+            inp
+            for inp in role.inputs
+            if commodities.get(inp, {}).get("type") in {"fuel", "energy"}
+        ]
+        if fuelish_inputs and ROLE_FUEL_PATHWAY_PATTERN.search(role.id):
+            warnings.append(
+                {
+                    "code": "W2_FUEL_PATHWAY_ROLE_NAME",
+                    "location": f"process_roles[{role.id}]",
+                    "message": (
+                        "Role name appears to encode fuel pathway semantics. "
+                        "Use service-level names on roles and move pathway "
+                        "choices to variants."
+                    ),
+                }
+            )
+
+    for service, role_group in sorted(grouped.items()):
+        sorted_roles = sorted(role_group, key=lambda role: role.id)
+        if len(sorted_roles) < 2:
+            continue
+
+        merged_name = _suggest_merged_service_role_name(service)
+        role_names = ", ".join(role.id for role in sorted_roles)
+        errors.append(
+            {
+                "code": "E1_DUPLICATE_SERVICE_ROLES",
+                "location": (
+                    f"process_roles[{service}]"
+                ),
+                "message": (
+                    "Fuel-pathway role duplication detected for service commodity "
+                    f"'{service}' at stage 'end_use': {role_names}. "
+                    "Merge into one service role "
+                    f"(e.g., '{merged_name}') and express pathways as variants."
+                ),
+            }
+        )
+
+        signatures: dict[tuple[tuple[str, ...], tuple[str, ...]], list[str]] = {}
+        for role in sorted_roles:
+            signature = (
+                tuple(sorted(role.inputs)),
+                tuple(sorted(role.outputs)),
+            )
+            signatures.setdefault(signature, []).append(role.id)
+
+        for signature_roles in signatures.values():
+            if len(signature_roles) < 2:
+                continue
+            warnings.append(
+                {
+                    "code": "W1_SPLIT_IDENTICAL_IO_ROLES",
+                    "location": f"process_roles[{service}]",
+                    "message": (
+                        "Multiple end-use roles share identical "
+                        "input/output structure: "
+                        f"{', '.join(sorted(signature_roles))}. "
+                        "Consider merging into one service role with multiple variants."
+                    ),
+                }
+            )
+
+    return errors, warnings
+
+
+def _derive_variant_kind(
+    role,
+    variant_attrs: dict,
+    commodities: dict[str, dict],
+    outputs: list[str],
+) -> tuple[str, str]:
+    """Return effective and derived process kind for diagnostics metadata."""
+    derived_kind = _derive_kind_from_structure(role, commodities, outputs)
+
+    explicit = variant_attrs.get("kind")
+    if explicit:
+        return explicit, derived_kind
+
+    return derived_kind, derived_kind
+
+
+def _derive_kind_from_structure(
+    role,
+    commodities: dict[str, dict],
+    outputs: list[str],
+) -> str:
+    """Auto-derived kind from PRD stage/output conventions.
+
+    Rules:
+    - stage=storage => storage
+    - stage=end_use with service output => device
+    - stage=conversion with electricity output => generator
+    """
+    if role.stage == "storage":
+        return "storage"
+
+    if role.stage == "end_use" and _has_service_output(outputs, commodities):
+        return "device"
+
+    if role.stage == "conversion" and _has_electricity_output(outputs, commodities):
+        return "generator"
+
+    return "process"
+
+
+def _has_service_output(outputs: list[str], commodities: dict[str, dict]) -> bool:
+    """Return True when any output commodity is a service commodity."""
+    return any(
+        _commodity_kind(commodities.get(out, {})) == "service"
+        for out in outputs
+    )
+
+
+def _has_electricity_output(outputs: list[str], commodities: dict[str, dict]) -> bool:
+    """Return True when an output appears to be electricity commodity."""
+    electricity_tokens = ("electricity", "elc", "elec")
+    for out in outputs:
+        commodity = commodities.get(out, {})
+        if commodity.get("type") != "energy":
+            continue
+        normalized_out = out.lower()
+        if any(token in normalized_out for token in electricity_tokens):
+            return True
+    return False
+
+
+def _build_metadata_map(
+    instances: dict,
+    commodities: dict[str, dict],
+    registry: NamingRegistry,
+) -> dict[str, dict]:
+    """Build solve-independent metadata map for diagnostics boundary resolution."""
+    metadata: dict[str, dict] = {}
+    for key, instance in sorted(instances.items()):
+        symbol = registry.get_process_symbol(key.variant_id, key.region, key.segment)
+        role = instance.role
+        service = _primary_output_for_role(role, commodities)
+        effective_inputs = instance.variant.effective_inputs
+        carriers = [
+            inp
+            for inp in effective_inputs
+            if _commodity_kind(commodities.get(inp, {})) != "emission"
+        ]
+        sector = None
+        if key.segment:
+            sector = key.segment.split(".")[0]
+        semantic_kind, derived_kind = _derive_variant_kind(
+            role,
+            instance.attrs,
+            commodities,
+            role.outputs,
+        )
+        metadata[symbol] = {
+            "variant": key.variant_id,
+            "region": key.region,
+            "segment": key.segment,
+            "stage": role.stage,
+            "sector": sector,
+            "service": service,
+            "carrier_in": carriers,
+            "kind": semantic_kind,
+            "derived_kind": derived_kind,
+            "kind_source": "explicit" if "kind" in instance.attrs else "derived",
+            "exclude_from_fuel_switch": semantic_kind == "demand_measure",
+        }
+    return metadata
+
+
+def _resolve_diagnostics_boundaries(
+    diagnostics: dict | None,
+    metadata_map: dict[str, dict],
+) -> dict:
+    """Resolve diagnostics boundaries to concrete process symbols."""
+    if not diagnostics:
+        return {
+            "contract": "diagnostics_are_solve_independent",
+            "on_empty_boundary": "warn",
+            "boundaries": [],
+            "metrics": [],
+            "warnings": [],
+        }
+
+    warnings = []
+    on_empty = diagnostics.get("on_empty_boundary", "warn")
+    resolved = []
+
+    for boundary in diagnostics.get("boundaries", []):
+        selectors = boundary.get("selectors", {})
+        stage_in = set(selectors.get("stage_in", []))
+        sector_in = set(selectors.get("sector_in", []))
+        service_in = set(selectors.get("service_in", []))
+        kind_in = set(selectors.get("kind_in", []))
+        include_any = selectors.get("include_any", [])
+        exclude_any = selectors.get("exclude_any", [])
+        measure = boundary.get("measure")
+
+        matches = []
+        for symbol, meta in metadata_map.items():
+            if stage_in and meta.get("stage") not in stage_in:
+                continue
+            if sector_in and meta.get("sector") not in sector_in:
+                continue
+            if service_in and meta.get("service") not in service_in:
+                continue
+            if kind_in and meta.get("kind") not in kind_in:
+                continue
+            if include_any and not any(token in symbol for token in include_any):
+                continue
+            if exclude_any and any(token in symbol for token in exclude_any):
+                continue
+
+            # Opinionated measure-specific filtering
+            if measure == "generation_outputs" and meta.get("kind") != "generator":
+                continue
+            if measure == "end_use_inputs" and meta.get("exclude_from_fuel_switch"):
+                continue
+
+            matches.append(symbol)
+
+        if not matches:
+            msg = f"Boundary '{boundary['id']}' resolved to zero processes"
+            if on_empty == "error":
+                raise VedaLangError(msg)
+            warnings.append(msg)
+
+        resolved.append(
+            {
+                "id": boundary["id"],
+                "measure": measure,
+                "selectors": selectors,
+                "default_exclusions": (
+                    ["kind=demand_measure"] if measure == "end_use_inputs" else []
+                ),
+                "processes": sorted(matches),
+            }
+        )
+
+    return {
+        "contract": "diagnostics_are_solve_independent",
+        "on_empty_boundary": on_empty,
+        "boundaries": resolved,
+        "metrics": diagnostics.get("metrics", []),
+        "warnings": warnings,
+    }
+
+
+def compile_vedalang_to_tableir(
+    source: dict,
+    validate: bool = True,
+    selected_cases: list[str] | None = None,
+) -> dict:
     """
     Transform VedaLang source to TableIR structure.
 
@@ -943,7 +1651,7 @@ def compile_vedalang_to_tableir(source: dict, validate: bool = True) -> dict:
 
     # Detect new syntax: process_roles is at top-level (not in model)
     if source.get("process_roles"):
-        return _compile_new_syntax(source, validate)
+        return _compile_new_syntax(source, validate, selected_cases)
 
     model = source["model"]
 
@@ -970,8 +1678,8 @@ def compile_vedalang_to_tableir(source: dict, validate: bool = True) -> dict:
     # Use lowercase column names for xl2times compatibility
     comm_rows = []
     for commodity in model.get("commodities", []):
-        # Use 'kind' (new naming convention) with fallback to 'type' (legacy)
-        comm_kind = commodity.get("kind") or commodity.get("type", "TRADABLE")
+        # commodity.type is the canonical field
+        comm_kind = commodity.get("type", "energy")
         # Use explicit unit or default based on commodity kind
         unit = commodity.get("unit") or _get_default_unit(comm_kind)
         comm_rows.append({
@@ -1272,6 +1980,7 @@ def compile_vedalang_to_tableir(source: dict, validate: bool = True) -> dict:
     if not cases:
         # Default case includes all parameters
         cases = [{"name": "baseline", "is_baseline": True}]
+    cases = _select_cases(cases, selected_cases)
 
     # Build scenario files organized by case and category
     scenario_files, cases_json = _compile_scenario_files(
@@ -1281,6 +1990,7 @@ def compile_vedalang_to_tableir(source: dict, validate: bool = True) -> dict:
         regions,
         model_years,
         default_region,
+        variant_symbol_map=None,
     )
 
     # Compile timeslices — always emit at least ANNUAL
@@ -1479,15 +2189,15 @@ def _collect_bound_params(
 def _commodity_type_to_csets(ctype: str) -> str:
     """Map VedaLang commodity kind/type to VEDA Csets."""
     mapping = {
-        # New naming convention (kind)
-        "TRADABLE": "NRG",
-        "SERVICE": "DEM",
-        "EMISSION": "ENV",
-        # Legacy names (type) for backward compatibility
+        # Canonical commodity types
+        "fuel": "NRG",
         "energy": "NRG",
+        "service": "DEM",
         "material": "MAT",
         "emission": "ENV",
-        "demand": "DEM",
+        "other": "NRG",
+        # Normalized internal commodity class used in compiler internals
+        "carrier": "NRG",
     }
     return mapping.get(ctype, "NRG")
 
@@ -1618,7 +2328,10 @@ def _compile_commodity_price_scenario(
     )
 
     rows = []
-    for region in regions:
+    scenario_region = scenario.get("region")
+    target_regions = [scenario_region] if scenario_region else regions
+
+    for region in target_regions:
         for year, value in sorted(dense_values.items()):
             rows.append({
                 "region": region,
@@ -1664,7 +2377,10 @@ def _compile_demand_projection_scenario(
     )
 
     rows = []
-    for region in regions:
+    scenario_region = scenario.get("region")
+    target_regions = [scenario_region] if scenario_region else regions
+
+    for region in target_regions:
         for year, value in sorted(dense_values.items()):
             rows.append({
                 "region": region,
@@ -1697,6 +2413,440 @@ def _get_constraint_category(constraint: dict) -> str:
     return constraint.get("category", "policies")
 
 
+def _select_cases(cases: list[dict], selected_cases: list[str] | None) -> list[dict]:
+    """Filter case definitions to selected names while preserving source order."""
+    if not selected_cases:
+        return cases
+
+    selected = list(dict.fromkeys(selected_cases))
+    available = {case["name"] for case in cases}
+    missing = [name for name in selected if name not in available]
+    if missing:
+        available_str = ", ".join(sorted(available)) or "<none>"
+        raise VedaLangError(
+            "Unknown case(s) requested: "
+            f"{', '.join(missing)}. Available cases: {available_str}"
+        )
+
+    selected_set = set(selected)
+    return [case for case in cases if case["name"] in selected_set]
+
+def _merge_case_series(
+    base_values: dict[str, float],
+    base_interpolation: str,
+    override_values: dict[str, float] | None,
+    override_interpolation: str,
+    override_scale: float | None,
+    model_years: list[int],
+) -> dict[str, float]:
+    """Merge a base time series with case overrides deterministically."""
+    dense: dict[int, float] = {}
+
+    if base_values:
+        dense.update(
+            _expand_series_to_years(base_values, model_years, base_interpolation)
+        )
+
+    if not dense and override_values:
+        dense.update(
+            _expand_series_to_years(
+                override_values,
+                model_years,
+                override_interpolation,
+            )
+        )
+
+    if override_scale is not None:
+        dense = {year: value * override_scale for year, value in dense.items()}
+
+    if override_values:
+        if base_values:
+            for year_str, value in override_values.items():
+                dense[int(year_str)] = value
+        else:
+            dense.update(
+                _expand_series_to_years(
+                    override_values,
+                    model_years,
+                    override_interpolation,
+                )
+            )
+
+    return {str(year): value for year, value in sorted(dense.items())}
+
+def _apply_case_parameter_overrides(
+    scenario_params: list[dict],
+    case: dict,
+    model_years: list[int],
+) -> list[dict]:
+    """Apply case-level demand and price overlays to scenario parameters."""
+    merged_params: list[dict] = []
+    for param in scenario_params:
+        cloned = deepcopy(param)
+        merged_params.append(cloned)
+
+    case_name = case["name"]
+
+    seen_demand_selectors: set[tuple[str, str, str]] = set()
+    for idx, override in enumerate(case.get("demand_overrides", [])):
+        selector_segment = override.get("segment") or override.get("sector") or ""
+        selector_region = override.get("region", "")
+        selector = (override["commodity"], selector_region, selector_segment)
+        if selector in seen_demand_selectors:
+            raise VedaLangError(
+                "Conflicting demand_overrides in "
+                f"case '{case_name}' for selector {selector}"
+            )
+        seen_demand_selectors.add(selector)
+
+        matching_indices = []
+        for param_idx, param in enumerate(merged_params):
+            if param.get("type") != "demand_projection":
+                continue
+            param_commodity = str(param.get("commodity", ""))
+            base_commodity = override["commodity"]
+            if (
+                param_commodity != base_commodity
+                and not param_commodity.startswith(f"{base_commodity}@")
+            ):
+                continue
+            if override.get("region") and param.get("region") != override["region"]:
+                continue
+            param_segment = param.get("segment") or param.get("sector")
+            if selector_segment and param_segment != selector_segment:
+                continue
+            matching_indices.append(param_idx)
+
+        if len(matching_indices) > 1:
+            raise VedaLangError(
+                "Ambiguous demand_overrides target in "
+                f"case '{case_name}' for commodity '{override['commodity']}'"
+            )
+
+        override_values = override.get("values")
+        override_scale = override.get("scale")
+        if override_values is None and override_scale is None:
+            raise VedaLangError(
+                f"case '{case_name}' demand_overrides[{idx}] must set"
+                " at least one of: values, scale"
+            )
+
+        if matching_indices:
+            target = merged_params[matching_indices[0]]
+            target_interpolation = target.get("interpolation", "interp_extrap")
+            override_interpolation = override.get(
+                "interpolation",
+                target_interpolation,
+            )
+            merged_values = _merge_case_series(
+                target.get("values", {}),
+                target_interpolation,
+                override_values,
+                override_interpolation,
+                override_scale,
+                model_years,
+            )
+            target["values"] = merged_values
+            target["interpolation"] = "none"
+            continue
+
+        if override_scale is not None and not override_values:
+            raise VedaLangError(
+                "demand_overrides with only 'scale' must target an existing base "
+                "demand series "
+                f"(case '{case_name}', commodity '{override['commodity']}')"
+            )
+
+        parts = [
+            override.get("region"),
+            override.get("sector"),
+            override.get("segment"),
+        ]
+        scope = "_".join([p for p in parts if p])
+        param_name = f"{case_name}_demand_override_{override['commodity']}_{idx}"
+        if scope:
+            param_name = f"{param_name}_{scope}"
+
+        merged_values = _merge_case_series(
+            {},
+            "interp_extrap",
+            override_values,
+            override.get("interpolation", "interp_extrap"),
+            override_scale,
+            model_years,
+        )
+        new_param = {
+            "name": param_name,
+            "type": "demand_projection",
+            "category": "demands",
+            "commodity": (
+                f"{override['commodity']}@{selector_segment}"
+                if selector_segment and "@" not in override["commodity"]
+                else override["commodity"]
+            ),
+            "values": merged_values,
+            "interpolation": "none",
+        }
+        if override.get("region"):
+            new_param["region"] = override["region"]
+        if selector_segment:
+            new_param["segment"] = selector_segment
+        merged_params.append(new_param)
+
+    seen_price_commodities: set[str] = set()
+    for idx, override in enumerate(case.get("fuel_price_overrides", [])):
+        commodity = override["commodity"]
+        if commodity in seen_price_commodities:
+            raise VedaLangError(
+                f"Conflicting fuel_price_overrides in case '{case_name}'"
+                f" for commodity '{commodity}'"
+            )
+        seen_price_commodities.add(commodity)
+
+        matching_indices = [
+            param_idx
+            for param_idx, param in enumerate(merged_params)
+            if param.get("type") == "commodity_price"
+            and param.get("commodity") == commodity
+        ]
+
+        if len(matching_indices) > 1:
+            raise VedaLangError(
+                "Ambiguous fuel_price_overrides target in "
+                f"case '{case_name}' for commodity '{commodity}'"
+            )
+
+        override_values = override.get("values")
+        if override_values is None:
+            raise VedaLangError(
+                f"case '{case_name}' fuel_price_overrides[{idx}] is missing 'values'"
+            )
+
+        if matching_indices:
+            target = merged_params[matching_indices[0]]
+            target_interpolation = target.get("interpolation", "interp_extrap")
+            override_interpolation = override.get(
+                "interpolation",
+                target_interpolation,
+            )
+            merged_values = _merge_case_series(
+                target.get("values", {}),
+                target_interpolation,
+                override_values,
+                override_interpolation,
+                None,
+                model_years,
+            )
+            target["values"] = merged_values
+            target["interpolation"] = "none"
+            continue
+
+        merged_values = _merge_case_series(
+            {},
+            "interp_extrap",
+            override_values,
+            override.get("interpolation", "interp_extrap"),
+            None,
+            model_years,
+        )
+        merged_params.append(
+            {
+                "name": f"{case_name}_price_override_{commodity}_{idx}",
+                "type": "commodity_price",
+                "category": "prices",
+                "commodity": commodity,
+                "values": merged_values,
+                "interpolation": "none",
+            }
+        )
+
+    return merged_params
+
+def _validate_case_overlay_configuration(
+    scenario_params: list[dict],
+    constraints: list[dict],
+    cases: list[dict],
+) -> None:
+    """Validate case overlay references and conflicting selectors."""
+    available_names = {
+        param["name"] for param in scenario_params if "name" in param
+    }
+    available_names.update(
+        constraint["name"] for constraint in constraints if "name" in constraint
+    )
+
+    baseline_cases = [case["name"] for case in cases if case.get("is_baseline")]
+    if len(baseline_cases) > 1:
+        raise VedaLangError(
+            "Only one case may be marked is_baseline=true. Found: "
+            + ", ".join(sorted(baseline_cases))
+        )
+
+    for case in cases:
+        case_name = case["name"]
+        includes = set(case.get("includes", []))
+        excludes = set(case.get("excludes", []))
+        overlap = sorted(includes.intersection(excludes))
+        if overlap:
+            raise VedaLangError(
+                f"Case '{case_name}' has names in both includes and excludes:"
+                f" {', '.join(overlap)}"
+            )
+
+        unknown_includes = sorted(
+            name for name in includes if name not in available_names
+        )
+        if unknown_includes:
+            raise VedaLangError(
+                f"Case '{case_name}' includes unknown names:"
+                f" {', '.join(unknown_includes)}"
+            )
+
+        unknown_excludes = sorted(
+            name for name in excludes if name not in available_names
+        )
+        if unknown_excludes:
+            raise VedaLangError(
+                f"Case '{case_name}' excludes unknown names:"
+                f" {', '.join(unknown_excludes)}"
+            )
+
+        constraint_override_names: set[str] = set()
+        constraint_names = {constraint["name"] for constraint in constraints}
+        for override in case.get("constraint_overrides", []):
+            name = override["name"]
+            if name in constraint_override_names:
+                raise VedaLangError(
+                    "Case "
+                    f"'{case_name}' has duplicate constraint_overrides for '{name}'"
+                )
+            constraint_override_names.add(name)
+            if name not in constraint_names:
+                raise VedaLangError(
+                    f"Case '{case_name}' has constraint_overrides for unknown"
+                    f" constraint '{name}'"
+                )
+
+        variant_override_names: set[str] = set()
+        for override in case.get("variant_overrides", []):
+            variant = override["variant"]
+            if variant in variant_override_names:
+                raise VedaLangError(
+                    f"Case '{case_name}' has duplicate variant_overrides"
+                    f" for variant '{variant}'"
+                )
+            variant_override_names.add(variant)
+
+
+def _constraints_for_case(base_constraints: list[dict], case: dict) -> list[dict]:
+    """Apply case constraint overrides to base constraints."""
+    overrides = {o["name"]: o for o in case.get("constraint_overrides", [])}
+    resolved = []
+    for constraint in base_constraints:
+        override = overrides.get(constraint["name"])
+        if override and override.get("enabled") is False:
+            continue
+        merged = dict(constraint)
+        if override:
+            for key in (
+                "limit",
+                "limtype",
+                "minimum_share",
+                "maximum_share",
+                "years",
+            ):
+                if key in override:
+                    merged[key] = override[key]
+        resolved.append(merged)
+    return resolved
+
+
+def _variant_override_tfm_rows(
+    case: dict,
+    variant_symbol_map: dict[str, list[dict[str, str]]] | None,
+    model_years: list[int],
+) -> list[dict]:
+    """Build ~TFM_INS rows for case-level variant overrides."""
+    if not variant_symbol_map:
+        return []
+
+    attr_map = {
+        "efficiency": "ACT_EFF",
+        "investment_cost": "NCAP_COST",
+        "fixed_om_cost": "NCAP_FOM",
+        "variable_om_cost": "ACT_COST",
+        "lifetime": "NCAP_TLIFE",
+    }
+
+    rows: list[dict] = []
+    for override in case.get("variant_overrides", []):
+        variant = override["variant"]
+        entries = variant_symbol_map.get(variant, [])
+        if not entries:
+            raise VedaLangError(
+                f"case '{case['name']}' references unknown"
+                f" or unavailable variant '{variant}'"
+            )
+
+        if override.get("enabled", True) is False:
+            for entry in entries:
+                symbol = entry["process"]
+                region = entry["region"]
+                for year in model_years:
+                    rows.append(
+                        {
+                            "region": region,
+                            "process": symbol,
+                            "year": year,
+                            "attribute": "NCAP_BND",
+                            "limtype": "FX",
+                            "value": 0,
+                        }
+                    )
+                    rows.append(
+                        {
+                            "region": region,
+                            "process": symbol,
+                            "year": year,
+                            "attribute": "ACT_BND",
+                            "limtype": "FX",
+                            "value": 0,
+                        }
+                    )
+
+        for attr_name, times_attr in attr_map.items():
+            if attr_name not in override:
+                continue
+
+            value = override[attr_name]
+            if _is_time_varying(value):
+                sparse_values = value.get("values", {})
+                interpolation = value.get("interpolation", "interp_extrap")
+                dense_values = _expand_series_to_years(
+                    sparse_values,
+                    model_years,
+                    interpolation,
+                )
+            else:
+                dense_values = {year: value for year in model_years}
+
+            for entry in entries:
+                symbol = entry["process"]
+                region = entry["region"]
+                for year, attr_value in sorted(dense_values.items()):
+                    rows.append(
+                        {
+                            "region": region,
+                            "process": symbol,
+                            "year": year,
+                            "attribute": times_attr,
+                            "value": attr_value,
+                        }
+                    )
+
+    return rows
+
+
 def _compile_scenario_files(
     scenario_params: list[dict],
     constraints: list[dict],
@@ -1704,6 +2854,7 @@ def _compile_scenario_files(
     regions: list[str],
     model_years: list[int],
     default_region: str,
+    variant_symbol_map: dict[str, list[dict[str, str]]] | None = None,
 ) -> tuple[list[dict], list[dict]]:
     """
     Compile scenario parameters and constraints into case-organized files.
@@ -1729,15 +2880,28 @@ def _compile_scenario_files(
     scenario_files = []
     cases_json = []
 
+    _validate_case_overlay_configuration(scenario_params, constraints, cases)
+
     for case in cases:
         case_name = case["name"]
         includes = set(case.get("includes", []))
         excludes = set(case.get("excludes", []))
+        case_scenario_params = _apply_case_parameter_overrides(
+            scenario_params,
+            case,
+            model_years,
+        )
+        case_constraints = _constraints_for_case(constraints, case)
+        variant_rows = _variant_override_tfm_rows(
+            case,
+            variant_symbol_map,
+            model_years,
+        )
 
         # Group parameters by category for this case
         params_by_category: dict[str, list[dict]] = defaultdict(list)
 
-        for param in scenario_params:
+        for param in case_scenario_params:
             param_name = param["name"]
 
             # Check if parameter is included in this case
@@ -1766,7 +2930,7 @@ def _compile_scenario_files(
                 })
 
         # Group constraints by category for this case
-        for constraint in constraints:
+        for constraint in case_constraints:
             constraint_name = constraint["name"]
 
             # Check if constraint is included in this case
@@ -1791,6 +2955,16 @@ def _compile_scenario_files(
                     "uc_sets": {"R_E": "AllRegions", "T_E": ""},
                 })
 
+        if variant_rows:
+            params_by_category["technology_assumptions"].append(
+                {
+                    "name": f"{case_name}_variant_overrides",
+                    "description": "Generated from case.variant_overrides",
+                    "rows": variant_rows,
+                    "tag": "~TFM_INS",
+                }
+            )
+
         # Build files for each category
         case_scenario_files = []
         for category, items in sorted(params_by_category.items()):
@@ -1802,6 +2976,7 @@ def _compile_scenario_files(
 
             # Group items by tag (TFM_DINS-AT vs UC_T)
             tfm_items = [i for i in items if i["tag"] == "~TFM_DINS-AT"]
+            tfm_ins_items = [i for i in items if i["tag"] == "~TFM_INS"]
             uc_items = [i for i in items if i["tag"] == "~UC_T"]
 
             # Build TFM sheet with all scenario parameter rows
@@ -1816,6 +2991,20 @@ def _compile_scenario_files(
                     "name": sheet_name,
                     "tables": [{"tag": "~TFM_DINS-AT", "rows": all_tfm_rows}],
                 })
+
+            if tfm_ins_items:
+                all_tfm_ins_rows = []
+                for item in tfm_ins_items:
+                    all_tfm_ins_rows.extend(item["rows"])
+                sheet_name = _category_to_sheet_name(category)
+                if tfm_items:
+                    sheet_name = f"{sheet_name}Attributes"
+                sheets.append(
+                    {
+                        "name": sheet_name,
+                        "tables": [{"tag": "~TFM_INS", "rows": all_tfm_ins_rows}],
+                    }
+                )
 
             # Build UC sheets - ONE ~UC_T per constraint (not merged)
             for uc_item in uc_items:
@@ -2297,6 +3486,7 @@ def _compile_emission_cap(
             "description": description,
             "region": region,
             "year": year,
+            "process": "",
             "commodity": commodity,
             "side": "LHS",
             "uc_comprd": 1,
@@ -2310,6 +3500,8 @@ def _compile_emission_cap(
             "description": description,
             "region": region,
             "year": year,
+            "process": "",
+            "commodity": "",
             "limtype": limtype,
             "uc_rhsrt": dense_values[year],
         })
@@ -2428,6 +3620,7 @@ def _compile_share_constraint(
                 "region": region,
                 "year": year,
                 "process": process,
+                "commodity": "",
                 "side": "LHS",
                 "uc_act": 1,
             })
@@ -2439,6 +3632,7 @@ def _compile_share_constraint(
             "description": description,
             "region": region,
             "year": year,
+            "process": "",
             "commodity": commodity,
             "side": "LHS",
             "uc_comprd": -share,
@@ -2451,6 +3645,8 @@ def _compile_share_constraint(
             "description": description,
             "region": region,
             "year": year,
+            "process": "",
+            "commodity": "",
             "limtype": limtype,
             "uc_rhsrt": 0,
         })

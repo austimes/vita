@@ -1,11 +1,11 @@
 # Toy Buildings: Heating Decarbonisation
-# Gas heater vs heat pump vs building retrofit (avoided demand pattern)
-# Tests: zero-input process, ncap_bound, COP>1 (limited by schema to eff=1.0)
-# Issue: vedalang-248.3
+# Variant-level inputs for fuel-specific topology
+# Tests: service-role abstraction, demand overrides, COP>1 placeholder (eff=1.0)
+# Issue: vedalang-0pt.8
 
 model:
   name: ToyBuildings
-  description: Heating decarbonisation with gas heater, heat pump, and building retrofit
+  description: Heating decarbonisation with variant-level inputs and retrofit demand case overlay
 
   regions:
     - SINGLE
@@ -14,24 +14,44 @@ model:
 
   commodities:
     - id: space_heat
-      kind: service
+      type: service
       unit: PJ
       description: Space heating demand
 
     - id: electricity
-      kind: carrier
+      type: energy
       unit: PJ
       description: Electricity
 
     - id: natural_gas
-      kind: carrier
+      type: fuel
       unit: PJ
       description: Natural gas
 
     - id: co2
-      kind: emission
+      type: emission
       unit: Mt
       description: Carbon dioxide
+
+  cases:
+    - name: baseline
+      is_baseline: true
+      description: Reference demand trajectory
+
+    - name: retrofit_policy
+      description: Building envelope retrofit reduces space heat demand
+      demand_overrides:
+        - commodity: space_heat
+          region: SINGLE
+          sector: RES
+          interpolation: interp_extrap
+          values:
+            "2020": 100
+            "2025": 95
+            "2030": 90
+            "2035": 84
+            "2040": 78
+            "2050": 70
 
 segments:
   sectors: [RES]
@@ -49,27 +69,12 @@ process_roles:
     outputs:
       - commodity: electricity
 
-  - id: heat_from_gas
-    stage: end_use
-    inputs:
-      - commodity: natural_gas
-    outputs:
-      - commodity: space_heat
-      - commodity: co2
-
-  - id: heat_from_electricity
-    stage: end_use
-    inputs:
-      - commodity: electricity
-    outputs:
-      - commodity: space_heat
-
-  # Zero-input role: "avoided demand" via building retrofit
-  - id: reduce_heat_demand
+  - id: provide_space_heat
     stage: end_use
     inputs: []
     outputs:
       - commodity: space_heat
+      - commodity: co2
 
 process_variants:
   - id: gas_import
@@ -85,7 +90,9 @@ process_variants:
     variable_om_cost: 25
 
   - id: gas_heater
-    role: heat_from_gas
+    role: provide_space_heat
+    inputs:
+      - commodity: natural_gas
     efficiency: 0.90
     lifetime: 20
     investment_cost: 30
@@ -93,18 +100,14 @@ process_variants:
       co2: 0.056
 
   - id: heat_pump
-    role: heat_from_electricity
+    role: provide_space_heat
+    inputs:
+      - commodity: electricity
     # COP is 3.0 but schema constrains efficiency to 0-1 range.
     # Schema extension needed to support COP > 1.
     efficiency: 1.0
     lifetime: 20
     investment_cost: 150
-
-  - id: building_retrofit
-    role: reduce_heat_demand
-    efficiency: 1.0
-    lifetime: 30
-    investment_cost: 200
 
 availability:
   - variant: gas_import
@@ -118,10 +121,6 @@ availability:
     sectors: [RES]
 
   - variant: heat_pump
-    regions: [SINGLE]
-    sectors: [RES]
-
-  - variant: building_retrofit
     regions: [SINGLE]
     sectors: [RES]
 
@@ -151,14 +150,6 @@ process_parameters:
     stock: 10
     cap_bound:
       up: 200
-
-  - selector:
-      variant: building_retrofit
-      region: SINGLE
-      sector: RES
-    stock: 0.5
-    ncap_bound:
-      up: 30
 
 demands:
   - commodity: space_heat

@@ -1,7 +1,7 @@
 # Toy Industry: Industrial Heat Decarbonisation
-# Gas vs electricity vs hydrogen competing for industrial heat under tightening CO2 cap
-# Tests: Time-varying H2 import price, emission_cap constraint, fuel switching
-# Issue: vedalang-248.4
+# Variant-level inputs for fuel-specific topology
+# Tests: time-varying H2 import price, emission_cap constraint, fuel switching
+# Issue: vedalang-0pt.8
 
 model:
   name: ToyIndustry
@@ -14,27 +14,27 @@ model:
 
   commodities:
     - id: industrial_heat
-      kind: service
+      type: service
       unit: PJ
       description: Industrial heat demand
 
     - id: electricity
-      kind: carrier
+      type: energy
       unit: PJ
       description: Electricity
 
     - id: natural_gas
-      kind: carrier
+      type: fuel
       unit: PJ
       description: Natural gas
 
     - id: hydrogen
-      kind: carrier
+      type: fuel
       unit: PJ
       description: Hydrogen
 
     - id: co2
-      kind: emission
+      type: emission
       unit: Mt
       description: Carbon dioxide
 
@@ -72,27 +72,12 @@ process_roles:
     outputs:
       - commodity: hydrogen
 
-  - id: heat_from_gas
+  - id: provide_industrial_heat
     stage: end_use
-    inputs:
-      - commodity: natural_gas
+    inputs: []
     outputs:
       - commodity: industrial_heat
       - commodity: co2
-
-  - id: heat_from_electricity
-    stage: end_use
-    inputs:
-      - commodity: electricity
-    outputs:
-      - commodity: industrial_heat
-
-  - id: heat_from_hydrogen
-    stage: end_use
-    inputs:
-      - commodity: hydrogen
-    outputs:
-      - commodity: industrial_heat
 
 process_variants:
   - id: gas_import
@@ -120,7 +105,9 @@ process_variants:
       interpolation: interp_extrap
 
   - id: gas_boiler
-    role: heat_from_gas
+    role: provide_industrial_heat
+    inputs:
+      - commodity: natural_gas
     efficiency: 0.90
     lifetime: 30
     investment_cost: 50
@@ -128,13 +115,17 @@ process_variants:
       co2: 0.056
 
   - id: electric_heater
-    role: heat_from_electricity
+    role: provide_industrial_heat
+    inputs:
+      - commodity: electricity
     efficiency: 0.95
     lifetime: 30
     investment_cost: 80
 
   - id: h2_boiler
-    role: heat_from_hydrogen
+    role: provide_industrial_heat
+    inputs:
+      - commodity: hydrogen
     efficiency: 0.85
     lifetime: 30
     investment_cost: 100
