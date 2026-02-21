@@ -57,6 +57,18 @@ def _add_lint_parser(subparsers):
     )
     p.add_argument("file", type=Path, help="Path to VedaLang source (.veda.yaml)")
     p.add_argument("--json", action="store_true", help="Output JSON format")
+    p.add_argument(
+        "--res-json",
+        type=Path,
+        metavar="PATH",
+        help="Export normalized RES graph as JSON to the given path",
+    )
+    p.add_argument(
+        "--res-mermaid",
+        type=Path,
+        metavar="PATH",
+        help="Export RES graph as Mermaid diagram to the given path",
+    )
 
 
 def _add_compile_parser(subparsers):
@@ -68,6 +80,11 @@ def _add_compile_parser(subparsers):
     p.add_argument("file", type=Path, help="Path to VedaLang source (.veda.yaml)")
     p.add_argument("--out", type=Path, help="Output directory for Excel files")
     p.add_argument("--tableir", type=Path, help="Also output TableIR YAML file")
+    p.add_argument(
+        "--case",
+        action="append",
+        help="Compile only the specified case (repeatable)",
+    )
     p.add_argument("--no-lint", action="store_true", help="Skip linting before compile")
     p.add_argument("--json", action="store_true", help="Output JSON format")
 
@@ -79,6 +96,11 @@ def _add_validate_parser(subparsers):
         description="Compile and run through xl2times for complete validation.",
     )
     p.add_argument("file", type=Path, help="Path to VedaLang source (.veda.yaml)")
+    p.add_argument(
+        "--case",
+        action="append",
+        help="Validate only the specified case (repeatable)",
+    )
     p.add_argument("--json", action="store_true", help="Output JSON format")
     p.add_argument(
         "--keep-workdir", action="store_true", help="Keep temp directory for debugging"
@@ -92,6 +114,11 @@ def _add_check_parser(subparsers):
         description="Alias for 'validate' command.",
     )
     p.add_argument("file", type=Path, help="Path to VedaLang source (.veda.yaml)")
+    p.add_argument(
+        "--case",
+        action="append",
+        help="Validate only the specified case (repeatable)",
+    )
     p.add_argument("--json", action="store_true", help="Output JSON format")
     p.add_argument(
         "--keep-workdir", action="store_true", help="Keep temp directory for debugging"
@@ -124,6 +151,8 @@ def cmd_lint(args) -> int:
     """Run lint command: schema + cross-refs + heuristics."""
     file_path: Path = args.file
     output_json: bool = args.json
+    res_json_path: Path | None = getattr(args, "res_json", None)
+    res_mermaid_path: Path | None = getattr(args, "res_mermaid", None)
 
     if not file_path.exists():
         _error(f"File not found: {file_path}", output_json, str(file_path))
@@ -188,6 +217,29 @@ def cmd_lint(args) -> int:
         else:
             warnings += 1
 
+    # Export RES graph artifacts if requested
+    if res_json_path or res_mermaid_path:
+        from vedalang.lint.res_export import export_res_graph, res_graph_to_mermaid
+
+        graph = export_res_graph(source)
+
+        if res_json_path:
+            res_json_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(res_json_path, "w") as f:
+                json.dump(graph, f, indent=2)
+                f.write("\n")
+            if not output_json:
+                print(f"RES graph JSON: {res_json_path}")
+
+        if res_mermaid_path:
+            mermaid = res_graph_to_mermaid(graph)
+            res_mermaid_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(res_mermaid_path, "w") as f:
+                f.write(mermaid)
+                f.write("\n")
+            if not output_json:
+                print(f"RES Mermaid diagram: {res_mermaid_path}")
+
     return _output_lint_result(file_path, diagnostics, errors, warnings, output_json)
 
 
@@ -237,6 +289,7 @@ def cmd_compile(args) -> int:
     file_path: Path = args.file
     out_dir: Path | None = args.out
     tableir_path: Path | None = args.tableir
+    selected_cases: list[str] | None = args.case
     skip_lint: bool = args.no_lint
     output_json: bool = args.json
 
@@ -263,7 +316,11 @@ def cmd_compile(args) -> int:
 
     try:
         source = load_vedalang(file_path)
-        tableir = compile_vedalang_to_tableir(source, validate=True)
+        tableir = compile_vedalang_to_tableir(
+            source,
+            validate=True,
+            selected_cases=selected_cases,
+        )
     except jsonschema.ValidationError as e:
         _error(f"Schema error: {e.message}", output_json, str(file_path))
         return 2
@@ -308,6 +365,7 @@ def cmd_validate(args) -> int:
     file_path: Path = args.file
     output_json: bool = args.json
     keep_workdir: bool = args.keep_workdir
+    selected_cases: list[str] | None = args.case
 
     if not file_path.exists():
         _error(f"File not found: {file_path}", output_json, str(file_path))
@@ -322,7 +380,11 @@ def cmd_validate(args) -> int:
     else:
         workdir = None
 
-    result = run_check(file_path, from_vedalang=True)
+    result = run_check(
+        file_path,
+        from_vedalang=True,
+        selected_cases=selected_cases,
+    )
 
     if output_json:
         output = {
