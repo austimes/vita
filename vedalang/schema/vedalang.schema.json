@@ -119,7 +119,7 @@
           "type": "array",
           "items": {
             "type": "string",
-            "pattern": "^[a-z][a-z0-9_]*$"
+            "pattern": "^[a-z][a-z0-9_-]*$"
           },
           "description": "Optional end-use types for finer granularity (e.g., lighting, heating)"
         }
@@ -128,12 +128,12 @@
     },
     "process_role": {
       "type": "object",
-      "description": "Abstract process transformation (topology definition)",
-      "required": ["id"],
+      "description": "Abstract process contract defining minimum required I/O that any implementing variant must satisfy.",
+      "required": ["id", "required_inputs", "required_outputs"],
       "properties": {
         "id": {
           "type": "string",
-          "pattern": "^[a-z][a-z0-9_]*$",
+          "pattern": "^[a-z][a-z0-9_-]*$",
           "description": "Role identifier (verb_phrase, snake_case, e.g., generate_electricity)"
         },
         "description": {
@@ -145,15 +145,15 @@
           "enum": ["supply", "conversion", "storage", "end_use", "sink"],
           "description": "Optional stage classification (descriptive, for layout/sankey)"
         },
-        "inputs": {
+        "required_inputs": {
           "type": "array",
           "items": { "$ref": "#/$defs/role_flow" },
-          "description": "Input commodity references"
+          "description": "Minimum required input commodities. Every variant must include these in its inputs."
         },
-        "outputs": {
+        "required_outputs": {
           "type": "array",
           "items": { "$ref": "#/$defs/role_flow" },
-          "description": "Output commodity references"
+          "description": "Minimum required output commodities. Every variant must include these in its outputs."
         }
       },
       "additionalProperties": false
@@ -172,12 +172,12 @@
     },
     "process_variant": {
       "type": "object",
-      "description": "Concrete technology implementing a process role",
-      "required": ["id", "role"],
+      "description": "Concrete technology implementing a process role. Declares full explicit I/O (no inheritance from role).",
+      "required": ["id", "role", "inputs", "outputs"],
       "properties": {
         "id": {
           "type": "string",
-          "pattern": "^[a-z][a-z0-9_]*$",
+          "pattern": "^[a-z][a-z0-9_-]*$",
           "description": "Variant identifier (snake_case technology name)"
         },
         "role": {
@@ -188,14 +188,23 @@
           "type": "string",
           "description": "Human-readable variant description"
         },
+        "notes": {
+          "type": "string",
+          "description": "Optional implementation notes (recommended for negative emission factors)"
+        },
         "inputs": {
           "type": "array",
           "items": { "$ref": "#/$defs/role_flow" },
-          "description": "Optional variant-level input override. When present, replaces role.inputs for this variant's topology (FI_T generation and physical-input validation). Use when a merged service role has variants consuming different fuels."
+          "description": "Full list of input commodities consumed by this variant. Must include all role required_inputs."
+        },
+        "outputs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/role_flow" },
+          "description": "Full list of output commodities produced by this variant. Must include all role required_outputs."
         },
         "kind": {
           "type": "string",
-          "enum": ["device", "storage", "generator", "demand_measure"],
+          "enum": ["device", "storage", "generator", "network", "demand_measure"],
           "description": "Optional semantic kind for diagnostics metadata. When omitted, compiler derives it."
         },
         "efficiency": {
@@ -235,10 +244,10 @@
         },
         "emission_factors": {
           "type": "object",
-          "description": "Per-emission-commodity factors keyed by commodity id, per unit PROCESS ACTIVITY (TIMES ENV_ACT). Keys must be emission commodities listed in the role's outputs. Values are scalars or time-varying specs. Omitted emission outputs default to factor 0.",
+          "description": "Per-emission-commodity factors keyed by commodity id, per unit PROCESS ACTIVITY (TIMES ENV_ACT). Values are scalars or time-varying specs.",
           "additionalProperties": {
             "oneOf": [
-              { "type": "number", "minimum": 0 },
+              { "type": "number" },
               { "$ref": "#/$defs/time_varying_value" }
             ]
           }
@@ -395,7 +404,7 @@
       "properties": {
         "name": {
           "type": "string",
-          "pattern": "^[a-z][a-z0-9_]*$",
+          "pattern": "^[a-z][a-z0-9_-]*$",
           "description": "Case identifier (lowercase, used in file names: Scen_{case}_{category}.xlsx)"
         },
         "description": {
@@ -651,8 +660,8 @@
       "properties": {
         "id": {
           "type": "string",
-          "pattern": "^[a-z][a-z0-9_]*$",
-          "description": "Commodity identifier (snake_case noun, preferred over 'name')"
+          "pattern": "^(?:[a-z][a-z0-9_-]*:)?[a-z][a-z0-9_-]*$",
+          "description": "Commodity identifier (snake_case noun, preferred over 'name'). Namespaced form is supported (e.g., energy:electricity)."
         },
         "name": {
           "type": "string",
@@ -660,7 +669,7 @@
         },
         "type": {
           "type": "string",
-          "enum": ["fuel", "energy", "service", "material", "emission", "other"],
+          "enum": ["fuel", "energy", "service", "material", "emission", "money", "other"],
           "description": "Canonical commodity type used by diagnostics semantics and COM_TYPE mapping."
         },
         "unit": {
@@ -816,7 +825,7 @@
       "properties": {
         "id": {
           "type": "string",
-          "pattern": "^[a-z][a-z0-9_]*$"
+          "pattern": "^[a-z][a-z0-9_-]*$"
         },
         "measure": {
           "type": "string",
@@ -848,7 +857,7 @@
           "type": "array",
           "items": {
             "type": "string",
-            "enum": ["device", "storage", "generator", "demand_measure"]
+            "enum": ["device", "storage", "generator", "network", "demand_measure"]
           }
         },
         "include_any": {
@@ -868,7 +877,7 @@
       "properties": {
         "id": {
           "type": "string",
-          "pattern": "^[a-z][a-z0-9_]*$"
+          "pattern": "^[a-z][a-z0-9_-]*$"
         },
         "type": {
           "type": "string",
@@ -952,7 +961,7 @@
       "properties": {
         "commodity": { "type": "string", "description": "Reference to commodity name" },
         "share": { "type": "number", "minimum": 0, "maximum": 1, "default": 1.0, "description": "Flow share for non-emission outputs (FLO_SHAR)" },
-        "emission_factor": { "type": "number", "minimum": 0, "description": "Emission per unit PROCESS ACTIVITY. Units: <emission_commodity.unit> per <process.activity_unit> (e.g., Mt CO2 per PJ activity). Implemented via ENV_ACT in TIMES, which xl2times maps to FLO_EMIS. Always per-activity, NOT per-flow. Use instead of 'share' for emission commodities." }
+        "emission_factor": { "type": "number", "description": "Emission per unit PROCESS ACTIVITY. Units: <emission_commodity.unit> per <process.activity_unit> (e.g., Mt CO2 per PJ activity). Implemented via ENV_ACT in TIMES, which xl2times maps to FLO_EMIS. Always per-activity, NOT per-flow. Use instead of 'share' for emission commodities." }
       }
     },
     "scenario_parameter": {

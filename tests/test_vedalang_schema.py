@@ -37,14 +37,14 @@ def test_missing_required_fields_rejected():
         jsonschema.validate({"model": {"name": "Test"}}, schema)
 
 
-def test_invalid_commodity_kind_rejected():
-    """Invalid commodity kind enum should be rejected."""
+def test_invalid_commodity_type_rejected():
+    """Invalid commodity type enum should be rejected."""
     schema = load_schema()
     data = {
         "model": {
             "name": "Test",
             "regions": ["R1"],
-            "commodities": [{"name": "C:X", "kind": "INVALID_KIND"}],
+            "commodities": [{"name": "C:X", "type": "INVALID_TYPE"}],
             "processes": [],
         }
     }
@@ -62,12 +62,14 @@ def test_efficiency_range():
             "commodities": [],
         },
         "process_roles": [
-            {"id": "generate_power", "outputs": [{"commodity": "electricity"}]}
+            {"id": "generate_power", "required_inputs": [], "required_outputs": [{"commodity": "electricity"}]}
         ],
         "process_variants": [
             {
                 "id": "bad_plant",
                 "role": "generate_power",
+                "inputs": [],
+                "outputs": [{"commodity": "electricity"}],
                 "efficiency": 1.5,  # Invalid: > 1
             }
         ],
@@ -99,7 +101,7 @@ def test_timeslices_validates():
                     "WN": 0.25,
                 },
             },
-            "commodities": [{"name": "C:ELC", "kind": "TRADABLE"}],
+            "commodities": [{"name": "C:ELC", "type": "energy"}],
         }
     }
     jsonschema.validate(data, schema)
@@ -123,7 +125,7 @@ def test_timeslice_code_pattern():
             "timeslices": {
                 "season": [{"code": "toolong"}],
             },
-            "commodities": [{"name": "C:ELC", "kind": "TRADABLE"}],
+            "commodities": [{"name": "C:ELC", "type": "energy"}],
         }
     }
     with pytest.raises(jsonschema.ValidationError):
@@ -137,7 +139,7 @@ def test_trade_links_validates():
         "model": {
             "name": "TradeTest",
             "regions": ["REG1", "REG2"],
-            "commodities": [{"name": "C:ELC", "kind": "TRADABLE"}],
+            "commodities": [{"name": "C:ELC", "type": "energy"}],
             "trade_links": [
                 {
                     "origin": "REG1",
@@ -152,15 +154,15 @@ def test_trade_links_validates():
 
 
 def test_trade_links_example_validates():
-    """Trade links structure validates - example file uses deprecated fields, so we test inline."""
+    """Trade links structure validates."""
     schema = load_schema()
     data = {
         "model": {
             "name": "TwoRegionTrade",
             "regions": ["REG1", "REG2"],
             "commodities": [
-                {"id": "electricity", "kind": "carrier", "unit": "PJ"},
-                {"id": "natural_gas", "kind": "carrier", "unit": "PJ"},
+                {"id": "electricity", "type": "energy", "unit": "PJ"},
+                {"id": "natural_gas", "type": "fuel", "unit": "PJ"},
             ],
             "trade_links": [
                 {
@@ -183,7 +185,7 @@ def test_trade_link_missing_required_fields():
         "model": {
             "name": "BadTrade",
             "regions": ["REG1", "REG2"],
-            "commodities": [{"name": "C:ELC", "kind": "TRADABLE"}],
+            "commodities": [{"name": "C:ELC", "type": "energy"}],
             "trade_links": [
                 {"origin": "REG1"},  # Missing destination and commodity
             ],
@@ -200,7 +202,7 @@ def test_constraints_emission_cap_validates():
         "model": {
             "name": "ConstraintTest",
             "regions": ["REG1"],
-            "commodities": [{"name": "E:CO2", "kind": "EMISSION"}],
+            "commodities": [{"name": "E:CO2", "type": "emission"}],
             "constraints": [
                 {
                     "name": "CO2_CAP",
@@ -222,7 +224,7 @@ def test_constraints_activity_share_validates():
         "model": {
             "name": "ConstraintTest",
             "regions": ["REG1"],
-            "commodities": [{"name": "C:ELC", "kind": "TRADABLE"}],
+            "commodities": [{"name": "C:ELC", "type": "energy"}],
             "constraints": [
                 {
                     "name": "REN_TARGET",
@@ -252,7 +254,7 @@ def test_constraint_invalid_type_rejected():
         "model": {
             "name": "BadConstraint",
             "regions": ["REG1"],
-            "commodities": [{"name": "E:CO2", "kind": "EMISSION"}],
+            "commodities": [{"name": "E:CO2", "type": "emission"}],
             "constraints": [
                 {
                     "name": "BAD",
@@ -273,7 +275,7 @@ def test_constraint_share_range():
         "model": {
             "name": "BadShare",
             "regions": ["REG1"],
-            "commodities": [{"name": "C:ELC", "kind": "TRADABLE"}],
+            "commodities": [{"name": "C:ELC", "type": "energy"}],
             "constraints": [
                 {
                     "name": "BAD",
@@ -299,7 +301,7 @@ def test_segments_validates():
         "model": {
             "name": "SegmentTest",
             "regions": ["R1"],
-            "commodities": [{"id": "electricity", "kind": "carrier"}],
+            "commodities": [{"id": "electricity", "type": "energy"}],
         },
         "segments": {
             "sectors": ["RES", "COM"],
@@ -351,22 +353,22 @@ def test_process_roles_validates():
             "name": "RoleTest",
             "regions": ["R1"],
             "commodities": [
-                {"id": "electricity", "kind": "carrier"},
-                {"id": "lighting", "kind": "service"},
+                {"id": "electricity", "type": "energy"},
+                {"id": "lighting", "type": "service"},
             ],
         },
         "process_roles": [
             {
                 "id": "generate_electricity",
                 "stage": "conversion",
-                "inputs": [],
-                "outputs": [{"commodity": "electricity"}],
+                "required_inputs": [],
+                "required_outputs": [{"commodity": "electricity"}],
             },
             {
                 "id": "deliver_lighting",
                 "stage": "end_use",
-                "inputs": [{"commodity": "electricity"}],
-                "outputs": [{"commodity": "lighting"}],
+                "required_inputs": [{"commodity": "electricity"}],
+                "required_outputs": [{"commodity": "lighting"}],
             },
         ],
     }
@@ -400,15 +402,17 @@ def test_process_variants_validates():
         "model": {
             "name": "VariantTest",
             "regions": ["R1"],
-            "commodities": [{"id": "electricity", "kind": "carrier"}],
+            "commodities": [{"id": "electricity", "type": "energy"}],
         },
         "process_roles": [
-            {"id": "generate_power", "outputs": [{"commodity": "electricity"}]},
+            {"id": "generate_power", "required_inputs": [], "required_outputs": [{"commodity": "electricity"}]},
         ],
         "process_variants": [
             {
                 "id": "coal_plant",
                 "role": "generate_power",
+                "inputs": [],
+                "outputs": [{"commodity": "electricity"}],
                 "efficiency": 0.4,
                 "lifetime": 40,
                 "investment_cost": 1500,
@@ -511,7 +515,7 @@ def test_demands_validates():
         "model": {
             "name": "DemandTest",
             "regions": ["R1"],
-            "commodities": [{"id": "lighting", "kind": "service"}],
+            "commodities": [{"id": "lighting", "type": "service"}],
         },
         "demands": [
             {
@@ -553,18 +557,68 @@ def test_commodity_with_id_validates():
             "commodities": [
                 {
                     "id": "electricity",
-                    "kind": "carrier",
+                    "type": "energy",
                     "unit": "PJ",
                     "tradable": True,
                 },
                 {
                     "id": "lighting",
-                    "kind": "service",
+                    "type": "service",
                     "unit": "PJ",
                     "tradable": False,
                 },
             ],
         },
+    }
+    jsonschema.validate(data, schema)
+
+
+def test_namespaced_commodity_id_validates():
+    """Commodity id may use human-readable namespace syntax."""
+    schema = load_schema()
+    data = {
+        "model": {
+            "name": "NamespacedIdTest",
+            "regions": ["R1"],
+            "commodities": [
+                {"id": "energy:electricity", "type": "energy"},
+                {"id": "service:space_heat", "type": "service"},
+                {"id": "emission:co2", "type": "emission"},
+            ],
+        },
+    }
+    jsonschema.validate(data, schema)
+
+
+def test_negative_emission_factor_validates():
+    """Negative emission factors are allowed for removals (DAC/LULUCF)."""
+    schema = load_schema()
+    data = {
+        "model": {
+            "name": "NegativeEmissionFactor",
+            "regions": ["R1"],
+            "commodities": [
+                {"id": "energy:electricity", "type": "energy"},
+                {"id": "service:co2_removal", "type": "service"},
+                {"id": "emission:co2", "type": "emission"},
+            ],
+        },
+        "process_roles": [
+            {
+                "id": "remove_co2",
+                "required_inputs": [{"commodity": "energy:electricity"}],
+                "required_outputs": [{"commodity": "service:co2_removal"}],
+            }
+        ],
+        "process_variants": [
+            {
+                "id": "dac",
+                "role": "remove_co2",
+                "inputs": [{"commodity": "energy:electricity"}],
+                "outputs": [{"commodity": "service:co2_removal"}],
+                "emission_factors": {"emission:co2": -1.0},
+            }
+        ],
     }
     jsonschema.validate(data, schema)
 
@@ -578,8 +632,8 @@ def test_full_roles_variants_model_validates():
             "regions": ["SINGLE"],
             "milestone_years": [2020, 2030],
             "commodities": [
-                {"id": "electricity", "kind": "carrier", "unit": "PJ"},
-                {"id": "lighting", "kind": "service", "unit": "PJ"},
+                {"id": "electricity", "type": "energy", "unit": "PJ"},
+                {"id": "lighting", "type": "service", "unit": "PJ"},
             ],
         },
         "segments": {
@@ -589,19 +643,22 @@ def test_full_roles_variants_model_validates():
             {
                 "id": "generate_electricity",
                 "stage": "conversion",
-                "outputs": [{"commodity": "electricity"}],
+                "required_inputs": [],
+                "required_outputs": [{"commodity": "electricity"}],
             },
             {
                 "id": "deliver_lighting",
                 "stage": "end_use",
-                "inputs": [{"commodity": "electricity"}],
-                "outputs": [{"commodity": "lighting"}],
+                "required_inputs": [{"commodity": "electricity"}],
+                "required_outputs": [{"commodity": "lighting"}],
             },
         ],
         "process_variants": [
             {
                 "id": "simple_generator",
                 "role": "generate_electricity",
+                "inputs": [],
+                "outputs": [{"commodity": "electricity"}],
                 "efficiency": 1.0,
                 "variable_om_cost": 10,
                 "lifetime": 40,
@@ -609,6 +666,8 @@ def test_full_roles_variants_model_validates():
             {
                 "id": "led_lighting_device",
                 "role": "deliver_lighting",
+                "inputs": [{"commodity": "electricity"}],
+                "outputs": [{"commodity": "lighting"}],
                 "efficiency": 0.4,
                 "lifetime": 15,
                 "investment_cost": 100,
@@ -616,7 +675,11 @@ def test_full_roles_variants_model_validates():
         ],
         "availability": [
             {"variant": "simple_generator", "regions": ["SINGLE"]},
-            {"variant": "led_lighting_device", "regions": ["SINGLE"], "sectors": ["RES", "COM"]},
+            {
+                "variant": "led_lighting_device",
+                "regions": ["SINGLE"],
+                "sectors": ["RES", "COM"],
+            },
         ],
         "process_parameters": [
             {
@@ -626,8 +689,14 @@ def test_full_roles_variants_model_validates():
             },
         ],
         "demands": [
-            {"commodity": "lighting", "region": "SINGLE", "sector": "RES", "values": {"2020": 50}},
-            {"commodity": "lighting", "region": "SINGLE", "sector": "COM", "values": {"2020": 30}},
+            {
+                "commodity": "lighting", "region": "SINGLE",
+                "sector": "RES", "values": {"2020": 50},
+            },
+            {
+                "commodity": "lighting", "region": "SINGLE",
+                "sector": "COM", "values": {"2020": 30},
+            },
         ],
     }
     jsonschema.validate(data, schema)

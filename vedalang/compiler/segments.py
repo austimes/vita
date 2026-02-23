@@ -9,6 +9,14 @@ This module provides utilities for:
 
 from dataclasses import dataclass
 
+NAMESPACE_TO_TYPES = {
+    "energy": {"fuel", "energy"},
+    "material": {"material"},
+    "service": {"service"},
+    "emission": {"emission"},
+    "money": {"money"},
+}
+
 
 def build_segments(model: dict) -> list[str]:
     """Build segment keys from model segments config.
@@ -40,29 +48,27 @@ def build_segments(model: dict) -> list[str]:
 
 
 def commodity_kind_to_com_type(kind: str) -> str:
-    """Map VedaLang commodity kind to TIMES COM_TYPE.
+    """Map VedaLang commodity type/kind to TIMES COM_TYPE.
 
     TIMES COM_TYPE from maplists.def: { DEM, NRG, MAT, ENV, FIN }
 
     Args:
-        kind: VedaLang commodity kind (service, carrier, material, emission)
+        kind: VedaLang commodity type or normalized kind
 
     Returns:
         TIMES COM_TYPE code (DEM, NRG, MAT, ENV)
     """
     mapping = {
-        # New VedaLang naming (lowercase)
+        # Canonical commodity types
+        "fuel": "NRG",
+        "energy": "NRG",
         "service": "DEM",
-        "carrier": "NRG",
         "material": "MAT",
         "emission": "ENV",
-        # Legacy mappings (for backward compatibility)
-        "SERVICE": "DEM",
-        "TRADABLE": "NRG",
-        "EMISSION": "ENV",
-        # Deprecated names
-        "energy": "NRG",
-        "demand": "DEM",
+        "money": "FIN",
+        "other": "NRG",
+        # Canonicalized internal kinds
+        "carrier": "NRG",
     }
     return mapping.get(kind, "NRG")  # default to NRG
 
@@ -123,12 +129,10 @@ def get_scoped_commodity_id(
 def normalize_commodity(raw: dict) -> dict:
     """Normalize commodity dict to canonical form.
 
-    Handles backward compatibility for old field names:
-    - 'name' → 'id'
-    - 'TRADABLE' → 'carrier', 'SERVICE' → 'service', 'EMISSION' → 'emission'
+    Commodity `type` is the canonical field.
 
-    Infers default tradable based on kind:
-    - carrier, material → tradable=True
+    Infers default tradable based on type:
+    - fuel, energy, material, other → tradable=True
     - service, emission → tradable=False
 
     Args:
@@ -146,35 +150,58 @@ def normalize_commodity(raw: dict) -> dict:
     comm_id = raw.get("id") or raw.get("name")
     if not comm_id:
         raise ValueError("Commodity must have 'id' or 'name' field")
+    comm_id = comm_id.lower()
 
-    # Normalize kind (legacy → new naming)
-    kind = raw.get("kind", "carrier")
-    kind_map = {
-        "TRADABLE": "carrier",
-        "SERVICE": "service",
-        "EMISSION": "emission",
-        # Already normalized forms pass through
-        "carrier": "carrier",
+    # Normalize canonical commodity type -> internal kind used for scoping
+    raw_type = raw.get("type")
+    type_to_kind = {
+        "fuel": "carrier",
+        "energy": "carrier",
         "service": "service",
         "material": "material",
         "emission": "emission",
-        # Deprecated
-        "energy": "carrier",
-        "demand": "service",
+        "money": "money",
+        "other": "carrier",
     }
-    kind = kind_map.get(kind, kind)
 
-    # Default tradable based on kind
+    if raw_type is None:
+        raise ValueError("Commodity must define 'type'")
+
+    if raw_type not in type_to_kind:
+        raise ValueError(f"Commodity '{comm_id}' has unsupported type '{raw_type}'")
+
+    namespace = None
+    base_name = comm_id
+    if ":" in comm_id:
+        namespace, _, base_name = comm_id.partition(":")
+        expected_types = NAMESPACE_TO_TYPES.get(namespace)
+        if expected_types is None:
+            raise ValueError(
+                f"Commodity '{comm_id}' has unsupported namespace '{namespace}'"
+            )
+        if raw_type not in expected_types:
+            raise ValueError(
+                "Commodity namespace/type mismatch for "
+                f"'{comm_id}': namespace '{namespace}' implies type in "
+                f"{sorted(expected_types)} but got type '{raw_type}'"
+            )
+        if not base_name:
+            raise ValueError(f"Commodity '{comm_id}' must include a name after ':'")
+
+    kind = type_to_kind[raw_type]
+
+    # Default tradable based on canonical type
     tradable = raw.get("tradable")
     if tradable is None:
-        tradable = kind in ("carrier", "material")
+        tradable = raw_type in ("fuel", "energy", "material", "money", "other")
 
     return {
         "id": comm_id,
         "kind": kind,
+        "type": raw_type,
         "tradable": tradable,
         "unit": raw.get("unit", "PJ"),
-        "com_type": commodity_kind_to_com_type(kind),
+        "com_type": commodity_kind_to_com_type(raw_type),
     }
 
 

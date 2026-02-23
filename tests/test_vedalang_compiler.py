@@ -179,13 +179,15 @@ def test_demand_projection_scenario():
         "segments": {"sectors": ["RES"]},
         "process_roles": [
             {"id": "deliver_residential", "stage": "end_use",
-             "inputs": [{"commodity": "electricity"}],
-             "outputs": [{"commodity": "residential_demand"}]},
+             "required_inputs": [{"commodity": "electricity"}],
+             "required_outputs": [{"commodity": "residential_demand"}]},
         ],
         "process_variants": [
             {
                 "id": "residential_device",
                 "role": "deliver_residential",
+                "inputs": [{"commodity": "electricity"}],
+                "outputs": [{"commodity": "residential_demand"}],
                 "kind": "demand_measure",
                 "efficiency": 1.0,
             },
@@ -256,12 +258,14 @@ def test_demand_projection_creates_scenario_file():
         "segments": {"sectors": ["RES"]},
         "process_roles": [
             {"id": "deliver_residential", "stage": "end_use",
-             "inputs": [], "outputs": [{"commodity": "residential_demand"}]},
+             "required_inputs": [], "required_outputs": [{"commodity": "residential_demand"}]},
         ],
         "process_variants": [
             {
                 "id": "residential_device",
                 "role": "deliver_residential",
+                "inputs": [],
+                "outputs": [{"commodity": "residential_demand"}],
                 "kind": "demand_measure",
                 "efficiency": 1.0,
             },
@@ -1760,6 +1764,43 @@ def test_unit_warning_for_unusual_capacity_unit():
     assert "capacity_unit" in warnings[0]
 
 
+def test_l1_emission_namespace_flow_error_in_cross_refs():
+    """Namespace emission commodities are rejected in process inputs/outputs."""
+    model = {
+        "name": "EmissionFlowError",
+        "regions": ["REG1"],
+        "commodities": [
+            {"id": "energy:natural_gas", "type": "energy"},
+            {"id": "service:heat", "type": "service"},
+            {"id": "emission:co2", "type": "emission"},
+        ],
+        "processes": [
+            {
+                "name": "bad_proc",
+                "outputs": [{"commodity": "emission:co2"}],
+            }
+        ],
+    }
+
+    errors, _ = validate_cross_references(model)
+    assert any("L1/L4 violation" in err for err in errors)
+
+
+def test_l5_warns_for_ambiguous_unnamespaced_co2():
+    """Ambiguous bare CO2 references should produce migration warning."""
+    model = {
+        "name": "AmbiguousCo2Warning",
+        "regions": ["REG1"],
+        "commodities": [
+            {"id": "co2", "type": "emission"},
+        ],
+    }
+
+    errors, warnings = validate_cross_references(model)
+    assert errors == []
+    assert any("Did you mean 'emission:co2'" in warning for warning in warnings)
+
+
 def test_multiple_errors_collected():
     """Multiple errors should be collected, not fail-fast."""
     source = {
@@ -2192,12 +2233,14 @@ def test_default_commodity_units_demand():
         "segments": {"sectors": ["RES"]},
         "process_roles": [
             {"id": "deliver_residential", "stage": "end_use",
-             "inputs": [], "outputs": [{"commodity": "residential_demand"}]},
+             "required_inputs": [], "required_outputs": [{"commodity": "residential_demand"}]},
         ],
         "process_variants": [
             {
                 "id": "residential_device",
                 "role": "deliver_residential",
+                "inputs": [],
+                "outputs": [{"commodity": "residential_demand"}],
                 "kind": "demand_measure",
                 "efficiency": 1.0,
             },
@@ -2592,13 +2635,13 @@ def _base_new_syntax_source() -> dict:
             "commodities": [
                 {"id": "electricity", "type": "energy"},
                 {"id": "space_heat", "type": "service"},
-                {"id": "co2", "type": "emission"},
+                {"id": "emission:co2", "type": "emission"},
             ],
             "constraints": [
                 {
                     "name": "co2_cap",
                     "type": "emission_cap",
-                    "commodity": "co2",
+                    "commodity": "emission:co2",
                     "limit": 100.0,
                 }
             ],
@@ -2608,17 +2651,19 @@ def _base_new_syntax_source() -> dict:
             {
                 "id": "provide_space_heat",
                 "stage": "end_use",
-                "inputs": [{"commodity": "electricity"}],
-                "outputs": [{"commodity": "space_heat"}],
+                "required_inputs": [{"commodity": "electricity"}],
+                "required_outputs": [{"commodity": "space_heat"}],
             }
         ],
         "process_variants": [
             {
                 "id": "heat_pump",
                 "role": "provide_space_heat",
+                "inputs": [{"commodity": "electricity"}],
+                "outputs": [{"commodity": "space_heat"}],
                 "kind": "device",
                 "efficiency": 1.0,
-                "emission_factors": {"co2": 0.0},
+                "emission_factors": {"emission:co2": 0.0},
             }
         ],
         "availability": [
@@ -2671,7 +2716,7 @@ def test_new_syntax_emission_constraints_require_emission_commodity():
 
 def test_new_syntax_role_primary_output_invariant_enforced():
     source = _base_new_syntax_source()
-    source["process_roles"][0]["outputs"] = [
+    source["process_roles"][0]["required_outputs"] = [
         {"commodity": "space_heat"},
         {"commodity": "electricity"},
     ]
@@ -2688,6 +2733,31 @@ def test_new_syntax_stage_enum_violation_reports_structural_code():
         compile_vedalang_to_tableir(source, validate=False)
 
 
+def test_new_syntax_rejects_emission_namespace_in_outputs():
+    source = _base_new_syntax_source()
+    source["process_variants"][0]["outputs"].append({"commodity": "emission:co2"})
+
+    with pytest.raises(Exception, match=r"\[E_EMISSION_NAMESPACE_FLOW\]"):
+        compile_vedalang_to_tableir(source)
+
+
+def test_new_syntax_requires_emission_namespace_in_emission_factors():
+    source = _base_new_syntax_source()
+    source["process_variants"][0]["emission_factors"] = {"material:co2": 0.01}
+
+    with pytest.raises(Exception, match=r"\[E_EMISSION_FACTOR_NAMESPACE\]"):
+        compile_vedalang_to_tableir(source)
+
+
+def test_new_syntax_negative_emission_factor_warns_without_documentation():
+    source = _base_new_syntax_source()
+    source["process_variants"][0]["emission_factors"] = {"emission:co2": -1.0}
+
+    tableir = compile_vedalang_to_tableir(source)
+    warnings = tableir["convention_diagnostics"]["warnings"]
+    assert any(w["code"] == "W_NEGATIVE_EMISSION_DOC" for w in warnings)
+
+
 def test_new_syntax_detects_duplicate_service_roles_with_merge_hint():
     source = _base_new_syntax_source()
     source["model"]["commodities"].append({"id": "gas", "type": "fuel"})
@@ -2695,14 +2765,16 @@ def test_new_syntax_detects_duplicate_service_roles_with_merge_hint():
         {
             "id": "heat_from_gas",
             "stage": "end_use",
-            "inputs": [{"commodity": "gas"}],
-            "outputs": [{"commodity": "space_heat"}],
+            "required_inputs": [{"commodity": "gas"}],
+            "required_outputs": [{"commodity": "space_heat"}],
         }
     )
     source["process_variants"].append(
         {
             "id": "gas_heater",
             "role": "heat_from_gas",
+            "inputs": [{"commodity": "gas"}],
+            "outputs": [{"commodity": "space_heat"}],
             "kind": "device",
             "efficiency": 0.9,
         }
@@ -2730,8 +2802,8 @@ def test_new_syntax_w1_detects_identical_io_split_across_roles():
         {
             "id": "space_heat_with_alt_grid",
             "stage": "end_use",
-            "inputs": [{"commodity": "electricity"}],
-            "outputs": [{"commodity": "space_heat"}],
+            "required_inputs": [{"commodity": "electricity"}],
+            "required_outputs": [{"commodity": "space_heat"}],
         }
     )
 
@@ -2761,14 +2833,16 @@ def test_new_syntax_false_positive_guard_different_service_outputs():
         {
             "id": "provide_water_heat",
             "stage": "end_use",
-            "inputs": [{"commodity": "electricity"}],
-            "outputs": [{"commodity": "water_heat"}],
+            "required_inputs": [{"commodity": "electricity"}],
+            "required_outputs": [{"commodity": "water_heat"}],
         }
     )
     source["process_variants"].append(
         {
             "id": "electric_boiler",
             "role": "provide_water_heat",
+            "inputs": [{"commodity": "electricity"}],
+            "outputs": [{"commodity": "water_heat"}],
             "kind": "device",
             "efficiency": 0.95,
         }
@@ -2802,19 +2876,19 @@ def test_toy_agriculture_uses_service_role_and_sink_sequestration_conventions():
     assert set(roles) == {"supply_ag_inputs", "provide_ag_output", "sequester_carbon"}
     assert roles["supply_ag_inputs"]["stage"] == "supply"
     assert roles["provide_ag_output"]["stage"] == "end_use"
-    assert roles["provide_ag_output"]["inputs"] == [{"commodity": "ag_inputs"}]
+    assert roles["provide_ag_output"]["required_inputs"] == [{"commodity": "ag_inputs"}]
     assert roles["sequester_carbon"]["stage"] == "sink"
-    assert roles["sequester_carbon"]["inputs"] == [{"commodity": "co2e"}]
-    assert roles["sequester_carbon"]["outputs"] == []
+    assert roles["sequester_carbon"]["required_inputs"] == [{"commodity": "co2e"}]
+    assert roles["sequester_carbon"]["required_outputs"] == []
 
     variant_roles = {
         variant["id"]: variant["role"]
         for variant in source["process_variants"]
     }
-    assert variant_roles["ag_inputs_supply"] == "supply_ag_inputs"
-    assert variant_roles["baseline_agriculture"] == "provide_ag_output"
-    assert variant_roles["feed_additives"] == "provide_ag_output"
-    assert variant_roles["improved_manure"] == "provide_ag_output"
+    assert variant_roles["primary_supply"] == "supply_ag_inputs"
+    assert variant_roles["traditional_baseline"] == "provide_ag_output"
+    assert variant_roles["traditional_with_feed_additives"] == "provide_ag_output"
+    assert variant_roles["traditional_with_improved_manure"] == "provide_ag_output"
     assert variant_roles["soil_carbon"] == "sequester_carbon"
     assert variant_roles["reforestation"] == "sequester_carbon"
 
@@ -2830,8 +2904,8 @@ def test_toy_buildings_uses_service_role_and_case_demand_override_conventions():
     roles = {role["id"]: role for role in source["process_roles"]}
     assert "provide_space_heat" in roles
     assert roles["provide_space_heat"]["stage"] == "end_use"
-    assert roles["provide_space_heat"]["inputs"] == []
-    assert {"commodity": "space_heat"} in roles["provide_space_heat"]["outputs"]
+    assert roles["provide_space_heat"]["required_inputs"] == []
+    assert {"commodity": "service:space_heat"} in roles["provide_space_heat"]["required_outputs"]
 
     # No fuel-pathway or intermediate carrier roles
     assert "heat_from_gas" not in roles
@@ -2843,9 +2917,9 @@ def test_toy_buildings_uses_service_role_and_case_demand_override_conventions():
     # Variants use variant-level inputs
     variants = {v["id"]: v for v in source["process_variants"]}
     assert variants["gas_heater"]["role"] == "provide_space_heat"
-    assert variants["gas_heater"]["inputs"] == [{"commodity": "natural_gas"}]
+    assert variants["gas_heater"]["inputs"] == [{"commodity": "energy:natural_gas"}]
     assert variants["heat_pump"]["role"] == "provide_space_heat"
-    assert variants["heat_pump"]["inputs"] == [{"commodity": "electricity"}]
+    assert variants["heat_pump"]["inputs"] == [{"commodity": "energy:electricity"}]
     assert "space_heat_delivery" not in variants
 
     cases = {case["name"]: case for case in source["model"]["cases"]}
@@ -2855,7 +2929,7 @@ def test_toy_buildings_uses_service_role_and_case_demand_override_conventions():
 
     demand_overrides = cases["retrofit_policy"]["demand_overrides"]
     assert len(demand_overrides) == 1
-    assert demand_overrides[0]["commodity"] == "space_heat"
+    assert demand_overrides[0]["commodity"] == "service:space_heat"
     assert demand_overrides[0]["sector"] == "RES"
 
 def test_toy_industry_uses_variant_level_inputs():
@@ -2864,10 +2938,9 @@ def test_toy_industry_uses_variant_level_inputs():
     roles = {role["id"]: role for role in source["process_roles"]}
     assert "provide_industrial_heat" in roles
     assert roles["provide_industrial_heat"]["stage"] == "end_use"
-    assert roles["provide_industrial_heat"]["inputs"] == []
-    assert roles["provide_industrial_heat"]["outputs"] == [
+    assert roles["provide_industrial_heat"]["required_inputs"] == []
+    assert roles["provide_industrial_heat"]["required_outputs"] == [
         {"commodity": "industrial_heat"},
-        {"commodity": "co2"},
     ]
 
     assert "convert_gas_to_industrial_heat" not in roles
@@ -2892,10 +2965,9 @@ def test_toy_transport_uses_service_role_with_pathway_variants():
     roles = {role["id"]: role for role in source["process_roles"]}
     assert "provide_passenger_km" in roles
     assert roles["provide_passenger_km"]["stage"] == "end_use"
-    assert roles["provide_passenger_km"]["inputs"] == []
-    assert roles["provide_passenger_km"]["outputs"] == [
+    assert roles["provide_passenger_km"]["required_inputs"] == []
+    assert roles["provide_passenger_km"]["required_outputs"] == [
         {"commodity": "passenger_km"},
-        {"commodity": "co2"},
     ]
 
     # No intermediate conversion roles
@@ -2915,21 +2987,21 @@ def test_toy_resources_uses_service_role_with_case_overlays():
     roles = {role["id"]: role for role in source["process_roles"]}
     assert "provide_haul_work" in roles
     assert roles["provide_haul_work"]["stage"] == "end_use"
-    assert roles["provide_haul_work"]["inputs"] == [{"commodity": "haul_energy_input"}]
-    assert roles["provide_haul_work"]["outputs"] == [{"commodity": "haul_work"}]
+    assert roles["provide_haul_work"]["required_inputs"] == []
+    assert roles["provide_haul_work"]["required_outputs"] == [{"commodity": "haul_work"}]
 
-    assert "haul_with_diesel" not in roles
-    assert "haul_with_electricity" not in roles
-    assert "haul_with_biodiesel" not in roles
+    # No fuel-pathway conversion roles — all variants under one service role
+    assert "convert_diesel_to_haul_energy" not in roles
+    assert "convert_electricity_to_haul_energy" not in roles
+    assert "convert_biodiesel_to_haul_energy" not in roles
 
     variants = {
         variant["id"]: variant["role"]
         for variant in source["process_variants"]
     }
-    assert variants["diesel_haul"] == "convert_diesel_to_haul_energy"
-    assert variants["electric_haul"] == "convert_electricity_to_haul_energy"
-    assert variants["biodiesel_haul"] == "convert_biodiesel_to_haul_energy"
-    assert variants["haul_work_delivery"] == "provide_haul_work"
+    assert variants["diesel_haul"] == "provide_haul_work"
+    assert variants["electric_haul"] == "provide_haul_work"
+    assert variants["biodiesel_haul"] == "provide_haul_work"
 
     cases = {case["name"]: case for case in source["model"]["cases"]}
     assert cases["ref"]["is_baseline"] is True
@@ -2949,7 +3021,8 @@ def test_toy_refactored_examples_compile_under_new_invariants():
 
 def test_new_syntax_end_use_requires_physical_input_unless_demand_measure():
     source = _base_new_syntax_source()
-    source["process_roles"][0]["inputs"] = []
+    source["process_roles"][0]["required_inputs"] = []
+    source["process_variants"][0]["inputs"] = []
     source["process_variants"][0].pop("kind")
 
     with pytest.raises(Exception, match=r"\[E_END_USE_PHYSICAL_INPUT\]"):
@@ -2957,7 +3030,8 @@ def test_new_syntax_end_use_requires_physical_input_unless_demand_measure():
 
 def test_new_syntax_end_use_zero_input_demand_measure_is_allowed():
     source = _base_new_syntax_source()
-    source["process_roles"][0]["inputs"] = []
+    source["process_roles"][0]["required_inputs"] = []
+    source["process_variants"][0]["inputs"] = []
     source["process_variants"][0]["kind"] = "demand_measure"
 
     tableir = compile_vedalang_to_tableir(source)

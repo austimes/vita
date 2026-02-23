@@ -67,17 +67,18 @@ class TestExportResGraphStructure:
             assert "id" in comm
             assert "type" in comm
             assert comm["type"] in (
-                "fuel", "energy", "service", "material", "emission", "other"
+                "fuel", "energy", "service", "material", "emission", "money", "other"
             )
 
     def test_roles_have_required_fields(self, toy_buildings_graph):
         for role in toy_buildings_graph["roles"]:
             assert "id" in role
             assert "stage" in role
-            assert "inputs" in role
-            assert "outputs" in role
+            assert "required_inputs" in role
+            assert "required_outputs" in role
             assert "derived_kind" in role
             assert "variant_count" in role
+            assert "has_variant_level_inputs" in role
 
     def test_variants_have_required_fields(self, toy_buildings_graph):
         for variant in toy_buildings_graph["variants"]:
@@ -143,14 +144,14 @@ class TestToyBuildingsSemantics:
             c for c in toy_buildings_graph["commodities"] if c["type"] == "service"
         ]
         assert len(services) >= 1
-        assert any(c["id"] == "space_heat" for c in services)
+        assert any(c["id"] == "service:space_heat" for c in services)
 
     def test_emission_commodity_present(self, toy_buildings_graph):
         emissions = [
             c for c in toy_buildings_graph["commodities"] if c["type"] == "emission"
         ]
         assert len(emissions) >= 1
-        assert any(c["id"] == "co2" for c in emissions)
+        assert any(c["id"] == "emission:co2" for c in emissions)
 
     def test_end_use_role_derived_as_device(self, toy_buildings_graph):
         end_use_roles = [
@@ -175,10 +176,54 @@ class TestToyBuildingsSemantics:
     def test_emission_edges_use_emission_direction(self, toy_buildings_graph):
         co2_output_edges = [
             e for e in toy_buildings_graph["edges"]
-            if e["commodity"] == "co2" and e["direction"] != "input"
+            if e["commodity"] == "emission:co2" and e["direction"] != "input"
         ]
         for edge in co2_output_edges:
             assert edge["direction"] == "emission"
+
+    def test_variant_nodes_include_io(self, toy_buildings_graph):
+        """Variant nodes include inputs, outputs, and emission_factors."""
+        gas = next(
+            v for v in toy_buildings_graph["variants"] if v["id"] == "gas_heater"
+        )
+        assert gas["inputs"] == ["energy:natural_gas"]
+        assert gas["outputs"] == ["service:space_heat"]
+        assert gas["emission_factors"] == {"emission:co2": 0.056}
+
+        hp = next(
+            v for v in toy_buildings_graph["variants"] if v["id"] == "heat_pump"
+        )
+        assert hp["inputs"] == ["energy:electricity"]
+        assert hp["outputs"] == ["service:space_heat"]
+        assert "emission_factors" not in hp
+
+    def test_co2_emission_edge_is_variant_scoped(self, toy_buildings_graph):
+        """CO2 emission edge should be variant-scoped, not role-scoped."""
+        co2_edges = [
+            e for e in toy_buildings_graph["edges"]
+            if e["commodity"] == "emission:co2" and e["direction"] == "emission"
+        ]
+        assert len(co2_edges) == 1
+        edge = co2_edges[0]
+        assert edge["scope"] == "variant"
+        assert edge["source_variants"] == ["gas_heater"]
+
+    def test_role_has_variant_level_outputs(self, toy_buildings_graph):
+        """provide_space_heat role should not use emission commodities as outputs."""
+        role = next(
+            r for r in toy_buildings_graph["roles"]
+            if r["id"] == "provide_space_heat"
+        )
+        assert role["has_variant_level_outputs"] is False
+
+    def test_role_level_edges_have_scope_role(self, toy_buildings_graph):
+        """Role-level required_output edges should have scope=role."""
+        space_heat_edges = [
+            e for e in toy_buildings_graph["edges"]
+            if e["commodity"] == "service:space_heat" and e["direction"] == "output"
+        ]
+        assert len(space_heat_edges) == 1
+        assert space_heat_edges[0]["scope"] == "role"
 
     def test_all_edge_endpoints_exist(self, toy_buildings_graph):
         all_ids = set()
@@ -201,14 +246,14 @@ class TestMermaidOutput:
         mermaid = res_graph_to_mermaid(toy_buildings_graph)
         assert mermaid.startswith("flowchart LR")
 
-    def test_contains_stage_comments(self, toy_buildings_graph):
+    def test_contains_stage_subgraphs(self, toy_buildings_graph):
         mermaid = res_graph_to_mermaid(toy_buildings_graph)
-        assert "%% Stage: supply" in mermaid
-        assert "%% Stage: end_use" in mermaid
+        assert 'subgraph stage_supply["Supply"]' in mermaid
+        assert 'subgraph stage_end_use["End Use"]' in mermaid
 
     def test_commodity_nodes_use_round_parens(self, toy_buildings_graph):
         mermaid = res_graph_to_mermaid(toy_buildings_graph)
-        assert "C_space_heat((space_heat))" in mermaid
+        assert "C_service_space_heat((service:space_heat))" in mermaid
 
     def test_role_nodes_include_kind(self, toy_buildings_graph):
         mermaid = res_graph_to_mermaid(toy_buildings_graph)
@@ -216,7 +261,7 @@ class TestMermaidOutput:
 
     def test_emission_edges_use_dotted_arrow(self, toy_buildings_graph):
         mermaid = res_graph_to_mermaid(toy_buildings_graph)
-        assert "-.-> C_co2" in mermaid
+        assert "-.-> C_emission_co2" in mermaid
 
     def test_style_definitions_present(self, toy_buildings_graph):
         mermaid = res_graph_to_mermaid(toy_buildings_graph)

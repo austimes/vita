@@ -27,21 +27,21 @@ from .segments import (
 
 @dataclass
 class Role:
-    """Abstract process transformation (topology definition).
+    """Abstract process contract (minimum required I/O).
 
-    Roles define what transformations exist without specifying costs or
-    efficiencies. Multiple variants can implement the same role.
+    Roles define the service contract that any implementing variant must
+    satisfy. Multiple variants can implement the same role.
 
     Attributes:
         id: Role identifier (verb_phrase, e.g., "deliver_lighting")
-        inputs: List of input commodity IDs
-        outputs: List of output commodity IDs
+        required_inputs: Minimum required input commodity IDs
+        required_outputs: Minimum required output commodity IDs
         stage: Optional stage classification (supply, conversion, end_use, etc.)
     """
 
     id: str
-    inputs: list[str]
-    outputs: list[str]
+    required_inputs: list[str]
+    required_outputs: list[str]
     stage: str | None = None
 
 
@@ -49,26 +49,23 @@ class Role:
 class Variant:
     """Concrete technology implementing a process role.
 
-    Variants carry numeric parameters (efficiency, costs, lifetime, emissions).
-    Multiple variants can implement the same role, competing in optimization.
+    Variants carry numeric parameters (efficiency, costs, lifetime, emissions)
+    and declare their full explicit I/O topology. No inheritance from the role —
+    variants must list all inputs and outputs they actually consume/produce.
 
     Attributes:
         id: Variant identifier (snake_case technology name)
         role: The Role this variant implements
         attrs: Dict of variant attributes (efficiency, lifetime, costs, etc.)
-        inputs: Optional variant-level input override. When set, replaces
-            role.inputs for this variant's topology and validation.
+        inputs: Full list of input commodity IDs consumed by this variant
+        outputs: Full list of output commodity IDs produced by this variant
     """
 
     id: str
     role: Role
     attrs: dict = field(default_factory=dict)
-    inputs: list[str] | None = None
-
-    @property
-    def effective_inputs(self) -> list[str]:
-        """Return variant inputs if overridden, else role inputs."""
-        return self.inputs if self.inputs is not None else self.role.inputs
+    inputs: list[str] = field(default_factory=list)
+    outputs: list[str] = field(default_factory=list)
 
 
 class InstanceKey(NamedTuple):
@@ -138,28 +135,28 @@ def build_roles(
         if role_id in roles:
             raise IRError(f"Duplicate role id: {role_id}")
 
-        inputs = []
-        for inp in raw.get("inputs") or []:
+        required_inputs = []
+        for inp in raw.get("required_inputs") or []:
             comm_id = inp["commodity"]
             if comm_id not in commodities:
                 raise IRError(
                     f"Role '{role_id}' references unknown input commodity: {comm_id}"
                 )
-            inputs.append(comm_id)
+            required_inputs.append(comm_id)
 
-        outputs = []
-        for out in raw.get("outputs") or []:
+        required_outputs = []
+        for out in raw.get("required_outputs") or []:
             comm_id = out["commodity"]
             if comm_id not in commodities:
                 raise IRError(
                     f"Role '{role_id}' references unknown output commodity: {comm_id}"
                 )
-            outputs.append(comm_id)
+            required_outputs.append(comm_id)
 
         roles[role_id] = Role(
             id=role_id,
-            inputs=inputs,
-            outputs=outputs,
+            required_inputs=required_inputs,
+            required_outputs=required_outputs,
             stage=raw.get("stage"),
         )
 
@@ -173,16 +170,20 @@ def build_variants(
 ) -> dict[str, Variant]:
     """Build Variant objects from process_variants, resolving role refs.
 
+    Validates that each variant explicitly declares inputs and outputs,
+    and that the variant's I/O satisfies the role's service contract.
+
     Args:
         model: Model dict with 'process_variants' key
         roles: Dict mapping role id to Role object
-        commodities: Optional commodity dict for validating variant-level inputs
+        commodities: Optional commodity dict for validating commodity references
 
     Returns:
         Dict mapping variant id to Variant object
 
     Raises:
-        IRError: If duplicate variant id or invalid role/commodity reference
+        IRError: If duplicate variant id, invalid role/commodity reference,
+            or variant doesn't satisfy role contract
     """
     variants: dict[str, Variant] = {}
     process_variants = model.get("process_variants") or []
@@ -209,29 +210,54 @@ def build_variants(
                 f"Variant '{variant_id}' references unknown role: {role_id}"
             )
 
+        role = roles[role_id]
         attrs = {}
         for key in attr_keys:
             if key in raw:
                 attrs[key] = raw[key]
 
-        variant_inputs: list[str] | None = None
-        raw_inputs = raw.get("inputs")
-        if raw_inputs is not None:
-            variant_inputs = []
-            for inp in raw_inputs:
-                comm_id = inp["commodity"]
-                if commodities is not None and comm_id not in commodities:
-                    raise IRError(
-                        f"Variant '{variant_id}' references unknown input "
-                        f"commodity: {comm_id}"
-                    )
-                variant_inputs.append(comm_id)
+        # Parse inputs (required)
+        variant_inputs: list[str] = []
+        for inp in raw.get("inputs") or []:
+            comm_id = inp["commodity"]
+            if commodities is not None and comm_id not in commodities:
+                raise IRError(
+                    f"Variant '{variant_id}' references unknown input "
+                    f"commodity: {comm_id}"
+                )
+            variant_inputs.append(comm_id)
+
+        # Parse outputs (required)
+        variant_outputs: list[str] = []
+        for out in raw.get("outputs") or []:
+            comm_id = out["commodity"]
+            if commodities is not None and comm_id not in commodities:
+                raise IRError(
+                    f"Variant '{variant_id}' references unknown output "
+                    f"commodity: {comm_id}"
+                )
+            variant_outputs.append(comm_id)
+
+        # Validate role contract satisfaction
+        missing_inputs = set(role.required_inputs) - set(variant_inputs)
+        if missing_inputs:
+            raise IRError(
+                f"Variant '{variant_id}' missing required inputs from role "
+                f"'{role_id}': {sorted(missing_inputs)}"
+            )
+        missing_outputs = set(role.required_outputs) - set(variant_outputs)
+        if missing_outputs:
+            raise IRError(
+                f"Variant '{variant_id}' missing required outputs from role "
+                f"'{role_id}': {sorted(missing_outputs)}"
+            )
 
         variants[variant_id] = Variant(
             id=variant_id,
-            role=roles[role_id],
+            role=role,
             attrs=attrs,
             inputs=variant_inputs,
+            outputs=variant_outputs,
         )
 
     return variants
@@ -410,9 +436,9 @@ def apply_process_parameters(
                         instance.attrs[attr_key] = {**existing, **param_block[attr_key]}
 
 
-def _produces_service(role: Role, commodities: dict[str, dict]) -> bool:
-    """Check if a role produces a service commodity."""
-    for out_id in role.outputs:
+def _produces_service(outputs: list[str], commodities: dict[str, dict]) -> bool:
+    """Check if a list of output commodity IDs includes a service commodity."""
+    for out_id in outputs:
         if out_id in commodities:
             comm = commodities[out_id]
             if comm.get("kind") == "service":
@@ -470,13 +496,13 @@ def lower_instances_to_tableir(
     rows = []
 
     for key, instance in sorted(instances.items()):
-        role = instance.role
+        variant = instance.variant
         attrs = instance.attrs
 
         prc_name = _generate_process_name(key, registry)
 
         inputs_scoped = []
-        for inp_id in instance.variant.effective_inputs:
+        for inp_id in variant.inputs:
             comm = commodities.get(inp_id, {})
             tradable = comm.get("tradable", True)
             kind = comm.get("kind", "carrier")
@@ -488,7 +514,7 @@ def lower_instances_to_tableir(
             inputs_scoped.append(scoped_id)
 
         outputs_scoped = []
-        for out_id in role.outputs:
+        for out_id in variant.outputs:
             comm = commodities.get(out_id, {})
             tradable = comm.get("tradable", True)
             kind = comm.get("kind", "carrier")
@@ -500,7 +526,7 @@ def lower_instances_to_tableir(
             outputs_scoped.append(scoped_id)
 
         sets = []
-        if _produces_service(role, commodities):
+        if _produces_service(variant.outputs, commodities):
             sets.append("DMD")
 
         row: dict = {
@@ -555,7 +581,7 @@ def validate_demand_feasibility(
 
     producer_map: dict[tuple[str, str | None, str], list[str]] = {}
     for key, instance in instances.items():
-        for out_id in instance.role.outputs:
+        for out_id in instance.variant.outputs:
             map_key = (key.region, key.segment, out_id)
             if map_key not in producer_map:
                 producer_map[map_key] = []

@@ -36,6 +36,7 @@ DEFAULT_UNITS = {
     "service": "PJ",
     "material": "Mt",
     "emission": "Mt",
+    "money": "MUSD",
     "other": "PJ",
 }
 
@@ -139,11 +140,68 @@ VALID_CATEGORIES = {
 }
 
 VALID_PROCESS_STAGES = ("supply", "conversion", "storage", "end_use", "sink")
-VALID_COMMODITY_TYPES = ("fuel", "energy", "service", "material", "emission", "other")
+VALID_COMMODITY_TYPES = (
+    "fuel", "energy", "service", "material", "emission", "money", "other"
+)
+
+NAMESPACE_TO_TYPES = {
+    "energy": {"fuel", "energy"},
+    "material": {"material"},
+    "service": {"service"},
+    "emission": {"emission"},
+    "money": {"money"},
+}
+
+AMBIGUOUS_EMISSION_SPECIES = {"co2", "co2e", "ch4", "n2o"}
+LEGACY_NAMESPACES = {"C", "E", "S", "M", "D", "F"}
 
 ROLE_FUEL_PATHWAY_PATTERN = re.compile(
     r"(?:^|_)(?:from|with|using|via)_(?:[a-z0-9_]+)$"
 )
+
+
+def _split_namespace(commodity_ref: str) -> tuple[str | None, str]:
+    """Return namespace + base name for a commodity reference."""
+    if ":" not in commodity_ref:
+        return None, commodity_ref
+    namespace, _, base = commodity_ref.partition(":")
+    return namespace, base
+
+
+def _is_emission_namespace_ref(commodity_ref: str) -> bool:
+    """True when commodity reference is explicitly namespaced as emission:*."""
+    namespace, _ = _split_namespace(commodity_ref)
+    return namespace == "emission"
+
+
+def _is_legacy_namespace(namespace: str | None) -> bool:
+    """Legacy VEDA-style commodity namespaces like C:/E:/S: remain valid."""
+    if namespace is None:
+        return False
+    return namespace in LEGACY_NAMESPACES
+
+
+def _is_ambiguous_unnamespaced_emission(commodity_ref: str) -> bool:
+    """True when commodity reference looks like bare emission species name."""
+    namespace, base = _split_namespace(commodity_ref)
+    if namespace is not None:
+        return False
+    return base.lower() in AMBIGUOUS_EMISSION_SPECIES
+
+
+def _warn_ambiguous_commodity_ref(
+    warnings: list[str],
+    location: str,
+    commodity_ref: str,
+) -> None:
+    """Emit L5-style migration aid warning for ambiguous bare emission names."""
+    if not _is_ambiguous_unnamespaced_emission(commodity_ref):
+        return
+    warnings.append(
+        f"{location} uses ambiguous un-namespaced commodity '{commodity_ref}'. "
+        f"Did you mean 'emission:{commodity_ref.lower()}' or "
+        f"'material:{commodity_ref.lower()}'?"
+    )
 
 
 def _format_structural_errors(errors: list[dict[str, str]]) -> str:
@@ -226,6 +284,37 @@ def _validate_new_syntax_structural_invariants(
                 }
             )
 
+        for idx, commodity_ref in enumerate(role.required_inputs):
+            if _is_emission_namespace_ref(commodity_ref):
+                errors.append(
+                    {
+                        "code": "E_EMISSION_NAMESPACE_FLOW",
+                        "location": (
+                            f"process_roles[{role_id}].required_inputs[{idx}].commodity"
+                        ),
+                        "message": (
+                            "L1 violation: emission:* commodities must not appear in "
+                            "role required_inputs."
+                        ),
+                    }
+                )
+
+        for idx, commodity_ref in enumerate(role.required_outputs):
+            if _is_emission_namespace_ref(commodity_ref):
+                errors.append(
+                    {
+                        "code": "E_EMISSION_NAMESPACE_FLOW",
+                        "location": (
+                            f"process_roles[{role_id}].required_outputs[{idx}].commodity"
+                        ),
+                        "message": (
+                            "L1/L4 violation: emission:* commodities "
+                            "must not appear in "
+                            "role required_outputs."
+                        ),
+                    }
+                )
+
     for role_id, issue in _validate_role_primary_outputs(roles, commodities):
         errors.append(
             {
@@ -242,19 +331,51 @@ def _validate_new_syntax_structural_invariants(
     for variant in source.get("process_variants") or []:
         variant_id = variant.get("id", "<variant>")
         role = roles.get(variant.get("role"))
+
+        for idx, inp in enumerate(variant.get("inputs") or []):
+            commodity_ref = inp.get("commodity")
+            if commodity_ref and _is_emission_namespace_ref(commodity_ref):
+                errors.append(
+                    {
+                        "code": "E_EMISSION_NAMESPACE_FLOW",
+                        "location": (
+                            f"process_variants[{variant_id}].inputs[{idx}].commodity"
+                        ),
+                        "message": (
+                            "L1 violation: emission:* commodities must not appear in "
+                            "variant inputs. Use emission_factors instead."
+                        ),
+                    }
+                )
+
+        for idx, out in enumerate(variant.get("outputs") or []):
+            commodity_ref = out.get("commodity")
+            if commodity_ref and _is_emission_namespace_ref(commodity_ref):
+                errors.append(
+                    {
+                        "code": "E_EMISSION_NAMESPACE_FLOW",
+                        "location": (
+                            f"process_variants[{variant_id}].outputs[{idx}].commodity"
+                        ),
+                        "message": (
+                            "L1/L4 violation: emission:* commodities "
+                            "must not appear in "
+                            "variant outputs. Use emission_factors instead."
+                        ),
+                    }
+                )
+
         if role is None or role.stage != "end_use":
             continue
 
-        # Use variant-level inputs if provided, else role-level inputs
-        raw_inputs = variant.get("inputs")
-        if raw_inputs is not None:
-            effective_inputs = [inp["commodity"] for inp in raw_inputs]
-        else:
-            effective_inputs = role.inputs
+        # Variant inputs are explicit (required)
+        variant_inputs = [
+            inp["commodity"] for inp in variant.get("inputs") or []
+        ]
 
         physical_inputs = [
             inp
-            for inp in effective_inputs
+            for inp in variant_inputs
             if _commodity_kind(commodities.get(inp, {})) not in {"service", "emission"}
         ]
         if physical_inputs:
@@ -293,7 +414,32 @@ def _validate_new_syntax_structural_invariants(
     for variant in source.get("process_variants") or []:
         variant_id = variant.get("id", "<variant>")
         emission_factors = variant.get("emission_factors") or {}
+
+        has_negative = False
         for emission_comm in sorted(emission_factors.keys()):
+            if ":" in emission_comm and not _is_emission_namespace_ref(emission_comm):
+                errors.append(
+                    {
+                        "code": "E_EMISSION_FACTOR_NAMESPACE",
+                        "location": (
+                            f"process_variants[{variant_id}]."
+                            f"emission_factors[{emission_comm}]"
+                        ),
+                        "message": (
+                            "L2 violation: emission_factors keys must be namespaced "
+                            "as emission:*."
+                        ),
+                    }
+                )
+
+            value = emission_factors.get(emission_comm)
+            if isinstance(value, (int, float)) and value < 0:
+                has_negative = True
+            elif isinstance(value, dict):
+                series = value.get("values") or {}
+                if any(v < 0 for v in series.values()):
+                    has_negative = True
+
             comm = commodities.get(emission_comm)
             if not comm:
                 continue
@@ -311,6 +457,21 @@ def _validate_new_syntax_structural_invariants(
                         ),
                     }
                 )
+
+        if has_negative and not (
+            (variant.get("description") or "").strip()
+            or (variant.get("notes") or "").strip()
+        ):
+            warnings.append(
+                {
+                    "code": "W_NEGATIVE_EMISSION_DOC",
+                    "location": f"process_variants[{variant_id}]",
+                    "message": (
+                        "L3 guidance: negative emission_factors are allowed, but add "
+                        "description/notes for auditability."
+                    ),
+                }
+            )
 
     for constraint in source.get("model", {}).get("constraints", []):
         if constraint.get("type") != "emission_cap":
@@ -606,9 +767,27 @@ def validate_cross_references(
 
     # Build lookup sets - support both new syntax ('id') and old syntax ('name')
     commodities = {}
-    for c in model.get("commodities", []):
+    for i, c in enumerate(model.get("commodities", [])):
         comm_id = c.get("id") or c.get("name")
         if comm_id:
+            namespace, _ = _split_namespace(comm_id)
+            if namespace is not None and not _is_legacy_namespace(namespace):
+                expected_types = NAMESPACE_TO_TYPES.get(namespace)
+                actual_type = c.get("type")
+                if expected_types is None:
+                    errors.append(
+                        f"Commodity '{comm_id}' in model.commodities[{i}] uses unknown "
+                        f"namespace '{namespace}'."
+                    )
+                elif actual_type not in expected_types:
+                    errors.append(
+                        f"Commodity '{comm_id}' namespace '{namespace}' "
+                        f"implies type in {sorted(expected_types)} but "
+                        f"commodity type is '{actual_type}'."
+                    )
+            _warn_ambiguous_commodity_ref(
+                warnings, f"model.commodities[{i}]", comm_id
+            )
             commodities[comm_id] = c
     commodity_names = set(commodities.keys())
     processes = set()
@@ -651,6 +830,16 @@ def validate_cross_references(
         # Check input commodity references
         for i, inp in enumerate(process.get("inputs", [])):
             comm = inp["commodity"]
+            _warn_ambiguous_commodity_ref(
+                warnings,
+                f"process '{proc_name}' inputs[{i}]",
+                comm,
+            )
+            if _is_emission_namespace_ref(comm):
+                errors.append(
+                    f"L1 violation in process '{proc_name}' inputs[{i}]: emission:* "
+                    "commodities must not appear in flow topology."
+                )
             if comm not in commodity_names:
                 hint = suggest_commodity(comm)
                 errors.append(
@@ -661,6 +850,17 @@ def validate_cross_references(
         # Check output commodity references
         for i, out in enumerate(process.get("outputs", [])):
             comm = out["commodity"]
+            _warn_ambiguous_commodity_ref(
+                warnings,
+                f"process '{proc_name}' outputs[{i}]",
+                comm,
+            )
+            if _is_emission_namespace_ref(comm):
+                errors.append(
+                    f"L1/L4 violation in process '{proc_name}' outputs[{i}]: "
+                    "emission:* "
+                    "commodities must not appear in flow topology."
+                )
             if comm not in commodity_names:
                 hint = suggest_commodity(comm)
                 errors.append(
@@ -737,6 +937,11 @@ def validate_cross_references(
         commodity = scenario.get("commodity")
 
         if commodity:
+            _warn_ambiguous_commodity_ref(
+                warnings,
+                f"scenario '{scenario_name}'",
+                commodity,
+            )
             if commodity not in commodity_names:
                 hint = suggest_commodity(commodity)
                 errors.append(
@@ -821,6 +1026,11 @@ def validate_cross_references(
         demand_selectors_seen: set[tuple[str, str, str]] = set()
         for idx, override in enumerate(case.get("demand_overrides", [])):
             commodity = override["commodity"]
+            _warn_ambiguous_commodity_ref(
+                warnings,
+                f"case '{case_name}' demand_overrides[{idx}]",
+                commodity,
+            )
             if commodity not in commodity_names:
                 hint = suggest_commodity(commodity)
                 errors.append(
@@ -851,6 +1061,11 @@ def validate_cross_references(
         price_commodities_seen: set[str] = set()
         for idx, override in enumerate(case.get("fuel_price_overrides", [])):
             commodity = override["commodity"]
+            _warn_ambiguous_commodity_ref(
+                warnings,
+                f"case '{case_name}' fuel_price_overrides[{idx}]",
+                commodity,
+            )
             if commodity not in commodity_names:
                 hint = suggest_commodity(commodity)
                 errors.append(
@@ -888,6 +1103,50 @@ def validate_cross_references(
                     f" for variant '{variant}'"
                 )
             variant_override_names.add(variant)
+
+    if source:
+        for variant in source.get("process_variants", []):
+            variant_id = variant.get("id", "<variant>")
+            for idx, inp in enumerate(variant.get("inputs") or []):
+                comm = inp.get("commodity")
+                if not comm:
+                    continue
+                _warn_ambiguous_commodity_ref(
+                    warnings,
+                    f"process_variants[{variant_id}].inputs[{idx}]",
+                    comm,
+                )
+                if _is_emission_namespace_ref(comm):
+                    errors.append(
+                        "L1 violation in process_variants"
+                        f"[{variant_id}].inputs[{idx}]: emission:* commodities "
+                        "must not appear in inputs/outputs."
+                    )
+
+            for idx, out in enumerate(variant.get("outputs") or []):
+                comm = out.get("commodity")
+                if not comm:
+                    continue
+                _warn_ambiguous_commodity_ref(
+                    warnings,
+                    f"process_variants[{variant_id}].outputs[{idx}]",
+                    comm,
+                )
+                if _is_emission_namespace_ref(comm):
+                    errors.append(
+                        "L1/L4 violation in process_variants"
+                        f"[{variant_id}].outputs[{idx}]: emission:* commodities "
+                        "must not appear in inputs/outputs."
+                    )
+
+            emission_factors = variant.get("emission_factors") or {}
+            for em_key in emission_factors:
+                if ":" in em_key and not _is_emission_namespace_ref(em_key):
+                    errors.append(
+                        "L2 violation in process_variants"
+                        f"[{variant_id}].emission_factors: key '{em_key}' must "
+                        "be namespaced as emission:*."
+                    )
 
     if len(baseline_cases) > 1:
         errors.append(
@@ -1022,7 +1281,7 @@ def _compile_new_syntax(
             "process": prc_name,
             "sets": ",".join(
                 ["DMD"]
-                if _produces_service_comm(instance.role.outputs, commodities)
+                if _produces_service_comm(instance.variant.outputs, commodities)
                 else []
             ),
             "tact": "PJ",
@@ -1035,12 +1294,10 @@ def _compile_new_syntax(
     pasti_rows = []
     for key, instance in sorted(instances.items()):
         prc_name = registry.get_process_symbol(key.variant_id, key.region, key.segment)
-        role = instance.role
         attrs = instance.attrs
 
-        # Input commodities (use variant-level override if present)
-        effective_inputs = instance.variant.effective_inputs
-        for inp_id in effective_inputs:
+        # Input commodities (from variant's explicit I/O)
+        for inp_id in instance.variant.inputs:
             comm = commodities.get(inp_id, {})
             tradable = comm.get("tradable", True)
             if tradable:
@@ -1053,8 +1310,8 @@ def _compile_new_syntax(
                 "commodity-in": scoped_id,
             })
 
-        # Output commodities
-        for out_id in role.outputs:
+        # Output commodities (from variant's explicit I/O)
+        for out_id in instance.variant.outputs:
             comm = commodities.get(out_id, {})
             comm_kind = _commodity_kind(comm)
             tradable = comm.get("tradable", True)
@@ -1301,21 +1558,25 @@ def _commodity_kind(comm: dict) -> str:
         "service": "service",
         "material": "material",
         "emission": "emission",
+        "money": "money",
         "other": "carrier",
     }.get(ctype, "carrier")
 
 
 def _primary_output_for_role(role, commodities: dict[str, dict]) -> str | None:
-    """Select primary output as first non-emission output, fallback to first output."""
+    """Select primary output as first non-emission required output.
+
+    Fallback to first output if all outputs are emissions.
+    """
     non_emission = [
         out
-        for out in role.outputs
+        for out in role.required_outputs
         if _commodity_kind(commodities.get(out, {})) != "emission"
     ]
     if non_emission:
         return non_emission[0]
-    if role.outputs:
-        return role.outputs[0]
+    if role.required_outputs:
+        return role.required_outputs[0]
     return None
 
 
@@ -1323,14 +1584,14 @@ def _validate_role_primary_outputs(
     roles: dict,
     commodities: dict[str, dict],
 ) -> list[tuple[str, str]]:
-    """Enforce one primary non-emission output for non-storage/sink roles."""
+    """Enforce one primary non-emission required output for non-storage/sink roles."""
     errors: list[tuple[str, str]] = []
     for role in roles.values():
         if role.stage in {"storage", "sink"}:
             continue
         non_emission = [
             out
-            for out in role.outputs
+            for out in role.required_outputs
             if _commodity_kind(commodities.get(out, {})) != "emission"
         ]
         if len(non_emission) != 1:
@@ -1338,7 +1599,8 @@ def _validate_role_primary_outputs(
                 (
                     role.id,
                     (
-                        "Role must have exactly one primary non-emission output "
+                        "Role must have exactly one primary non-emission "
+                        "required output "
                         f"for stage '{role.stage}' (found {len(non_emission)})."
                     ),
                 )
@@ -1381,7 +1643,7 @@ def _detect_service_role_duplication(
         # W2: role names should describe the service, not fuel pathways.
         fuelish_inputs = [
             inp
-            for inp in role.inputs
+            for inp in role.required_inputs
             if commodities.get(inp, {}).get("type") in {"fuel", "energy"}
         ]
         if fuelish_inputs and ROLE_FUEL_PATHWAY_PATTERN.search(role.id):
@@ -1422,8 +1684,8 @@ def _detect_service_role_duplication(
         signatures: dict[tuple[tuple[str, ...], tuple[str, ...]], list[str]] = {}
         for role in sorted_roles:
             signature = (
-                tuple(sorted(role.inputs)),
-                tuple(sorted(role.outputs)),
+                tuple(sorted(role.required_inputs)),
+                tuple(sorted(role.required_outputs)),
             )
             signatures.setdefault(signature, []).append(role.id)
 
@@ -1518,10 +1780,9 @@ def _build_metadata_map(
         symbol = registry.get_process_symbol(key.variant_id, key.region, key.segment)
         role = instance.role
         service = _primary_output_for_role(role, commodities)
-        effective_inputs = instance.variant.effective_inputs
         carriers = [
             inp
-            for inp in effective_inputs
+            for inp in instance.variant.inputs
             if _commodity_kind(commodities.get(inp, {})) != "emission"
         ]
         sector = None
@@ -1531,7 +1792,7 @@ def _build_metadata_map(
             role,
             instance.attrs,
             commodities,
-            role.outputs,
+            instance.variant.outputs,
         )
         metadata[symbol] = {
             "variant": key.variant_id,
@@ -2195,6 +2456,7 @@ def _commodity_type_to_csets(ctype: str) -> str:
         "service": "DEM",
         "material": "MAT",
         "emission": "ENV",
+        "money": "FIN",
         "other": "NRG",
         # Normalized internal commodity class used in compiler internals
         "carrier": "NRG",

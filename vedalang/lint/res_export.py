@@ -75,51 +75,68 @@ def export_res_graph(source: dict) -> dict:
             continue
 
         stage = raw_role.get("stage")
-        inputs = [
+        required_inputs = [
             inp["commodity"] if isinstance(inp, dict) else inp
-            for inp in raw_role.get("inputs") or []
+            for inp in raw_role.get("required_inputs") or []
         ]
-        outputs = [
+        required_outputs = [
             out["commodity"] if isinstance(out, dict) else out
-            for out in raw_role.get("outputs") or []
+            for out in raw_role.get("required_outputs") or []
         ]
 
         # Build a Role object for kind derivation
-        role_obj = Role(id=role_id, inputs=inputs, outputs=outputs, stage=stage)
+        role_obj = Role(
+            id=role_id,
+            required_inputs=required_inputs,
+            required_outputs=required_outputs,
+            stage=stage,
+        )
         derived_kind = _derive_kind_from_structure(
-            role_obj, commodities_by_id, outputs
+            role_obj, commodities_by_id, required_outputs
         )
 
-        # Determine primary output (first non-emission output)
+        # Determine primary output (first non-emission required output)
         primary_output = None
-        for out_id in outputs:
+        for out_id in required_outputs:
             comm = commodities_by_id.get(out_id, {})
             if comm.get("type") != "emission":
                 primary_output = out_id
                 break
 
+        # Collect variant-level inputs not already in required_inputs
+        variant_input_set: set[str] = set()
+        for v in variant_by_role.get(role_id, []):
+            for inp in v.get("inputs") or []:
+                inp_id = inp["commodity"] if isinstance(inp, dict) else inp
+                if inp_id not in required_inputs:
+                    variant_input_set.add(inp_id)
+
         role_entry = {
             "id": role_id,
             "stage": stage,
-            "inputs": sorted(inputs),
-            "outputs": sorted(outputs),
+            "required_inputs": sorted(required_inputs),
+            "required_outputs": sorted(required_outputs),
             "derived_kind": derived_kind,
             "variant_count": len(variant_by_role.get(role_id, [])),
+            "has_variant_level_inputs": bool(variant_input_set),
         }
+        if variant_input_set:
+            role_entry["variant_inputs"] = sorted(variant_input_set)
         if primary_output:
             role_entry["primary_output"] = primary_output
 
         role_nodes.append(role_entry)
 
         # Build edges
-        for inp_id in inputs:
+        for inp_id in required_inputs:
             edges.append({
                 "from": inp_id,
                 "to": role_id,
                 "direction": "input",
                 "commodity": inp_id,
+                "scope": "role",
             })
-        for out_id in outputs:
+        for out_id in required_outputs:
             comm = commodities_by_id.get(out_id, {})
             edge_kind = "emission" if comm.get("type") == "emission" else "output"
             edges.append({
@@ -127,10 +144,17 @@ def export_res_graph(source: dict) -> dict:
                 "to": out_id,
                 "direction": edge_kind,
                 "commodity": out_id,
+                "scope": "role",
             })
 
-    # Build variant nodes
+    # Build variant nodes and collect variant-level edges
     variant_nodes = []
+    # Track which (role, commodity, direction) edges already exist from roles
+    existing_edges = {(e["from"], e["to"], e["direction"]) for e in edges}
+
+    # Track variant-level outputs per role (for role metadata)
+    variant_output_by_role: dict[str, set[str]] = {}
+
     for variant in source.get("process_variants") or []:
         vid = variant.get("id")
         role_id = variant.get("role")
@@ -144,27 +168,136 @@ def export_res_graph(source: dict) -> dict:
         kind = variant.get("kind")
         kind_source = "explicit" if kind else "derived"
         if not kind and role_raw:
-            outputs = [
+            required_outputs = [
                 out["commodity"] if isinstance(out, dict) else out
-                for out in role_raw.get("outputs") or []
+                for out in role_raw.get("required_outputs") or []
             ]
             role_obj = Role(
                 id=role_id,
-                inputs=[
+                required_inputs=[
                     inp["commodity"] if isinstance(inp, dict) else inp
-                    for inp in role_raw.get("inputs") or []
+                    for inp in role_raw.get("required_inputs") or []
                 ],
-                outputs=outputs,
+                required_outputs=required_outputs,
                 stage=role_raw.get("stage"),
             )
-            kind = _derive_kind_from_structure(role_obj, commodities_by_id, outputs)
+            kind = _derive_kind_from_structure(
+                role_obj, commodities_by_id, required_outputs
+            )
 
-        variant_nodes.append({
+        # Collect variant I/O for the enriched variant node
+        v_inputs = []
+        for inp in variant.get("inputs") or []:
+            v_inputs.append(inp["commodity"] if isinstance(inp, dict) else inp)
+        v_outputs = []
+        for out in variant.get("outputs") or []:
+            v_outputs.append(out["commodity"] if isinstance(out, dict) else out)
+
+        variant_entry: dict = {
             "id": vid,
             "role": role_id,
             "kind": kind or "process",
             "kind_source": kind_source,
-        })
+            "inputs": sorted(v_inputs),
+            "outputs": sorted(v_outputs),
+        }
+        emission_factors = variant.get("emission_factors") or {}
+        if emission_factors:
+            variant_entry["emission_factors"] = emission_factors
+
+        variant_nodes.append(variant_entry)
+
+        # Determine which role-level required outputs this role has
+        role_required_outputs: set[str] = set()
+        if role_raw:
+            for out in role_raw.get("required_outputs") or []:
+                role_required_outputs.add(
+                    out["commodity"] if isinstance(out, dict) else out
+                )
+
+        # Track variant-level outputs not in role required_outputs
+        for out_id in v_outputs:
+            if out_id not in role_required_outputs:
+                variant_output_by_role.setdefault(role_id, set()).add(out_id)
+
+        # Add edges for variant-level I/O not already covered by role
+        for inp_id in v_inputs:
+            edge_key = (inp_id, role_id, "input")
+            if edge_key not in existing_edges:
+                edges.append({
+                    "from": inp_id,
+                    "to": role_id,
+                    "direction": "input",
+                    "commodity": inp_id,
+                    "scope": "variant",
+                    "source_variants": [vid],
+                })
+                existing_edges.add(edge_key)
+            else:
+                # Tag existing edge with this variant source
+                for e in edges:
+                    if (e["from"], e["to"], e["direction"]) == edge_key:
+                        if "source_variants" in e:
+                            if vid not in e["source_variants"]:
+                                e["source_variants"].append(vid)
+                        break
+        for out_id in v_outputs:
+            comm = commodities_by_id.get(out_id, {})
+            edge_kind = "emission" if comm.get("type") == "emission" else "output"
+            edge_key = (role_id, out_id, edge_kind)
+            # Determine scope: role if in required_outputs, else variant
+            scope = "role" if out_id in role_required_outputs else "variant"
+            if edge_key not in existing_edges:
+                edge_entry: dict = {
+                    "from": role_id,
+                    "to": out_id,
+                    "direction": edge_kind,
+                    "commodity": out_id,
+                    "scope": scope,
+                }
+                if scope == "variant":
+                    edge_entry["source_variants"] = [vid]
+                edges.append(edge_entry)
+                existing_edges.add(edge_key)
+            else:
+                # Tag existing variant-scoped edge with this variant source
+                if scope == "variant":
+                    for e in edges:
+                        if (e["from"], e["to"], e["direction"]) == edge_key:
+                            if "source_variants" in e:
+                                if vid not in e["source_variants"]:
+                                    e["source_variants"].append(vid)
+                            break
+
+        for em_id in emission_factors.keys():
+            edge_key = (role_id, em_id, "emission")
+            if edge_key not in existing_edges:
+                edges.append({
+                    "from": role_id,
+                    "to": em_id,
+                    "direction": "emission",
+                    "commodity": em_id,
+                    "scope": "variant",
+                    "source_variants": [vid],
+                })
+                existing_edges.add(edge_key)
+            else:
+                for e in edges:
+                    if (e["from"], e["to"], e["direction"]) == edge_key:
+                        if "source_variants" not in e:
+                            e["source_variants"] = []
+                        if vid not in e["source_variants"]:
+                            e["source_variants"].append(vid)
+                        e["scope"] = "variant"
+                        break
+
+    # Enrich role nodes with variant-level output metadata
+    for role_entry in role_nodes:
+        role_id = role_entry["id"]
+        v_outputs = variant_output_by_role.get(role_id, set())
+        role_entry["has_variant_level_outputs"] = bool(v_outputs)
+        if v_outputs:
+            role_entry["variant_outputs"] = sorted(v_outputs)
 
     # Sort everything for deterministic output
     commodity_nodes.sort(key=lambda c: c["id"])
@@ -201,8 +334,20 @@ def res_graph_to_mermaid(graph: dict) -> str:
         "supply": 0,
         "conversion": 1,
         "storage": 2,
-        "end_use": 3,
-        "sink": 4,
+        "distribution": 3,
+        "end_use": 4,
+        "demand": 5,
+        "sink": 6,
+    }
+
+    stage_labels = {
+        "supply": "Supply",
+        "conversion": "Conversion",
+        "storage": "Storage",
+        "distribution": "Distribution",
+        "end_use": "End Use",
+        "demand": "Demand",
+        "sink": "Sink",
     }
 
     # Group roles by stage
@@ -211,15 +356,19 @@ def res_graph_to_mermaid(graph: dict) -> str:
         stage = role.get("stage") or "conversion"
         roles_by_stage.setdefault(stage, []).append(role)
 
-    # Render roles grouped by stage
+    # Render roles grouped by stage subgraphs
     for stage in sorted(roles_by_stage.keys(), key=lambda s: stage_order.get(s, 99)):
+        stage_label = stage_labels.get(stage, stage.replace("_", " ").title())
+        safe_stage = _sanitize(stage)
         lines.append("")
-        lines.append(f"    %% Stage: {stage}")
+        lines.append(f"    subgraph stage_{safe_stage}[\"{stage_label}\"]")
         for role in roles_by_stage[stage]:
             safe_id = _sanitize(role["id"])
             dk = role.get("derived_kind")
             kind_label = f" [{dk}]" if dk else ""
-            lines.append(f"    R_{safe_id}[{role['id']}{kind_label}]")
+            label = f"{role['id']}{kind_label}"
+            lines.append(f"        R_{safe_id}[\"{label}\"]")
+        lines.append("    end")
 
     # Render commodity nodes
     lines.append("")
