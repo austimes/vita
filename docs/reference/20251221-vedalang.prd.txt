@@ -1,0 +1,265 @@
+VEDA2 NL→VEDA Tag/File Decision System + Developer Toolchain
+Product Requirements Document (PRD)
+Version: 0.3 (Draft)
+Date: 2025-12-21
+Owner: (Project Lead)
+Audience: Implementation discussion with developers
+Stakeholders: Veda2 modelers, AI/agent developers, QA/CI owners, KanORS/Veda2 contacts (informational)
+
+1. Executive Summary
+This project will deliver a verifiable, test-driven reference system and developer toolchain that enables AI agents (and humans) to translate plain-language modeling statements into correct Veda2 (VEDA‑TIMES) inputs, with fast feedback analogous to modern software engineering workflows (LSPs, linters, formatters, tests).
+
+Core premise:
+  - VEDA tables are a DSL embedded in Excel.
+  - Robust authoring requires an automated feedback loop: parse/validate → diagnose → fix.
+  - Excel is treated as a compiled artifact when advantageous, enabling better tooling for both humans and agents.
+  - xl2times is assumed as the initial “compiler/orchestrator” (case selection via flags; compilation/translation validation), with an adjacent “devtools” layer for linting/formatting/indexing/LSP.
+
+2. Problem Statement
+VEDA tags and table structures form a DSL for specifying TIMES model structure and parameters. Selecting the correct tag is non-trivial, and in Veda2 correct file placement is equally important because precedence and seeding behavior affect meaning. AI agents can improve productivity only if they can:
+  - Reliably choose the correct file class and tag,
+  - Avoid hallucinated tags/fields and invalid tag/file contexts,
+  - Receive tight, actionable feedback when outputs are wrong,
+  - Validate outputs programmatically (non-interactive, repeatable).
+
+In modern codebases, LSPs, linters, and formatters provide that feedback loop. This PRD provides an analogous toolchain for the VEDA DSL, using xl2times as the validation gate.
+
+3. Goals and Success Metrics
+3.1 Goals
+G1. Decision system:
+    - Two-stage routing (file class → tag/table) represented in both machine-readable rules (YAML/JSON) and human documentation (flowcharts).
+G2. Minimal fixture model (“MiniVEDA2”):
+    - Touch each supported aspect with the smallest possible topology.
+G3. Automated validation harness:
+    - Compile/convert with xl2times and enforce pass/fail in CI.
+    - Optional ground truth pipeline (Veda2 dd → csv) for regression equivalence (if/when feasible).
+G4. Developer tooling:
+    - Canonical intermediate representation (IR) (optional phase, see Section 9).
+    - Linter and semantic “type checking” (schema + cross-references + domain checks).
+    - Formatter to canonicalize outputs and reduce diff noise.
+    - Symbol index for navigation (go-to-definition, find-references, rename planning).
+    - Optional LSP/editor integration (VS Code) built on the linter/index.
+G5. Agent workflow:
+    - Provide structured feedback to agents (diagnostics) to enable “generate → validate → fix” loops.
+
+3.2 Success Metrics
+S1. Coverage: ≥ 90% of defined “core leaves” (file class/tag combinations) have at least one passing automated test.
+S2. No-hallucination gate: no leaf is present in the decision system unless (a) a passing test exists, or (b) it is explicitly marked “unsupported by xl2times” with an approved workaround.
+S3. Developer experience: the linter catches ≥ 70% of common failures before xl2times is invoked (measured on a curated failure corpus).
+S4. Regression stability: changes to rules require updated tests; previously passing leaves cannot break without CI failure.
+S5. Agent effectiveness: for a curated set of plain-language tasks, the agent produces inputs that pass the linter and xl2times with ≤ 2 correction cycles on average.
+
+4. Non-Goals
+NG1. Supporting legacy VEDA-FE/BE workflows or older VEDA versions.
+NG2. Full TIMES mathematical validation (solver correctness). We validate translation + compilation correctness; solving is optional.
+NG3. Building a full GUI; editor integration is optional and secondary to the linter/formatter.
+NG4. Achieving 100% VEDA tag support immediately; expansion is test-driven.
+
+5. Users and Use Cases
+5.1 Personas
+P1. Veda2 modeler: wants faster conversion of narrative assumptions to correct tables.
+P2. AI/agent developer: wants robust schemas, guardrails, and deterministic tests.
+P3. QA engineer: wants repeatable validation and regression detection.
+
+5.2 Primary Use Cases
+U1. “Add a new technology process with fuel input and electricity output” → module file class; ~FI_PROCESS + ~FI_T
+U2. “Update all CCGT CAPEX by -10% in a scenario” → scenario file class; ~TFM_UPD
+U3. “Insert CO2 price trajectory 2030–2050” → scenario file class; ~TFM_INS-TS (or supported equivalent)
+U4. “Constrain renewable share ≥ 70% by 2040” → scenario file class; ~UC_* tables
+U5. “Enable inter-regional trade for H2” → trades file class; trade link tables + parameters
+
+6. Product Scope and Deliverables
+D1. Decision system
+  - Machine-readable rules:
+      * rules/file_class_tree.yaml
+      * rules/tag_tree.yaml
+      * rules/constraints_matrix.yaml (allowed tag × file class × prerequisites × xl2times support status)
+  - Human-readable references:
+      * docs/decision_tree.md (Mermaid flowcharts + narrative)
+      * docs/tag_catalog.md (tag intent, minimal examples, constraints, known pitfalls)
+      * docs/file_placement_guide.md (where content belongs and why)
+      * docs/authoring_conventions.md (naming, layering, scenario modularity)
+
+D2. Minimal model fixture (“MiniVEDA2_xl2times_ref”)
+  - Stored under fixtures/MiniVEDA2_xl2times_ref/
+  - Exercises: structure settings, base seed, module, transformations, scenario overlays, demands, trades, sets, constraints.
+
+D3. Validation harness (CI gate)
+  - scripts/run_xl2times.py (or shell wrapper) to compile selected cases
+  - scripts/compare_outputs.py to diff against baselines/ground truth
+  - tests/test_matrix.yml describing which cases cover which leaves
+  - GitHub Actions CI workflow running lint + xl2times + diffs
+
+D4. Developer toolchain (“veda-devtools” companion)
+  - Linter:
+      * tools/veda_lint/ (CLI)
+      * rules/lint_rules.yaml (configurable policy)
+  - Formatter:
+      * tools/veda_fmt/ (CLI)
+  - Symbol indexer:
+      * tools/veda_index/ (CLI)
+      * outputs/index/ (gitignored)
+  - Optional LSP/editor integration:
+      * tools/veda_lsp/ (VS Code extension or LSP server) using linter/index as backend
+
+D5. Documentation snapshot and index (Agent corpus)
+  - docs/veda2_snapshot/<version_or_date>/...
+  - docs/veda2_snapshot/index.json (search/navigation index)
+  - If licensing prevents repo storage: a “docs fetch” script to populate an untracked cache used by tooling.
+
+7. Functional Requirements
+7.1 Decision system
+FR1. Given a plain-language intent (and extracted entities), the system must output:
+     (file_class, file_path_hint, tag, tag_variant, required_fields, validation_checks).
+FR2. Constraints matrix must encode:
+     - allowed tag in file class
+     - prerequisites (e.g., seed records must exist for UPD)
+     - anti-patterns (e.g., duplicate FI_COMM declarations)
+     - xl2times status: supported / unsupported / unknown (unknown requires test-first)
+FR3. Every decision-tree leaf must link to:
+     - doc reference (from snapshot/index), and
+     - at least one passing test case (unless marked unsupported with workaround).
+
+7.2 Tooling split: what goes in xl2times vs new tooling
+Principle: keep xl2times focused as the authoritative compiler and scenario/case resolver; keep policy/UX in a companion tool.
+
+FR4 (xl2times): scenario/case selection and compilation remain in xl2times.
+FR5 (xl2times): expose compiler-grade diagnostics in machine-readable form:
+     - --diagnostics-json <path>
+FR6 (xl2times): expose a compilation “manifest” describing what was consumed and how it was interpreted:
+     - --manifest-json <path>
+Manifest must include at minimum:
+     - list of input workbooks included for the case (resolved after flags)
+     - list of detected tables (file, sheet, tag, variant, range)
+     - entity symbols discovered (processes/commodities) and key references (enough for indexing)
+FR7 (xl2times): continue to be the source of truth for parsing/normalization and low-level errors:
+     - unknown tag (to xl2times)
+     - malformed tables/ranges
+     - missing required columns for supported tags
+
+FR8 (veda-devtools): implement configurable lint rules beyond compilation correctness:
+     - naming/layout conventions (repo policy)
+     - cross-file duplicates/anti-patterns
+     - overly-broad wildcard warnings
+     - basic semantic checks (years/regions/horizon) where feasible
+     - disambiguation warnings (“multiple overlays set same attribute”)
+FR9 (veda-devtools): implement deterministic formatting/canonicalization to stabilize diffs.
+FR10 (veda-devtools): build a symbol index and navigation CLI; optionally back an LSP.
+
+7.3 “Excel as artifact” (optional, phased)
+FR11: tooling must support Direct-Excel workflows initially.
+FR12: if/when IR is adopted, Excel generation must be deterministic and round-trippable for agent-generated content.
+Note: IR is not required for phase 1 success; it is a leverage multiplier for formatter/LSP quality.
+
+8. Non-Functional Requirements
+NFR1. Determinism: identical inputs yield identical formatted outputs and manifests.
+NFR2. Reproducibility: one command to run lint + compile + compare.
+NFR3. Extensibility: new tags/leaves require (a) catalog entry, (b) fixture example, (c) passing test.
+NFR4. Performance: lint+format for the fixture completes in < 10s; full CI suite target < 10 minutes.
+NFR5. Traceability: every diagnostic links back to a specific file/sheet/table and rule version.
+
+9. System Design (High Level)
+9.1 Recommended architecture: xl2times + companion devtools
+- xl2times is the compiler/orchestrator:
+    * resolves case/scenario selection based on flags
+    * parses Excel tables and compiles to TIMES artifacts
+    * emits diagnostics + manifest JSON
+- veda-devtools is the UX/policy layer:
+    * lint, format, index, optional LSP
+    * consumes xl2times manifest/diagnostics to avoid duplicated parsing logic
+    * runs xl2times as the final compilation gate
+
+9.2 Tooling contract (interfaces)
+- diagnostics.json schema:
+    * severity (error/warn/info)
+    * message
+    * source pointer: file, sheet, table tag, cell/range (if possible)
+    * rule/code identifier (stable)
+    * remediation hint (optional)
+- manifest.json schema:
+    * inputs: resolved workbook list + ordering
+    * tables: discovered tag tables + metadata
+    * symbols: discovered entities + references
+    * versioning: xl2times version + rule versions
+
+10. Documentation Snapshot: Should we download Veda docs?
+Yes, with a licensing-aware implementation.
+Rationale:
+  - Stability (no web drift)
+  - Auditability (rules cite a frozen source)
+  - Offline operation for agents and CI
+Implementation:
+  - Preferred: store a versioned snapshot under docs/veda2_snapshot/<version>/
+  - If redistribution is not permitted: implement scripts/fetch_veda_docs.(ps1/sh) to download into an untracked cache; store only an index + stable references in-repo.
+
+11. xl2times Support Strategy
+Policy:
+  - No speculative “unsupported list.”
+  - Maintain a support registry derived from tests:
+      supported / unsupported / unknown.
+  - Unknown leaves are excluded from the decision system until proven by a passing test.
+  - For VEDA-supported but xl2times-unsupported features:
+      document explicitly and provide an approved workaround path.
+
+12. Minimal Fixture Specification (Phase 1 Coverage)
+The initial fixture must exercise:
+  A. Structure: start year/time periods + minimal units/regions
+  B. Base: FI_COMM + FI_PROCESS + FI_T topology/parameters
+  C. Transformations: one INS (or INS-TS) and one UPD dependent on seed
+  D. Module: at least one modular technology addition and module overlay
+  E. Scenarios: CO2 price series, demand series, one UC constraint
+  F. Trades: trade link topology + one trade parameter
+  G. Sets: process/commodity sets used as TFM filters
+
+13. Test Plan
+13.1 Test Types
+T1. Lint tests: inputs fail/succeed as expected with clear diagnostics.
+T2. Compile tests: xl2times conversion succeeds for each case.
+T3. Regression tests: compare outputs vs golden baselines or ground truth (when configured).
+T4. Negative tests: invalid combinations fail and are never recommended.
+
+13.2 Acceptance Criteria
+AC1. All core leaves have at least one passing lint+compile test.
+AC2. Decision system never recommends an untested leaf.
+AC3. Tooling can be run locally and in CI with consistent outputs.
+AC4. Naming/layout conventions are enforceable and enforced (where feasible).
+
+14. Milestones
+M0. Repo scaffolding + naming conventions + docs snapshot plan.
+M1. Add xl2times manifest/diagnostics JSON outputs (or confirm they exist and document usage).
+M2. Linter skeleton consuming manifest; minimal fixture base compiles; basic CI.
+M3. Integrate decision trees + constraints matrix with linter; add transformations + module coverage.
+M4. Add UC + trades; expand tests; add symbol index CLI.
+M5. Optional: IR prototype + deterministic Excel generation for agent-created files.
+M6. Optional: VS Code extension/LSP; agent loop demo for NL tasks.
+
+15. Risks and Mitigations
+R1. xl2times changes are slow/upstream acceptance uncertain.
+  - Mitigation: maintain an internal fork if necessary; keep interface changes minimal (manifest/diagnostics).
+R2. xl2times partial support blocks some Veda2 features.
+  - Mitigation: support registry + workaround catalog; avoid recommending unsupported leaves.
+R3. Veda2 doc licensing prevents repo storage.
+  - Mitigation: docs fetch/caching; store index and minimal references only.
+R4. NL ambiguity causes wrong routing.
+  - Mitigation: add disambiguation nodes; require structured “assumptions” output from agent.
+R5. Team diverges on naming/layout.
+  - Mitigation: codify conventions; enforce in linter; provide templates.
+
+16. Open Questions
+OQ1. xl2times ownership model: do we control an internal fork, or do we need upstream PR acceptance?
+OQ2. xl2times language/runtime and packaging constraints in our environment (Python, etc.)?
+OQ3. Preferred interface schemas: JSON Schema for manifest/diagnostics (recommended) vs ad-hoc?
+OQ4. Do we require Veda2 dd→csv ground truth in CI, or only locally?
+OQ5. Initial “core tag set” for phase 1 (beyond FI_*, TFM_INS/UPD, UC, trades)?
+OQ6. How will we store/identify Veda2 versions for the doc snapshot and rules?
+OQ7. IR authoring format preference (YAML vs JSON vs CSV-backed tables), if IR is adopted.
+
+Appendix A: File Class Definitions (for decision tree)
+- Structure: model dimensioning/global settings
+- Base: always-included RES baseline (declarations + seed parameters)
+- Module: optional RES extensions (technology/sector sub-systems)
+- Transform overlay: rule-based insert/update layered over base/module
+- Scenario: policy/assumption overlays composed into cases
+- Demands: demand trajectories / demand module overlays
+- Trades: inter-region trade topology and parameters
+- Cases: declarative selection of which scenario files are enabled for a run

@@ -29,6 +29,9 @@ VedaLang Source (.veda.yaml)  →  VEDA Excel (.xlsx)  →  TIMES DD files
 | `vedalang/examples/` | Example `.veda.yaml` models |
 | `rules/patterns.yaml` | Pattern "standard library" |
 
+For structural modeling conventions guidance, see
+`.agents/skills/vedalang-modeling-conventions/SKILL.md`.
+
 ## Validation
 
 Always validate your models:
@@ -36,6 +39,13 @@ Always validate your models:
 ```bash
 # Full validation (lint + compile + xl2times)
 uv run vedalang validate your_model.veda.yaml
+
+# Validate only selected case(s)
+uv run vedalang validate your_model.veda.yaml --case baseline
+uv run vedalang validate your_model.veda.yaml --case baseline --case policy
+
+# Compile only selected case(s)
+uv run vedalang compile your_model.veda.yaml --out out/ --case policy
 
 # Lint only (fast, checks heuristics)
 uv run vedalang lint your_model.veda.yaml

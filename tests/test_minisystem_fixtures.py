@@ -35,44 +35,69 @@ MINISYSTEM_FEATURES = {
     2: {
         "description": "Fuel chain",
         "commodities": {"gas", "electricity", "residential_demand"},
-        "processes": {"gas_import_SINGLE", "ccgt_SINGLE", "residential_device_SINGLE_RES"},
+        "processes": {
+            "gas_import_SINGLE", "ccgt_SINGLE",
+            "residential_device_SINGLE_RES",
+        },
         "features": ["input-output chains", "fuel supply"],
     },
     3: {
         "description": "Investment decisions",
         "commodities": {"gas", "electricity", "residential_demand"},
-        "processes": {"gas_import_SINGLE", "ccgt_SINGLE", "residential_device_SINGLE_RES"},
-        "features": ["investment_cost", "fixed_om_cost", "variable_om_cost", "lifetime"],
+        "processes": {
+            "gas_import_SINGLE", "ccgt_SINGLE",
+            "residential_device_SINGLE_RES",
+        },
+        "features": [
+            "investment_cost", "fixed_om_cost",
+            "variable_om_cost", "lifetime",
+        ],
     },
     4: {
         "description": "Emissions",
         "commodities": {"gas", "electricity", "residential_demand", "co2"},
-        "processes": {"gas_import_SINGLE", "ccgt_SINGLE", "residential_device_SINGLE_RES"},
+        "processes": {
+            "gas_import_SINGLE", "ccgt_SINGLE",
+            "residential_device_SINGLE_RES",
+        },
         "features": ["emission tracking", "ENV_ACT"],
     },
     5: {
         "description": "Multiple generators",
         "commodities": {"gas", "electricity", "residential_demand", "co2"},
-        "processes": {"gas_import_SINGLE", "ccgt_SINGLE", "wind_SINGLE", "residential_device_SINGLE_RES"},
+        "processes": {
+            "gas_import_SINGLE", "ccgt_SINGLE",
+            "wind_SINGLE", "residential_device_SINGLE_RES",
+        },
         "features": ["renewable generation", "technology choice"],
     },
     6: {
         "description": "Scenario parameters",
         "commodities": {"gas", "electricity", "residential_demand", "co2"},
-        "processes": {"gas_import_SINGLE", "ccgt_SINGLE", "wind_SINGLE", "residential_device_SINGLE_RES"},
+        "processes": {
+            "gas_import_SINGLE", "ccgt_SINGLE",
+            "wind_SINGLE", "residential_device_SINGLE_RES",
+        },
         "features": ["CO2 price", "scenario files"],
     },
     7: {
         "description": "Multi-region",
         "commodities": {"gas", "electricity", "residential_demand", "co2"},
         # Process names include region, so we check for NORTH variants
-        "processes": {"gas_import_NORTH", "ccgt_NORTH", "wind_NORTH", "residential_device_NORTH_RES"},
+        "processes": {
+            "gas_import_NORTH", "ccgt_NORTH",
+            "wind_NORTH", "residential_device_NORTH_RES",
+        },
         "features": ["multiple regions", "trade links"],
     },
     8: {
         "description": "Australian baseline scaffold",
-        "commodities": {"gas", "coal", "electricity", "hydrogen", "co2",
-                        "residential_demand", "commercial_demand", "industrial_demand", "transport_demand"},
+        "commodities": {
+            "gas", "coal", "electricity", "hydrogen", "co2",
+            "solar_irradiance", "wind_resource",
+            "residential_demand", "commercial_demand",
+            "industrial_demand", "transport_demand",
+        },
         # Check NEM_EAST region processes
         "processes": {
             "gas_import_NEM_EAST", "coal_import_NEM_EAST", "coal_plant_NEM_EAST",
@@ -197,7 +222,10 @@ class TestMiniSystem1ExpectedSolution:
                 for t in s["tables"]:
                     if t["tag"] == "~FI_T":
                         for row in t["rows"]:
-                            if "simple_generator" in row.get("process", "") and "act_cost" in row:
+                            if (
+                                "simple_generator" in row.get("process", "")
+                                and "act_cost" in row
+                            ):
                                 assert row["act_cost"] == 10
                                 return
 
@@ -216,12 +244,17 @@ class TestMiniSystem1ExpectedSolution:
                     for t in s["tables"]:
                         if t["tag"] == "~TFM_DINS-AT":
                             for row in t["rows"]:
-                                # New P4 syntax uses residential_demand@RES for scoped demand
-                                if "residential_demand" in str(row.get("cset_cn", "")):
+                                # New P4 syntax uses
+                                # residential_demand@RES for scoped demand
+                                cset = str(row.get("cset_cn", ""))
+                                if "residential_demand" in cset:
                                     assert row.get("com_proj") == 50
                                     return
 
-        pytest.fail("Should have demand projection for residential_demand with value 50")
+        pytest.fail(
+            "Should have demand projection for"
+            " residential_demand with value 50"
+        )
 
 
 class TestMiniSystem2FuelChain:
@@ -239,7 +272,10 @@ class TestMiniSystem2FuelChain:
                 for t in s["tables"]:
                     if t["tag"] == "~FI_T":
                         for row in t["rows"]:
-                            if "gas_import" in row.get("process", "") and "commodity-out" in row:
+                            if (
+                                "gas_import" in row.get("process", "")
+                                and "commodity-out" in row
+                            ):
                                 assert row["commodity-out"] == "gas"
                                 return
 

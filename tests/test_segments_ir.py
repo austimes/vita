@@ -94,28 +94,20 @@ class TestCommodityKindToComType:
         """Emission commodities map to ENV."""
         assert commodity_kind_to_com_type("emission") == "ENV"
 
-    def test_legacy_uppercase_service(self):
-        """Legacy SERVICE maps to DEM."""
-        assert commodity_kind_to_com_type("SERVICE") == "DEM"
+    def test_fuel_to_nrg(self):
+        """Fuel commodities map to NRG."""
+        assert commodity_kind_to_com_type("fuel") == "NRG"
 
-    def test_legacy_tradable(self):
-        """Legacy TRADABLE maps to NRG."""
-        assert commodity_kind_to_com_type("TRADABLE") == "NRG"
-
-    def test_legacy_emission(self):
-        """Legacy EMISSION maps to ENV."""
-        assert commodity_kind_to_com_type("EMISSION") == "ENV"
-
-    def test_deprecated_energy(self):
-        """Deprecated 'energy' maps to NRG."""
+    def test_energy_to_nrg(self):
+        """Energy commodities map to NRG."""
         assert commodity_kind_to_com_type("energy") == "NRG"
 
-    def test_deprecated_demand(self):
-        """Deprecated 'demand' maps to DEM."""
-        assert commodity_kind_to_com_type("demand") == "DEM"
+    def test_other_to_nrg(self):
+        """Other commodities map to NRG."""
+        assert commodity_kind_to_com_type("other") == "NRG"
 
     def test_unknown_defaults_to_nrg(self):
-        """Unknown kinds default to NRG."""
+        """Unknown types default to NRG."""
         assert commodity_kind_to_com_type("unknown") == "NRG"
         assert commodity_kind_to_com_type("") == "NRG"
 
@@ -162,26 +154,35 @@ class TestGetScopedCommodityId:
 class TestNormalizeCommodity:
     """Tests for normalize_commodity()."""
 
-    def test_minimal_carrier(self):
-        """Minimal carrier commodity normalization."""
-        result = normalize_commodity({"id": "electricity"})
-        assert result["id"] == "electricity"
+    def test_fuel_type(self):
+        """Fuel type normalizes to carrier kind."""
+        result = normalize_commodity({"id": "gas", "type": "fuel"})
+        assert result["id"] == "gas"
         assert result["kind"] == "carrier"
+        assert result["type"] == "fuel"
         assert result["tradable"] is True
         assert result["unit"] == "PJ"
         assert result["com_type"] == "NRG"
 
-    def test_explicit_service(self):
-        """Explicit service commodity normalization."""
-        result = normalize_commodity({"id": "lighting", "kind": "service"})
+    def test_energy_type(self):
+        """Energy type normalizes to carrier kind."""
+        result = normalize_commodity({"id": "electricity", "type": "energy"})
+        assert result["id"] == "electricity"
+        assert result["kind"] == "carrier"
+        assert result["tradable"] is True
+        assert result["com_type"] == "NRG"
+
+    def test_service_type(self):
+        """Service type normalizes to service kind."""
+        result = normalize_commodity({"id": "lighting", "type": "service"})
         assert result["id"] == "lighting"
         assert result["kind"] == "service"
-        assert result["tradable"] is False  # inferred from kind
+        assert result["tradable"] is False
         assert result["com_type"] == "DEM"
 
-    def test_explicit_emission(self):
-        """Emission commodity normalization."""
-        result = normalize_commodity({"id": "co2", "kind": "emission", "unit": "Mt"})
+    def test_emission_type(self):
+        """Emission type normalization."""
+        result = normalize_commodity({"id": "co2", "type": "emission", "unit": "Mt"})
         assert result["id"] == "co2"
         assert result["kind"] == "emission"
         assert result["tradable"] is False
@@ -190,65 +191,41 @@ class TestNormalizeCommodity:
 
     def test_legacy_name_field(self):
         """'name' field maps to 'id'."""
-        result = normalize_commodity({"name": "gas", "kind": "carrier"})
+        result = normalize_commodity({"name": "gas", "type": "fuel"})
         assert result["id"] == "gas"
 
     def test_id_takes_precedence_over_name(self):
         """'id' field takes precedence over 'name'."""
-        result = normalize_commodity({"id": "elec", "name": "electricity"})
+        result = normalize_commodity(
+            {"id": "elec", "name": "electricity", "type": "energy"}
+        )
         assert result["id"] == "elec"
-
-    def test_legacy_tradable_kind(self):
-        """Legacy TRADABLE kind normalizes to carrier."""
-        result = normalize_commodity({"id": "gas", "kind": "TRADABLE"})
-        assert result["kind"] == "carrier"
-        assert result["tradable"] is True
-        assert result["com_type"] == "NRG"
-
-    def test_legacy_service_kind(self):
-        """Legacy SERVICE kind normalizes to service."""
-        result = normalize_commodity({"id": "heat", "kind": "SERVICE"})
-        assert result["kind"] == "service"
-        assert result["tradable"] is False
-        assert result["com_type"] == "DEM"
-
-    def test_legacy_emission_kind(self):
-        """Legacy EMISSION kind normalizes to emission."""
-        result = normalize_commodity({"id": "co2", "kind": "EMISSION"})
-        assert result["kind"] == "emission"
-        assert result["tradable"] is False
-        assert result["com_type"] == "ENV"
 
     def test_explicit_tradable_override(self):
         """Explicit tradable flag overrides default."""
         # Service that is explicitly tradable (unusual but allowed)
-        raw = {"id": "heat", "kind": "service", "tradable": True}
+        raw = {"id": "heat", "type": "service", "tradable": True}
         result = normalize_commodity(raw)
         assert result["tradable"] is True
 
-        # Carrier that is explicitly not tradable
-        raw = {"id": "local_gas", "kind": "carrier", "tradable": False}
+        # Fuel that is explicitly not tradable
+        raw = {"id": "local_gas", "type": "fuel", "tradable": False}
         result = normalize_commodity(raw)
         assert result["tradable"] is False
 
     def test_missing_id_and_name_raises(self):
         """Missing both id and name raises ValueError."""
         with pytest.raises(ValueError, match="must have 'id' or 'name'"):
-            normalize_commodity({"kind": "carrier"})
+            normalize_commodity({"type": "fuel"})
 
-    def test_deprecated_energy_kind(self):
-        """Deprecated 'energy' kind normalizes to carrier."""
-        result = normalize_commodity({"id": "elec", "kind": "energy"})
-        assert result["kind"] == "carrier"
-
-    def test_deprecated_demand_kind(self):
-        """Deprecated 'demand' kind normalizes to service."""
-        result = normalize_commodity({"id": "heat", "kind": "demand"})
-        assert result["kind"] == "service"
+    def test_missing_type_raises(self):
+        """Missing type field raises ValueError."""
+        with pytest.raises(ValueError, match="must define 'type'"):
+            normalize_commodity({"id": "gas"})
 
     def test_material_tradable_by_default(self):
         """Material commodities are tradable by default."""
-        result = normalize_commodity({"id": "steel", "kind": "material"})
+        result = normalize_commodity({"id": "steel", "type": "material"})
         assert result["tradable"] is True
         assert result["com_type"] == "MAT"
 
@@ -262,7 +239,7 @@ class TestBuildScopedCommodityRegistry:
 
     def test_tradable_commodity_single_entry(self):
         """Tradable commodity gets single unscoped entry."""
-        commodities = [{"id": "electricity", "kind": "carrier"}]
+        commodities = [{"id": "electricity", "type": "energy"}]
         segments = ["RES", "COM"]
 
         registry = build_scoped_commodity_registry(commodities, segments)
@@ -276,7 +253,7 @@ class TestBuildScopedCommodityRegistry:
 
     def test_service_commodity_scoped_per_segment(self):
         """Non-tradable service gets one entry per segment."""
-        commodities = [{"id": "lighting", "kind": "service"}]
+        commodities = [{"id": "lighting", "type": "service"}]
         segments = ["RES", "COM"]
 
         registry = build_scoped_commodity_registry(commodities, segments)
@@ -290,7 +267,7 @@ class TestBuildScopedCommodityRegistry:
 
     def test_service_no_segments_flat(self):
         """Non-tradable service with no segments gets single entry."""
-        commodities = [{"id": "lighting", "kind": "service"}]
+        commodities = [{"id": "lighting", "type": "service"}]
         segments = []  # flat model
 
         registry = build_scoped_commodity_registry(commodities, segments)
@@ -303,9 +280,9 @@ class TestBuildScopedCommodityRegistry:
     def test_mixed_commodities(self):
         """Mixed tradable and non-tradable commodities."""
         commodities = [
-            {"id": "electricity", "kind": "carrier"},
-            {"id": "lighting", "kind": "service"},
-            {"id": "co2", "kind": "emission"},
+            {"id": "electricity", "type": "energy"},
+            {"id": "lighting", "type": "service"},
+            {"id": "co2", "type": "emission"},
         ]
         segments = ["RES", "COM"]
 
@@ -327,7 +304,7 @@ class TestBuildScopedCommodityRegistry:
 
     def test_scoped_commodity_dataclass(self):
         """ScopedCommodity dataclass has expected fields."""
-        commodities = [{"id": "heat", "kind": "service", "unit": "PJ"}]
+        commodities = [{"id": "heat", "type": "service", "unit": "PJ"}]
         segments = ["RES"]
 
         registry = build_scoped_commodity_registry(commodities, segments)

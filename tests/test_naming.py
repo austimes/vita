@@ -207,12 +207,14 @@ class TestNamingStabilityIntegration:
             registry = NamingRegistry()
             role = Role(
                 id="deliver_lighting",
-                inputs=["electricity"],
-                outputs=["lighting"],
+                required_inputs=["electricity"],
+                required_outputs=["lighting"],
             )
             variant = Variant(
                 id="led_lighting",
                 role=role,
+                inputs=["electricity"],
+                outputs=["lighting"],
                 attrs={"efficiency": 0.4, "lifetime": 15},
             )
             instances = {

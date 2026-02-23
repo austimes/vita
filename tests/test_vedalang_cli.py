@@ -112,17 +112,6 @@ class TestValidate:
         assert "total_rows" in data
         assert "diagnostics" in data
 
-    def test_vedalang_check_alias(self):
-        """Check command is alias for validate."""
-        validate_result = run_vedalang("validate", "--json", str(MINI_PLANT))
-        check_result = run_vedalang("check", "--json", str(MINI_PLANT))
-
-        validate_data = json.loads(validate_result.stdout)
-        check_data = json.loads(check_result.stdout)
-
-        assert validate_data["success"] == check_data["success"]
-        assert validate_data["tables"] == check_data["tables"]
-
 
 class TestHelp:
     def test_vedalang_help(self):

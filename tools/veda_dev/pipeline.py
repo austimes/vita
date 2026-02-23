@@ -192,7 +192,10 @@ def run_pipeline(
                     print(f"[compile] Compiling {input_path}")
 
                 # Reuse source if already loaded, otherwise load fresh
-                source = vedalang_source if vedalang_source else load_vedalang(input_path)
+                source = (
+                    vedalang_source if vedalang_source
+                    else load_vedalang(input_path)
+                )
                 tableir = compile_vedalang_to_tableir(source, validate=True)
 
                 tableir_file = work_dir / "model.tableir.yaml"

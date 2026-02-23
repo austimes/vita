@@ -272,6 +272,26 @@ vedalang compile src/ --out model.xlsx
 xl2times model.xlsx --case base --diagnostics-json diag.json
 ```
 
+### VedaLang LSP Extension (Cursor/VS Code)
+
+The LSP has two parts: a **Python server** (`tools/vedalang_lsp/server/`) and a **TypeScript extension** (`tools/vedalang_lsp/extension/`). The Mermaid RES diagram is rendered server-side in Python — the extension just displays it.
+
+**Rebuilding after TypeScript changes:**
+
+```bash
+# 1. Compile TypeScript
+cd tools/vedalang_lsp/extension && npm run compile
+
+# 2. Copy compiled JS to the installed extension (Cursor)
+cp tools/vedalang_lsp/extension/out/*.js ~/.cursor/extensions/austimes.vedalang-0.1.0/out/
+
+# 3. Reload window: Cmd+Shift+P → "Developer: Reload Window"
+```
+
+**Important:** Cursor loads the extension from `~/.cursor/extensions/austimes.vedalang-0.1.0/`, NOT from the repo's `out/` directory. After `npm run compile`, you MUST copy the built JS files to the installed extension path. For VS Code, the equivalent path is `~/.vscode/extensions/`.
+
+Python server changes (e.g., `tools/vedalang_lsp/server/server.py`) take effect on window reload without any build step.
+
 ## TableIR Example
 
 The intermediate representation between VedaLang and Excel:
@@ -391,7 +411,7 @@ uv run vedalang-dev validate-tableir tables.yaml
 | **P0** | Validate Toolchain | Tools work, feedback loop closes | ✅ DONE |
 | **P1** | TableIR Experimentation | Learn valid VEDA patterns via trial | ✅ DONE |
 | **P2** | Primitives Exploration | All energy system primitives | ✅ DONE |
-| **P3** | MiniSystem Stress Test | Real model validation | 🔄 ACTIVE |
+| **P3** | MiniSystem Stress Test | Real model validation | ✅ DONE |
 | **P4** | Advanced Features | Time-series, scenario composition | PLANNED |
 
 ### P0: Validate Toolchain (DONE)
@@ -412,13 +432,10 @@ All 10 energy system primitives explored and schema extensions implemented:
 - ✅ Thermal/renewable generation, CHP, storage, transmission (patterns)
 - ✅ Demand projections, costs, bounds, timeslices, trade, user constraints (schema)
 
-### P3: MiniSystem Stress Test (ACTIVE)
-Epic: `vedalang-93s`
-
-Open tasks:
-- `vedalang-5dw` — Design MiniSystem model specification
-- `vedalang-scv` — Implement MiniSystem in VedaLang
-- `vedalang-4t8` — Wire as golden CI test
+### P3: MiniSystem Stress Test (DONE)
+- ✅ MiniSystem model specification designed
+- ✅ MiniSystem implemented in VedaLang
+- ✅ Golden CI test wired and passing
 
 ### P4: Advanced Features (PLANNED)
 - `vedalang-6qs` — Time-varying process attributes
@@ -462,19 +479,10 @@ Every failure is a learning opportunity. Failures are categorized and preserved.
 | **B** | VedaLang can't express valid pattern | Extend VedaLang schema |
 | **C** | Compiler bug | Fix compiler, add regression test |
 
-### Failure Preservation
-
-```bash
-# Create failure test case
-mkdir -p tests/failures/
-cp failing_input.yaml tests/failures/type_a_missing_column.yaml
-# Add corresponding test that expects the failure
-```
-
 ### Failure-to-Test Workflow
 
 1. Reproduce failure with minimal input
-2. Capture in `tests/failures/` or inline in test file
+2. Capture as an inline test case in the relevant test file
 3. Write test that:
    - For Type A: expects xl2times error diagnostic
    - For Type B: documents the gap (skip with reason)
@@ -527,6 +535,8 @@ bd create "H0XX: <descriptive name>" --label heuristics
 ### Breaking Changes Policy
 
 VedaLang is a **new project under active development**. We prioritize getting the design right over maintaining backward compatibility.
+
+Current status: this is still a prototype. Do not preserve backward compatibility when it conflicts with cleaner design.
 
 - **Breaking changes are acceptable** — schema, compiler, APIs may all change
 - **No deprecation cycles required** — remove or rename freely when it improves the design

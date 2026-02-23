@@ -39,13 +39,12 @@ def build_res_graph(parsed: dict, include_variants: bool = False) -> dict:
                 "stage": None,
             })
 
-    # Build role -> variants mapping if needed
+    # Build role -> variants mapping
     role_variants: dict[str, list[dict]] = {}
-    if include_variants:
-        for variant in parsed.get("process_variants", []) or []:
-            role_id = variant.get("role")
-            if role_id:
-                role_variants.setdefault(role_id, []).append(variant)
+    for variant in parsed.get("process_variants", []) or []:
+        role_id = variant.get("role")
+        if role_id:
+            role_variants.setdefault(role_id, []).append(variant)
 
     # Extract process_roles (new P4 syntax) - these define the RES topology
     for role in parsed.get("process_roles", []) or []:
@@ -73,33 +72,41 @@ def build_res_graph(parsed: dict, include_variants: bool = False) -> dict:
                             "parentRole": rid,
                         })
 
-            # Handle inputs (list of {commodity: ...} or strings)
-            for inp in role.get("inputs", []) or []:
-                if isinstance(inp, dict):
-                    cid = inp.get("commodity")
-                else:
-                    cid = inp
-                if cid:
-                    edges.append({
-                        "from": cid,
-                        "to": rid,
-                        "kind": "input",
-                        "commodityId": cid,
-                    })
+            # Helper to extract commodity IDs from flow lists
+            def _commodity_ids(items):
+                ids = []
+                for item in items or []:
+                    cid = item.get("commodity") if isinstance(item, dict) else item
+                    if cid:
+                        ids.append(cid)
+                return ids
 
-            # Handle outputs
-            for out in role.get("outputs", []) or []:
-                if isinstance(out, dict):
-                    cid = out.get("commodity")
-                else:
-                    cid = out
-                if cid:
-                    edges.append({
-                        "from": rid,
-                        "to": cid,
-                        "kind": "output",
-                        "commodityId": cid,
-                    })
+            # Role contract (required_inputs/required_outputs)
+            role_req_inputs = set(_commodity_ids(role.get("required_inputs")))
+            role_req_outputs = set(_commodity_ids(role.get("required_outputs")))
+
+            if include_variants:
+                # Variants view: each variant shows its own explicit I/O
+                for variant in role_variants.get(rid, []):
+                    vid = variant.get("id") or variant.get("name")
+                    if vid:
+                        for cid in _commodity_ids(variant.get("inputs")):
+                            edges.append({"from": cid, "to": vid, "kind": "input", "commodityId": cid})
+                        for cid in _commodity_ids(variant.get("outputs")):
+                            edges.append({"from": vid, "to": cid, "kind": "output", "commodityId": cid})
+            else:
+                # Roles view: show contract (required_inputs/required_outputs)
+                # plus union of variant I/O for a complete picture
+                all_inputs = set(role_req_inputs)
+                all_outputs = set(role_req_outputs)
+                for variant in role_variants.get(rid, []):
+                    all_inputs.update(_commodity_ids(variant.get("inputs")))
+                    all_outputs.update(_commodity_ids(variant.get("outputs")))
+
+                for cid in all_inputs:
+                    edges.append({"from": cid, "to": rid, "kind": "input", "commodityId": cid})
+                for cid in all_outputs:
+                    edges.append({"from": rid, "to": cid, "kind": "output", "commodityId": cid})
 
     # Also support legacy 'processes' syntax for backward compatibility
     for process in model.get("processes", []) or []:
@@ -168,9 +175,21 @@ def graph_to_mermaid(graph: dict) -> str:
     stage_order = {
         "supply": 0,
         "conversion": 1,
-        "distribution": 2,
-        "end_use": 3,
-        "demand": 4,
+        "storage": 2,
+        "distribution": 3,
+        "end_use": 4,
+        "demand": 5,
+        "sink": 6,
+    }
+
+    stage_labels = {
+        "supply": "Supply",
+        "conversion": "Conversion",
+        "storage": "Storage",
+        "distribution": "Distribution",
+        "end_use": "End Use",
+        "demand": "Demand",
+        "sink": "Sink",
     }
 
     # Separate nodes by type
@@ -230,25 +249,29 @@ def graph_to_mermaid(graph: dict) -> str:
                     proc_rank - 0.5
                 )
 
-    # Render nodes - processes first, then commodities
+    # Render nodes - processes first, grouped by stage subgraphs
     lines.append("")
-    lines.append("    %% Process nodes")
+    lines.append("    %% Process nodes grouped by stage")
     for stage in sorted(nodes_by_stage.keys(), key=lambda s: stage_order.get(s, 99)):
+        stage_label = stage_labels.get(stage, stage.replace("_", " ").title())
+        safe_stage = sanitize_id(stage)
+        lines.append(f"    subgraph stage_{safe_stage}[\"{stage_label}\"]")
         for node in nodes_by_stage[stage]:
             safe_id = sanitize_id(node["id"])
             safe_label = node.get("label", node["id"])
 
             if has_variants and node["id"] in role_to_variants:
                 # Render as subgraph containing variants
-                lines.append(f"    subgraph {safe_id}[{safe_label}]")
+                lines.append(f"        subgraph {safe_id}[{safe_label}]")
                 for variant in role_to_variants[node["id"]]:
                     v_safe_id = sanitize_id(variant["id"])
                     v_safe_label = variant.get("label", variant["id"])
-                    lines.append(f"        V_{v_safe_id}[{v_safe_label}]")
-                lines.append("    end")
+                    lines.append(f"            V_{v_safe_id}[{v_safe_label}]")
+                lines.append("        end")
             else:
                 # Render as simple node
-                lines.append(f"    P_{safe_id}[{safe_label}]")
+                lines.append(f"        P_{safe_id}[{safe_label}]")
+        lines.append("    end")
 
     lines.append("")
     lines.append("    %% Commodity nodes")
@@ -260,6 +283,9 @@ def graph_to_mermaid(graph: dict) -> str:
     # Build set of role IDs that have subgraphs (for edge targeting)
     roles_with_subgraphs = set(role_to_variants.keys()) if has_variants else set()
 
+    # Build set of variant IDs for edge prefix resolution
+    variant_ids = {v["id"] for v in variant_nodes}
+
     # Render edges
     lines.append("")
     lines.append("    %% Edges")
@@ -268,17 +294,23 @@ def graph_to_mermaid(graph: dict) -> str:
         to_id = sanitize_id(edge["to"])
 
         if edge["kind"] == "input":
-            # Commodity → Process (or subgraph)
+            # Commodity → Process/Variant/Subgraph
             if edge["to"] in roles_with_subgraphs:
-                lines.append(f"    C_{from_id} --> {to_id}")
+                target = to_id
+            elif edge["to"] in variant_ids:
+                target = f"V_{to_id}"
             else:
-                lines.append(f"    C_{from_id} --> P_{to_id}")
+                target = f"P_{to_id}"
+            lines.append(f"    C_{from_id} --> {target}")
         else:
-            # Process (or subgraph) → Commodity
+            # Process/Variant/Subgraph → Commodity
             if edge["from"] in roles_with_subgraphs:
-                lines.append(f"    {from_id} --> C_{to_id}")
+                source = from_id
+            elif edge["from"] in variant_ids:
+                source = f"V_{from_id}"
             else:
-                lines.append(f"    P_{from_id} --> C_{to_id}")
+                source = f"P_{from_id}"
+            lines.append(f"    {source} --> C_{to_id}")
 
     # Style definitions
     lines.append("")

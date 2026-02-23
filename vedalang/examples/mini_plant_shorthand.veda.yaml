@@ -12,14 +12,14 @@ model:
   commodities:
     # No unit needed - energy defaults to PJ
     - name: C:ELC
-      kind: TRADABLE
+      type: energy
       description: Electricity
     - name: C:GAS
-      kind: TRADABLE
+      type: fuel
       description: Natural Gas
     # Emission defaults to Mt
     - name: E:CO2
-      kind: EMISSION
+      type: emission
       description: Carbon dioxide
   
   processes:

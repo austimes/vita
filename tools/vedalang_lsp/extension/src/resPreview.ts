@@ -1,24 +1,10 @@
 import * as vscode from "vscode";
 import { LanguageClient } from "vscode-languageclient/node";
 
-interface ResNode {
-  id: string;
-  label: string;
-  kind: "commodity" | "process";
-  type?: string;  // commodity kind (carrier/service) or process type
-  stage?: string;
-}
-
-interface ResEdge {
-  from: string;
-  to: string;
-  kind: "input" | "output";
-  commodityId?: string;
-}
-
 interface ResGraph {
-  nodes: ResNode[];
-  edges: ResEdge[];
+  nodes: unknown[];
+  edges: unknown[];
+  mermaid: string;
 }
 
 type ViewMode = "roles" | "variants";
@@ -154,140 +140,20 @@ export class ResPreviewPanel {
         includeVariants: this.viewMode === "variants",
       });
 
-      if (!graph || !graph.nodes || graph.nodes.length === 0) {
+      if (!graph || !graph.mermaid) {
         this.panel.webview.html = this.getWebviewContent(
           "flowchart LR\n    N[No processes or commodities found]"
         );
         return;
       }
 
-      const mermaidCode = this.graphToMermaid(graph);
-      this.panel.webview.html = this.getWebviewContent(mermaidCode);
+      this.panel.webview.html = this.getWebviewContent(graph.mermaid);
     } catch (error) {
       console.error("Failed to get RES graph:", error);
       this.panel.webview.html = this.getErrorContent(
         `Failed to generate RES graph: ${error}`
       );
     }
-  }
-
-  private graphToMermaid(graph: ResGraph): string {
-    const lines: string[] = ["flowchart LR"];
-
-    // Separate nodes by type
-    const commodityNodes: ResNode[] = [];
-    const roleNodes: ResNode[] = [];
-    const variantNodes: ResNode[] = [];
-
-    for (const node of graph.nodes) {
-      if (node.kind === "commodity") {
-        commodityNodes.push(node);
-      } else if (node.type === "variant") {
-        variantNodes.push(node);
-      } else {
-        roleNodes.push(node);
-      }
-    }
-
-    const hasVariants = variantNodes.length > 0;
-
-    // Build role -> variants mapping
-    const roleToVariants: Map<string, ResNode[]> = new Map();
-    for (const v of variantNodes) {
-      const parent = (v as unknown as { parentRole?: string }).parentRole;
-      if (parent) {
-        if (!roleToVariants.has(parent)) {
-          roleToVariants.set(parent, []);
-        }
-        roleToVariants.get(parent)!.push(v);
-      }
-    }
-
-    // Render role nodes (with subgraphs if variants present)
-    for (const node of roleNodes) {
-      const safeId = this.sanitizeId(node.id);
-      const safeLabel = this.sanitizeLabel(node.label || node.id);
-
-      if (hasVariants && roleToVariants.has(node.id)) {
-        lines.push(`    subgraph ${safeId}[${safeLabel}]`);
-        for (const variant of roleToVariants.get(node.id)!) {
-          const vSafeId = this.sanitizeId(variant.id);
-          const vSafeLabel = this.sanitizeLabel(variant.label || variant.id);
-          lines.push(`        V_${vSafeId}[${vSafeLabel}]`);
-        }
-        lines.push("    end");
-      } else {
-        lines.push(`    P_${safeId}[${safeLabel}]`);
-      }
-    }
-
-    // Render commodity nodes
-    for (const node of commodityNodes) {
-      const safeId = this.sanitizeId(node.id);
-      const safeLabel = this.sanitizeLabel(node.label || node.id);
-      lines.push(`    C_${safeId}((${safeLabel}))`);
-    }
-
-    // Build set of roles with subgraphs for edge targeting
-    const rolesWithSubgraphs = new Set(roleToVariants.keys());
-
-    // Render edges
-    for (const edge of graph.edges) {
-      const fromId = this.sanitizeId(edge.from);
-      const toId = this.sanitizeId(edge.to);
-
-      if (edge.kind === "input") {
-        if (rolesWithSubgraphs.has(edge.to)) {
-          lines.push(`    C_${fromId} --> ${toId}`);
-        } else {
-          lines.push(`    C_${fromId} --> P_${toId}`);
-        }
-      } else {
-        if (rolesWithSubgraphs.has(edge.from)) {
-          lines.push(`    ${fromId} --> C_${toId}`);
-        } else {
-          lines.push(`    P_${fromId} --> C_${toId}`);
-        }
-      }
-    }
-
-    lines.push("");
-    lines.push("    classDef energy fill:#4a90d9,stroke:#2e5a87,color:#fff");
-    lines.push("    classDef emission fill:#d94a4a,stroke:#872e2e,color:#fff");
-    lines.push("    classDef demand fill:#4ad94a,stroke:#2e872e,color:#fff");
-    lines.push("    classDef material fill:#d9a84a,stroke:#876a2e,color:#fff");
-    lines.push("    classDef process fill:#9b59b6,stroke:#6c3483,color:#fff");
-    lines.push("    classDef variant fill:#8e44ad,stroke:#5b2c6f,color:#fff");
-
-    for (const node of graph.nodes) {
-      const safeId = this.sanitizeId(node.id);
-      if (node.kind === "commodity") {
-        const commType = (node.type || "carrier").toLowerCase();
-        if (commType === "env" || commType === "emission" || commType === "environment") {
-          lines.push(`    class C_${safeId} emission`);
-        } else if (commType === "dem" || commType === "demand" || commType === "service") {
-          lines.push(`    class C_${safeId} demand`);
-        } else if (commType === "mat" || commType === "material") {
-          lines.push(`    class C_${safeId} material`);
-        } else {
-          lines.push(`    class C_${safeId} energy`);
-        }
-      } else if (node.type === "variant") {
-        lines.push(`    class V_${safeId} variant`);
-      } else if (!rolesWithSubgraphs.has(node.id)) {
-        lines.push(`    class P_${safeId} process`);
-      }
-    }
-
-    return lines.join("\n");
-  }
-
-  private sanitizeId(id: string): string {
-    return id.replace(/[^a-zA-Z0-9_]/g, "_");
-  }
-
-  private sanitizeLabel(label: string): string {
-    return label.replace(/["\[\](){}]/g, "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
 
   private getWebviewContent(mermaidCode: string): string {
@@ -361,6 +227,18 @@ export class ResPreviewPanel {
         }
         .mermaid {
             text-align: center;
+        }
+        /* Make Mermaid subgraph (stage) labels and borders visible in dark theme */
+        .mermaid .cluster rect {
+            stroke: rgba(255, 255, 255, 0.3) !important;
+            stroke-width: 1.5px !important;
+            fill: rgba(255, 255, 255, 0.04) !important;
+        }
+        .mermaid .cluster span,
+        .mermaid .cluster text {
+            color: rgba(255, 255, 255, 0.7) !important;
+            fill: rgba(255, 255, 255, 0.7) !important;
+            font-weight: 600 !important;
         }
         .legend {
             display: flex;

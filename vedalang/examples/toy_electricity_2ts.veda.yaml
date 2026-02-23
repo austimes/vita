@@ -1,7 +1,7 @@
 # Toy Electricity (2 timeslices): VRE + Gas + Storage under CO2 cap
 # Day/Night resolution — solar generates only during day
 # Tests: timeslices, VRE capacity factors, battery storage, emission_cap
-# Issue: vedalang-248.1
+# Issue: vedalang-0pt.10
 
 model:
   name: ToyElectricity2TS
@@ -24,27 +24,42 @@ model:
 
   commodities:
     - id: electricity
-      kind: carrier
+      type: energy
       unit: PJ
       description: Electricity
 
+    - id: delivered_electricity
+      type: energy
+      unit: PJ
+      description: Grid-delivered electricity at end-use connection
+
     - id: electricity_service
-      kind: service
+      type: service
       unit: PJ
       description: Electricity service demand
 
     - id: natural_gas
-      kind: carrier
+      type: fuel
       unit: PJ
       description: Natural gas
 
+    - id: solar_irradiance
+      type: fuel
+      unit: PJ
+      description: Solar irradiance resource
+
+    - id: wind_resource
+      type: fuel
+      unit: PJ
+      description: Wind energy resource
+
     - id: co2
-      kind: emission
+      type: emission
       unit: Mt
       description: Carbon dioxide
 
   scenario_parameters:
-    - name: co2_price
+    - name: co2-price
       description: Carbon price trajectory
       type: commodity_price
       commodity: co2
@@ -70,57 +85,84 @@ segments:
   sectors: [RES]
 
 process_roles:
-  - id: import_gas
+  - id: supply_gas
     stage: supply
-    inputs: []
-    outputs:
+    required_inputs: []
+    required_outputs:
       - commodity: natural_gas
 
-  - id: generate_electricity_gas
-    stage: conversion
-    inputs:
-      - commodity: natural_gas
-    outputs:
-      - commodity: electricity
-      - commodity: co2
+  - id: supply_solar_irradiance
+    stage: supply
+    required_inputs: []
+    required_outputs:
+      - commodity: solar_irradiance
 
-  - id: generate_electricity_gas_peak
-    stage: conversion
-    inputs:
-      - commodity: natural_gas
-    outputs:
-      - commodity: electricity
-      - commodity: co2
+  - id: supply_wind_resource
+    stage: supply
+    required_inputs: []
+    required_outputs:
+      - commodity: wind_resource
 
-  - id: generate_electricity_renewable
+  - id: generate_electricity
     stage: conversion
-    inputs: []
-    outputs:
+    required_inputs: []
+    required_outputs:
       - commodity: electricity
 
   - id: store_electricity
     stage: storage
-    inputs:
+    required_inputs:
       - commodity: electricity
-    outputs:
+    required_outputs:
       - commodity: electricity
 
-  - id: deliver_electricity
-    stage: end_use
-    inputs:
+  - id: deliver_electricity_grid
+    stage: conversion
+    required_inputs:
       - commodity: electricity
-    outputs:
+    required_outputs:
+      - commodity: delivered_electricity
+
+  - id: provide_electricity_service
+    stage: end_use
+    required_inputs:
+      - commodity: delivered_electricity
+    required_outputs:
       - commodity: electricity_service
 
 process_variants:
   - id: gas_import
-    role: import_gas
+    role: supply_gas
+    inputs: []
+    outputs:
+      - commodity: natural_gas
     efficiency: 1.0
     lifetime: 100
     variable_om_cost: 8
 
+  - id: solar_irradiance_supply
+    role: supply_solar_irradiance
+    inputs: []
+    outputs:
+      - commodity: solar_irradiance
+    efficiency: 1.0
+    lifetime: 100
+
+  - id: wind_resource_supply
+    role: supply_wind_resource
+    inputs: []
+    outputs:
+      - commodity: wind_resource
+    efficiency: 1.0
+    lifetime: 100
+
   - id: ccgt
-    role: generate_electricity_gas
+    role: generate_electricity
+    inputs:
+      - commodity: natural_gas
+    outputs:
+      - commodity: electricity
+      - commodity: co2
     efficiency: 0.55
     lifetime: 40
     investment_cost: 800
@@ -130,7 +172,12 @@ process_variants:
       co2: 0.05
 
   - id: ocgt
-    role: generate_electricity_gas_peak
+    role: generate_electricity
+    inputs:
+      - commodity: natural_gas
+    outputs:
+      - commodity: electricity
+      - commodity: co2
     efficiency: 0.35
     lifetime: 30
     investment_cost: 400
@@ -140,7 +187,11 @@ process_variants:
       co2: 0.08
 
   - id: solar_pv
-    role: generate_electricity_renewable
+    role: generate_electricity
+    inputs:
+      - commodity: solar_irradiance
+    outputs:
+      - commodity: electricity
     efficiency: 1.0
     lifetime: 25
     investment_cost: 1000
@@ -148,7 +199,11 @@ process_variants:
     variable_om_cost: 0.5
 
   - id: onshore_wind
-    role: generate_electricity_renewable
+    role: generate_electricity
+    inputs:
+      - commodity: wind_resource
+    outputs:
+      - commodity: electricity
     efficiency: 1.0
     lifetime: 25
     investment_cost: 1200
@@ -157,18 +212,42 @@ process_variants:
 
   - id: battery
     role: store_electricity
+    inputs:
+      - commodity: electricity
+    outputs:
+      - commodity: electricity
     efficiency: 0.85
     lifetime: 15
     investment_cost: 300
     fixed_om_cost: 5
 
-  - id: grid_delivery
-    role: deliver_electricity
+  - id: grid_distribution
+    role: deliver_electricity_grid
+    inputs:
+      - commodity: electricity
+    outputs:
+      - commodity: delivered_electricity
     efficiency: 0.95
+    lifetime: 100
+    kind: network
+
+  - id: direct_electric
+    role: provide_electricity_service
+    inputs:
+      - commodity: delivered_electricity
+    outputs:
+      - commodity: electricity_service
+    efficiency: 1.0
     lifetime: 100
 
 availability:
   - variant: gas_import
+    regions: [SINGLE]
+
+  - variant: solar_irradiance_supply
+    regions: [SINGLE]
+
+  - variant: wind_resource_supply
     regions: [SINGLE]
 
   - variant: ccgt
@@ -186,13 +265,26 @@ availability:
   - variant: battery
     regions: [SINGLE]
 
-  - variant: grid_delivery
+  - variant: grid_distribution
+    regions: [SINGLE]
+
+  - variant: direct_electric
     regions: [SINGLE]
     sectors: [RES]
 
 process_parameters:
   - selector:
       variant: gas_import
+      region: SINGLE
+    stock: 1000
+
+  - selector:
+      variant: solar_irradiance_supply
+      region: SINGLE
+    stock: 1000
+
+  - selector:
+      variant: wind_resource_supply
       region: SINGLE
     stock: 1000
 
@@ -232,7 +324,12 @@ process_parameters:
       up: 200
 
   - selector:
-      variant: grid_delivery
+      variant: grid_distribution
+      region: SINGLE
+    stock: 1000
+
+  - selector:
+      variant: direct_electric
       region: SINGLE
       sector: RES
     stock: 1000

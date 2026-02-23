@@ -15,17 +15,17 @@ model:
 
   commodities:
     - name: C:GAS
-      kind: TRADABLE
+      type: fuel
       unit: PJ
       description: Natural Gas
 
     - name: C:ELC
-      kind: TRADABLE
+      type: energy
       unit: PJ
       description: Electricity
 
     - name: E:CO2
-      kind: EMISSION
+      type: emission
       unit: Mt
       description: Carbon dioxide emissions
 

@@ -221,7 +221,7 @@ patterns:
     vedalang_template: |
       commodities:
         - name: C:{{ name }}
-          kind: TRADABLE
+          type: energy
           unit: {{ unit }}
           {% if description %}description: {{ description }}{% endif %}
 
@@ -238,7 +238,7 @@ patterns:
     vedalang_template: |
       commodities:
         - name: E:{{ name }}
-          kind: EMISSION
+          type: emission
           unit: {{ unit }}
 
   # ============================================================================

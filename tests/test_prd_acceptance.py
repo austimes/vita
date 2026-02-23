@@ -104,7 +104,7 @@ class TestA3_NoZeroInputEndUse:
         for role_id, role in roles.items():
             if role.get("stage") != "end_use":
                 continue
-            role_inputs = role.get("inputs", [])
+            role_inputs = role.get("required_inputs", [])
             variant_inputs_exist = any(
                 v.get("inputs") for v in variants if v.get("role") == role_id
             )
@@ -137,12 +137,13 @@ class TestA3_NoZeroInputEndUse:
                 {
                     "id": "provide_space_heat",
                     "stage": "end_use",
-                    "inputs": [],
-                    "outputs": [{"commodity": "space_heat"}],
+                    "required_inputs": [],
+                    "required_outputs": [{"commodity": "space_heat"}],
                 },
             ],
             "process_variants": [
-                {"id": "fake_device", "role": "provide_space_heat", "efficiency": 1.0},
+                {"id": "fake_device", "role": "provide_space_heat",
+                 "inputs": [], "outputs": [{"commodity": "space_heat"}], "efficiency": 1.0},
             ],
             "availability": [
                 {"variant": "fake_device", "regions": ["R1"], "sectors": ["RES"]},
@@ -305,12 +306,14 @@ class TestA8_CompilerStructuralInvariants:
                 {
                     "id": "provide_space_heat",
                     "stage": "end_use",
-                    "inputs": [{"commodity": "electricity"}],
-                    "outputs": [{"commodity": "space_heat"}],
+                    "required_inputs": [{"commodity": "electricity"}],
+                    "required_outputs": [{"commodity": "space_heat"}],
                 },
             ],
             "process_variants": [
                 {"id": "heat_pump", "role": "provide_space_heat",
+                 "inputs": [{"commodity": "electricity"}],
+                 "outputs": [{"commodity": "space_heat"}],
                  "kind": "device", "efficiency": 0.95},
             ],
             "availability": [
@@ -348,7 +351,7 @@ class TestA8_CompilerStructuralInvariants:
 
     def test_e_role_primary_output(self):
         src = self._base_source()
-        src["process_roles"][0]["outputs"] = [
+        src["process_roles"][0]["required_outputs"] = [
             {"commodity": "space_heat"},
             {"commodity": "electricity"},
         ]
@@ -360,11 +363,13 @@ class TestA8_CompilerStructuralInvariants:
         src["model"]["commodities"].append({"id": "gas", "type": "fuel"})
         src["process_roles"].append(
             {"id": "heat_from_gas", "stage": "end_use",
-             "inputs": [{"commodity": "gas"}],
-             "outputs": [{"commodity": "space_heat"}]},
+             "required_inputs": [{"commodity": "gas"}],
+             "required_outputs": [{"commodity": "space_heat"}]},
         )
         src["process_variants"].append(
             {"id": "gas_heater", "role": "heat_from_gas",
+             "inputs": [{"commodity": "gas"}],
+             "outputs": [{"commodity": "space_heat"}],
              "kind": "device", "efficiency": 0.9},
         )
         src["availability"].append(
@@ -375,7 +380,8 @@ class TestA8_CompilerStructuralInvariants:
 
     def test_e_end_use_physical_input(self):
         src = self._base_source()
-        src["process_roles"][0]["inputs"] = []
+        src["process_roles"][0]["required_inputs"] = []
+        src["process_variants"][0]["inputs"] = []
         src["process_variants"][0].pop("kind", None)
         with pytest.raises(Exception, match=r"\[E_END_USE_PHYSICAL_INPUT\]"):
             compile_vedalang_to_tableir(src)

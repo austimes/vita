@@ -37,12 +37,13 @@ MINIMAL_SOURCE = {
         {
             "id": "provide_space_heat",
             "stage": "end_use",
-            "inputs": [{"commodity": "electricity"}],
-            "outputs": [{"commodity": "space_heat"}],
+            "required_inputs": [{"commodity": "electricity"}],
+            "required_outputs": [{"commodity": "space_heat"}],
         },
     ],
     "process_variants": [
-        {"id": "heat_pump", "role": "provide_space_heat"},
+        {"id": "heat_pump", "role": "provide_space_heat",
+         "inputs": [{"commodity": "electricity"}], "outputs": [{"commodity": "space_heat"}]},
     ],
 }
 

@@ -5,7 +5,7 @@
 #
 # Topology:
 #   Primary: gas, oil, renewables, hydrogen
-#   Conversion: CCGT (gas→elec), refinery (oil→petrol), electrolyser (elec→H2)
+#   Conversion: CCGT (gas→elec), solar/wind, refinery (oil→petrol), electrolyser (elec→H2)
 #   Distribution: electricity grid, gas grid
 #   End-use: 2 fuel options per sector (gas/elec or petrol/elec)
 #   Constraint: tightening CO2 cap forces cross-sector decarbonisation
@@ -105,98 +105,85 @@ process_roles:
   # Supply
   - id: import_gas
     stage: supply
-    inputs: []
-    outputs:
+    required_inputs: []
+    required_outputs:
       - commodity: natural_gas
 
   - id: import_oil
     stage: supply
-    inputs: []
-    outputs:
+    required_inputs: []
+    required_outputs:
       - commodity: crude_oil
 
   - id: import_hydrogen
     stage: supply
-    inputs: []
-    outputs:
+    required_inputs: []
+    required_outputs:
       - commodity: hydrogen
 
-  # Conversion
-  - id: generate_electricity_gas
+  # Conversion — single generation role with variant-level inputs
+  - id: generate_electricity
     stage: conversion
-    inputs:
-      - commodity: natural_gas
-    outputs:
-      - commodity: electricity
-      - commodity: co2
-
-  - id: generate_electricity_renewable
-    stage: conversion
-    inputs: []
-    outputs:
+    required_inputs: []
+    required_outputs:
       - commodity: electricity
 
   - id: refine_oil
     stage: conversion
-    inputs:
+    required_inputs:
       - commodity: crude_oil
-    outputs:
+    required_outputs:
       - commodity: petrol
-      - commodity: co2
 
   - id: electrolyse
     stage: conversion
-    inputs:
+    required_inputs:
       - commodity: electricity
-    outputs:
+    required_outputs:
       - commodity: hydrogen
 
   # Distribution
   - id: deliver_electricity
     stage: conversion
-    inputs:
+    required_inputs:
       - commodity: electricity
-    outputs:
+    required_outputs:
       - commodity: electricity_grid
 
   - id: deliver_gas
     stage: conversion
-    inputs:
+    required_inputs:
       - commodity: natural_gas
-    outputs:
+    required_outputs:
       - commodity: natural_gas_grid
 
   # End-use: space heat (RES/COM/OTH)
   - id: provide_space_heat
     stage: end_use
-    inputs: []
-    outputs:
+    required_inputs: []
+    required_outputs:
       - commodity: space_heat
-      - commodity: co2
 
   # End-use: industrial heat (IND)
   - id: provide_industrial_heat
     stage: end_use
-    inputs: []
-    outputs:
+    required_inputs: []
+    required_outputs:
       - commodity: industrial_heat
-      - commodity: co2
 
   # End-use: transport (TRN)
   - id: provide_passenger_km
     stage: end_use
-    inputs: []
-    outputs:
+    required_inputs: []
+    required_outputs:
       - commodity: passenger_km
-      - commodity: co2
 
   # End-use: agriculture (AGR)
   - id: provide_farm_work
     stage: end_use
-    inputs: []
-    outputs:
+    required_inputs: []
+    required_outputs:
       - commodity: farm_work
-      - commodity: co2
 
 # ── Process Variants (technologies) ───────────────────────────────────
 
@@ -204,18 +191,27 @@ process_variants:
   # Supply
   - id: gas_import
     role: import_gas
+    inputs: []
+    outputs:
+      - commodity: natural_gas
     efficiency: 1.0
     lifetime: 100
     variable_om_cost: 8
 
   - id: oil_import
     role: import_oil
+    inputs: []
+    outputs:
+      - commodity: crude_oil
     efficiency: 1.0
     lifetime: 100
     variable_om_cost: 10
 
   - id: hydrogen_import
     role: import_hydrogen
+    inputs: []
+    outputs:
+      - commodity: hydrogen
     efficiency: 1.0
     lifetime: 100
     variable_om_cost:
@@ -226,9 +222,14 @@ process_variants:
         "2050": 18
       interpolation: interp_extrap
 
-  # Conversion
+  # Conversion — electricity generation (gas + renewable variants)
   - id: ccgt
-    role: generate_electricity_gas
+    role: generate_electricity
+    inputs:
+      - commodity: natural_gas
+    outputs:
+      - commodity: electricity
+      - commodity: co2
     efficiency: 0.55
     lifetime: 40
     investment_cost: 800
@@ -238,7 +239,10 @@ process_variants:
       co2: 0.05
 
   - id: solar_pv
-    role: generate_electricity_renewable
+    role: generate_electricity
+    inputs: []
+    outputs:
+      - commodity: electricity
     efficiency: 1.0
     lifetime: 25
     investment_cost:
@@ -250,7 +254,10 @@ process_variants:
     fixed_om_cost: 15
 
   - id: onshore_wind
-    role: generate_electricity_renewable
+    role: generate_electricity
+    inputs: []
+    outputs:
+      - commodity: electricity
     efficiency: 1.0
     lifetime: 25
     investment_cost: 1200
@@ -258,6 +265,11 @@ process_variants:
 
   - id: refinery
     role: refine_oil
+    inputs:
+      - commodity: crude_oil
+    outputs:
+      - commodity: petrol
+      - commodity: co2
     efficiency: 0.90
     lifetime: 40
     investment_cost: 200
@@ -267,6 +279,10 @@ process_variants:
 
   - id: electrolyser
     role: electrolyse
+    inputs:
+      - commodity: electricity
+    outputs:
+      - commodity: hydrogen
     efficiency: 0.70
     lifetime: 25
     investment_cost: 600
@@ -275,11 +291,19 @@ process_variants:
   # Distribution
   - id: elec_grid
     role: deliver_electricity
+    inputs:
+      - commodity: electricity
+    outputs:
+      - commodity: electricity_grid
     efficiency: 0.95
     lifetime: 100
 
   - id: gas_grid
     role: deliver_gas
+    inputs:
+      - commodity: natural_gas
+    outputs:
+      - commodity: natural_gas_grid
     efficiency: 0.98
     lifetime: 100
 
@@ -287,6 +311,9 @@ process_variants:
   - id: gas_space_heater
     role: provide_space_heat
     inputs: [{commodity: natural_gas_grid}]
+    outputs:
+      - commodity: space_heat
+      - commodity: co2
     efficiency: 0.90
     lifetime: 20
     investment_cost: 30
@@ -296,6 +323,8 @@ process_variants:
   - id: electric_space_heater
     role: provide_space_heat
     inputs: [{commodity: electricity_grid}]
+    outputs:
+      - commodity: space_heat
     efficiency: 0.95
     lifetime: 20
     investment_cost: 120
@@ -304,6 +333,9 @@ process_variants:
   - id: gas_industrial_boiler
     role: provide_industrial_heat
     inputs: [{commodity: natural_gas_grid}]
+    outputs:
+      - commodity: industrial_heat
+      - commodity: co2
     efficiency: 0.90
     lifetime: 30
     investment_cost: 50
@@ -313,6 +345,8 @@ process_variants:
   - id: electric_industrial_heater
     role: provide_industrial_heat
     inputs: [{commodity: electricity_grid}]
+    outputs:
+      - commodity: industrial_heat
     efficiency: 0.95
     lifetime: 30
     investment_cost: 80
@@ -320,6 +354,8 @@ process_variants:
   - id: h2_industrial_boiler
     role: provide_industrial_heat
     inputs: [{commodity: hydrogen}]
+    outputs:
+      - commodity: industrial_heat
     efficiency: 0.85
     lifetime: 30
     investment_cost: 100
@@ -328,6 +364,9 @@ process_variants:
   - id: ice_car
     role: provide_passenger_km
     inputs: [{commodity: petrol}]
+    outputs:
+      - commodity: passenger_km
+      - commodity: co2
     efficiency: 1.0
     lifetime: 15
     variable_om_cost: 5
@@ -337,6 +376,8 @@ process_variants:
   - id: ev_car
     role: provide_passenger_km
     inputs: [{commodity: electricity_grid}]
+    outputs:
+      - commodity: passenger_km
     efficiency: 1.0
     lifetime: 15
     investment_cost: 100
@@ -346,6 +387,9 @@ process_variants:
   - id: diesel_tractor
     role: provide_farm_work
     inputs: [{commodity: petrol}]
+    outputs:
+      - commodity: farm_work
+      - commodity: co2
     efficiency: 1.0
     lifetime: 20
     variable_om_cost: 4
@@ -355,6 +399,8 @@ process_variants:
   - id: electric_tractor
     role: provide_farm_work
     inputs: [{commodity: electricity_grid}]
+    outputs:
+      - commodity: farm_work
     efficiency: 1.0
     lifetime: 20
     investment_cost: 120

@@ -2,6 +2,11 @@
 
 > AI agent guidance for generating VedaLang source files.
 
+For service-oriented RES structure conventions
+(`role=service`, `variant=pathway`, physical-only modeling, diagnostics
+boundaries), see the companion skill guide:
+`.agents/skills/vedalang-modeling-conventions/SKILL.md`.
+
 ## Purpose & Scope
 
 **VedaLang** is a typed DSL that compiles to VEDA Excel tables for the TIMES energy model. You write VedaLang YAML; the compiler emits Excel; xl2times validates the output.
@@ -61,11 +66,15 @@ VedaLang uses precise terminology to avoid ambiguity:
 # Validate (lint + compile + xl2times)
 uv run vedalang validate mymodel.veda.yaml
 
+# Validate only selected case(s)
+uv run vedalang validate mymodel.veda.yaml --case baseline --case policy
+
 # Lint for heuristic issues only
 uv run vedalang lint mymodel.veda.yaml
 
 # Or step by step:
 uv run vedalang compile mymodel.veda.yaml --out output/
+uv run vedalang compile mymodel.veda.yaml --out output/ --case policy
 uv run xl2times output/ --diagnostics-json diag.json
 ```
 
@@ -225,6 +234,11 @@ cases:
 **Categories:** `demands`, `prices`, `policies`, `technology_assumptions`, `resource_availability`, `global_settings`
 
 **File output:** `Scen_{case}_{category}.xlsx` (e.g., `Scen_baseline_demands.xlsx`)
+
+Case overlays are deterministic:
+- `demand_overrides` and `fuel_price_overrides` target a single base series when available.
+- `scale` multiplies base demand values first, then explicit `values` replace year-specific points.
+- Conflicting or ambiguous overlay selectors are compile-time errors.
 
 **Interpolation modes:**
 - `none` — No interpolation

@@ -5,7 +5,6 @@ Validates commodity and process IDs according to naming conventions.
 
 import re
 from dataclasses import dataclass
-from typing import Optional
 
 VALID_ROLES = {"GEN", "EUS", "CNV", "EXT", "TRD", "STO", "CAP", "SEQ"}
 
@@ -19,10 +18,10 @@ COMMODITY_PREFIXES = {
 @dataclass
 class CommodityIDValidation:
     valid: bool
-    kind: Optional[str]
+    kind: str | None
     code: str
-    context: Optional[str]
-    error: Optional[str]
+    context: str | None
+    error: str | None
 
 
 @dataclass
@@ -30,20 +29,20 @@ class ParsedProcessID:
     technology: str
     role: str
     geo: str
-    segment: Optional[str] = None
-    variant: Optional[str] = None
-    vintage: Optional[str] = None
+    segment: str | None = None
+    variant: str | None = None
+    vintage: str | None = None
 
 
 @dataclass
 class ProcessIDValidation:
     valid: bool
-    parsed: Optional[ParsedProcessID]
-    error: Optional[str]
+    parsed: ParsedProcessID | None
+    error: str | None
 
 
 def validate_commodity_id(
-    name: str, kind: str, context: Optional[str] = None
+    name: str, kind: str, context: str | None = None
 ) -> CommodityIDValidation:
     """Validate a commodity ID matches its kind.
 
@@ -66,7 +65,10 @@ def validate_commodity_id(
             kind=None,
             code="",
             context=None,
-            error=f"Unknown commodity kind: {kind}. Must be one of: {list(COMMODITY_PREFIXES.keys())}",
+            error=(
+                f"Unknown commodity kind: {kind}."
+                f" Must be one of: {list(COMMODITY_PREFIXES.keys())}"
+            ),
         )
 
     expected_prefix = COMMODITY_PREFIXES[kind]
@@ -78,7 +80,10 @@ def validate_commodity_id(
             kind=kind,
             code="",
             context=None,
-            error=f"Invalid commodity ID format: {name}. Expected {expected_prefix}:CODE",
+            error=(
+                f"Invalid commodity ID format: {name}."
+                f" Expected {expected_prefix}:CODE"
+            ),
         )
 
     actual_prefix = parts[0]
@@ -88,7 +93,11 @@ def validate_commodity_id(
             kind=kind,
             code="",
             context=None,
-            error=f"Wrong prefix for {kind} commodity: got '{actual_prefix}', expected '{expected_prefix}'",
+            error=(
+                f"Wrong prefix for {kind} commodity:"
+                f" got '{actual_prefix}',"
+                f" expected '{expected_prefix}'"
+            ),
         )
 
     if kind == "SERVICE":
@@ -98,7 +107,10 @@ def validate_commodity_id(
                 kind=kind,
                 code=parts[1] if len(parts) > 1 else "",
                 context=None,
-                error=f"SERVICE commodity requires format S:CODE:SECTOR.SEGMENT, got: {name}",
+                error=(
+                    f"SERVICE commodity requires format"
+                    f" S:CODE:SECTOR.SEGMENT, got: {name}"
+                ),
             )
 
         code = parts[1]
@@ -110,7 +122,10 @@ def validate_commodity_id(
                 kind=kind,
                 code=code,
                 context=ctx,
-                error=f"Invalid SERVICE context format: {ctx}. Expected SECTOR.SEGMENT[.SUBSEGMENT]",
+                error=(
+                    f"Invalid SERVICE context format: {ctx}."
+                    f" Expected SECTOR.SEGMENT[.SUBSEGMENT]"
+                ),
             )
 
         if context is not None and ctx != context:
@@ -137,7 +152,10 @@ def validate_commodity_id(
                 kind=kind,
                 code="",
                 context=None,
-                error=f"{kind} commodity requires format {expected_prefix}:CODE, got: {name}",
+                error=(
+                    f"{kind} commodity requires format"
+                    f" {expected_prefix}:CODE, got: {name}"
+                ),
             )
 
         code = parts[1]
@@ -147,7 +165,10 @@ def validate_commodity_id(
                 kind=kind,
                 code=code,
                 context=None,
-                error=f"Invalid {kind} code format: {code}. Must be uppercase alphanumeric",
+                error=(
+                    f"Invalid {kind} code format: {code}."
+                    f" Must be uppercase alphanumeric"
+                ),
             )
 
         return CommodityIDValidation(
@@ -189,7 +210,10 @@ def parse_process_id(process_id: str) -> ProcessIDValidation:
         return ProcessIDValidation(
             valid=False,
             parsed=None,
-            error=f"Process ID must have at least 4 parts (P:TECH:ROLE:GEO), got: {process_id}",
+            error=(
+                f"Process ID must have at least 4 parts"
+                f" (P:TECH:ROLE:GEO), got: {process_id}"
+            ),
         )
 
     prefix = parts[0]
@@ -211,9 +235,9 @@ def parse_process_id(process_id: str) -> ProcessIDValidation:
             error=f"Unknown role: {role}. Must be one of: {sorted(VALID_ROLES)}",
         )
 
-    segment: Optional[str] = None
-    variant: Optional[str] = None
-    vintage: Optional[str] = None
+    segment: str | None = None
+    variant: str | None = None
+    vintage: str | None = None
 
     remaining = parts[4:]
 
@@ -254,9 +278,9 @@ def generate_process_id(
     technology: str,
     role: str,
     geo: str,
-    segment: Optional[str] = None,
-    variant: Optional[str] = None,
-    vintage: Optional[str] = None,
+    segment: str | None = None,
+    variant: str | None = None,
+    vintage: str | None = None,
 ) -> str:
     """Generate a process ID from components.
 

@@ -460,6 +460,67 @@ class N010_ContextKindMismatch(NamingLintRule):
         return diagnostics
 
 
+class N011_SnakeCasePreferred(NamingLintRule):
+    """Role, variant, and commodity IDs should use snake_case, not dashes."""
+
+    code = "N011"
+    description = "IDs should use snake_case (underscores, not dashes)"
+
+    def check(self, model: dict) -> list[LintDiagnostic]:
+        diagnostics = []
+
+        # Check commodity IDs
+        model_data = model.get("model", {})
+        for i, comm in enumerate(model_data.get("commodities", [])):
+            cid = comm.get("id", "")
+            if "-" in cid:
+                diagnostics.append(
+                    LintDiagnostic(
+                        code=self.code,
+                        severity="warning",
+                        message=(
+                            f"Commodity '{cid}' uses dashes. "
+                            f"Prefer snake_case: '{cid.replace('-', '_')}'"
+                        ),
+                        path=f"model.commodities[{i}].id",
+                    )
+                )
+
+        # Check process role IDs
+        for i, role in enumerate(model.get("process_roles", [])):
+            rid = role.get("id", "")
+            if "-" in rid:
+                diagnostics.append(
+                    LintDiagnostic(
+                        code=self.code,
+                        severity="warning",
+                        message=(
+                            f"Role '{rid}' uses dashes. "
+                            f"Prefer snake_case: '{rid.replace('-', '_')}'"
+                        ),
+                        path=f"process_roles[{i}].id",
+                    )
+                )
+
+        # Check process variant IDs
+        for i, var in enumerate(model.get("process_variants", [])):
+            vid = var.get("id", "")
+            if "-" in vid:
+                diagnostics.append(
+                    LintDiagnostic(
+                        code=self.code,
+                        severity="warning",
+                        message=(
+                            f"Variant '{vid}' uses dashes. "
+                            f"Prefer snake_case: '{vid.replace('-', '_')}'"
+                        ),
+                        path=f"process_variants[{i}].id",
+                    )
+                )
+
+        return diagnostics
+
+
 ALL_NAMING_RULES: list[NamingLintRule] = [
     N001_CommodityIDGrammar(),
     N002_ProcessIDGrammar(),
@@ -471,6 +532,7 @@ ALL_NAMING_RULES: list[NamingLintRule] = [
     N008_RoleSankeyMismatch(),
     N009_ServiceInTradeLink(),
     N010_ContextKindMismatch(),
+    N011_SnakeCasePreferred(),
 ]
 
 

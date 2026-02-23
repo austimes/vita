@@ -32,8 +32,8 @@ REQUIRED_ROOT_FIELDS = ["model"]
 
 REQUIRED_MODEL_FIELDS = ["name", "regions", "commodities"]
 
-# Commodity now uses 'id' (preferred) or 'name' (legacy), plus 'kind'
-REQUIRED_COMMODITY_FIELDS = ["kind"]
+# Commodity now uses 'id' (preferred) or 'name' (legacy), plus 'type'
+REQUIRED_COMMODITY_FIELDS = ["type"]
 
 REQUIRED_FLOW_FIELDS = ["commodity"]
 
@@ -43,8 +43,10 @@ REQUIRED_SCENARIO_FIELDS = ["name", "type"]
 REQUIRED_PROCESS_ROLE_FIELDS = ["id"]
 REQUIRED_PROCESS_VARIANT_FIELDS = ["id", "role"]
 
-# Commodity kinds: new names + legacy names for compatibility
-BASELINE_COMMODITY_KINDS = ["carrier", "service", "material", "emission", "TRADABLE", "SERVICE", "EMISSION"]
+# Commodity types: canonical type enum values
+BASELINE_COMMODITY_TYPES = [
+    "fuel", "energy", "service", "material", "emission", "money", "other",
+]
 
 BASELINE_SCENARIO_TYPES = ["commodity_price", "demand_projection"]
 
@@ -136,15 +138,15 @@ class TestEnumValuesPreserved:
     def schema(self) -> dict:
         return load_schema()
 
-    def test_commodity_kind_enum_values(self, schema: dict):
-        """Commodity kind enum must include all expected values."""
+    def test_commodity_type_enum_values(self, schema: dict):
+        """Commodity type enum must include all expected values."""
         commodity_def = schema.get("$defs", {}).get("commodity", {})
-        kind_prop = commodity_def.get("properties", {}).get("kind", {})
-        current_enum = kind_prop.get("enum", [])
+        type_prop = commodity_def.get("properties", {}).get("type", {})
+        current_enum = type_prop.get("enum", [])
 
-        for value in BASELINE_COMMODITY_KINDS:
+        for value in BASELINE_COMMODITY_TYPES:
             assert value in current_enum, (
-                f"Commodity kind '{value}' was removed from enum!"
+                f"Commodity type '{value}' was removed from enum!"
             )
 
     def test_scenario_type_enum_values(self, schema: dict):

@@ -1,10 +1,7 @@
 """Tests for the VedaLang abbreviation registry."""
 
-import tempfile
-from pathlib import Path
 
 import pytest
-import yaml
 
 from vedalang.identity.registry import (
     AbbreviationRegistry,
@@ -27,15 +24,22 @@ class TestRegistryLoading:
         """All expected commodities should be loaded."""
         registry = AbbreviationRegistry()
 
-        tradable = ["electricity", "thermal_coal", "natural_gas", "hydrogen", "steam", "limestone", "carbon_dioxide_captured"]
+        tradable = [
+            "electricity", "thermal_coal", "natural_gas",
+            "hydrogen", "steam", "limestone",
+            "carbon_dioxide_captured",
+        ]
         for key in tradable:
             abbrev = registry.find_commodity_by_key(key)
             assert abbrev is not None, f"Missing tradable commodity: {key}"
             assert abbrev.kind == CommodityKind.TRADABLE
 
-        services = ["lighting", "space_heating", "space_cooling", "passenger_kilometres",
-                    "residential_final_energy", "commercial_final_energy", 
-                    "industrial_final_energy", "transport_final_energy"]
+        services = [
+            "lighting", "space_heating", "space_cooling",
+            "passenger_kilometres",
+            "residential_final_energy", "commercial_final_energy",
+            "industrial_final_energy", "transport_final_energy",
+        ]
         for key in services:
             abbrev = registry.find_commodity_by_key(key)
             assert abbrev is not None, f"Missing service commodity: {key}"

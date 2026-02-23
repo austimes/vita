@@ -53,32 +53,37 @@ segments:
 process_roles:
   - id: import_petrol
     stage: supply
-    inputs: []
-    outputs:
+    required_inputs: []
+    required_outputs:
       - commodity: petrol
 
   - id: import_electricity
     stage: supply
-    inputs: []
-    outputs:
+    required_inputs: []
+    required_outputs:
       - commodity: electricity
 
   - id: provide_passenger_km
     stage: end_use
-    inputs: []
-    outputs:
+    required_inputs: []
+    required_outputs:
       - commodity: passenger_km
-      - commodity: co2
 
 process_variants:
   - id: petrol_import
     role: import_petrol
+    inputs: []
+    outputs:
+      - commodity: petrol
     efficiency: 1.0
     lifetime: 100
     variable_om_cost: 15
 
   - id: electricity_import
     role: import_electricity
+    inputs: []
+    outputs:
+      - commodity: electricity
     efficiency: 1.0
     lifetime: 100
     variable_om_cost: 25
@@ -87,6 +92,9 @@ process_variants:
     role: provide_passenger_km
     inputs:
       - commodity: petrol
+    outputs:
+      - commodity: passenger_km
+      - commodity: co2
     efficiency: 1.0
     lifetime: 15
     variable_om_cost: 5
@@ -97,6 +105,8 @@ process_variants:
     role: provide_passenger_km
     inputs:
       - commodity: electricity
+    outputs:
+      - commodity: passenger_km
     efficiency: 1.0
     lifetime: 15
     investment_cost: 100

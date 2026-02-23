@@ -211,7 +211,8 @@ def apply_manual_layouts(schemas: dict[str, VedaTableSchema]) -> None:
             index_fields=["region", "process", "commodity", "year"],
             attribute_field=None,  # Attributes are column headers, not row values
             value_field=None,  # No 'value' column - data under attribute headers
-            allow_value_column=True,  # ~FI_T can use 'value' for attribute-based rows (e.g., ENV_ACT)
+            # ~FI_T can use 'value' for attribute-based rows (e.g., ENV_ACT)
+            allow_value_column=True,
         )
         # Add common attribute column headers that VedaLang emits
         # NOTE: Use CANONICAL attribute names from attribute-master.json.

@@ -11,15 +11,15 @@ model:
 
   commodities:
     - id: gas
-      kind: carrier
+      type: fuel
       unit: PJ
 
     - id: electricity
-      kind: carrier
+      type: energy
       unit: PJ
 
     - id: residential_demand
-      kind: service
+      type: service
       unit: PJ
 
 segments:
@@ -28,38 +28,45 @@ segments:
 process_roles:
   - id: import_gas
     stage: supply
-    inputs: []
-    outputs:
+    required_inputs: []
+    required_outputs:
       - commodity: gas
 
   - id: generate_electricity
     stage: conversion
-    inputs:
+    required_inputs:
       - commodity: gas
-    outputs:
+    required_outputs:
       - commodity: electricity
 
   - id: generate_electricity_renewable
     stage: conversion
-    inputs: []
-    outputs:
+    required_inputs: []
+    required_outputs:
       - commodity: electricity
 
   - id: deliver_residential
     stage: end_use
-    inputs:
+    required_inputs:
       - commodity: electricity
-    outputs:
+    required_outputs:
       - commodity: residential_demand
 
 process_variants:
   - id: gas_import
     role: import_gas
+    inputs: []
+    outputs:
+      - commodity: gas
     efficiency: 1.0
     lifetime: 100
 
   - id: ccgt
     role: generate_electricity
+    inputs:
+      - commodity: gas
+    outputs:
+      - commodity: electricity
     efficiency: 0.55
     investment_cost: 800
     fixed_om_cost: 20
@@ -67,6 +74,9 @@ process_variants:
 
   - id: wind
     role: generate_electricity_renewable
+    inputs: []
+    outputs:
+      - commodity: electricity
     efficiency: 1.0
     investment_cost: 1200
     fixed_om_cost: 25
@@ -74,11 +84,19 @@ process_variants:
 
   - id: existing_coal
     role: generate_electricity
+    inputs:
+      - commodity: gas
+    outputs:
+      - commodity: electricity
     efficiency: 0.40
     lifetime: 40
 
   - id: residential_device
     role: deliver_residential
+    inputs:
+      - commodity: electricity
+    outputs:
+      - commodity: residential_demand
     efficiency: 1.0
     lifetime: 100
 

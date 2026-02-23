@@ -34,6 +34,7 @@ def run_check(
     from_vedalang: bool = False,
     from_tableir: bool = False,
     project_root: Path | None = None,
+    selected_cases: list[str] | None = None,
 ) -> CheckResult:
     """
     Run the full validation pipeline.
@@ -56,7 +57,10 @@ def run_check(
         # Step 1: Get TableIR
         if from_vedalang:
             source = load_vedalang(input_path)
-            tableir = compile_vedalang_to_tableir(source)
+            tableir = compile_vedalang_to_tableir(
+                source,
+                selected_cases=selected_cases,
+            )
         elif from_tableir:
             tableir = load_tableir(input_path)
         else:

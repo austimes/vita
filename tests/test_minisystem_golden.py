@@ -36,7 +36,9 @@ class TestMiniSystemCompilation:
 
     def test_minisystem_exists(self):
         """MiniSystem fixture must exist."""
-        assert MINISYSTEM_PATH.exists(), "minisystem8.veda.yaml is the stress-test model"
+        assert MINISYSTEM_PATH.exists(), (
+            "minisystem8.veda.yaml is the stress-test model"
+        )
 
     def test_compiles_without_error(self, tableir):
         """MiniSystem should compile without errors."""
@@ -87,14 +89,13 @@ class TestMiniSystemFeatureCoverage:
         # minisystem8 uses Australian regions
         assert "NEM_EAST" in regions or "NEM_SOUTH" in regions
 
-    def test_has_all_commodity_kinds(self, source):
-        """MiniSystem should have all commodity kinds (new P4 syntax)."""
+    def test_has_all_commodity_types(self, source):
+        """MiniSystem should have all commodity types."""
         commodities = source["model"]["commodities"]
-        kinds = {c.get("kind") for c in commodities}
-        # New P4 syntax uses lowercase kind: carrier, service, emission
-        assert "carrier" in kinds
-        assert "service" in kinds
-        assert "emission" in kinds
+        types = {c.get("type") for c in commodities}
+        assert "fuel" in types or "energy" in types
+        assert "service" in types
+        assert "emission" in types
 
     def test_has_timeslices(self, source):
         """MiniSystem should have timeslice definitions."""
@@ -180,7 +181,10 @@ class TestMiniSystemTableIRStructure:
         names = {r.get("process") for r in proc_rows}
         # Check for some variant types in process names
         has_import = any("import" in n.lower() for n in names if n)
-        has_generation = any("ccgt" in n.lower() or "wind" in n.lower() for n in names if n)
+        has_generation = any(
+            "ccgt" in n.lower() or "wind" in n.lower()
+            for n in names if n
+        )
         assert has_import or has_generation
 
     def test_has_topology(self, tableir):

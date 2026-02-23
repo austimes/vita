@@ -2,7 +2,7 @@
 # Agricultural emissions reduction + sequestration (ENV-as-input pattern)
 # Tests: ENV commodity as process input, sequestration consuming emissions
 # Design: VedaLang enforces physicality — trees consume CO2, not emit negative CO2
-# Issue: vedalang-248.6
+# Issue: vedalang-0pt.11
 
 model:
   name: ToyAgriculture
@@ -14,13 +14,18 @@ model:
   milestone_years: [2020, 2030, 2040, 2050]
 
   commodities:
+    - id: ag_inputs
+      type: material
+      unit: Mt
+      description: Aggregate physical agricultural inputs
+
     - id: agricultural_output
-      kind: service
+      type: service
       unit: Mt
       description: Agricultural production
 
     - id: co2e
-      kind: emission
+      type: emission
       unit: Mt
       tradable: true
       description: CO2-equivalent greenhouse gas emissions
@@ -43,44 +48,66 @@ segments:
   sectors: [AGR]
 
 process_roles:
-  - id: produce_agriculture
-    stage: end_use
-    inputs: []
-    outputs:
-      - commodity: agricultural_output
-      - commodity: co2e
+  - id: supply_ag_inputs
+    stage: supply
+    required_inputs: []
+    required_outputs:
+      - commodity: ag_inputs
 
-  - id: produce_agriculture_improved
+  - id: provide_ag_output
     stage: end_use
-    inputs: []
-    outputs:
+    required_inputs:
+      - commodity: ag_inputs
+    required_outputs:
       - commodity: agricultural_output
-      - commodity: co2e
 
   - id: sequester_carbon
     stage: sink
-    inputs:
+    required_inputs:
       - commodity: co2e
-    outputs: []
+    required_outputs: []
 
 process_variants:
-  - id: baseline_agriculture
-    role: produce_agriculture
+  - id: primary_supply
+    role: supply_ag_inputs
+    inputs: []
+    outputs:
+      - commodity: ag_inputs
+    efficiency: 1.0
+    lifetime: 100
+
+  - id: traditional_baseline
+    role: provide_ag_output
+    inputs:
+      - commodity: ag_inputs
+    outputs:
+      - commodity: agricultural_output
+      - commodity: co2e
     efficiency: 1.0
     lifetime: 50
     emission_factors:
       co2e: 5.0
 
-  - id: feed_additives
-    role: produce_agriculture_improved
+  - id: traditional_with_feed_additives
+    role: provide_ag_output
+    inputs:
+      - commodity: ag_inputs
+    outputs:
+      - commodity: agricultural_output
+      - commodity: co2e
     efficiency: 1.0
     lifetime: 50
     investment_cost: 20
     emission_factors:
       co2e: 3.0
 
-  - id: improved_manure
-    role: produce_agriculture_improved
+  - id: traditional_with_improved_manure
+    role: provide_ag_output
+    inputs:
+      - commodity: ag_inputs
+    outputs:
+      - commodity: agricultural_output
+      - commodity: co2e
     efficiency: 1.0
     lifetime: 50
     investment_cost: 10
@@ -89,26 +116,35 @@ process_variants:
 
   - id: soil_carbon
     role: sequester_carbon
+    inputs:
+      - commodity: co2e
+    outputs: []
     efficiency: 1.0
     lifetime: 30
     investment_cost: 30
 
   - id: reforestation
     role: sequester_carbon
+    inputs:
+      - commodity: co2e
+    outputs: []
     efficiency: 1.0
     lifetime: 50
     investment_cost: 15
 
 availability:
-  - variant: baseline_agriculture
+  - variant: primary_supply
+    regions: [SINGLE]
+
+  - variant: traditional_baseline
     regions: [SINGLE]
     sectors: [AGR]
 
-  - variant: feed_additives
+  - variant: traditional_with_feed_additives
     regions: [SINGLE]
     sectors: [AGR]
 
-  - variant: improved_manure
+  - variant: traditional_with_improved_manure
     regions: [SINGLE]
     sectors: [AGR]
 
@@ -120,13 +156,18 @@ availability:
 
 process_parameters:
   - selector:
-      variant: baseline_agriculture
+      variant: primary_supply
+      region: SINGLE
+    stock: 1000
+
+  - selector:
+      variant: traditional_baseline
       region: SINGLE
       sector: AGR
     stock: 10
 
   - selector:
-      variant: feed_additives
+      variant: traditional_with_feed_additives
       region: SINGLE
       sector: AGR
     stock: 0.5
@@ -134,7 +175,7 @@ process_parameters:
       up: 4
 
   - selector:
-      variant: improved_manure
+      variant: traditional_with_improved_manure
       region: SINGLE
       sector: AGR
     stock: 0.5

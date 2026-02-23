@@ -23,13 +23,12 @@ from typing import Any, Literal
 
 from vedalang.lint.res_export import export_res_graph, res_graph_to_mermaid
 
-# Path to the modeling conventions skill document
+# Path to the canonical modeling conventions document (single source of truth)
 _CONVENTIONS_PATH = (
     Path(__file__).resolve().parents[2]
-    / ".agents"
-    / "skills"
-    / "vedalang-modeling-conventions"
-    / "SKILL.md"
+    / "docs"
+    / "vedalang-user"
+    / "modeling-conventions.md"
 )
 
 # Severity levels for LLM assessment findings
@@ -72,6 +71,7 @@ class AssessmentResult:
 
     findings: list[LLMFinding]
     raw_response: str | None = None
+    model: str | None = None
 
     @property
     def critical_count(self) -> int:
@@ -121,19 +121,94 @@ You are a VedaLang structural assessment engine. Your task is to review the \
 Reference Energy System (RES) graph of a VedaLang model and identify \
 architectural inconsistencies.
 
-You will receive:
+## VedaLang Key Concepts
+
+Understanding these precisely is critical to avoid false positives:
+
+- **Role** = a service/transformation provided (e.g. "provide-space-heat"). \
+Defined in `process_roles` with stage, inputs, and outputs.
+- **Variant** = a specific technology pathway that fulfils a role \
+(e.g. "gas-boiler", "heat-pump"). Defined in `process_variants` with \
+`role:` reference, efficiency, lifetime, costs.
+- **Stage** = one of: supply, conversion, storage, end_use, sink.
+- **Commodity type** = one of: fuel, energy, service, material, emission, money, other.
+
+### Critical distinctions (avoid these mistakes):
+
+1. **Multiple variants under one role is GOOD, not fragmented.** \
+The whole point of the role/variant pattern is that one service role \
+(e.g. "provide-ag-output") can have many technology variants \
+(e.g. "traditional-baseline", "traditional-with-feed-additives", \
+"traditional-with-improved-manure"). \
+This is correct design. "Over-fragmented roles" means having too many \
+ROLES that serve the same purpose — NOT too many variants under one role.
+
+4. **Variant names should indicate complete replacement pathways**, not \
+bolt-on modifiers. When variants represent improved versions of a \
+baseline practice, use bundle naming like "traditional-with-feed-additives" \
+(not just "feed-additives") to make clear each variant is a complete \
+end-to-end replacement for the baseline, not an add-on. Flag variant \
+names that sound like standalone measures or bolt-on modifiers when they \
+share a role with a baseline variant.
+
+2. **Zero-input processes are only valid at stage: supply.** \
+A process at end_use or conversion that has no inputs in its role \
+definition AND no variant-level inputs is suspicious (fake supply). \
+However, VedaLang supports **variant-level inputs**: when different \
+variants under a role consume different fuels (e.g. gas_heater→natural_gas, \
+heat_pump→electricity), the role correctly has empty `required_inputs` \
+while each variant declares its own inputs. Check the role's \
+`has_variant_level_inputs` field and `variant_inputs` list in the JSON — \
+if `has_variant_level_inputs` is true, the role is NOT a zero-input device. \
+Also check the edges section for commodity→role input edges. \
+Do NOT flag roles that have variant-level inputs as zero-input devices.
+
+3. **Commodity type mismatches** must explain: what type the commodity \
+currently has, what type would be expected in this context (and why), \
+and what diagnostic confusion might result. For example, if xl2times \
+expects a "fuel" type for process inputs but finds "material", explain \
+that xl2times may misclassify the flow in its diagnostics.
+
+## You will receive:
 1. Modeling conventions that define best practices
 2. A normalized RES graph (JSON) describing commodities, roles, variants, \
 and edges
-3. A Mermaid diagram of the same graph (for visual reference)
+3. A Mermaid diagram of the same graph (for visual reference — role-level \
+only; variant-specific flows are in the JSON)
 
-Assess the RES for:
+## Interpreting edge scope (CRITICAL — read carefully)
+
+Edges in the JSON have a `scope` field:
+- `"scope": "role"` — declared in `process_roles.required_inputs/outputs`. \
+Applies to ALL variants under this role.
+- `"scope": "variant"` — declared only by specific variant(s). The \
+`source_variants` list shows WHICH variant(s) produce this edge.
+
+**Variant-level emissions**: If an emission edge has `"scope": "variant"` \
+and `"source_variants": ["gas_heater"]`, it means ONLY `gas_heater` emits \
+that commodity — NOT the role as a whole, and NOT other variants like \
+`heat_pump`. Do NOT generalise variant-scoped edges to the role.
+
+Similarly, each variant node now includes its own `inputs`, `outputs`, \
+and `emission_factors` so you can verify exactly which variants have \
+which topology.
+
+## What to assess:
 - Violations of service-level role abstraction (fuel-pathway roles)
-- Suspicious zero-input end-use devices (fake supply)
-- Over-fragmented roles that should be merged
+- Suspicious zero-input end-use devices (processes at non-supply stage \
+with no inputs declared in their role)
+- Over-fragmented ROLES (multiple roles serving the same service that \
+should be merged — NOT multiple variants under one role)
 - Inconsistent stage usage
-- Commodity type mismatches
+- Commodity type mismatches (with specific xl2times/VEDA expectations)
+- **Ambiguous variant naming**: variants that sound like bolt-on modifiers \
+(e.g. "feed-additives") when they should use bundle naming to indicate \
+complete replacement pathways (e.g. "traditional-with-feed-additives"). \
+Flag variants whose names suggest they are add-on measures rather than \
+complete end-to-end replacements for a baseline variant.
 - Any other structural anti-patterns
+
+## Response format
 
 Respond with ONLY a JSON object (no markdown fencing) matching this schema:
 
@@ -142,15 +217,25 @@ Respond with ONLY a JSON object (no markdown fencing) matching this schema:
     {
       "severity": "critical" | "warning" | "suggestion",
       "category": "string (e.g. fuel_pathway_roles, zero_input_device, \
-stage_mismatch, commodity_type_mismatch, over_fragmented_roles, other)",
-      "message": "string describing the issue",
-      "location": "string identifying where in the model (optional)",
-      "suggestion": "string with fix guidance (optional)"
+stage_mismatch, commodity_type_mismatch, over_fragmented_roles, \
+ambiguous_variant_naming, other)",
+      "message": "Detailed description of the issue: what is wrong, why \
+it is a problem, and what the model expects vs what it found.",
+      "location": "string identifying where in the model (role/variant id)",
+      "suggestion": "Concrete guidance on how to fix the issue, including \
+a VedaLang YAML snippet showing the corrected structure."
     }
   ]
 }
 
-If no issues are found, return: {"findings": []}
+IMPORTANT:
+- Every finding MUST include a non-empty "suggestion" with a concrete fix.
+- "message" must explain the root cause and downstream consequences.
+- Do NOT flag multiple variants under one role as "over-fragmented".
+- Do NOT flag a process as "zero-input" if its role declares inputs OR \
+if `has_variant_level_inputs` is true (variants provide the inputs).
+- If no genuine issues are found, return: {"findings": []}
+- Prefer fewer, high-quality findings over many low-quality ones.
 """
 
 
@@ -249,10 +334,16 @@ def parse_llm_response(raw: str) -> AssessmentResult:
     return AssessmentResult(findings=findings, raw_response=raw)
 
 
-def _call_openai(system_prompt: str, user_prompt: str) -> str:
-    """Call OpenAI API for structural assessment.
+_MODEL = "gpt-5.2"
+
+
+def _call_openai(system_prompt: str, user_prompt: str) -> tuple[str, str]:
+    """Call OpenAI Responses API for structural assessment.
 
     Uses OPENAI_API_KEY from environment. Raises RuntimeError if unavailable.
+
+    Returns:
+        Tuple of (response_text, model_name).
     """
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
@@ -270,17 +361,16 @@ def _call_openai(system_prompt: str, user_prompt: str) -> str:
         )
 
     client = openai.OpenAI(api_key=api_key)
-    response = client.chat.completions.create(
-        model=os.environ.get("VEDALANG_LLM_MODEL", "gpt-4o-mini"),
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-        temperature=0.0,
-        response_format={"type": "json_object"},
+
+    response = client.responses.create(
+        model=_MODEL,
+        instructions=system_prompt,
+        input=user_prompt,
+        text={"format": {"type": "json_object"}},
+        reasoning={"effort": "medium"},
     )
 
-    return response.choices[0].message.content or "{}"
+    return response.output_text or "{}", _MODEL
 
 
 def run_llm_assessment(
@@ -300,9 +390,12 @@ def run_llm_assessment(
     """
     system_prompt, user_prompt = assemble_prompt(source)
 
+    model: str | None = None
     if llm_callable is not None:
         raw = llm_callable(system_prompt, user_prompt)
     else:
-        raw = _call_openai(system_prompt, user_prompt)
+        raw, model = _call_openai(system_prompt, user_prompt)
 
-    return parse_llm_response(raw)
+    result = parse_llm_response(raw)
+    result.model = model
+    return result

@@ -26,11 +26,11 @@ model:
   
   commodities:
     - name: C:ELC
-      kind: TRADABLE
+      type: energy
       unit: PJ
       description: Electricity
     - name: C:GAS
-      kind: TRADABLE
+      type: fuel
       unit: PJ
       description: Natural Gas
   

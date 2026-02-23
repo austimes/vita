@@ -127,7 +127,7 @@ class TestExpandPattern:
         parsed = yaml.safe_load(result)
         assert "commodities" in parsed
         assert parsed["commodities"][0]["name"] == "C:NG"  # New naming convention
-        assert parsed["commodities"][0]["kind"] == "TRADABLE"
+        assert parsed["commodities"][0]["type"] == "energy"
 
     def test_expand_emission_commodity(self):
         """Expand add_emission_commodity pattern."""
@@ -140,7 +140,7 @@ class TestExpandPattern:
         parsed = yaml.safe_load(result)
         assert "commodities" in parsed
         assert parsed["commodities"][0]["name"] == "E:CO2"  # New naming convention
-        assert parsed["commodities"][0]["kind"] == "EMISSION"
+        assert parsed["commodities"][0]["type"] == "emission"
         assert parsed["commodities"][0]["unit"] == "Mt"
 
     def test_expand_co2_price_trajectory_tableir(self):

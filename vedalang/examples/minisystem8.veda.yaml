@@ -54,6 +54,16 @@ model:
       unit: PJ
       description: Hydrogen
 
+    - id: solar_irradiance
+      type: energy
+      unit: PJ
+      description: Solar irradiance resource
+
+    - id: wind_resource
+      type: energy
+      unit: PJ
+      description: Wind resource
+
     # Emissions
     - id: co2
       type: emission
@@ -89,7 +99,7 @@ model:
       efficiency: 0.97
 
   scenario_parameters:
-    - name: co2_price
+    - name: co2-price
       description: Carbon price trajectory
       type: commodity_price
       commodity: co2
@@ -106,97 +116,109 @@ process_roles:
   # === SUPPLY ===
   - id: import_gas
     stage: supply
-    inputs: []
-    outputs:
+    required_inputs: []
+    required_outputs:
       - commodity: gas
 
   - id: import_coal
     stage: supply
-    inputs: []
-    outputs:
+    required_inputs: []
+    required_outputs:
       - commodity: coal
+
+  - id: supply_solar_irradiance
+    stage: supply
+    required_inputs: []
+    required_outputs:
+      - commodity: solar_irradiance
+
+  - id: supply_wind_resource
+    stage: supply
+    required_inputs: []
+    required_outputs:
+      - commodity: wind_resource
 
   # === ELECTRICITY GENERATION ===
-  - id: generate_electricity_gas
+  - id: generate_electricity
     stage: conversion
-    inputs:
-      - commodity: gas
-    outputs:
-      - commodity: electricity
-      - commodity: co2
-
-  - id: generate_electricity_coal
-    stage: conversion
-    inputs:
-      - commodity: coal
-    outputs:
-      - commodity: electricity
-      - commodity: co2
-
-  - id: generate_electricity_renewable
-    stage: conversion
-    inputs: []
-    outputs:
+    required_inputs: []
+    required_outputs:
       - commodity: electricity
 
   # === HYDROGEN PRODUCTION ===
-  - id: produce_hydrogen_gas
+  - id: produce_hydrogen
     stage: conversion
-    inputs:
-      - commodity: gas
-    outputs:
-      - commodity: hydrogen
-      - commodity: co2
-
-  - id: produce_hydrogen_elec
-    stage: conversion
-    inputs:
-      - commodity: electricity
-    outputs:
+    required_inputs: []
+    required_outputs:
       - commodity: hydrogen
 
   # === END USE ===
-  - id: deliver_residential
+  - id: provide_residential_demand
     stage: end_use
-    inputs:
-      - commodity: electricity
-    outputs:
+    required_inputs: []
+    required_outputs:
       - commodity: residential_demand
 
-  - id: deliver_commercial
+  - id: provide_commercial_demand
     stage: end_use
-    inputs:
-      - commodity: electricity
-    outputs:
+    required_inputs: []
+    required_outputs:
       - commodity: commercial_demand
 
   - id: provide_industrial_demand
     stage: end_use
-    inputs: []
-    outputs:
+    required_inputs: []
+    required_outputs:
       - commodity: industrial_demand
 
   - id: provide_transport_demand
     stage: end_use
-    inputs: []
-    outputs:
+    required_inputs: []
+    required_outputs:
       - commodity: transport_demand
 
 process_variants:
   # === SUPPLY ===
   - id: gas_import
     role: import_gas
+    inputs: []
+    outputs:
+      - commodity: gas
     efficiency: 1.0
     lifetime: 100
 
   - id: coal_import
     role: import_coal
+    inputs: []
+    outputs:
+      - commodity: coal
+    efficiency: 1.0
+    lifetime: 100
+
+  - id: solar_irradiance_supply
+    role: supply_solar_irradiance
+    inputs: []
+    outputs:
+      - commodity: solar_irradiance
+    efficiency: 1.0
+    lifetime: 100
+
+  - id: wind_resource_supply
+    role: supply_wind_resource
+    inputs: []
+    outputs:
+      - commodity: wind_resource
     efficiency: 1.0
     lifetime: 100
 
   # === GENERATION ===
   - id: coal_plant
-    role: generate_electricity_coal
+    role: generate_electricity
+    inputs:
+      - commodity: coal
+    outputs:
+      - commodity: electricity
+      - commodity: co2
     efficiency: 0.38
     investment_cost: 2500
     fixed_om_cost: 40
@@ -206,7 +228,12 @@ process_variants:
       co2: 0.09
 
   - id: ccgt
-    role: generate_electricity_gas
+    role: generate_electricity
+    inputs:
+      - commodity: gas
+    outputs:
+      - commodity: electricity
+      - commodity: co2
     efficiency: 0.55
     investment_cost: 800
     fixed_om_cost: 20
@@ -216,7 +243,11 @@ process_variants:
       co2: 0.05
 
   - id: wind
-    role: generate_electricity_renewable
+    role: generate_electricity
+    inputs:
+      - commodity: wind_resource
+    outputs:
+      - commodity: electricity
     efficiency: 1.0
     investment_cost: 1200
     fixed_om_cost: 25
@@ -224,7 +255,11 @@ process_variants:
     lifetime: 25
 
   - id: solar
-    role: generate_electricity_renewable
+    role: generate_electricity
+    inputs:
+      - commodity: solar_irradiance
+    outputs:
+      - commodity: electricity
     efficiency: 1.0
     investment_cost: 1000
     fixed_om_cost: 15
@@ -233,7 +268,12 @@ process_variants:
 
   # === HYDROGEN ===
   - id: smr
-    role: produce_hydrogen_gas
+    role: produce_hydrogen
+    inputs:
+      - commodity: gas
+    outputs:
+      - commodity: hydrogen
+      - commodity: co2
     efficiency: 0.75
     investment_cost: 1500
     fixed_om_cost: 50
@@ -243,7 +283,11 @@ process_variants:
       co2: 0.056
 
   - id: electrolyzer
-    role: produce_hydrogen_elec
+    role: produce_hydrogen
+    inputs:
+      - commodity: electricity
+    outputs:
+      - commodity: hydrogen
     efficiency: 0.70
     investment_cost: 2000
     fixed_om_cost: 30
@@ -251,13 +295,21 @@ process_variants:
     lifetime: 20
 
   # === DEMAND DEVICES ===
-  - id: residential_device
-    role: deliver_residential
+  - id: residential_electric_device
+    role: provide_residential_demand
+    inputs:
+      - commodity: electricity
+    outputs:
+      - commodity: residential_demand
     efficiency: 1.0
     lifetime: 100
 
-  - id: commercial_device
-    role: deliver_commercial
+  - id: commercial_electric_device
+    role: provide_commercial_demand
+    inputs:
+      - commodity: electricity
+    outputs:
+      - commodity: commercial_demand
     efficiency: 1.0
     lifetime: 100
 
@@ -265,6 +317,8 @@ process_variants:
     role: provide_industrial_demand
     inputs:
       - commodity: gas
+    outputs:
+      - commodity: industrial_demand
     efficiency: 0.85
     lifetime: 30
 
@@ -272,6 +326,8 @@ process_variants:
     role: provide_industrial_demand
     inputs:
       - commodity: hydrogen
+    outputs:
+      - commodity: industrial_demand
     efficiency: 0.80
     lifetime: 30
 
@@ -279,6 +335,8 @@ process_variants:
     role: provide_transport_demand
     inputs:
       - commodity: electricity
+    outputs:
+      - commodity: transport_demand
     efficiency: 0.90
     lifetime: 15
 
@@ -286,6 +344,8 @@ process_variants:
     role: provide_transport_demand
     inputs:
       - commodity: hydrogen
+    outputs:
+      - commodity: transport_demand
     efficiency: 0.60
     lifetime: 15
 
@@ -295,6 +355,12 @@ availability:
     regions: [NEM_EAST, NEM_SOUTH, WA]
 
   - variant: coal_import
+    regions: [NEM_EAST, NEM_SOUTH, WA]
+
+  - variant: solar_irradiance_supply
+    regions: [NEM_EAST, NEM_SOUTH, WA]
+
+  - variant: wind_resource_supply
     regions: [NEM_EAST, NEM_SOUTH, WA]
 
   # Generation - all regions
@@ -318,11 +384,11 @@ availability:
     regions: [NEM_EAST, NEM_SOUTH, WA]
 
   # Demand devices - sector specific
-  - variant: residential_device
+  - variant: residential_electric_device
     regions: [NEM_EAST, NEM_SOUTH, WA]
     sectors: [RES]
 
-  - variant: commercial_device
+  - variant: commercial_electric_device
     regions: [NEM_EAST, NEM_SOUTH, WA]
     sectors: [COM]
 
@@ -359,6 +425,20 @@ process_parameters:
       up: 10000
 
   - selector:
+      variant: solar_irradiance_supply
+      region: NEM_EAST
+    stock: 1000
+    cap_bound:
+      up: 10000
+
+  - selector:
+      variant: wind_resource_supply
+      region: NEM_EAST
+    stock: 1000
+    cap_bound:
+      up: 10000
+
+  - selector:
       variant: coal_plant
       region: NEM_EAST
     existing_capacity:
@@ -372,7 +452,7 @@ process_parameters:
       region: NEM_EAST
     existing_capacity:
       - vintage: 2010
-        capacity: 2
+        capacity: 5
     cap_bound:
       up: 100
 
@@ -381,7 +461,7 @@ process_parameters:
       region: NEM_EAST
     existing_capacity:
       - vintage: 2010
-        capacity: 1
+        capacity: 2
     cap_bound:
       up: 500
 
@@ -390,7 +470,7 @@ process_parameters:
       region: NEM_EAST
     existing_capacity:
       - vintage: 2010
-        capacity: 1
+        capacity: 2
     cap_bound:
       up: 500
 
@@ -399,7 +479,7 @@ process_parameters:
       region: NEM_EAST
     existing_capacity:
       - vintage: 2010
-        capacity: 0.5
+        capacity: 1
     cap_bound:
       up: 50
 
@@ -408,12 +488,12 @@ process_parameters:
       region: NEM_EAST
     existing_capacity:
       - vintage: 2010
-        capacity: 0.5
+        capacity: 1
     cap_bound:
       up: 100
 
   - selector:
-      variant: residential_device
+      variant: residential_electric_device
       region: NEM_EAST
       sector: RES
     existing_capacity:
@@ -423,7 +503,7 @@ process_parameters:
       up: 1000
 
   - selector:
-      variant: commercial_device
+      variant: commercial_electric_device
       region: NEM_EAST
       sector: COM
     existing_capacity:
@@ -472,7 +552,7 @@ process_parameters:
     cap_bound:
       up: 500
 
-  # NEM_SOUTH (copy of NEM_EAST structure)
+  # NEM_SOUTH
   - selector:
       variant: gas_import
       region: NEM_SOUTH
@@ -488,11 +568,25 @@ process_parameters:
       up: 10000
 
   - selector:
+      variant: solar_irradiance_supply
+      region: NEM_SOUTH
+    stock: 1000
+    cap_bound:
+      up: 10000
+
+  - selector:
+      variant: wind_resource_supply
+      region: NEM_SOUTH
+    stock: 1000
+    cap_bound:
+      up: 10000
+
+  - selector:
       variant: coal_plant
       region: NEM_SOUTH
     existing_capacity:
       - vintage: 2010
-        capacity: 5
+        capacity: 8
     cap_bound:
       up: 100
 
@@ -501,7 +595,7 @@ process_parameters:
       region: NEM_SOUTH
     existing_capacity:
       - vintage: 2010
-        capacity: 2
+        capacity: 3
     cap_bound:
       up: 100
 
@@ -510,7 +604,7 @@ process_parameters:
       region: NEM_SOUTH
     existing_capacity:
       - vintage: 2010
-        capacity: 2
+        capacity: 3
     cap_bound:
       up: 500
 
@@ -519,7 +613,7 @@ process_parameters:
       region: NEM_SOUTH
     existing_capacity:
       - vintage: 2010
-        capacity: 0.5
+        capacity: 2
     cap_bound:
       up: 500
 
@@ -542,7 +636,7 @@ process_parameters:
       up: 100
 
   - selector:
-      variant: residential_device
+      variant: residential_electric_device
       region: NEM_SOUTH
       sector: RES
     existing_capacity:
@@ -552,7 +646,7 @@ process_parameters:
       up: 1000
 
   - selector:
-      variant: commercial_device
+      variant: commercial_electric_device
       region: NEM_SOUTH
       sector: COM
     existing_capacity:
@@ -617,6 +711,20 @@ process_parameters:
       up: 10000
 
   - selector:
+      variant: solar_irradiance_supply
+      region: WA
+    stock: 1000
+    cap_bound:
+      up: 10000
+
+  - selector:
+      variant: wind_resource_supply
+      region: WA
+    stock: 1000
+    cap_bound:
+      up: 10000
+
+  - selector:
       variant: coal_plant
       region: WA
     existing_capacity:
@@ -671,7 +779,7 @@ process_parameters:
       up: 100
 
   - selector:
-      variant: residential_device
+      variant: residential_electric_device
       region: WA
       sector: RES
     existing_capacity:
@@ -681,7 +789,7 @@ process_parameters:
       up: 1000
 
   - selector:
-      variant: commercial_device
+      variant: commercial_electric_device
       region: WA
       sector: COM
     existing_capacity:

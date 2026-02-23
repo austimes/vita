@@ -20,14 +20,14 @@ def _make_model_with_emissions():
             {
                 "id": "generate_elc",
                 "stage": "conversion",
-                "inputs": [{"commodity": "gas"}],
-                "outputs": [{"commodity": "elc"}, {"commodity": "co2"}],
+                "required_inputs": [{"commodity": "gas"}],
+                "required_outputs": [{"commodity": "elc"}, {"commodity": "co2"}],
             },
             {
                 "id": "generate_elc_renewable",
                 "stage": "conversion",
-                "inputs": [],
-                "outputs": [{"commodity": "elc"}],
+                "required_inputs": [],
+                "required_outputs": [{"commodity": "elc"}],
             },
         ],
         "process_variants": [

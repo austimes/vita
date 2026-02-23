@@ -147,13 +147,13 @@ For each primitive `P`, follow this **standard loop**:
 - Aim for a model that isolates the behavior of `P`.
 
 ### Step 3: Implement in VedaLang
-- Create `experiments/{primitive}/model_{primitive}_v1.veda.yaml`
+- Create a model file (e.g., `vedalang/examples/model_{primitive}.veda.yaml`)
 - Conform to `vedalang.schema.json`
 - Reuse patterns from `rules/patterns.yaml` if possible
 
 ### Step 4: Run Toolchain and Collect Feedback
 ```bash
-uv run vedalang validate experiments/{primitive}/model_{primitive}_v1.veda.yaml --json
+uv run vedalang validate vedalang/examples/model_{primitive}.veda.yaml --json
 ```
 
 Categorize result:
@@ -199,14 +199,14 @@ veda_exploration_session:
       status: "in_progress"  # not_started | in_progress | completed | blocked
       
       focus_models:
-        - file: "experiments/storage/model_storage_v1.veda.yaml"
+        - file: "vedalang/examples/model_storage_v1.veda.yaml"
           description: "Single-region electricity storage"
           validate_status: "HARD_FAILURE"
           key_diagnostics:
             - code: "MISSING_TIMESLICES"
               message: "No timeslice definitions found"
               
-        - file: "experiments/storage/model_storage_v2.veda.yaml"
+        - file: "vedalang/examples/model_storage_v2.veda.yaml"
           description: "Storage as process with round-trip efficiency"
           validate_status: "SUCCESS"
           key_diagnostics: []
@@ -343,7 +343,7 @@ When schema extension is justified:
 
 At session end:
 
-1. **Update handoff YAML** in `experiments/handoff/session_{date}.yaml`
+1. **Update handoff notes** (e.g., in a session log or bd issue)
 2. **For each primitive touched:**
    - At least one `focus_models` entry with diagnostics
    - Short `intent_summary`
@@ -357,7 +357,7 @@ Your goal is to make the **next agent instance faster and smarter** than you wer
 
 ## 7. Getting Started
 
-1. Create `experiments/` directory structure
-2. Pick a primitive to explore (start with one already partially validated, like CHP or storage)
+1. Pick a primitive to explore (start with one already partially validated, like CHP or storage)
+2. Create a model file in `vedalang/examples/`
 3. Follow the protocol
 4. Save your handoff before session ends

@@ -34,7 +34,6 @@ def main():
     _add_lint_parser(subparsers)
     _add_compile_parser(subparsers)
     _add_validate_parser(subparsers)
-    _add_check_parser(subparsers)
     _add_viz_parser(subparsers)
 
     args = parser.parse_args()
@@ -43,7 +42,7 @@ def main():
         sys.exit(cmd_lint(args))
     elif args.command == "compile":
         sys.exit(cmd_compile(args))
-    elif args.command in ("validate", "check"):
+    elif args.command == "validate":
         sys.exit(cmd_validate(args))
     elif args.command == "viz":
         sys.exit(cmd_viz(args))
@@ -116,23 +115,6 @@ def _add_validate_parser(subparsers):
         "--keep-workdir", action="store_true", help="Keep temp directory for debugging"
     )
 
-
-def _add_check_parser(subparsers):
-    p = subparsers.add_parser(
-        "check",
-        help="Alias for validate",
-        description="Alias for 'validate' command.",
-    )
-    p.add_argument("file", type=Path, help="Path to VedaLang source (.veda.yaml)")
-    p.add_argument(
-        "--case",
-        action="append",
-        help="Validate only the specified case (repeatable)",
-    )
-    p.add_argument("--json", action="store_true", help="Output JSON format")
-    p.add_argument(
-        "--keep-workdir", action="store_true", help="Keep temp directory for debugging"
-    )
 
 
 def _add_viz_parser(subparsers):
@@ -254,11 +236,20 @@ def cmd_lint(args) -> int:
 
     # Optional LLM-based structural assessment
     llm_result = None
+    llm_model = None
     if llm_assess:
-        from vedalang.lint.llm_assessment import run_llm_assessment
+        from vedalang.lint.llm_assessment import _MODEL, run_llm_assessment
+
+        if not output_json:
+            print(
+                f"Sending model to LLM review agent"
+                f" ({_MODEL}, reasoning effort=medium)..."
+            )
+            sys.stdout.flush()
 
         try:
             llm_result = run_llm_assessment(source)
+            llm_model = llm_result.model
             for finding in llm_result.findings:
                 diagnostics.append(finding.to_dict())
                 if finding.severity == "critical":
@@ -277,7 +268,10 @@ def cmd_lint(args) -> int:
             })
             warnings += 1
 
-    return _output_lint_result(file_path, diagnostics, errors, warnings, output_json)
+    return _output_lint_result(
+        file_path, diagnostics, errors, warnings, output_json,
+        llm_model=llm_model,
+    )
 
 
 def _output_lint_result(
@@ -286,6 +280,8 @@ def _output_lint_result(
     errors: int,
     warnings: int,
     output_json: bool,
+    *,
+    llm_model: str | None = None,
 ) -> int:
     """Output lint results and return exit code."""
     success = errors == 0
@@ -298,6 +294,8 @@ def _output_lint_result(
             "errors": errors,
             "diagnostics": diagnostics,
         }
+        if llm_model:
+            result["llm_model"] = llm_model
         print(json.dumps(result, indent=2))
     else:
         if diagnostics:
@@ -308,9 +306,14 @@ def _output_lint_result(
                 loc = d.get("location", "")
                 loc_str = f" ({loc})" if loc else ""
                 print(f"{severity} [{code}]{loc_str}: {msg}")
+                suggestion = d.get("suggestion")
+                if suggestion:
+                    print(f"  ↳ Fix: {suggestion}")
             print()
 
         print(f"Lint: {errors} error(s), {warnings} warning(s)")
+        if llm_model:
+            print(f"LLM model: {llm_model}")
         if success:
             print(f"✓ {file_path}")
 

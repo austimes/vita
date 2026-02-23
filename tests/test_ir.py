@@ -27,18 +27,18 @@ class TestRole:
 
     def test_role_creation(self):
         """Role can be created with required fields."""
-        role = Role(id="generate_electricity", inputs=[], outputs=["electricity"])
+        role = Role(id="generate_electricity", required_inputs=[], required_outputs=["electricity"])
         assert role.id == "generate_electricity"
-        assert role.inputs == []
-        assert role.outputs == ["electricity"]
+        assert role.required_inputs == []
+        assert role.required_outputs == ["electricity"]
         assert role.stage is None
 
     def test_role_with_stage(self):
         """Role can have optional stage."""
         role = Role(
             id="deliver_lighting",
-            inputs=["electricity"],
-            outputs=["lighting"],
+            required_inputs=["electricity"],
+            required_outputs=["lighting"],
             stage="end_use",
         )
         assert role.stage == "end_use"
@@ -49,18 +49,22 @@ class TestVariant:
 
     def test_variant_creation(self):
         """Variant can be created with role reference."""
-        role = Role(id="generate_electricity", inputs=[], outputs=["electricity"])
-        variant = Variant(id="simple_generator", role=role)
+        role = Role(id="generate_electricity", required_inputs=[], required_outputs=["electricity"])
+        variant = Variant(id="simple_generator", role=role, inputs=[], outputs=["electricity"])
         assert variant.id == "simple_generator"
         assert variant.role is role
         assert variant.attrs == {}
+        assert variant.inputs == []
+        assert variant.outputs == ["electricity"]
 
     def test_variant_with_attrs(self):
         """Variant can have attributes."""
-        role = Role(id="deliver_lighting", inputs=["electricity"], outputs=["lighting"])
+        role = Role(id="deliver_lighting", required_inputs=["electricity"], required_outputs=["lighting"])
         variant = Variant(
             id="led_lighting",
             role=role,
+            inputs=["electricity"],
+            outputs=["lighting"],
             attrs={"efficiency": 0.4, "lifetime": 15},
         )
         assert variant.attrs["efficiency"] == 0.4
@@ -96,8 +100,8 @@ class TestProcessInstance:
 
     def test_process_instance_creation(self):
         """ProcessInstance can be created."""
-        role = Role(id="test_role", inputs=[], outputs=["out"])
-        variant = Variant(id="test_variant", role=role, attrs={"efficiency": 0.5})
+        role = Role(id="test_role", required_inputs=[], required_outputs=["out"])
+        variant = Variant(id="test_variant", role=role, inputs=[], outputs=["out"], attrs={"efficiency": 0.5})
         key = InstanceKey("test_variant", "REG", "SEG")
         instance = ProcessInstance(
             key=key,
@@ -127,8 +131,8 @@ class TestBuildRoles:
                 {
                     "id": "generate_electricity",
                     "stage": "conversion",
-                    "inputs": [],
-                    "outputs": [{"commodity": "electricity"}],
+                    "required_inputs": [],
+                    "required_outputs": [{"commodity": "electricity"}],
                 }
             ]
         }
@@ -138,8 +142,8 @@ class TestBuildRoles:
         assert "generate_electricity" in roles
         role = roles["generate_electricity"]
         assert role.id == "generate_electricity"
-        assert role.inputs == []
-        assert role.outputs == ["electricity"]
+        assert role.required_inputs == []
+        assert role.required_outputs == ["electricity"]
         assert role.stage == "conversion"
 
     def test_role_with_inputs_and_outputs(self):
@@ -148,8 +152,8 @@ class TestBuildRoles:
             "process_roles": [
                 {
                     "id": "deliver_lighting",
-                    "inputs": [{"commodity": "electricity"}],
-                    "outputs": [{"commodity": "lighting"}],
+                    "required_inputs": [{"commodity": "electricity"}],
+                    "required_outputs": [{"commodity": "lighting"}],
                 }
             ]
         }
@@ -160,15 +164,15 @@ class TestBuildRoles:
         roles = build_roles(model, commodities)
 
         role = roles["deliver_lighting"]
-        assert role.inputs == ["electricity"]
-        assert role.outputs == ["lighting"]
+        assert role.required_inputs == ["electricity"]
+        assert role.required_outputs == ["lighting"]
 
     def test_duplicate_role_id_raises(self):
         """Duplicate role id raises IRError."""
         model = {
             "process_roles": [
-                {"id": "dup_role", "outputs": [{"commodity": "elec"}]},
-                {"id": "dup_role", "outputs": [{"commodity": "elec"}]},
+                {"id": "dup_role", "required_outputs": [{"commodity": "elec"}]},
+                {"id": "dup_role", "required_outputs": [{"commodity": "elec"}]},
             ]
         }
         commodities = {"elec": {"id": "elec", "kind": "carrier"}}
@@ -181,8 +185,8 @@ class TestBuildRoles:
             "process_roles": [
                 {
                     "id": "test_role",
-                    "inputs": [{"commodity": "unknown"}],
-                    "outputs": [],
+                    "required_inputs": [{"commodity": "unknown"}],
+                    "required_outputs": [],
                 }
             ]
         }
@@ -195,8 +199,8 @@ class TestBuildRoles:
             "process_roles": [
                 {
                     "id": "test_role",
-                    "inputs": [],
-                    "outputs": [{"commodity": "unknown"}],
+                    "required_inputs": [],
+                    "required_outputs": [{"commodity": "unknown"}],
                 }
             ]
         }
@@ -209,7 +213,7 @@ class TestBuildVariants:
 
     def test_empty_process_variants(self):
         """Empty process_variants returns empty dict."""
-        roles = {"role1": Role(id="role1", inputs=[], outputs=[])}
+        roles = {"role1": Role(id="role1", required_inputs=[], required_outputs=[])}
         assert build_variants({}, roles) == {}
         assert build_variants({"process_variants": []}, roles) == {}
 
@@ -217,7 +221,7 @@ class TestBuildVariants:
         """Single variant is built correctly."""
         roles = {
             "generate_electricity": Role(
-                id="generate_electricity", inputs=[], outputs=["electricity"]
+                id="generate_electricity", required_inputs=[], required_outputs=["electricity"]
             )
         }
         model = {
@@ -225,6 +229,7 @@ class TestBuildVariants:
                 {
                     "id": "simple_generator",
                     "role": "generate_electricity",
+                    "outputs": [{"commodity": "electricity"}],
                     "efficiency": 1.0,
                     "lifetime": 40,
                 }
@@ -236,17 +241,19 @@ class TestBuildVariants:
         variant = variants["simple_generator"]
         assert variant.id == "simple_generator"
         assert variant.role is roles["generate_electricity"]
+        assert variant.outputs == ["electricity"]
         assert variant.attrs["efficiency"] == 1.0
         assert variant.attrs["lifetime"] == 40
 
     def test_variant_with_all_attrs(self):
         """Variant with all supported attributes."""
-        roles = {"role1": Role(id="role1", inputs=[], outputs=[])}
+        roles = {"role1": Role(id="role1", required_inputs=[], required_outputs=[])}
         model = {
             "process_variants": [
                 {
                     "id": "full_variant",
                     "role": "role1",
+                    "outputs": [{"commodity": "co2"}],
                     "efficiency": 0.5,
                     "lifetime": 20,
                     "investment_cost": 1000,
@@ -268,7 +275,7 @@ class TestBuildVariants:
 
     def test_duplicate_variant_id_raises(self):
         """Duplicate variant id raises IRError."""
-        roles = {"role1": Role(id="role1", inputs=[], outputs=[])}
+        roles = {"role1": Role(id="role1", required_inputs=[], required_outputs=[])}
         model = {
             "process_variants": [
                 {"id": "dup", "role": "role1"},
@@ -292,14 +299,14 @@ class TestExpandAvailability:
 
     def test_empty_availability(self):
         """Empty availability returns empty dict."""
-        variants = {"var1": Variant(id="var1", role=Role("r", [], []))}
+        variants = {"var1": Variant(id="var1", role=Role("r", [], []), inputs=[], outputs=[])}
         assert expand_availability({}, variants, []) == {}
         assert expand_availability({"availability": []}, variants, []) == {}
 
     def test_simple_availability_no_segment(self):
         """Availability without sectors/segments creates None segment."""
-        role = Role(id="generate", inputs=[], outputs=["elec"])
-        variants = {"gen": Variant(id="gen", role=role)}
+        role = Role(id="generate", required_inputs=[], required_outputs=["elec"])
+        variants = {"gen": Variant(id="gen", role=role, inputs=[], outputs=["elec"])}
         model = {"availability": [{"variant": "gen", "regions": ["REG1"]}]}
 
         instances = expand_availability(model, variants, [])
@@ -311,8 +318,8 @@ class TestExpandAvailability:
 
     def test_availability_with_sectors_coarse(self):
         """Availability with sectors (no end_uses) expands to sectors."""
-        role = Role(id="deliver", inputs=["elec"], outputs=["heat"])
-        variants = {"heat_pump": Variant(id="heat_pump", role=role)}
+        role = Role(id="deliver", required_inputs=["elec"], required_outputs=["heat"])
+        variants = {"heat_pump": Variant(id="heat_pump", role=role, inputs=["elec"], outputs=["heat"])}
         model = {
             "segments": {"sectors": ["RES", "COM"]},
             "availability": [
@@ -329,8 +336,8 @@ class TestExpandAvailability:
 
     def test_availability_with_sectors_fine_granularity(self):
         """Availability with sectors expands to sector.end_use when end_uses defined."""
-        role = Role(id="deliver", inputs=[], outputs=[])
-        variants = {"var": Variant(id="var", role=role)}
+        role = Role(id="deliver", required_inputs=[], required_outputs=[])
+        variants = {"var": Variant(id="var", role=role, inputs=[], outputs=[])}
         model = {
             "segments": {
                 "sectors": ["RES", "COM"],
@@ -349,8 +356,8 @@ class TestExpandAvailability:
 
     def test_availability_with_explicit_segments(self):
         """Availability with explicit segments uses those exactly."""
-        role = Role(id="deliver", inputs=[], outputs=[])
-        variants = {"var": Variant(id="var", role=role)}
+        role = Role(id="deliver", required_inputs=[], required_outputs=[])
+        variants = {"var": Variant(id="var", role=role, inputs=[], outputs=[])}
         model = {
             "segments": {
                 "sectors": ["RES", "COM"],
@@ -374,8 +381,8 @@ class TestExpandAvailability:
 
     def test_availability_multiple_regions(self):
         """Availability expands across multiple regions."""
-        role = Role(id="gen", inputs=[], outputs=[])
-        variants = {"gen": Variant(id="gen", role=role)}
+        role = Role(id="gen", required_inputs=[], required_outputs=[])
+        variants = {"gen": Variant(id="gen", role=role, inputs=[], outputs=[])}
         model = {
             "availability": [{"variant": "gen", "regions": ["R1", "R2", "R3"]}]
         }
@@ -395,9 +402,9 @@ class TestExpandAvailability:
 
     def test_instance_inherits_variant_attrs(self):
         """ProcessInstance inherits variant attrs."""
-        role = Role(id="gen", inputs=[], outputs=[])
+        role = Role(id="gen", required_inputs=[], required_outputs=[])
         variant = Variant(
-            id="gen", role=role, attrs={"efficiency": 0.5, "lifetime": 30}
+            id="gen", role=role, inputs=[], outputs=[], attrs={"efficiency": 0.5, "lifetime": 30}
         )
         variants = {"gen": variant}
         model = {"availability": [{"variant": "gen", "regions": ["R1"]}]}
@@ -414,8 +421,8 @@ class TestApplyProcessParameters:
 
     def test_no_parameters(self):
         """No process_parameters leaves instances unchanged."""
-        role = Role(id="r", inputs=[], outputs=[])
-        variant = Variant(id="v", role=role, attrs={"efficiency": 0.5})
+        role = Role(id="r", required_inputs=[], required_outputs=[])
+        variant = Variant(id="v", role=role, inputs=[], outputs=[], attrs={"efficiency": 0.5})
         key = InstanceKey("v", "R1", None)
         instances = {
             key: ProcessInstance(key=key, role=role, variant=variant, attrs={})
@@ -427,8 +434,8 @@ class TestApplyProcessParameters:
 
     def test_exact_match_applies(self):
         """Selector with exact variant+region match applies."""
-        role = Role(id="r", inputs=[], outputs=[])
-        variant = Variant(id="gen", role=role)
+        role = Role(id="r", required_inputs=[], required_outputs=[])
+        variant = Variant(id="gen", role=role, inputs=[], outputs=[])
         key = InstanceKey("gen", "REG", None)
         instances = {
             key: ProcessInstance(key=key, role=role, variant=variant, attrs={})
@@ -448,8 +455,8 @@ class TestApplyProcessParameters:
 
     def test_segment_exact_match(self):
         """Selector with segment matches exactly."""
-        role = Role(id="r", inputs=[], outputs=[])
-        variant = Variant(id="v", role=role)
+        role = Role(id="r", required_inputs=[], required_outputs=[])
+        variant = Variant(id="v", role=role, inputs=[], outputs=[])
         key1 = InstanceKey("v", "R1", "RES")
         key2 = InstanceKey("v", "R1", "COM")
         instances = {
@@ -472,8 +479,8 @@ class TestApplyProcessParameters:
 
     def test_sector_matches_segment_prefix(self):
         """Selector with sector matches segments starting with that sector."""
-        role = Role(id="r", inputs=[], outputs=[])
-        variant = Variant(id="v", role=role)
+        role = Role(id="r", required_inputs=[], required_outputs=[])
+        variant = Variant(id="v", role=role, inputs=[], outputs=[])
         key1 = InstanceKey("v", "R1", "RES.lighting")
         key2 = InstanceKey("v", "R1", "RES.heating")
         key3 = InstanceKey("v", "R1", "COM.lighting")
@@ -503,8 +510,8 @@ class TestApplyProcessParameters:
 
     def test_multiple_parameters_merge(self):
         """Multiple matching parameter blocks merge."""
-        role = Role(id="r", inputs=[], outputs=[])
-        variant = Variant(id="v", role=role)
+        role = Role(id="r", required_inputs=[], required_outputs=[])
+        variant = Variant(id="v", role=role, inputs=[], outputs=[])
         key = InstanceKey("v", "R1", None)
         instances = {
             key: ProcessInstance(key=key, role=role, variant=variant, attrs={})
@@ -529,8 +536,8 @@ class TestApplyProcessParameters:
 
     def test_later_parameter_overrides(self):
         """Later parameter block overrides earlier for same key."""
-        role = Role(id="r", inputs=[], outputs=[])
-        variant = Variant(id="v", role=role)
+        role = Role(id="r", required_inputs=[], required_outputs=[])
+        variant = Variant(id="v", role=role, inputs=[], outputs=[])
         key = InstanceKey("v", "R1", None)
         instances = {
             key: ProcessInstance(key=key, role=role, variant=variant, attrs={})
@@ -556,8 +563,8 @@ class TestLowerInstancesToTableir:
 
     def test_simple_process(self):
         """Simple process is lowered correctly."""
-        role = Role(id="generate", inputs=[], outputs=["electricity"])
-        variant = Variant(id="gen", role=role)
+        role = Role(id="generate", required_inputs=[], required_outputs=["electricity"])
+        variant = Variant(id="gen", role=role, inputs=[], outputs=["electricity"])
         key = InstanceKey("gen", "REG", None)
         instances = {
             key: ProcessInstance(key=key, role=role, variant=variant, attrs={})
@@ -575,8 +582,8 @@ class TestLowerInstancesToTableir:
 
     def test_process_with_inputs_and_outputs(self):
         """Process with inputs and outputs."""
-        role = Role(id="deliver", inputs=["electricity"], outputs=["lighting"])
-        variant = Variant(id="led", role=role)
+        role = Role(id="deliver", required_inputs=["electricity"], required_outputs=["lighting"])
+        variant = Variant(id="led", role=role, inputs=["electricity"], outputs=["lighting"])
         key = InstanceKey("led", "R1", "RES")
         instances = {
             key: ProcessInstance(key=key, role=role, variant=variant, attrs={})
@@ -596,8 +603,8 @@ class TestLowerInstancesToTableir:
 
     def test_numeric_attrs_included(self):
         """Numeric attributes are included in row."""
-        role = Role(id="gen", inputs=[], outputs=[])
-        variant = Variant(id="gen", role=role)
+        role = Role(id="gen", required_inputs=[], required_outputs=[])
+        variant = Variant(id="gen", role=role, inputs=[], outputs=[])
         key = InstanceKey("gen", "R1", None)
         instances = {
             key: ProcessInstance(
@@ -625,8 +632,8 @@ class TestLowerInstancesToTableir:
 
     def test_segment_in_process_name(self):
         """Segment is included in process name with underscore."""
-        role = Role(id="r", inputs=[], outputs=[])
-        variant = Variant(id="v", role=role)
+        role = Role(id="r", required_inputs=[], required_outputs=[])
+        variant = Variant(id="v", role=role, inputs=[], outputs=[])
         key = InstanceKey("v", "R1", "RES.lighting")
         instances = {
             key: ProcessInstance(key=key, role=role, variant=variant, attrs={})
@@ -638,8 +645,8 @@ class TestLowerInstancesToTableir:
 
     def test_sorted_by_key(self):
         """Output is sorted by instance key."""
-        role = Role(id="r", inputs=[], outputs=[])
-        variant = Variant(id="v", role=role)
+        role = Role(id="r", required_inputs=[], required_outputs=[])
+        variant = Variant(id="v", role=role, inputs=[], outputs=[])
         instances = {
             InstanceKey("v", "R2", None): ProcessInstance(
                 InstanceKey("v", "R2", None), role, variant, {}
@@ -664,8 +671,8 @@ class TestValidateDemandFeasibility:
 
     def test_demand_with_producer(self):
         """Demand with matching producer has no error."""
-        role = Role(id="deliver", inputs=[], outputs=["lighting"])
-        variant = Variant(id="led", role=role)
+        role = Role(id="deliver", required_inputs=[], required_outputs=["lighting"])
+        variant = Variant(id="led", role=role, inputs=[], outputs=["lighting"])
         key = InstanceKey("led", "REG", "RES")
         instances = {
             key: ProcessInstance(key=key, role=role, variant=variant, attrs={})
@@ -693,8 +700,8 @@ class TestValidateDemandFeasibility:
 
     def test_demand_with_segment_field(self):
         """Demand with 'segment' field is checked."""
-        role = Role(id="deliver", inputs=[], outputs=["heat"])
-        variant = Variant(id="hp", role=role)
+        role = Role(id="deliver", required_inputs=[], required_outputs=["heat"])
+        variant = Variant(id="hp", role=role, inputs=[], outputs=["heat"])
         key = InstanceKey("hp", "R1", "RES.heating")
         instances = {
             key: ProcessInstance(key=key, role=role, variant=variant, attrs={})
@@ -707,8 +714,8 @@ class TestValidateDemandFeasibility:
 
     def test_demand_wrong_region(self):
         """Demand in different region than producer returns error."""
-        role = Role(id="deliver", inputs=[], outputs=["lighting"])
-        variant = Variant(id="led", role=role)
+        role = Role(id="deliver", required_inputs=[], required_outputs=["lighting"])
+        variant = Variant(id="led", role=role, inputs=[], outputs=["lighting"])
         key = InstanceKey("led", "REG1", "RES")
         instances = {
             key: ProcessInstance(key=key, role=role, variant=variant, attrs={})
@@ -734,7 +741,7 @@ class TestBuildCommoditiesDict:
         """Single commodity is normalized."""
         model = {
             "model": {
-                "commodities": [{"id": "electricity", "kind": "carrier", "unit": "PJ"}]
+                "commodities": [{"id": "electricity", "type": "energy", "unit": "PJ"}]
             }
         }
         result = build_commodities_dict(model)
@@ -748,9 +755,9 @@ class TestBuildCommoditiesDict:
         model = {
             "model": {
                 "commodities": [
-                    {"id": "electricity", "kind": "carrier"},
-                    {"id": "lighting", "kind": "service"},
-                    {"id": "co2", "kind": "emission"},
+                    {"id": "electricity", "type": "energy"},
+                    {"id": "lighting", "type": "service"},
+                    {"id": "co2", "type": "emission"},
                 ]
             }
         }

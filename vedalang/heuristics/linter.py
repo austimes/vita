@@ -297,7 +297,8 @@ class H002_DemandDeviceNoStock(HeuristicRule):
                         f"Demand device {proc_name} has no stock/initial capacity. "
                         f"It outputs demand commodities {demand_outputs} but cannot "
                         f"convert energy to demand service without capacity. "
-                        f"Add 'stock' or 'existing_capacity' to specify pre-existing capacity."
+                        f"Add 'stock' or 'existing_capacity'"
+                        f" to specify pre-existing capacity."
                     ),
                     location=f"processes[{proc_name}]",
                     context={
