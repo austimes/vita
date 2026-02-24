@@ -126,7 +126,7 @@ class TestExpandPattern:
 
         parsed = yaml.safe_load(result)
         assert "commodities" in parsed
-        assert parsed["commodities"][0]["name"] == "C:NG"  # New naming convention
+        assert parsed["commodities"][0]["name"] == "energy:NG"
         assert parsed["commodities"][0]["type"] == "energy"
 
     def test_expand_emission_commodity(self):
@@ -139,7 +139,7 @@ class TestExpandPattern:
 
         parsed = yaml.safe_load(result)
         assert "commodities" in parsed
-        assert parsed["commodities"][0]["name"] == "E:CO2"  # New naming convention
+        assert parsed["commodities"][0]["name"] == "emission:CO2"
         assert parsed["commodities"][0]["type"] == "emission"
         assert parsed["commodities"][0]["unit"] == "Mt"
 
@@ -179,26 +179,26 @@ class TestFullPipeline:
 
         from vedalang.compiler import compile_vedalang_to_tableir
 
-        # Expand pattern - use new naming convention: C:ELC, C:NG
+        # Expand pattern - use namespace naming convention
         process_yaml = expand_pattern(
             "add_power_plant",
             {
                 "plant_name": "PP_CCGT",
-                "fuel_commodity": "C:NG",
-                "output_commodity": "C:ELC",
+                "fuel_commodity": "energy:natural_gas",
+                "output_commodity": "energy:electricity",
                 "efficiency": 0.55,
             }
         )
         process_data = yaml.safe_load(process_yaml)
 
-        # Also expand commodities - pattern adds C: prefix
+        # Also expand commodities - pattern adds energy: prefix
         elc_yaml = expand_pattern(
             "add_energy_commodity",
-            {"name": "ELC", "unit": "PJ"}
+            {"name": "electricity", "unit": "PJ"}
         )
         ng_yaml = expand_pattern(
             "add_energy_commodity",
-            {"name": "NG", "unit": "PJ"}
+            {"name": "natural_gas", "unit": "PJ"}
         )
 
         elc_data = yaml.safe_load(elc_yaml)

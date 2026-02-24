@@ -46,31 +46,31 @@ Two regions enable testing of:
 
 ### 3.1 Energy Commodities
 
-| Name | Unit | Description | Features Tested |
-|------|------|-------------|-----------------|
-| `NG` | PJ | Natural Gas | Input to thermal plants, traded commodity |
-| `ELC` | PJ | Electricity | Primary output, traded with losses |
+| ID | Unit | Description | Features Tested |
+|----|------|-------------|-----------------|
+| `energy:natural_gas` | PJ | Natural Gas | Input to thermal plants, traded commodity |
+| `energy:electricity` | PJ | Electricity | Primary output, traded with losses |
 
 ### 3.2 Emission Commodities
 
-| Name | Unit | Description | Features Tested |
-|------|------|-------------|-----------------|
-| `CO2` | Mt | Carbon dioxide | Emission factors, pricing scenario, cap constraint |
+| ID | Unit | Description | Features Tested |
+|----|------|-------------|-----------------|
+| `emission:co2` | Mt | Carbon dioxide | Emission factors, pricing scenario, cap constraint |
 
-### 3.3 Demand Commodities
+### 3.3 Service Commodities
 
-| Name | Unit | Description | Features Tested |
-|------|------|-------------|-----------------|
-| `RSD` | PJ | Residential demand | Demand projection scenario |
-| `IND` | PJ | Industrial demand | Second demand type (region differentiation) |
+| ID | Unit | Description | Features Tested |
+|----|------|-------------|-----------------|
+| `service:residential_demand` | PJ | Residential demand | Demand projection scenario |
+| `service:industrial_demand` | PJ | Industrial demand | Second service type (region differentiation) |
 
 ### 3.4 Material Commodities (Optional)
 
-| Name | Unit | Description | Features Tested |
-|------|------|-------------|-----------------|
-| `H2` | PJ | Hydrogen | Future-proofing, material commodity type |
+| ID | Unit | Description | Features Tested |
+|----|------|-------------|-----------------|
+| `material:hydrogen` | PJ | Hydrogen | Future-proofing, material commodity type |
 
-**Total:** 6 commodities (2 energy, 1 emission, 2 demand, 1 material)
+**Total:** 6 commodities (2 energy, 1 emission, 2 service, 1 material)
 
 ---
 
@@ -80,33 +80,33 @@ Two regions enable testing of:
 
 | Name | Sets | PCG | Outputs | Features Tested |
 |------|------|-----|---------|-----------------|
-| `IMP_NG` | IMP | NRGO | NG | Activity cost, activity bounds |
+| `IMP_NG` | IMP | NRGO | energy:natural_gas | Activity cost, activity bounds |
 
 ### 4.2 Thermal Generation
 
 | Name | Sets | PCG | Inputs | Outputs | Features Tested |
 |------|------|-----|--------|---------|-----------------|
-| `PP_CCGT` | ELE | NRGO | NG | ELC, CO2 | Efficiency, emission factor, costs (invcost/fixom/varom), lifetime, ncap_bound |
+| `PP_CCGT` | ELE | NRGO | energy:natural_gas | energy:electricity | Efficiency, emission_factors: {emission:co2: 0.05}, costs (invcost/fixom/varom), lifetime, ncap_bound |
 
 ### 4.3 Renewable Generation
 
 | Name | Sets | PCG | Outputs | Features Tested |
 |------|------|-----|---------|-----------------|
-| `PP_WIND` | ELE | NRGO | ELC | Zero-input process, cap_bound (lo/up) |
-| `PP_SOLAR` | ELE | NRGO | ELC | Second renewable (activity_share constraint) |
+| `PP_WIND` | ELE | NRGO | energy:electricity | Zero-input process, cap_bound (lo/up) |
+| `PP_SOLAR` | ELE | NRGO | energy:electricity | Second renewable (activity_share constraint) |
 
 ### 4.4 Hydrogen Production
 
 | Name | Sets | PCG | Inputs | Outputs | Features Tested |
 |------|------|-----|--------|---------|-----------------|
-| `PP_ELYZ` | ELE | MATO | ELC | H2 | Material output, efficiency <1 |
+| `PP_ELYZ` | ELE | MATO | energy:electricity | material:hydrogen | Material output, efficiency <1 |
 
 ### 4.5 Demand Devices
 
 | Name | Sets | PCG | Inputs | Outputs | Features Tested |
 |------|------|-----|--------|---------|-----------------|
-| `DMD_RSD` | DMD | DEMO | ELC | RSD | Demand commodity output |
-| `DMD_IND` | DMD | DEMO | ELC, NG | IND | Multi-input demand device |
+| `DMD_RSD` | DMD | DEMO | energy:electricity | service:residential_demand | Service commodity output |
+| `DMD_IND` | DMD | DEMO | energy:electricity, energy:natural_gas | service:industrial_demand | Multi-input demand device |
 
 ### 4.6 Process Summary by Region
 
@@ -143,8 +143,8 @@ timeslices:
 
 | Origin | Destination | Commodity | Bidirectional | Efficiency | Features Tested |
 |--------|-------------|-----------|---------------|------------|-----------------|
-| NORTH | SOUTH | ELC | yes | 0.97 | Electricity trade, 3% loss |
-| NORTH | SOUTH | NG | yes | 1.0 | Gas trade, no loss |
+| NORTH | SOUTH | energy:electricity | yes | 0.97 | Electricity trade, 3% loss |
+| NORTH | SOUTH | energy:natural_gas | yes | 1.0 | Gas trade, no loss |
 
 **Features tested:** Inter-regional trade, bidirectional flows, efficiency (IRE_FLO)
 
@@ -157,7 +157,7 @@ timeslices:
 ```yaml
 - name: CO2_Price
   type: commodity_price
-  commodity: CO2
+  commodity: emission:co2
   interpolation: interp_extrap
   values:
     "2025": 50
@@ -172,7 +172,7 @@ timeslices:
 ```yaml
 - name: DemandProjection
   type: demand_projection
-  commodity: RSD
+  commodity: service:residential_demand
   interpolation: interp_extrap
   values:
     "2020": 100
@@ -187,7 +187,7 @@ timeslices:
 ```yaml
 - name: IndustryDemand
   type: demand_projection
-  commodity: IND
+  commodity: service:industrial_demand
   interpolation: interp_extrap
   values:
     "2020": 200
@@ -206,7 +206,7 @@ timeslices:
 ```yaml
 - name: CO2_CAP
   type: emission_cap
-  commodity: CO2
+  commodity: emission:co2
   limtype: up
   years:
     "2020": 100
@@ -222,7 +222,7 @@ timeslices:
 ```yaml
 - name: REN_TARGET
   type: activity_share
-  commodity: ELC
+  commodity: energy:electricity
   processes: [PP_WIND, PP_SOLAR]
   minimum_share: 0.30
 ```
@@ -253,14 +253,14 @@ timeslices:
 | VedaLang Feature | Schema Element | Tested By |
 |------------------|----------------|-----------|
 | Multi-region | `regions[]` | NORTH, SOUTH |
-| Energy commodity | `commodities[].type: energy` | NG, ELC |
-| Emission commodity | `commodities[].type: emission` | CO2 |
-| Demand commodity | `commodities[].type: demand` | RSD, IND |
-| Material commodity | `commodities[].type: material` | H2 |
+| Energy commodity | `commodities[].type: energy` | energy:natural_gas, energy:electricity |
+| Emission commodity | `commodities[].type: emission` | emission:co2 |
+| Service commodity | `commodities[].type: service` | service:residential_demand, service:industrial_demand |
+| Material commodity | `commodities[].type: material` | material:hydrogen |
 | Process definition | `processes[]` | All 7 processes |
 | Primary commodity group | `primary_commodity_group` | NRGO, DEMO, MATO |
 | Process efficiency | `efficiency` | PP_CCGT, PP_ELYZ, DMD_IND |
-| Emission factor | `outputs[].share` on emission | PP_CCGT → CO2 |
+| Emission factors (ledger) | `emission_factors` dict on process | PP_CCGT → emission:co2 |
 | Process costs | `invcost`, `fixom`, `varom` | PP_CCGT, PP_WIND |
 | Activity cost | `cost` | IMP_NG |
 | Lifetime | `life` | PP_CCGT, PP_WIND |
@@ -269,11 +269,11 @@ timeslices:
 | New capacity bounds | `ncap_bound` | PP_CCGT, PP_SOLAR |
 | Bound limit types | `up`, `lo`, `fx` | Various bounds |
 | Timeslices | `timeslices` | 2 seasons × 2 daynite |
-| Trade links | `trade_links[]` | ELC and NG trade |
-| Trade efficiency | `efficiency` on trade | ELC trade (0.97) |
+| Trade links | `trade_links[]` | energy:electricity and energy:natural_gas trade |
+| Trade efficiency | `efficiency` on trade | energy:electricity trade (0.97) |
 | Bidirectional trade | `bidirectional` | Both links |
 | Commodity price | `scenarios[].type: commodity_price` | CO2_Price |
-| Demand projection | `scenarios[].type: demand_projection` | RSD, IND |
+| Demand projection | `scenarios[].type: demand_projection` | service:residential_demand, service:industrial_demand |
 | Interpolation modes | `interpolation` | interp_extrap on all |
 | Emission cap | `constraints[].type: emission_cap` | CO2_CAP |
 | Activity share | `constraints[].type: activity_share` | REN_TARGET |
@@ -350,26 +350,28 @@ model:
     fractions: {SD: 0.25, SN: 0.22, WD: 0.28, WN: 0.25}
   
   commodities:
-    - {name: NG, type: energy, unit: PJ}
-    - {name: ELC, type: energy, unit: PJ}
-    - {name: CO2, type: emission, unit: Mt}
-    - {name: RSD, type: demand, unit: PJ}
-    - {name: IND, type: demand, unit: PJ}
-    - {name: H2, type: material, unit: PJ}
+    - {id: energy:natural_gas, type: energy, unit: PJ}
+    - {id: energy:electricity, type: energy, unit: PJ}
+    - {id: emission:co2, type: emission, unit: Mt}
+    - {id: service:residential_demand, type: service, unit: PJ}
+    - {id: service:industrial_demand, type: service, unit: PJ}
+    - {id: material:hydrogen, type: material, unit: PJ}
   
   processes:
     - name: IMP_NG
       sets: [IMP]
       primary_commodity_group: NRGO
-      outputs: [{commodity: NG}]
+      outputs: [{commodity: energy:natural_gas}]
       cost: 5.0
       activity_bound: {up: 500}
     
     - name: PP_CCGT
       sets: [ELE]
       primary_commodity_group: NRGO
-      inputs: [{commodity: NG}]
-      outputs: [{commodity: ELC}, {commodity: CO2, share: 0.05}]
+      inputs: [{commodity: energy:natural_gas}]
+      outputs: [{commodity: energy:electricity}]
+      emission_factors:
+        emission:co2: 0.05
       efficiency: 0.55
       invcost: 800
       fixom: 20
@@ -381,7 +383,7 @@ model:
     - name: PP_WIND
       sets: [ELE]
       primary_commodity_group: NRGO
-      outputs: [{commodity: ELC}]
+      outputs: [{commodity: energy:electricity}]
       invcost: 1200
       fixom: 25
       life: 25
@@ -390,7 +392,7 @@ model:
     - name: PP_SOLAR
       sets: [ELE]
       primary_commodity_group: NRGO
-      outputs: [{commodity: ELC}]
+      outputs: [{commodity: energy:electricity}]
       invcost: 900
       fixom: 15
       life: 25
@@ -399,8 +401,8 @@ model:
     - name: PP_ELYZ
       sets: [ELE]
       primary_commodity_group: MATO
-      inputs: [{commodity: ELC}]
-      outputs: [{commodity: H2}]
+      inputs: [{commodity: energy:electricity}]
+      outputs: [{commodity: material:hydrogen}]
       efficiency: 0.70
       invcost: 500
       life: 20
@@ -408,50 +410,50 @@ model:
     - name: DMD_RSD
       sets: [DMD]
       primary_commodity_group: DEMO
-      inputs: [{commodity: ELC}]
-      outputs: [{commodity: RSD}]
+      inputs: [{commodity: energy:electricity}]
+      outputs: [{commodity: service:residential_demand}]
     
     - name: DMD_IND
       sets: [DMD]
       primary_commodity_group: DEMO
-      inputs: [{commodity: ELC}, {commodity: NG}]
-      outputs: [{commodity: IND}]
+      inputs: [{commodity: energy:electricity}, {commodity: energy:natural_gas}]
+      outputs: [{commodity: service:industrial_demand}]
       efficiency: 0.90
   
   trade_links:
-    - {origin: NORTH, destination: SOUTH, commodity: ELC, bidirectional: true, efficiency: 0.97}
-    - {origin: NORTH, destination: SOUTH, commodity: NG, bidirectional: true}
+    - {origin: NORTH, destination: SOUTH, commodity: energy:electricity, bidirectional: true, efficiency: 0.97}
+    - {origin: NORTH, destination: SOUTH, commodity: energy:natural_gas, bidirectional: true}
   
   scenarios:
     - name: CO2_Price
       type: commodity_price
-      commodity: CO2
+      commodity: emission:co2
       interpolation: interp_extrap
       values: {"2025": 50, "2030": 100, "2050": 200}
     
     - name: DemandRSD
       type: demand_projection
-      commodity: RSD
+      commodity: service:residential_demand
       interpolation: interp_extrap
       values: {"2020": 100, "2030": 120, "2050": 160}
     
     - name: DemandIND
       type: demand_projection
-      commodity: IND
+      commodity: service:industrial_demand
       interpolation: interp_extrap
       values: {"2020": 200, "2030": 220, "2050": 250}
   
   constraints:
     - name: CO2_CAP
       type: emission_cap
-      commodity: CO2
+      commodity: emission:co2
       limtype: up
       years: {"2020": 100, "2030": 75, "2050": 25}
       interpolation: interp_extrap
     
     - name: REN_TARGET
       type: activity_share
-      commodity: ELC
+      commodity: energy:electricity
       processes: [PP_WIND, PP_SOLAR]
       minimum_share: 0.30
 ```

@@ -118,23 +118,85 @@ Define energy carriers, materials, emissions, and demands.
 
 ```yaml
 commodities:
-  - name: ELC
-    type: energy      # energy | material | emission | demand
+  - id: energy:electricity
+    type: energy      # energy | material | emission | service | money
     unit: PJ
     description: Electricity
 
-  - name: CO2
+  - id: emission:co2
     type: emission
     unit: Mt
     description: Carbon dioxide
 
-  - name: RSD
-    type: demand
+  - id: service:residential_demand
+    type: service
     unit: PJ
     description: Residential demand
 ```
 
-**Valid types:** `energy`, `material`, `emission`, `demand`
+**Valid types:** `energy`, `material`, `emission`, `service`, `money`
+
+### Commodity Namespaces
+
+VedaLang uses namespace prefixes to unambiguously classify commodities. The compiler maps these to VEDA Csets:
+
+| Namespace | Meaning | Compiles to (Csets) |
+|-----------|---------|---------------------|
+| `energy:` | Energy carriers (gas, electricity, hydrogen) | NRG |
+| `material:` | Physical material streams (captured CO2, steel) | MAT |
+| `service:` | Demand/service commodities (space heat, pkm) | DEM |
+| `emission:` | Environmental ledger species (CO2, CH4, N2O) | ENV |
+| `money:` | Monetary/financial commodities | FIN |
+
+**Design rule:** TIMES 3-letter codes never appear in user-authored VedaLang. They are compiler output.
+
+Example:
+```yaml
+commodities:
+  - id: energy:electricity
+    type: energy
+    unit: PJ
+  - id: service:space_heat
+    type: service
+    unit: PJ
+  - id: emission:co2
+    type: emission
+    unit: Mt
+```
+
+### Emissions as Attributes
+
+Emissions are **ledger entries**, not physical commodity flows. They must never appear in process `inputs` or `outputs`.
+
+**Pattern:** Use `emission_factors` on the process:
+```yaml
+process_variants:
+  - id: gas_heater
+    role: provide_space_heat
+    inputs:
+      - commodity: energy:natural_gas
+    outputs:
+      - commodity: service:space_heat
+    emission_factors:
+      emission:co2: 0.056    # ledger entry, not a flow
+```
+
+**Negative emissions** (DAC, LULUCF) use negative values:
+```yaml
+process_variants:
+  - id: dac
+    role: remove_co2
+    inputs:
+      - commodity: energy:electricity
+    emission_factors:
+      emission:co2: -1.0     # removal from ENV ledger
+```
+
+**Lint rules enforced:**
+- **L1**: `emission:*` MUST NOT appear in `inputs` or `outputs`
+- **L2**: `emission_factors` keys MUST be `emission:*` namespaced
+- **L3**: Negative emission factors allowed but recommend adding `description`/`notes`
+- **L5**: Bare `co2`/`ch4`/`n2o` warns: "Did you mean `emission:co2` or `material:co2`?"
 
 ### Processes
 
@@ -148,11 +210,11 @@ processes:
     sets: [ELE]
     primary_commodity_group: NRGO  # REQUIRED
     inputs:
-      - commodity: NG
+      - commodity: energy:natural_gas
     outputs:
-      - commodity: ELC
-      - commodity: CO2
-        share: 0.05              # Emission factor
+      - commodity: energy:electricity
+    emission_factors:
+      emission:co2: 0.05           # Mt CO2 per PJ fuel input
     efficiency: 0.55
     invcost: 800                 # Investment cost per GW
     fixom: 20                    # Fixed O&M per GW-year
@@ -164,7 +226,7 @@ processes:
     sets: [ELE]
     primary_commodity_group: NRGO
     outputs:
-      - commodity: ELC
+      - commodity: energy:electricity
     invcost: 1200
     cap_bound:
       up: 30                     # Max 30 GW total
@@ -177,7 +239,7 @@ processes:
     sets: [ELE]
     primary_commodity_group: NRGO
     outputs:
-      - commodity: ELC
+      - commodity: energy:electricity
     invcost:
       values:
         "2020": 900
@@ -204,7 +266,7 @@ scenario_parameters:
   - name: CO2_Price
     type: commodity_price      # commodity_price | demand_projection
     category: prices           # Optional: defaults from type
-    commodity: CO2
+    commodity: emission:co2
     interpolation: interp_extrap
     values:
       "2025": 50
@@ -214,7 +276,7 @@ scenario_parameters:
   - name: DemandRSD
     type: demand_projection
     category: demands          # Optional: defaults from type
-    commodity: RSD
+    commodity: service:residential_demand
     interpolation: interp_extrap
     values:
       "2020": 100
@@ -256,7 +318,7 @@ constraints:
   # Emission cap
   - name: CO2_CAP
     type: emission_cap
-    commodity: CO2
+    commodity: emission:co2
     limtype: up
     years:
       "2020": 100
@@ -267,7 +329,7 @@ constraints:
   # Renewable share target
   - name: REN_TARGET
     type: activity_share
-    commodity: ELC
+    commodity: energy:electricity
     processes: [PP_WIND, PP_SOLAR]
     minimum_share: 0.30
 ```
@@ -280,7 +342,7 @@ Define inter-regional commodity trade.
 trade_links:
   - origin: NORTH
     destination: SOUTH
-    commodity: ELC
+    commodity: energy:electricity
     bidirectional: true
     efficiency: 0.97            # 3% transmission loss
 ```
@@ -445,6 +507,8 @@ processes:
       - commodity: {{ fuel_commodity }}
     outputs:
       - commodity: {{ output_commodity }}
+    emission_factors:
+      emission:co2: {{ emission_factor }}  # if applicable
     efficiency: {{ efficiency }}
 ```
 
@@ -469,7 +533,9 @@ Before running `vedalang validate`, verify:
 
 ### Types & Enums
 
-- [ ] Commodity `type` is: `energy`, `material`, `emission`, or `demand`
+- [ ] Commodity `type` is: `energy`, `material`, `emission`, `service`, or `money`
+- [ ] Commodity IDs use namespace prefixes (`energy:`, `service:`, `emission:`, etc.)
+- [ ] `emission:*` commodities only appear in `emission_factors`, never in inputs/outputs
 - [ ] Process `primary_commodity_group` is valid (NRGO, DEMO, MATO, etc.)
 - [ ] `interpolation` mode is valid when using `values` maps
 - [ ] Bound keys are: `up`, `lo`, or `fx`
@@ -506,7 +572,7 @@ model:
   regions: [REG1]
   
   commodities:
-    - name: ELC
+    - id: energy:electricity
       type: energy
       unit: PJ
 
@@ -515,7 +581,7 @@ model:
       sets: [ELE]
       primary_commodity_group: NRGO
       outputs:
-        - commodity: ELC
+        - commodity: energy:electricity
 ```
 
 ### Validation Commands

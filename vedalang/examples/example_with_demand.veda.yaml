@@ -7,12 +7,12 @@ model:
   milestone_years: [2020, 2030, 2040, 2050, 2060]
 
   commodities:
-    - id: electricity
+    - id: energy:electricity
       type: energy
       unit: PJ
       description: Electricity
 
-    - id: residential_demand
+    - id: service:residential_electric_service
       type: service
       unit: PJ
       description: Residential electricity demand
@@ -21,34 +21,34 @@ segments:
   sectors: [RES]
 
 process_roles:
-  - id: generate_electricity
-    stage: conversion
+  - id: supply_electricity
+    stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: electricity
+      - commodity: energy:electricity
 
-  - id: deliver_residential
+  - id: provide_residential_electric_service
     stage: end_use
     required_inputs:
-      - commodity: electricity
+      - commodity: energy:electricity
     required_outputs:
-      - commodity: residential_demand
+      - commodity: service:residential_electric_service
 
 process_variants:
   - id: generic_supply
-    role: generate_electricity
+    role: supply_electricity
     inputs: []
     outputs:
-      - commodity: electricity
+      - commodity: energy:electricity
     efficiency: 1.0
     lifetime: 100
 
   - id: residential_device
-    role: deliver_residential
+    role: provide_residential_electric_service
     inputs:
-      - commodity: electricity
+      - commodity: energy:electricity
     outputs:
-      - commodity: residential_demand
+      - commodity: service:residential_electric_service
     efficiency: 1.0
     lifetime: 100
 
@@ -73,7 +73,7 @@ process_parameters:
     stock: 1000
 
 demands:
-  - commodity: residential_demand
+  - commodity: service:residential_electric_service
     region: REG1
     sector: RES
     interpolation: interp_extrap

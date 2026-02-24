@@ -49,7 +49,7 @@ VedaLang requires explicit interpolation mode - no defaults:
 scenarios:
   - name: CO2_Price
     type: commodity_price
-    commodity: CO2
+    commodity: emission:co2
     interpolation: interp_extrap  # REQUIRED - see options below
     values:
       2020: 50

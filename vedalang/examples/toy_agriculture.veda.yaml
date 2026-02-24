@@ -1,7 +1,7 @@
 # Toy Agriculture: Methane Abatement and Carbon Sequestration
-# Agricultural emissions reduction + sequestration (ENV-as-input pattern)
-# Tests: ENV commodity as process input, sequestration consuming emissions
-# Design: VedaLang enforces physicality — trees consume CO2, not emit negative CO2
+# Agricultural emissions reduction + sequestration via negative emission_factors
+# Tests: emission_factors for emissions, negative factors for sequestration
+# Design: Emissions are ledger entries, not flows; sequestration = negative emission_factors
 # Issue: vedalang-0pt.11
 
 model:
@@ -14,20 +14,19 @@ model:
   milestone_years: [2020, 2030, 2040, 2050]
 
   commodities:
-    - id: ag_inputs
+    - id: material:ag_inputs
       type: material
       unit: Mt
       description: Aggregate physical agricultural inputs
 
-    - id: agricultural_output
+    - id: service:agricultural_output
       type: service
       unit: Mt
       description: Agricultural production
 
-    - id: co2e
+    - id: emission:co2e
       type: emission
       unit: Mt
-      tradable: true
       description: CO2-equivalent greenhouse gas emissions
 
   scenario_parameters: []
@@ -35,7 +34,7 @@ model:
   constraints:
     - name: CO2E_CAP
       type: emission_cap
-      commodity: co2e
+      commodity: emission:co2e
       years:
         "2020": 50
         "2030": 35
@@ -52,19 +51,18 @@ process_roles:
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: ag_inputs
+      - commodity: material:ag_inputs
 
   - id: provide_ag_output
     stage: end_use
     required_inputs:
-      - commodity: ag_inputs
+      - commodity: material:ag_inputs
     required_outputs:
-      - commodity: agricultural_output
+      - commodity: service:agricultural_output
 
-  - id: sequester_carbon
+  - id: remove_co2
     stage: sink
-    required_inputs:
-      - commodity: co2e
+    required_inputs: []
     required_outputs: []
 
 process_variants:
@@ -72,65 +70,64 @@ process_variants:
     role: supply_ag_inputs
     inputs: []
     outputs:
-      - commodity: ag_inputs
+      - commodity: material:ag_inputs
     efficiency: 1.0
     lifetime: 100
 
   - id: traditional_baseline
     role: provide_ag_output
     inputs:
-      - commodity: ag_inputs
+      - commodity: material:ag_inputs
     outputs:
-      - commodity: agricultural_output
-      - commodity: co2e
+      - commodity: service:agricultural_output
     efficiency: 1.0
     lifetime: 50
     emission_factors:
-      co2e: 5.0
+      emission:co2e: 5.0
 
   - id: traditional_with_feed_additives
     role: provide_ag_output
     inputs:
-      - commodity: ag_inputs
+      - commodity: material:ag_inputs
     outputs:
-      - commodity: agricultural_output
-      - commodity: co2e
+      - commodity: service:agricultural_output
     efficiency: 1.0
     lifetime: 50
     investment_cost: 20
     emission_factors:
-      co2e: 3.0
+      emission:co2e: 3.0
 
   - id: traditional_with_improved_manure
     role: provide_ag_output
     inputs:
-      - commodity: ag_inputs
+      - commodity: material:ag_inputs
     outputs:
-      - commodity: agricultural_output
-      - commodity: co2e
+      - commodity: service:agricultural_output
     efficiency: 1.0
     lifetime: 50
     investment_cost: 10
     emission_factors:
-      co2e: 3.75
+      emission:co2e: 3.75
 
   - id: soil_carbon
-    role: sequester_carbon
-    inputs:
-      - commodity: co2e
+    role: remove_co2
+    inputs: []
     outputs: []
     efficiency: 1.0
     lifetime: 30
     investment_cost: 30
+    emission_factors:
+      emission:co2e: -1.0
 
   - id: reforestation
-    role: sequester_carbon
-    inputs:
-      - commodity: co2e
+    role: remove_co2
+    inputs: []
     outputs: []
     efficiency: 1.0
     lifetime: 50
     investment_cost: 15
+    emission_factors:
+      emission:co2e: -1.0
 
 availability:
   - variant: primary_supply
@@ -197,7 +194,7 @@ process_parameters:
       up: 3
 
 demands:
-  - commodity: agricultural_output
+  - commodity: service:agricultural_output
     region: SINGLE
     sector: AGR
     interpolation: interp_extrap

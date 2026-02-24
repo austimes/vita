@@ -1,46 +1,130 @@
-# DC2: Thermal + Renewable plants sharing output commodity
-# Extends DC1 with a wind plant that also outputs C:ELC.
+# DC2: Thermal + renewable plants sharing one electricity generation role
+# Extends DC1 with a wind variant under the same generation role.
 # Pattern sources:
-#   - add_power_plant: PP_CCGT (thermal)
-#   - add_renewable_plant: PP_WIND (renewable)
+#   - add_power_plant: ccgt (thermal)
+#   - add_renewable_plant: wind_turbine (renewable)
+
 model:
   name: MiniModel
   description: Thermal and renewable plants sharing electricity output
-  
+
   regions:
     - REG1
-  
+
+  milestone_years: [2020, 2030]
+
   commodities:
-    - name: C:GAS
-      type: fuel
-      unit: PJ
-      description: Natural Gas
-    - name: C:ELC
+    - id: energy:natural_gas
       type: energy
       unit: PJ
-      description: Electricity
-  
-  processes:
-    # Thermal plant (from add_power_plant pattern)
-    - name: PP_CCGT
-      description: Combined cycle gas turbine
-      sets: [ELE]
-      activity_unit: PJ
-      capacity_unit: GW
-      inputs:
-        - commodity: C:GAS
-          share: 1.0
-      outputs:
-        - commodity: C:ELC
-          share: 1.0
-      efficiency: 0.55
-    
-    # Renewable plant (from add_renewable_plant pattern)
-    - name: PP_WIND
-      description: Onshore wind plant
-      sets: [ELE]
-      capacity_unit: GW
-      outputs:
-        - commodity: C:ELC
-          share: 1.0
-      efficiency: 1.0
+      description: Natural gas fuel
+    - id: energy:wind_resource
+      type: energy
+      unit: PJ
+      description: Wind resource input
+    - id: energy:electricity
+      type: energy
+      unit: PJ
+      description: Electricity carrier
+    - id: service:useful_electricity
+      type: service
+      unit: PJ
+      description: Useful electricity service
+
+segments:
+  sectors: [IND]
+
+process_roles:
+  - id: supply_natural_gas
+    stage: supply
+    required_inputs: []
+    required_outputs:
+      - commodity: energy:natural_gas
+
+  - id: supply_wind_resource
+    stage: supply
+    required_inputs: []
+    required_outputs:
+      - commodity: energy:wind_resource
+
+  - id: generate_electricity
+    stage: conversion
+    required_inputs: []
+    required_outputs:
+      - commodity: energy:electricity
+
+  - id: provide_useful_electric_service
+    stage: end_use
+    required_inputs:
+      - commodity: energy:electricity
+    required_outputs:
+      - commodity: service:useful_electricity
+
+process_variants:
+  - id: ng_default
+    role: supply_natural_gas
+    inputs: []
+    outputs:
+      - commodity: energy:natural_gas
+    efficiency: 1.0
+    lifetime: 100
+
+  - id: wind_default
+    role: supply_wind_resource
+    inputs: []
+    outputs:
+      - commodity: energy:wind_resource
+    efficiency: 1.0
+    lifetime: 100
+
+  - id: ccgt
+    role: generate_electricity
+    inputs:
+      - commodity: energy:natural_gas
+    outputs:
+      - commodity: energy:electricity
+    efficiency: 0.55
+
+  - id: wind_turbine
+    role: generate_electricity
+    inputs:
+      - commodity: energy:wind_resource
+    outputs:
+      - commodity: energy:electricity
+    efficiency: 1.0
+
+  - id: generic_electric_end_use
+    role: provide_useful_electric_service
+    inputs:
+      - commodity: energy:electricity
+    outputs:
+      - commodity: service:useful_electricity
+    efficiency: 1.0
+
+availability:
+  - variant: ng_default
+    regions: [REG1]
+
+  - variant: wind_default
+    regions: [REG1]
+
+  - variant: ccgt
+    regions: [REG1]
+    sectors: [IND]
+
+  - variant: wind_turbine
+    regions: [REG1]
+    sectors: [IND]
+
+  - variant: generic_electric_end_use
+    regions: [REG1]
+    sectors: [IND]
+
+demands:
+  - commodity: service:useful_electricity
+    region: REG1
+    sector: IND
+    interpolation: interp_extrap
+    values:
+      "2020": 8
+      "2030": 8

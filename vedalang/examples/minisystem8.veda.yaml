@@ -34,59 +34,59 @@ model:
 
   commodities:
     # Tradable energy carriers
-    - id: gas
-      type: fuel
+    - id: energy:gas
+      type: energy
       unit: PJ
       description: Natural gas
 
-    - id: coal
-      type: fuel
+    - id: energy:coal
+      type: energy
       unit: PJ
       description: Coal
 
-    - id: electricity
+    - id: energy:electricity
       type: energy
       unit: PJ
       description: Electricity
 
-    - id: hydrogen
-      type: fuel
+    - id: energy:hydrogen
+      type: energy
       unit: PJ
       description: Hydrogen
 
-    - id: solar_irradiance
+    - id: energy:solar_irradiance
       type: energy
       unit: PJ
       description: Solar irradiance resource
 
-    - id: wind_resource
+    - id: energy:wind_resource
       type: energy
       unit: PJ
       description: Wind resource
 
     # Emissions
-    - id: co2
+    - id: emission:co2
       type: emission
       unit: Mt
       description: Carbon dioxide
 
     # Service demands
-    - id: residential_demand
+    - id: service:residential_demand
       type: service
       unit: PJ
       description: Residential demand
 
-    - id: commercial_demand
+    - id: service:commercial_demand
       type: service
       unit: PJ
       description: Commercial demand
 
-    - id: industrial_demand
+    - id: service:industrial_demand
       type: service
       unit: PJ
       description: Industrial demand
 
-    - id: transport_demand
+    - id: service:transport_demand
       type: service
       unit: PJ
       description: Transport demand
@@ -94,7 +94,7 @@ model:
   trade_links:
     - origin: NEM_EAST
       destination: NEM_SOUTH
-      commodity: electricity
+      commodity: energy:electricity
       bidirectional: false
       efficiency: 0.97
 
@@ -102,7 +102,7 @@ model:
     - name: co2-price
       description: Carbon price trajectory
       type: commodity_price
-      commodity: co2
+      commodity: emission:co2
       interpolation: interp_extrap
       values:
         "2025": 30
@@ -118,64 +118,64 @@ process_roles:
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: gas
+      - commodity: energy:gas
 
   - id: import_coal
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: coal
+      - commodity: energy:coal
 
   - id: supply_solar_irradiance
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: solar_irradiance
+      - commodity: energy:solar_irradiance
 
   - id: supply_wind_resource
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: wind_resource
+      - commodity: energy:wind_resource
 
   # === ELECTRICITY GENERATION ===
   - id: generate_electricity
     stage: conversion
     required_inputs: []
     required_outputs:
-      - commodity: electricity
+      - commodity: energy:electricity
 
   # === HYDROGEN PRODUCTION ===
   - id: produce_hydrogen
     stage: conversion
     required_inputs: []
     required_outputs:
-      - commodity: hydrogen
+      - commodity: energy:hydrogen
 
   # === END USE ===
   - id: provide_residential_demand
     stage: end_use
     required_inputs: []
     required_outputs:
-      - commodity: residential_demand
+      - commodity: service:residential_demand
 
   - id: provide_commercial_demand
     stage: end_use
     required_inputs: []
     required_outputs:
-      - commodity: commercial_demand
+      - commodity: service:commercial_demand
 
   - id: provide_industrial_demand
     stage: end_use
     required_inputs: []
     required_outputs:
-      - commodity: industrial_demand
+      - commodity: service:industrial_demand
 
   - id: provide_transport_demand
     stage: end_use
     required_inputs: []
     required_outputs:
-      - commodity: transport_demand
+      - commodity: service:transport_demand
 
 process_variants:
   # === SUPPLY ===
@@ -183,7 +183,7 @@ process_variants:
     role: import_gas
     inputs: []
     outputs:
-      - commodity: gas
+      - commodity: energy:gas
     efficiency: 1.0
     lifetime: 100
 
@@ -191,7 +191,7 @@ process_variants:
     role: import_coal
     inputs: []
     outputs:
-      - commodity: coal
+      - commodity: energy:coal
     efficiency: 1.0
     lifetime: 100
 
@@ -199,7 +199,7 @@ process_variants:
     role: supply_solar_irradiance
     inputs: []
     outputs:
-      - commodity: solar_irradiance
+      - commodity: energy:solar_irradiance
     efficiency: 1.0
     lifetime: 100
 
@@ -207,7 +207,7 @@ process_variants:
     role: supply_wind_resource
     inputs: []
     outputs:
-      - commodity: wind_resource
+      - commodity: energy:wind_resource
     efficiency: 1.0
     lifetime: 100
 
@@ -215,39 +215,37 @@ process_variants:
   - id: coal_plant
     role: generate_electricity
     inputs:
-      - commodity: coal
+      - commodity: energy:coal
     outputs:
-      - commodity: electricity
-      - commodity: co2
+      - commodity: energy:electricity
     efficiency: 0.38
     investment_cost: 2500
     fixed_om_cost: 40
     variable_om_cost: 3
     lifetime: 40
     emission_factors:
-      co2: 0.09
+      emission:co2: 0.09
 
   - id: ccgt
     role: generate_electricity
     inputs:
-      - commodity: gas
+      - commodity: energy:gas
     outputs:
-      - commodity: electricity
-      - commodity: co2
+      - commodity: energy:electricity
     efficiency: 0.55
     investment_cost: 800
     fixed_om_cost: 20
     variable_om_cost: 2
     lifetime: 40
     emission_factors:
-      co2: 0.05
+      emission:co2: 0.05
 
   - id: wind
     role: generate_electricity
     inputs:
-      - commodity: wind_resource
+      - commodity: energy:wind_resource
     outputs:
-      - commodity: electricity
+      - commodity: energy:electricity
     efficiency: 1.0
     investment_cost: 1200
     fixed_om_cost: 25
@@ -257,9 +255,9 @@ process_variants:
   - id: solar
     role: generate_electricity
     inputs:
-      - commodity: solar_irradiance
+      - commodity: energy:solar_irradiance
     outputs:
-      - commodity: electricity
+      - commodity: energy:electricity
     efficiency: 1.0
     investment_cost: 1000
     fixed_om_cost: 15
@@ -270,24 +268,23 @@ process_variants:
   - id: smr
     role: produce_hydrogen
     inputs:
-      - commodity: gas
+      - commodity: energy:gas
     outputs:
-      - commodity: hydrogen
-      - commodity: co2
+      - commodity: energy:hydrogen
     efficiency: 0.75
     investment_cost: 1500
     fixed_om_cost: 50
     variable_om_cost: 2
     lifetime: 25
     emission_factors:
-      co2: 0.056
+      emission:co2: 0.056
 
   - id: electrolyzer
     role: produce_hydrogen
     inputs:
-      - commodity: electricity
+      - commodity: energy:electricity
     outputs:
-      - commodity: hydrogen
+      - commodity: energy:hydrogen
     efficiency: 0.70
     investment_cost: 2000
     fixed_om_cost: 30
@@ -298,54 +295,54 @@ process_variants:
   - id: residential_electric_device
     role: provide_residential_demand
     inputs:
-      - commodity: electricity
+      - commodity: energy:electricity
     outputs:
-      - commodity: residential_demand
+      - commodity: service:residential_demand
     efficiency: 1.0
     lifetime: 100
 
   - id: commercial_electric_device
     role: provide_commercial_demand
     inputs:
-      - commodity: electricity
+      - commodity: energy:electricity
     outputs:
-      - commodity: commercial_demand
+      - commodity: service:commercial_demand
     efficiency: 1.0
     lifetime: 100
 
   - id: industrial_gas_device
     role: provide_industrial_demand
     inputs:
-      - commodity: gas
+      - commodity: energy:gas
     outputs:
-      - commodity: industrial_demand
+      - commodity: service:industrial_demand
     efficiency: 0.85
     lifetime: 30
 
   - id: industrial_hydrogen_device
     role: provide_industrial_demand
     inputs:
-      - commodity: hydrogen
+      - commodity: energy:hydrogen
     outputs:
-      - commodity: industrial_demand
+      - commodity: service:industrial_demand
     efficiency: 0.80
     lifetime: 30
 
   - id: transport_elec_device
     role: provide_transport_demand
     inputs:
-      - commodity: electricity
+      - commodity: energy:electricity
     outputs:
-      - commodity: transport_demand
+      - commodity: service:transport_demand
     efficiency: 0.90
     lifetime: 15
 
   - id: transport_hydrogen_device
     role: provide_transport_demand
     inputs:
-      - commodity: hydrogen
+      - commodity: energy:hydrogen
     outputs:
-      - commodity: transport_demand
+      - commodity: service:transport_demand
     efficiency: 0.60
     lifetime: 15
 
@@ -840,7 +837,7 @@ process_parameters:
 
 demands:
   # Residential
-  - commodity: residential_demand
+  - commodity: service:residential_demand
     region: NEM_EAST
     sector: RES
     interpolation: interp_extrap
@@ -849,7 +846,7 @@ demands:
       "2030": 60
       "2050": 100
 
-  - commodity: residential_demand
+  - commodity: service:residential_demand
     region: NEM_SOUTH
     sector: RES
     interpolation: interp_extrap
@@ -858,7 +855,7 @@ demands:
       "2030": 60
       "2050": 100
 
-  - commodity: residential_demand
+  - commodity: service:residential_demand
     region: WA
     sector: RES
     interpolation: interp_extrap
@@ -868,7 +865,7 @@ demands:
       "2050": 100
 
   # Commercial
-  - commodity: commercial_demand
+  - commodity: service:commercial_demand
     region: NEM_EAST
     sector: COM
     interpolation: interp_extrap
@@ -877,7 +874,7 @@ demands:
       "2030": 40
       "2050": 80
 
-  - commodity: commercial_demand
+  - commodity: service:commercial_demand
     region: NEM_SOUTH
     sector: COM
     interpolation: interp_extrap
@@ -886,7 +883,7 @@ demands:
       "2030": 40
       "2050": 80
 
-  - commodity: commercial_demand
+  - commodity: service:commercial_demand
     region: WA
     sector: COM
     interpolation: interp_extrap
@@ -896,7 +893,7 @@ demands:
       "2050": 80
 
   # Industrial
-  - commodity: industrial_demand
+  - commodity: service:industrial_demand
     region: NEM_EAST
     sector: IND
     interpolation: interp_extrap
@@ -905,7 +902,7 @@ demands:
       "2030": 80
       "2050": 120
 
-  - commodity: industrial_demand
+  - commodity: service:industrial_demand
     region: NEM_SOUTH
     sector: IND
     interpolation: interp_extrap
@@ -914,7 +911,7 @@ demands:
       "2030": 80
       "2050": 120
 
-  - commodity: industrial_demand
+  - commodity: service:industrial_demand
     region: WA
     sector: IND
     interpolation: interp_extrap
@@ -924,7 +921,7 @@ demands:
       "2050": 120
 
   # Transport
-  - commodity: transport_demand
+  - commodity: service:transport_demand
     region: NEM_EAST
     sector: TRN
     interpolation: interp_extrap
@@ -933,7 +930,7 @@ demands:
       "2030": 60
       "2050": 100
 
-  - commodity: transport_demand
+  - commodity: service:transport_demand
     region: NEM_SOUTH
     sector: TRN
     interpolation: interp_extrap
@@ -942,7 +939,7 @@ demands:
       "2030": 60
       "2050": 100
 
-  - commodity: transport_demand
+  - commodity: service:transport_demand
     region: WA
     sector: TRN
     interpolation: interp_extrap

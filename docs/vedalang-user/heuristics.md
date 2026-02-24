@@ -45,7 +45,7 @@ processes:
 
 **Pattern detected:** A demand device (process that outputs a demand commodity) has no `stock` or initial capacity specified.
 
-**Why it matters:** Demand devices convert energy commodities (like ELC) into demand services (like RSD). Without capacity, they cannot operate, and the model becomes infeasible in the base year.
+**Why it matters:** Demand devices convert energy commodities (like `energy:electricity`) into demand services (like `service:residential_demand`). Without capacity, they cannot operate, and the model becomes infeasible in the base year.
 
 **Example (problematic):**
 ```yaml
@@ -53,9 +53,9 @@ processes:
   - name: DMD_RSD
     sets: [DMD]
     inputs:
-      - commodity: ELC
+      - commodity: energy:electricity
     outputs:
-      - commodity: RSD  # Demand commodity
+      - commodity: service:residential_demand  # Service commodity
     # Missing: stock
 ```
 
@@ -85,7 +85,7 @@ processes:
     stock: 1  # Only 1 GW
 scenario_parameters:
   - type: demand_projection
-    commodity: RSD
+    commodity: service:residential_demand
     values:
       "2020": 500  # Needs ~500 PJ but only ~27 PJ available
 ```
@@ -112,7 +112,7 @@ processes:
     stock: 100  # 100 GW × 31.536 × 0.85 ≈ 2680 PJ/yr
 scenario_parameters:
   - type: demand_projection
-    commodity: RSD
+    commodity: service:residential_demand
     values:
       "2020": 50  # Only 50 PJ/yr needed
 ```
@@ -182,11 +182,15 @@ model:
     invcost: 800  # Investment available for growth
     
   - name: DMD_RSD
+    inputs:
+      - commodity: energy:electricity
+    outputs:
+      - commodity: service:residential_demand
     stock: 100  # Large capacity to avoid bottleneck
     
 scenario_parameters:
   - type: demand_projection
-    commodity: RSD
+    commodity: service:residential_demand
     values:
       "2020": 50   # Can be met by stock
       "2030": 100  # Forces new investment

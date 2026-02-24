@@ -35,22 +35,22 @@ model:
       WN: 0.25
 
   commodities:
-    - id: gas
-      type: fuel
+    - id: energy:gas
+      type: energy
       unit: PJ
       description: Natural gas
 
-    - id: electricity
+    - id: energy:electricity
       type: energy
       unit: PJ
       description: Electricity
 
-    - id: co2
+    - id: emission:co2
       type: emission
       unit: Mt
       description: Carbon dioxide emissions
 
-    - id: residential_demand
+    - id: service:residential_demand
       type: service
       unit: PJ
       description: Residential demand
@@ -58,7 +58,7 @@ model:
   trade_links:
     - origin: NORTH
       destination: SOUTH
-      commodity: electricity
+      commodity: energy:electricity
       bidirectional: false
       efficiency: 0.97
 
@@ -66,7 +66,7 @@ model:
     - name: co2_price
       description: Carbon price trajectory
       type: commodity_price
-      commodity: co2
+      commodity: emission:co2
       interpolation: interp_extrap
       values:
         "2025": 30
@@ -81,57 +81,49 @@ process_roles:
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: gas
+      - commodity: energy:gas
 
   - id: generate_electricity
     stage: conversion
-    required_inputs:
-      - commodity: gas
-    required_outputs:
-      - commodity: electricity
-
-  - id: generate_electricity_renewable
-    stage: conversion
     required_inputs: []
     required_outputs:
-      - commodity: electricity
+      - commodity: energy:electricity
 
   - id: deliver_residential
     stage: end_use
     required_inputs:
-      - commodity: electricity
+      - commodity: energy:electricity
     required_outputs:
-      - commodity: residential_demand
+      - commodity: service:residential_demand
 
 process_variants:
   - id: gas_import
     role: import_gas
     inputs: []
     outputs:
-      - commodity: gas
+      - commodity: energy:gas
     efficiency: 1.0
     lifetime: 100
 
   - id: ccgt
     role: generate_electricity
     inputs:
-      - commodity: gas
+      - commodity: energy:gas
     outputs:
-      - commodity: electricity
-      - commodity: co2
+      - commodity: energy:electricity
     efficiency: 0.55
     investment_cost: 800
     fixed_om_cost: 20
     variable_om_cost: 2
     lifetime: 40
     emission_factors:
-      co2: 0.05
+      emission:co2: 0.05
 
   - id: wind
-    role: generate_electricity_renewable
+    role: generate_electricity
     inputs: []
     outputs:
-      - commodity: electricity
+      - commodity: energy:electricity
     efficiency: 1.0
     investment_cost: 1200
     fixed_om_cost: 25
@@ -141,9 +133,9 @@ process_variants:
   - id: residential_device
     role: deliver_residential
     inputs:
-      - commodity: electricity
+      - commodity: energy:electricity
     outputs:
-      - commodity: residential_demand
+      - commodity: service:residential_demand
     efficiency: 1.0
     lifetime: 100
 
@@ -213,7 +205,7 @@ process_parameters:
     stock: 1000
 
 demands:
-  - commodity: residential_demand
+  - commodity: service:residential_demand
     region: NORTH
     sector: RES
     interpolation: interp_extrap
@@ -222,7 +214,7 @@ demands:
       "2030": 60
       "2050": 90
 
-  - commodity: residential_demand
+  - commodity: service:residential_demand
     region: SOUTH
     sector: RES
     interpolation: interp_extrap

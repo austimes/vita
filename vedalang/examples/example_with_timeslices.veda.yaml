@@ -25,12 +25,12 @@ model:
       WN: 0.25    # Winter-Night
   
   commodities:
-    - name: C:ELC
+    - name: energy:electricity
       type: energy
       unit: PJ
       description: Electricity
-    - name: C:GAS
-      type: fuel
+    - name: energy:natural_gas
+      type: energy
       unit: PJ
       description: Natural Gas
   
@@ -41,7 +41,7 @@ model:
       activity_unit: PJ
       capacity_unit: GW
       inputs:
-        - commodity: C:GAS
+        - commodity: energy:natural_gas
       outputs:
-        - commodity: C:ELC
+        - commodity: energy:electricity
       efficiency: 0.55

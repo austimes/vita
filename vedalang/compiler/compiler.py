@@ -139,7 +139,7 @@ VALID_CATEGORIES = {
     "global_settings",
 }
 
-VALID_PROCESS_STAGES = ("supply", "conversion", "storage", "end_use", "sink")
+VALID_PROCESS_STAGES = ("supply", "conversion", "distribution", "storage", "end_use", "sink")
 VALID_COMMODITY_TYPES = (
     "fuel", "energy", "service", "material", "emission", "money", "other"
 )

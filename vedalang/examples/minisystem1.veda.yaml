@@ -17,12 +17,12 @@ model:
   milestone_years: [2020, 2030]
 
   commodities:
-    - id: electricity
+    - id: energy:electricity
       type: energy
       unit: PJ
       description: Electricity
 
-    - id: residential_demand
+    - id: service:residential_electricity
       type: service
       unit: PJ
       description: Residential demand
@@ -31,40 +31,40 @@ segments:
   sectors: [RES]
 
 process_roles:
-  - id: generate_electricity
-    stage: conversion
+  - id: supply_electricity
+    stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: electricity
+      - commodity: energy:electricity
 
-  - id: deliver_residential
+  - id: provide_residential_electricity
     stage: end_use
     required_inputs:
-      - commodity: electricity
+      - commodity: energy:electricity
     required_outputs:
-      - commodity: residential_demand
+      - commodity: service:residential_electricity
 
 process_variants:
-  - id: simple_generator
-    role: generate_electricity
+  - id: grid_supply
+    role: supply_electricity
     inputs: []
     outputs:
-      - commodity: electricity
+      - commodity: energy:electricity
     efficiency: 1.0
     variable_om_cost: 10
     lifetime: 40
 
   - id: residential_device
-    role: deliver_residential
+    role: provide_residential_electricity
     inputs:
-      - commodity: electricity
+      - commodity: energy:electricity
     outputs:
-      - commodity: residential_demand
+      - commodity: service:residential_electricity
     efficiency: 1.0
     lifetime: 40
 
 availability:
-  - variant: simple_generator
+  - variant: grid_supply
     regions: [SINGLE]
 
   - variant: residential_device
@@ -73,7 +73,7 @@ availability:
 
 process_parameters:
   - selector:
-      variant: simple_generator
+      variant: grid_supply
       region: SINGLE
     existing_capacity:
       - vintage: 2010
@@ -92,7 +92,7 @@ process_parameters:
       up: 1000
 
 demands:
-  - commodity: residential_demand
+  - commodity: service:residential_electricity
     region: SINGLE
     sector: RES
     interpolation: interp_extrap

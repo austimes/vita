@@ -142,7 +142,7 @@
         },
         "stage": {
           "type": "string",
-          "enum": ["supply", "conversion", "storage", "end_use", "sink"],
+          "enum": ["supply", "conversion", "distribution", "storage", "end_use", "sink"],
           "description": "Optional stage classification (descriptive, for layout/sankey)"
         },
         "required_inputs": {
@@ -842,7 +842,7 @@
           "type": "array",
           "items": {
             "type": "string",
-            "enum": ["supply", "conversion", "storage", "end_use", "sink"]
+            "enum": ["supply", "conversion", "distribution", "storage", "end_use", "sink"]
           }
         },
         "sector_in": {

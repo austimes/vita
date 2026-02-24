@@ -171,6 +171,28 @@ We are NOT porting legacy models. This is for new model development.
 
 **These are kept separate.** VedaLang is a general-purpose VEDA authoring language; heuristics are the "standard library" of patterns.
 
+## Design Principle: Commodity Namespaces and Emissions-as-Attributes
+
+**Commodity namespaces** map human-readable prefixes to VEDA Csets:
+- `energy:` → NRG, `material:` → MAT, `service:` → DEM, `emission:` → ENV, `money:` → FIN
+
+**Emissions are ledger entries, not flows.** `emission:*` commodities MUST NOT appear in process `inputs` or `outputs`. They enter the model only via `emission_factors`:
+
+```yaml
+process_variants:
+  - id: gas_heater
+    inputs:
+      - commodity: energy:natural_gas
+    outputs:
+      - commodity: service:space_heat
+    emission_factors:
+      emission:co2: 0.056  # ledger entry, not a flow
+```
+
+Negative emission factors are valid for DAC/LULUCF. Physical CO2 streams use `material:co2`.
+
+**Lint rules:** L1 (emission:* not in I/O), L2 (emission_factors keys must be emission:*), L3 (negative EF allowed), L5 (bare co2 warns).
+
 ## Design Principle: Avoid Implicit TIMES Interpolation
 
 **VedaLang should always emit explicit values for all milestone years.** Never rely on TIMES implicit interpolation.

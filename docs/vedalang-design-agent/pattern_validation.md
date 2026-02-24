@@ -54,11 +54,13 @@ processes:
     activity_unit: PJ
     capacity_unit: GW
     inputs:
-      - commodity: NG
+      - commodity: energy:natural_gas
         share: 1.0
     outputs:
-      - commodity: ELC
+      - commodity: energy:electricity
         share: 1.0
+    emission_factors:
+      emission:co2: 0.05
     efficiency: 0.55
 ```
 
@@ -84,7 +86,7 @@ processes:
 | Name | Type | Required | Default | Description |
 |------|------|----------|---------|-------------|
 | `plant_name` | string | ✅ | - | Unique identifier for the plant |
-| `output_commodity` | string | ✅ | ELC | Output commodity |
+| `output_commodity` | string | ✅ | energy:electricity | Output commodity |
 | `technology_type` | enum | ✅ | - | One of: solar_pv, wind_onshore, wind_offshore, hydro_ror, hydro_dam |
 | `capacity_unit` | string | ❌ | GW | Unit for capacity |
 
@@ -93,7 +95,7 @@ processes:
 ```bash
 uv run veda_pattern expand add_renewable_plant \
   --param plant_name=PP_WIND \
-  --param output_commodity=ELC \
+  --param output_commodity=energy:electricity \
   --param technology_type=wind_onshore
 ```
 
@@ -105,13 +107,13 @@ processes:
     sets: [ELE, RNEW]
     capacity_unit: GW
     outputs:
-      - commodity: ELC
+      - commodity: energy:electricity
         share: 1.0
 ```
 
 ### Usage in DC Fixtures
 
-- **DC2:** Wind plant sharing ELC output with thermal
+- **DC2:** Wind plant sharing energy:electricity output with thermal
 - **DC3-DC4:** Renewable plant with zero emissions
 
 ---

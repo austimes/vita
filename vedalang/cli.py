@@ -274,6 +274,124 @@ def cmd_lint(args) -> int:
     )
 
 
+def _split_fenced_code_blocks(text: str) -> list[dict]:
+    """Split a markdown-ish string into alternating text/code segments."""
+    import re
+
+    if not text:
+        return []
+
+    fence_re = re.compile(
+        r"```(?P<lang>[a-zA-Z0-9_+-]*)\n(?P<code>.*?)\n```", re.DOTALL
+    )
+    out: list[dict] = []
+    pos = 0
+    for m in fence_re.finditer(text):
+        if m.start() > pos:
+            chunk = text[pos : m.start()]
+            if chunk.strip():
+                out.append({"kind": "text", "text": chunk.strip("\n")})
+        lang = (m.group("lang") or "").strip() or "text"
+        code = (m.group("code") or "").rstrip("\n")
+        out.append({"kind": "code", "lang": lang, "code": code})
+        pos = m.end()
+
+    tail = text[pos:]
+    if tail.strip():
+        out.append({"kind": "text", "text": tail.strip("\n")})
+
+    return out
+
+
+def _format_finding_rich(finding: dict, index: int, total: int):
+    """Render a single lint/LLM finding as a Rich Panel."""
+    from rich import box
+    from rich.console import Group
+    from rich.markdown import Markdown
+    from rich.padding import Padding
+    from rich.panel import Panel
+    from rich.rule import Rule
+    from rich.syntax import Syntax
+    from rich.table import Table
+    from rich.text import Text
+
+    severity_raw = (finding.get("severity") or "warning").lower().strip()
+    code = finding.get("code") or "UNKNOWN"
+    category = finding.get("category")
+    message = finding.get("message") or ""
+    location = finding.get("location")
+    suggestion = finding.get("suggestion")
+
+    if severity_raw in ("critical", "error"):
+        badge_text = severity_raw.upper()
+        badge_style = "bold white on red"
+        border_style = "red"
+    elif severity_raw == "warning":
+        badge_text = "WARNING"
+        badge_style = "bold black on yellow"
+        border_style = "yellow"
+    else:
+        badge_text = "SUGGESTION"
+        badge_style = "bold black on cyan"
+        border_style = "cyan"
+
+    # Header row: badge + code + category | index
+    header = Table.grid(padding=(0, 1))
+    header.expand = True
+    header.add_column("left", ratio=1)
+    header.add_column("right", justify="right")
+
+    left_bits = Text.assemble(
+        (f" {badge_text} ", badge_style),
+        ("  ", ""),
+        (f"[{code}]", "bold"),
+    )
+    if category:
+        left_bits.append(f"  ({category})", style="dim")
+
+    header.add_row(left_bits, Text(f"{index}/{total}", style="dim"))
+
+    body_items: list = [header]
+
+    if location:
+        body_items.append(Text(f"Location: {location}", style="dim"))
+
+    body_items.append(Rule(style="dim"))
+
+    # Message — render markdown for inline `code` formatting
+    body_items.append(Markdown(message.strip() or " ", code_theme="monokai"))
+
+    # Fix / suggestion section
+    if suggestion:
+        body_items.append(Rule("Fix", style="green"))
+        for part in _split_fenced_code_blocks(suggestion):
+            if part["kind"] == "text":
+                txt = part["text"].strip()
+                if txt:
+                    body_items.append(Markdown(txt, code_theme="monokai"))
+            else:
+                lang = part.get("lang") or "text"
+                code_txt = part.get("code") or ""
+                syn = Syntax(
+                    code_txt, lang, theme="monokai",
+                    line_numbers=False, word_wrap=False,
+                )
+                body_items.append(Panel(
+                    syn,
+                    title=lang,
+                    border_style="dim",
+                    box=box.ROUNDED,
+                    padding=(0, 1),
+                ))
+
+    return Panel(
+        Group(*body_items),
+        border_style=border_style,
+        box=box.ROUNDED,
+        padding=(1, 1),
+    )
+
+
 def _output_lint_result(
     file_path: Path,
     diagnostics: list[dict],
@@ -298,24 +416,111 @@ def _output_lint_result(
             result["llm_model"] = llm_model
         print(json.dumps(result, indent=2))
     else:
-        if diagnostics:
-            for d in diagnostics:
-                severity = d["severity"].upper()
-                code = d["code"]
-                msg = d["message"]
-                loc = d.get("location", "")
-                loc_str = f" ({loc})" if loc else ""
-                print(f"{severity} [{code}]{loc_str}: {msg}")
-                suggestion = d.get("suggestion")
-                if suggestion:
-                    print(f"  ↳ Fix: {suggestion}")
-            print()
+        try:
+            from rich import box
+            from rich.console import Console
+            from rich.panel import Panel
+            from rich.table import Table
+            from rich.text import Text
 
-        print(f"Lint: {errors} error(s), {warnings} warning(s)")
-        if llm_model:
-            print(f"LLM model: {llm_model}")
-        if success:
-            print(f"✓ {file_path}")
+            console = Console()
+
+            # Header panel
+            header_tbl = Table.grid(expand=True)
+            header_tbl.add_column("left", ratio=1)
+            header_tbl.add_column("right", justify="right")
+            header_tbl.add_row(
+                Text("VedaLang Lint", style="bold"),
+                Text(str(file_path), style="dim"),
+            )
+            if llm_model:
+                header_tbl.add_row(
+                    Text("LLM model", style="dim"),
+                    Text(llm_model, style="dim"),
+                )
+            console.print(Panel(
+                header_tbl,
+                box=box.ROUNDED,
+                border_style="blue",
+                padding=(1, 1),
+            ))
+
+            # Findings
+            if diagnostics:
+                total = len(diagnostics)
+                for i, d in enumerate(diagnostics, start=1):
+                    console.print(_format_finding_rich(d, i, total))
+                    console.print()
+
+            # Summary bar
+            summary = Table.grid(expand=True)
+            summary.add_column("left", ratio=1)
+            summary.add_column("right", justify="right")
+
+            left = Text.assemble(
+                ("Summary: ", "bold"),
+                (
+                    f"{errors} error(s)",
+                    "bold red" if errors else "dim",
+                ),
+                ("  ", ""),
+                (
+                    f"{warnings} warning(s)",
+                    "bold yellow" if warnings else "dim",
+                ),
+            )
+
+            sev_counts: dict[str, int] = {}
+            for d in diagnostics:
+                sev = (d.get("severity") or "warning").lower().strip()
+                sev_counts[sev] = sev_counts.get(sev, 0) + 1
+            if sev_counts.get("critical"):
+                left.append("  ")
+                left.append(
+                    f"{sev_counts['critical']} critical",
+                    style="bold red",
+                )
+            if sev_counts.get("suggestion"):
+                left.append("  ")
+                left.append(
+                    f"{sev_counts['suggestion']} suggestion(s)",
+                    style="bold cyan",
+                )
+
+            right = (
+                Text("✓ OK", style="bold green")
+                if success
+                else Text("✗ Issues found", style="bold red")
+            )
+            summary.add_row(left, right)
+
+            console.print(Panel(
+                summary,
+                box=box.ROUNDED,
+                border_style="green" if success else "red",
+                padding=(1, 1),
+            ))
+
+        except ImportError:
+            # Plain-text fallback
+            if diagnostics:
+                for d in diagnostics:
+                    severity = d["severity"].upper()
+                    code = d["code"]
+                    msg = d["message"]
+                    loc = d.get("location", "")
+                    loc_str = f" ({loc})" if loc else ""
+                    print(f"{severity} [{code}]{loc_str}: {msg}")
+                    suggestion = d.get("suggestion")
+                    if suggestion:
+                        print(f"  ↳ Fix: {suggestion}")
+                print()
+
+            print(f"Lint: {errors} error(s), {warnings} warning(s)")
+            if llm_model:
+                print(f"LLM model: {llm_model}")
+            if success:
+                print(f"✓ {file_path}")
 
     if errors > 0:
         return 2

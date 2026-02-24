@@ -10,15 +10,15 @@ model:
   milestone_years: [2020, 2030, 2040, 2050]
 
   commodities:
-    - id: gas
-      type: fuel
-      unit: PJ
-
-    - id: electricity
+    - id: energy:natural_gas
       type: energy
       unit: PJ
 
-    - id: residential_demand
+    - id: energy:electricity
+      type: energy
+      unit: PJ
+
+    - id: service:residential_electricity_service
       type: service
       unit: PJ
 
@@ -30,28 +30,28 @@ process_roles:
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: gas
+      - commodity: energy:natural_gas
 
   - id: generate_electricity
     stage: conversion
     required_inputs:
-      - commodity: gas
+      - commodity: energy:natural_gas
     required_outputs:
-      - commodity: electricity
+      - commodity: energy:electricity
 
   - id: deliver_residential
     stage: end_use
     required_inputs:
-      - commodity: electricity
+      - commodity: energy:electricity
     required_outputs:
-      - commodity: residential_demand
+      - commodity: service:residential_electricity_service
 
 process_variants:
   - id: gas_import
     role: import_gas
     inputs: []
     outputs:
-      - commodity: gas
+      - commodity: energy:natural_gas
     efficiency: 1.0
     variable_om_cost: 5.0  # M€/PJ import cost (ACT_COST)
     lifetime: 100
@@ -59,9 +59,9 @@ process_variants:
   - id: ccgt
     role: generate_electricity
     inputs:
-      - commodity: gas
+      - commodity: energy:natural_gas
     outputs:
-      - commodity: electricity
+      - commodity: energy:electricity
     efficiency: 0.55
     investment_cost: 800    # M€/GW investment cost (NCAP_COST)
     fixed_om_cost: 20       # M€/GW/yr fixed O&M (FOM)
@@ -71,9 +71,9 @@ process_variants:
   - id: residential_device
     role: deliver_residential
     inputs:
-      - commodity: electricity
+      - commodity: energy:electricity
     outputs:
-      - commodity: residential_demand
+      - commodity: service:residential_electricity_service
     efficiency: 1.0
     lifetime: 100
 

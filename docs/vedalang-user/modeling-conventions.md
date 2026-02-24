@@ -23,7 +23,7 @@ schema/compiler are authoritative.
 - `role` = **what service/transformation is provided**
 - `variant` = **how the role is provided** (technology pathway)
 - `stage` = one of `supply | conversion | storage | end_use | sink`
-- `commodity.type` = one of `fuel | energy | service | material | emission | other`
+- `commodity.type` = one of `energy | material | service | emission | money`
 
 Keep these terms consistent in model docs, PRDs, lint narratives, and
 diagnostics specs.
@@ -41,14 +41,16 @@ process_roles:
   - id: provide_space_heat
     stage: end_use
     inputs:
-      - commodity: gas
+      - commodity: energy:natural_gas
     outputs:
-      - commodity: space_heat
+      - commodity: service:space_heat
 
 process_variants:
   - id: gas_boiler
     role: provide_space_heat
     efficiency: 0.9
+    emission_factors:
+      emission:co2: 0.056
   - id: heat_pump
     role: provide_space_heat
     efficiency: 3.2
@@ -60,12 +62,12 @@ Avoid:
 process_roles:
   - id: heat_from_gas
     stage: end_use
-    inputs: [{commodity: gas}]
-    outputs: [{commodity: space_heat}]
+    inputs: [{commodity: energy:natural_gas}]
+    outputs: [{commodity: service:space_heat}]
   - id: heat_from_electricity
     stage: end_use
-    inputs: [{commodity: electricity}]
-    outputs: [{commodity: space_heat}]
+    inputs: [{commodity: energy:electricity}]
+    outputs: [{commodity: service:space_heat}]
 ```
 
 Why: diagnostics and fuel-switch metrics stay stable under granularity
@@ -84,7 +86,7 @@ process_roles:
   - id: supply_ag_inputs
     stage: supply
     outputs:
-      - commodity: ag_inputs
+      - commodity: material:ag_inputs
     # No inputs — this is a primary supply node. Valid.
 ```
 
@@ -97,7 +99,7 @@ process_roles:
   - id: create_space_heat
     stage: end_use
     outputs:
-      - commodity: space_heat
+      - commodity: service:space_heat
     # No inputs at end_use stage → likely a modeling error
 ```
 
@@ -114,7 +116,7 @@ model:
   cases:
     - name: policy
       demand_overrides:
-        - commodity: space_heat
+        - commodity: service:space_heat
           scale: 0.85
 ```
 
@@ -134,7 +136,7 @@ process_roles:
   - id: create_space_heat
     stage: end_use
     outputs:
-      - commodity: space_heat
+      - commodity: service:space_heat
 ```
 
 ### 4) Naming Conventions
@@ -162,8 +164,8 @@ All IDs use **snake_case** (underscores, not dashes).
   Avoid: `feed_additives`, `improved_manure` (ambiguous — sounds like a
   bolt-on modifier rather than a complete replacement pathway)
 
-- **Commodity IDs** — snake_case descriptive names:
-  `ag_inputs`, `space_heat`, `co2e`, `electricity`, `biomass`
+- **Commodity IDs** — namespaced snake_case descriptive names:
+  `energy:electricity`, `service:space_heat`, `emission:co2`, `energy:natural_gas`, `material:biomass`
 
 ### 5) Stage and Commodity Typing Discipline
 
@@ -174,11 +176,11 @@ Good:
 ```yaml
 model:
   commodities:
-    - id: electricity
+    - id: energy:electricity
       type: energy
-    - id: space_heat
+    - id: service:space_heat
       type: service
-    - id: co2e
+    - id: emission:co2
       type: emission
 ```
 
@@ -187,7 +189,7 @@ Avoid:
 ```yaml
 model:
   commodities:
-    - id: space_heat
+    - id: service:space_heat
       type: energy   # should be service
 ```
 
@@ -207,6 +209,49 @@ behavior.
 Boundary selectors should use semantics (`stage_in`, `service_in`, `kind_in`,
 `sector_in`) before string filters (`include_any`, `exclude_any`).
 
+### 8) Emissions as Attributes, Not Flows
+
+Emission commodities (`emission:*`) represent ledger entries, not physical flows.
+They MUST NOT appear in process `inputs` or `outputs`.
+
+Good:
+
+```yaml
+process_variants:
+  - id: gas_boiler
+    role: provide_space_heat
+    inputs:
+      - commodity: energy:natural_gas
+    outputs:
+      - commodity: service:space_heat
+    emission_factors:
+      emission:co2: 0.056
+```
+
+Avoid:
+
+```yaml
+process_variants:
+  - id: gas_boiler
+    outputs:
+      - commodity: service:space_heat
+      - commodity: emission:co2   # ERROR: emission in outputs
+```
+
+For negative emissions (DAC, LULUCF), use negative `emission_factors`:
+
+```yaml
+process_variants:
+  - id: dac
+    role: remove_co2
+    inputs:
+      - commodity: energy:electricity
+    emission_factors:
+      emission:co2: -1.0
+```
+
+If physical CO2 transport/storage is needed, use `material:co2` as a flow.
+
 ## Conventions vs Current Enforcement
 
 The following are enforced today by schema/compiler behavior:
@@ -219,6 +264,9 @@ The following are enforced today by schema/compiler behavior:
   `kind=demand_measure` variants by default
 - diagnostics export contract is solve-independent
   (`diagnostics_are_solve_independent`)
+- `emission:*` must not appear in inputs/outputs (L1)
+- `emission_factors` keys must be `emission:*` namespaced (L2)
+- Bare `co2`/`ch4`/`n2o` trigger migration warnings (L5)
 
 The following should be treated as guidance/lint focus (unless hard rules are added):
 
@@ -243,6 +291,8 @@ The following should be treated as guidance/lint focus (unless hard rules are ad
 - [ ] Commodity typing is explicit and consistent with use
 - [ ] Stages are explicit and from the canonical enum
 - [ ] Diagnostics boundaries are semantic and solver-independent
+- [ ] Commodity IDs use namespace prefixes (energy:, service:, emission:, etc.)
+- [ ] Emissions use emission_factors dict, not inputs/outputs
 - [ ] `uv run vedalang lint <model>.veda.yaml` and
   `uv run vedalang validate <model>.veda.yaml` pass
 

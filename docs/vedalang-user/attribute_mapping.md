@@ -29,7 +29,7 @@ All VedaLang process attributes with their TIMES/VEDA mappings:
 | `activity_bound` | ACT_BND | act_bnd | Bound |
 | `cap_bound` | CAP_BND | cap_bnd | Bound |
 | `ncap_bound` | NCAP_BND | ncap_bnd | Bound |
-| `emission_factor` | ENV_ACT | attribute=ENV_ACT | Flow |
+| `emission_factors` | ENV_ACT | attribute=ENV_ACT | Emission |
 
 **Source of truth**: `vedalang/compiler/compiler.py` defines `ATTR_TO_COLUMN` and `SEMANTIC_TO_TIMES` dicts.
 
@@ -141,15 +141,28 @@ cap_bound:
 
 | VedaLang Attribute | TIMES Attribute | VEDA Column | Description |
 |-------------------|-----------------|-------------|-------------|
-| `emission_factor` | ENV_ACT | attribute=ENV_ACT | Emission coefficient per unit of activity |
+| `emission_factors` | ENV_ACT | attribute=ENV_ACT | Emission coefficients per unit of activity |
 
-Used on output commodities:
+Emissions are **ledger entries**, not flows. They are specified as a dict on the process, never in `inputs` or `outputs`:
+
 ```yaml
-outputs:
-  - commodity: ELC
-  - commodity: CO2
-    emission_factor: 0.05  # Mt CO2 per PJ fuel input
+process_variants:
+  - id: gas_plant
+    inputs:
+      - commodity: energy:natural_gas
+    outputs:
+      - commodity: energy:electricity
+    emission_factors:
+      emission:co2: 0.05  # Mt CO2 per PJ fuel input
+
+    # Negative values for removals (DAC, LULUCF):
+    # emission_factors:
+    #   emission:co2: -1.0
 ```
+
+**Lint rules:**
+- `emission:*` MUST NOT appear in `inputs` or `outputs` (L1)
+- `emission_factors` keys MUST use `emission:*` namespace (L2)
 
 ---
 
@@ -157,7 +170,7 @@ outputs:
 
 | VedaLang Attribute | TIMES Concept | Description |
 |-------------------|---------------|-------------|
-| `type` | COM_TYPE | energy, demand, emission, material |
+| `type` | COM_TYPE | energy, service, emission, material, money |
 | `unit` | COM_UNIT | PJ, Mt, etc. |
 
 ---
@@ -200,48 +213,49 @@ VedaLang automatically emits `PRC_CAPACT` when these units differ.
 
 ```yaml
 processes:
-  - name: PP_CCGT                    # Required: unique process identifier
-    description: "CCGT plant"        # Optional: human-readable description
-    sets: [ELE]                      # Required: process type (ELE, DMD, IMP, etc.)
-    primary_commodity_group: NRGO    # Required: PCG for activity definition
+  - name: PP_CCGT
+    description: "CCGT plant"
+    sets: [ELE]
+    primary_commodity_group: NRGO
     
     # I/O topology
     inputs:
-      - commodity: NG
+      - commodity: energy:natural_gas
     outputs:
-      - commodity: ELC
-      - commodity: CO2
-        emission_factor: 0.05
+      - commodity: energy:electricity
+    
+    # Emissions (ledger entries, not flows)
+    emission_factors:
+      emission:co2: 0.05
     
     # Efficiency
-    efficiency: 0.55                 # ACT_EFF
+    efficiency: 0.55
     
     # Costs
-    investment_cost: 800             # NCAP_COST ($/GW)
-    fixed_om_cost: 20                # NCAP_FOM ($/GW/yr)
-    variable_om_cost: 2              # ACT_COST ($/PJ)
+    investment_cost: 800
+    fixed_om_cost: 20
+    variable_om_cost: 2
     
     # Lifetime and capacity
-    lifetime: 40                     # NCAP_TLIFE (years)
-    availability_factor: 0.85        # NCAP_AF (fraction)
+    lifetime: 40
+    availability_factor: 0.85
     
-    # Existing capacity (choose one approach)
-    existing_capacity:               # NCAP_PASTI - preferred for new models
+    # Existing capacity
+    existing_capacity:
       - vintage: 2010
-        capacity: 3.0                # 3 GW built in 2010
+        capacity: 3.0
       - vintage: 2015
-        capacity: 2.0                # 2 GW built in 2015
-    # OR: stock: 5                   # PRC_RESID - aggregate (legacy)
+        capacity: 2.0
     
     # Bounds
     cap_bound:
-      up: 500                        # CAP_BND UP
+      up: 500
     ncap_bound:
-      up: 50                         # NCAP_BND UP (per period)
+      up: 50
     
-    # Units (optional, defaults shown)
-    activity_unit: PJ                # TACT
-    capacity_unit: GW                # TCAP
+    # Units
+    activity_unit: PJ
+    capacity_unit: GW
 ```
 
 ### Import Process Attributes
@@ -252,7 +266,7 @@ processes:
     sets: [IMP]
     primary_commodity_group: NRGO
     outputs:
-      - commodity: NG
+      - commodity: energy:natural_gas
     efficiency: 1.0
     import_price: 5.0                # IRE_PRICE ($/PJ)
     stock: 1000                      # Effectively unlimited import capacity
@@ -266,7 +280,7 @@ VedaLang validates attribute usage:
 
 1. **`import_price`** only valid on IMP/EXP/IRE processes
 2. **`investment_cost`**, **`fixed_om_cost`**, **`variable_om_cost`** valid on any process
-3. **`emission_factor`** only valid on emission commodity outputs
+3. **`emission_factors`** dict keys must be `emission:*` namespaced; `emission:*` must not appear in inputs/outputs
 
 ---
 

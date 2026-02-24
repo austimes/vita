@@ -2727,7 +2727,7 @@ def test_new_syntax_role_primary_output_invariant_enforced():
 
 def test_new_syntax_stage_enum_violation_reports_structural_code():
     source = _base_new_syntax_source()
-    source["process_roles"][0]["stage"] = "distribution"
+    source["process_roles"][0]["stage"] = "invalid_stage"
 
     with pytest.raises(Exception, match=r"\[E_STAGE_ENUM\]"):
         compile_vedalang_to_tableir(source, validate=False)

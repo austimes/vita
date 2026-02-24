@@ -11,13 +11,13 @@ model:
   milestone_years: [2020, 2030]
 
   commodities:
-    - id: electricity
+    - id: energy:electricity
       type: energy
       unit: PJ
       description: Electricity
 
-    - id: gas
-      type: fuel
+    - id: energy:natural_gas
+      type: energy
       unit: PJ
       description: Natural Gas
 
@@ -25,17 +25,17 @@ process_roles:
   - id: generate_electricity
     stage: conversion
     required_inputs:
-      - commodity: gas
+      - commodity: energy:natural_gas
     required_outputs:
-      - commodity: electricity
+      - commodity: energy:electricity
 
 process_variants:
   - id: ccgt
     role: generate_electricity
     inputs:
-      - commodity: gas
+      - commodity: energy:natural_gas
     outputs:
-      - commodity: electricity
+      - commodity: energy:electricity
     efficiency: 0.55
 
 availability:

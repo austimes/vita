@@ -1,42 +1,84 @@
-# Minimal VedaLang example using ergonomic shorthand syntax
-# Demonstrates:
-# - Single input/output as string (not array)
-# - Default commodity units (omitted when matching type default)
+# Minimal VedaLang example using canonical role/variant modeling
 model:
   name: MiniModelShorthand
-  description: Minimal model using shorthand syntax
-  
+  description: Minimal model aligned with modeling conventions
+
   regions:
     - REG1
   
+  milestone_years: [2020, 2030]
+
   commodities:
-    # No unit needed - energy defaults to PJ
-    - name: C:ELC
+    - id: energy:electricity
       type: energy
       description: Electricity
-    - name: C:GAS
-      type: fuel
+    - id: energy:natural_gas
+      type: energy
       description: Natural Gas
-    # Emission defaults to Mt
-    - name: E:CO2
+    - id: service:delivered_electricity
+      type: service
+      description: Delivered electricity service proxy
+    - id: emission:co2
       type: emission
       description: Carbon dioxide
   
-  processes:
-    # Simple thermal plant with shorthand input/output
-    - name: PP_CCGT
-      description: Combined Cycle Gas Turbine
-      sets: [ELE]
-      input: C:GAS          # Shorthand for inputs: [{commodity: C:GAS}]
-      output: C:ELC         # Shorthand for outputs: [{commodity: C:ELC}]
-      efficiency: 0.55
-      invcost: 800
-      life: 30
-    
-    # Supply process with only output
-    - name: IMP_NG
-      description: Natural gas import
-      sets: [IMP]
-      output: C:GAS         # Shorthand
-      efficiency: 1.0
-      cost: 5.0
+process_roles:
+  - id: import_natural_gas
+    stage: supply
+    required_inputs: []
+    required_outputs:
+      - commodity: energy:natural_gas
+
+  - id: generate_electricity
+    stage: conversion
+    required_inputs: []
+    required_outputs:
+      - commodity: energy:electricity
+
+  - id: deliver_electricity
+    stage: end_use
+    required_inputs:
+      - commodity: energy:electricity
+    required_outputs:
+      - commodity: service:delivered_electricity
+
+process_variants:
+  - id: gas_import
+    role: import_natural_gas
+    inputs: []
+    outputs:
+      - commodity: energy:natural_gas
+    efficiency: 1.0
+    variable_om_cost: 5.0
+    lifetime: 100
+
+  - id: ccgt
+    role: generate_electricity
+    inputs:
+      - commodity: energy:natural_gas
+    outputs:
+      - commodity: energy:electricity
+    efficiency: 0.55
+    investment_cost: 800
+    lifetime: 30
+    emission_factors:
+      emission:co2: 0.056
+
+  - id: grid_connection
+    role: deliver_electricity
+    inputs:
+      - commodity: energy:electricity
+    outputs:
+      - commodity: service:delivered_electricity
+    efficiency: 1.0
+    lifetime: 100
+
+availability:
+  - variant: gas_import
+    regions: [REG1]
+
+  - variant: ccgt
+    regions: [REG1]
+
+  - variant: grid_connection
+    regions: [REG1]

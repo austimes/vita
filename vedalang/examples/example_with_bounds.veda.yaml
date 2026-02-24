@@ -10,15 +10,19 @@ model:
   milestone_years: [2020, 2030, 2040, 2050]
 
   commodities:
-    - id: gas
-      type: fuel
-      unit: PJ
-
-    - id: electricity
+    - id: energy:natural_gas
       type: energy
       unit: PJ
 
-    - id: residential_demand
+    - id: energy:wind_resource
+      type: energy
+      unit: PJ
+
+    - id: energy:electricity
+      type: energy
+      unit: PJ
+
+    - id: service:residential_energy_services
       type: service
       unit: PJ
 
@@ -30,96 +34,107 @@ process_roles:
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: gas
+      - commodity: energy:natural_gas
+
+  - id: supply_wind_resource
+    stage: supply
+    required_inputs: []
+    required_outputs:
+      - commodity: energy:wind_resource
 
   - id: generate_electricity
     stage: conversion
-    required_inputs:
-      - commodity: gas
-    required_outputs:
-      - commodity: electricity
-
-  - id: generate_electricity_renewable
-    stage: conversion
     required_inputs: []
     required_outputs:
-      - commodity: electricity
+      - commodity: energy:electricity
 
-  - id: deliver_residential
+  - id: provide_residential_energy_services
     stage: end_use
     required_inputs:
-      - commodity: electricity
+      - commodity: energy:electricity
     required_outputs:
-      - commodity: residential_demand
+      - commodity: service:residential_energy_services
 
 process_variants:
-  - id: gas_import
+  - id: pipeline_import
     role: import_gas
     inputs: []
     outputs:
-      - commodity: gas
+      - commodity: energy:natural_gas
+    efficiency: 1.0
+    lifetime: 100
+
+  - id: onshore_wind_resource
+    role: supply_wind_resource
+    inputs: []
+    outputs:
+      - commodity: energy:wind_resource
     efficiency: 1.0
     lifetime: 100
 
   - id: ccgt
     role: generate_electricity
     inputs:
-      - commodity: gas
+      - commodity: energy:natural_gas
     outputs:
-      - commodity: electricity
+      - commodity: energy:electricity
     efficiency: 0.55
     investment_cost: 800
     fixed_om_cost: 20
     lifetime: 30
 
-  - id: wind
-    role: generate_electricity_renewable
-    inputs: []
+  - id: onshore_wind_turbine
+    role: generate_electricity
+    inputs:
+      - commodity: energy:wind_resource
     outputs:
-      - commodity: electricity
+      - commodity: energy:electricity
     efficiency: 1.0
     investment_cost: 1200
     fixed_om_cost: 25
     lifetime: 25
 
-  - id: existing_coal
+  - id: existing_gas_steam
     role: generate_electricity
     inputs:
-      - commodity: gas
+      - commodity: energy:natural_gas
     outputs:
-      - commodity: electricity
+      - commodity: energy:electricity
     efficiency: 0.40
     lifetime: 40
 
-  - id: residential_device
-    role: deliver_residential
+  - id: electric_residential_devices
+    role: provide_residential_energy_services
     inputs:
-      - commodity: electricity
+      - commodity: energy:electricity
     outputs:
-      - commodity: residential_demand
+      - commodity: service:residential_energy_services
     efficiency: 1.0
     lifetime: 100
 
 availability:
-  - variant: gas_import
+  - variant: pipeline_import
+    regions: [REG1]
+
+  - variant: onshore_wind_resource
     regions: [REG1]
 
   - variant: ccgt
     regions: [REG1]
 
-  - variant: wind
+  - variant: onshore_wind_turbine
     regions: [REG1]
 
-  - variant: existing_coal
+  - variant: existing_gas_steam
     regions: [REG1]
 
-  - variant: residential_device
+  - variant: electric_residential_devices
     regions: [REG1]
     sectors: [RES]
 
 process_parameters:
   - selector:
-      variant: gas_import
+      variant: pipeline_import
       region: REG1
     activity_bound:
       up: 500.0  # Maximum 500 PJ/year import
@@ -133,20 +148,20 @@ process_parameters:
       up: 2.0   # Maximum 2 GW new per period
 
   - selector:
-      variant: wind
+      variant: onshore_wind_turbine
       region: REG1
     cap_bound:
       lo: 5.0   # Minimum 5 GW (renewable portfolio standard)
       up: 50.0  # Maximum 50 GW (grid integration limit)
 
   - selector:
-      variant: existing_coal
+      variant: existing_gas_steam
       region: REG1
     ncap_bound:
       fx: 3.0  # Exactly 3 GW existing capacity
 
   - selector:
-      variant: residential_device
+      variant: electric_residential_devices
       region: REG1
       sector: RES
     stock: 1000

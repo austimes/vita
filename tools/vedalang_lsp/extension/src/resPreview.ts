@@ -259,7 +259,7 @@ export class ResPreviewPanel {
         }
         .energy { background: #4a90d9; }
         .emission { background: #d94a4a; }
-        .demand { background: #4ad94a; }
+        .service { background: #4ad94a; }
         .material { background: #d9a84a; }
         .process { background: #9b59b6; }
         .variant { background: #8e44ad; }
@@ -279,7 +279,7 @@ ${mermaidCode}
     <div class="legend">
         <div class="legend-item"><div class="legend-color energy"></div><span>Energy</span></div>
         <div class="legend-item"><div class="legend-color emission"></div><span>Emission</span></div>
-        <div class="legend-item"><div class="legend-color demand"></div><span>Demand</span></div>
+        <div class="legend-item"><div class="legend-color service"></div><span>Service</span></div>
         <div class="legend-item"><div class="legend-color material"></div><span>Material</span></div>
         <div class="legend-item"><div class="legend-color process"></div><span>Process</span></div>
         <div class="legend-item"><div class="legend-color variant"></div><span>Variant</span></div>

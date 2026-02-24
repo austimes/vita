@@ -14,52 +14,36 @@ model:
   milestone_years: [2020, 2030, 2040, 2050]
 
   commodities:
-    - name: C:GAS
-      type: fuel
+    - id: energy:natural_gas
+      type: energy
       unit: PJ
       description: Natural Gas
 
-    - name: C:ELC
+    - id: energy:wind_resource
+      type: energy
+      unit: PJ
+      description: Wind resource
+
+    - id: energy:solar_resource
+      type: energy
+      unit: PJ
+      description: Solar resource
+
+    - id: energy:electricity
       type: energy
       unit: PJ
       description: Electricity
 
-    - name: E:CO2
+    - id: emission:co2
       type: emission
       unit: Mt
       description: Carbon dioxide emissions
 
-  processes:
-    - name: PP_CCGT
-      description: Combined cycle gas turbine
-      sets: [ELE]
-      inputs:
-        - commodity: C:GAS
-      outputs:
-        - commodity: C:ELC
-        - commodity: E:CO2
-          emission_factor: 0.05  # Mt CO2 per PJ activity
-      efficiency: 0.55
-
-    - name: PP_WIND
-      description: Onshore wind plant
-      sets: [ELE]
-      outputs:
-        - commodity: C:ELC
-      efficiency: 1.0
-
-    - name: PP_SOLAR
-      description: Solar PV plant
-      sets: [ELE]
-      outputs:
-        - commodity: C:ELC
-      efficiency: 1.0
-
   constraints:
     # Emission cap: limit CO2 to 100 Mt initially, declining to 50 Mt by 2040
-    - name: CO2_CAP
+    - name: co2_cap
       type: emission_cap
-      commodity: E:CO2
+      commodity: emission:co2
       years:
         "2020": 100
         "2040": 50
@@ -67,8 +51,146 @@ model:
       limtype: up
 
     # Renewable energy target: at least 30% of electricity from wind+solar
-    - name: REN_TARGET
+    - name: ren_target
       type: activity_share
-      commodity: C:ELC
-      processes: [PP_WIND, PP_SOLAR]
+      commodity: energy:electricity
+      processes: [wind_generation, solar_generation]
       minimum_share: 0.30
+
+segments:
+  sectors: [IND]
+
+process_roles:
+  - id: import_natural_gas
+    stage: supply
+    required_inputs: []
+    required_outputs:
+      - commodity: energy:natural_gas
+
+  - id: supply_wind_resource
+    stage: supply
+    required_inputs: []
+    required_outputs:
+      - commodity: energy:wind_resource
+
+  - id: supply_solar_resource
+    stage: supply
+    required_inputs: []
+    required_outputs:
+      - commodity: energy:solar_resource
+
+  - id: provide_electricity
+    stage: conversion
+    required_inputs: []
+    required_outputs:
+      - commodity: energy:electricity
+
+process_variants:
+  - id: pipeline_import
+    role: import_natural_gas
+    inputs: []
+    outputs:
+      - commodity: energy:natural_gas
+    efficiency: 1.0
+    lifetime: 100
+
+  - id: wind_resource_supply
+    role: supply_wind_resource
+    inputs: []
+    outputs:
+      - commodity: energy:wind_resource
+    efficiency: 1.0
+    lifetime: 100
+
+  - id: solar_resource_supply
+    role: supply_solar_resource
+    inputs: []
+    outputs:
+      - commodity: energy:solar_resource
+    efficiency: 1.0
+    lifetime: 100
+
+  - id: ccgt_generation
+    role: provide_electricity
+    inputs:
+      - commodity: energy:natural_gas
+    outputs:
+      - commodity: energy:electricity
+    efficiency: 0.55
+    lifetime: 30
+    emission_factors:
+      emission:co2: 0.05
+
+  - id: wind_generation
+    role: provide_electricity
+    inputs:
+      - commodity: energy:wind_resource
+    outputs:
+      - commodity: energy:electricity
+    efficiency: 1.0
+    lifetime: 25
+
+  - id: solar_generation
+    role: provide_electricity
+    inputs:
+      - commodity: energy:solar_resource
+    outputs:
+      - commodity: energy:electricity
+    efficiency: 1.0
+    lifetime: 25
+
+availability:
+  - variant: pipeline_import
+    regions: [REG1]
+
+  - variant: wind_resource_supply
+    regions: [REG1]
+
+  - variant: solar_resource_supply
+    regions: [REG1]
+
+  - variant: ccgt_generation
+    regions: [REG1]
+    sectors: [IND]
+
+  - variant: wind_generation
+    regions: [REG1]
+    sectors: [IND]
+
+  - variant: solar_generation
+    regions: [REG1]
+    sectors: [IND]
+
+process_parameters:
+  - selector:
+      variant: pipeline_import
+      region: REG1
+    stock: 1000
+
+  - selector:
+      variant: wind_resource_supply
+      region: REG1
+    stock: 1000
+
+  - selector:
+      variant: solar_resource_supply
+      region: REG1
+    stock: 1000
+
+  - selector:
+      variant: ccgt_generation
+      region: REG1
+      sector: IND
+    stock: 10
+
+  - selector:
+      variant: wind_generation
+      region: REG1
+      sector: IND
+    stock: 2
+
+  - selector:
+      variant: solar_generation
+      region: REG1
+      sector: IND
+    stock: 2

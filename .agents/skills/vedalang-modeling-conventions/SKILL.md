@@ -22,6 +22,8 @@ Read that file before authoring or reviewing any VedaLang model. It covers:
 - Physical-only RES by default (demand_measure tagging for non-physical)
 - Naming conventions (snake_case, verb-noun roles, descriptive variants)
 - Stage and commodity typing discipline
+- Emissions as attributes (emission_factors, not outputs)
+- Commodity namespace conventions (energy:, service:, emission:, etc.)
 - Cases as scenario overlays
 - Solve-independent diagnostics
 - Authoring checklist

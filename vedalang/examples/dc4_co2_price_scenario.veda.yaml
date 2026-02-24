@@ -1,67 +1,191 @@
 # DC4: CO2 Price Trajectory Scenario
 # Extends DC3 with a carbon pricing scenario over time.
 # Pattern sources:
-#   - add_power_plant: PP_CCGT (thermal)
-#   - add_renewable_plant: PP_WIND (renewable)
-#   - add_emission_commodity: E:CO2
-#   - co2_price_trajectory: CO2_Price scenario
+#   - add_power_plant: ccgt (thermal)
+#   - add_renewable_plant: wind (renewable)
+#   - add_emission_commodity: emission:co2
+#   - co2_price_trajectory: co2_price
 model:
   name: MiniModel
   description: Thermal and renewable plants with CO2 price trajectory
-  
   regions:
     - REG1
-  
+
+  milestone_years: [2025, 2030, 2040, 2050]
+
   commodities:
-    - name: C:GAS
-      type: fuel
-      unit: PJ
-      description: Natural Gas
-    - name: C:ELC
+    - id: energy:natural_gas
       type: energy
       unit: PJ
-      description: Electricity
-    - name: E:CO2
+      description: Natural Gas
+
+    - id: energy:wind_resource
+      type: energy
+      unit: PJ
+      description: Wind resource potential
+
+    - id: energy:electricity
+      type: energy
+      unit: PJ
+      description: Electricity carrier
+
+    - id: emission:co2
       type: emission
       unit: Mt
       description: Carbon dioxide emissions
-  
-  processes:
-    # Thermal plant (from add_power_plant pattern)
-    # Emits CO2 when consuming natural gas
-    - name: PP_CCGT
-      description: Combined cycle gas turbine
-      sets: [ELE]
-      activity_unit: PJ
-      capacity_unit: GW
-      inputs:
-        - commodity: C:GAS
-          share: 1.0
-      outputs:
-        - commodity: C:ELC
-        - commodity: E:CO2
-          emission_factor: 0.05  # Mt CO2 per PJ activity
-      efficiency: 0.55
-    
-    # Renewable plant (from add_renewable_plant pattern)
-    # No emissions - clean electricity
-    - name: PP_WIND
-      description: Onshore wind plant
-      sets: [ELE]
-      capacity_unit: GW
-      outputs:
-        - commodity: C:ELC
-          share: 1.0
-      efficiency: 1.0
-  
-  scenarios:
-    - name: CO2_Price
+
+    - id: service:electricity_demand
+      type: service
+      unit: PJ
+      description: Electricity demand service
+
+  scenario_parameters:
+    - name: co2_price
       description: Carbon price trajectory 2025-2050
       type: commodity_price
-      commodity: E:CO2
+      commodity: emission:co2
       interpolation: interp_extrap  # Full interpolation and extrapolation
       values:
-        2025: 50
-        2030: 100
-        2040: 150
-        2050: 200
+        "2025": 50
+        "2030": 100
+        "2040": 150
+        "2050": 200
+
+segments:
+  sectors: [RES]
+
+process_roles:
+  - id: import_natural_gas
+    stage: supply
+    required_inputs: []
+    required_outputs:
+      - commodity: energy:natural_gas
+
+  - id: supply_wind_resource
+    stage: supply
+    required_inputs: []
+    required_outputs:
+      - commodity: energy:wind_resource
+
+  - id: generate_electricity
+    stage: conversion
+    required_inputs: []
+    required_outputs:
+      - commodity: energy:electricity
+
+  - id: satisfy_electricity_demand
+    stage: end_use
+    required_inputs:
+      - commodity: energy:electricity
+    required_outputs:
+      - commodity: service:electricity_demand
+
+process_variants:
+  # Thermal plant (from add_power_plant pattern)
+  - id: pipeline_import
+    role: import_natural_gas
+    inputs: []
+    outputs:
+      - commodity: energy:natural_gas
+    efficiency: 1.0
+    lifetime: 100
+
+  - id: onshore_wind_potential
+    role: supply_wind_resource
+    inputs: []
+    outputs:
+      - commodity: energy:wind_resource
+    efficiency: 1.0
+    lifetime: 100
+
+  - id: ccgt
+    role: generate_electricity
+    inputs:
+      - commodity: energy:natural_gas
+    outputs:
+      - commodity: energy:electricity
+    efficiency: 0.55
+    lifetime: 40
+    emission_factors:
+      emission:co2: 0.05  # Mt CO2 per PJ activity
+
+  # Renewable plant (from add_renewable_plant pattern)
+  - id: wind
+    role: generate_electricity
+    inputs:
+      - commodity: energy:wind_resource
+    outputs:
+      - commodity: energy:electricity
+    efficiency: 1.0
+    lifetime: 25
+
+  - id: grid_delivery
+    role: satisfy_electricity_demand
+    inputs:
+      - commodity: energy:electricity
+    outputs:
+      - commodity: service:electricity_demand
+    efficiency: 1.0
+    lifetime: 100
+
+availability:
+  - variant: pipeline_import
+    regions: [REG1]
+
+  - variant: onshore_wind_potential
+    regions: [REG1]
+
+  - variant: ccgt
+    regions: [REG1]
+
+  - variant: wind
+    regions: [REG1]
+
+  - variant: grid_delivery
+    regions: [REG1]
+    sectors: [RES]
+
+
+process_parameters:
+  - selector:
+      variant: pipeline_import
+      region: REG1
+    stock: 1000
+
+  - selector:
+      variant: onshore_wind_potential
+      region: REG1
+    stock: 1000
+    ncap_bound:
+      up: 100
+
+  - selector:
+      variant: ccgt
+      region: REG1
+    stock: 2
+    cap_bound:
+      up: 100
+
+  - selector:
+      variant: wind
+      region: REG1
+    stock: 1
+    cap_bound:
+      up: 100
+
+  - selector:
+      variant: grid_delivery
+      region: REG1
+      sector: RES
+    stock: 1000
+
+demands:
+  - commodity: service:electricity_demand
+    region: REG1
+    sector: RES
+    interpolation: interp_extrap
+    values:
+      "2025": 30
+      "2030": 40
+      "2040": 50
+      "2050": 60
