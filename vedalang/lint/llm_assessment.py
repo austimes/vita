@@ -21,6 +21,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal
 
+from vedalang.conventions import (
+    commodity_type_enum,
+    format_enum_csv,
+    process_stage_enum,
+)
 from vedalang.lint.res_export import export_res_graph, res_graph_to_mermaid
 
 # Path to the canonical modeling conventions document (single source of truth)
@@ -106,7 +111,7 @@ def load_conventions() -> str:
     """Load the modeling conventions document.
 
     Returns:
-        Contents of the SKILL.md conventions document, or a fallback message.
+        Contents of the modeling conventions document, or a fallback message.
     """
     if _CONVENTIONS_PATH.exists():
         return _CONVENTIONS_PATH.read_text()
@@ -116,7 +121,7 @@ def load_conventions() -> str:
     )
 
 
-_SYSTEM_PROMPT = """\
+_SYSTEM_PROMPT_TEMPLATE = """\
 You are a VedaLang structural assessment engine. Your task is to review the \
 Reference Energy System (RES) graph of a VedaLang model and identify \
 architectural inconsistencies.
@@ -130,8 +135,7 @@ Defined in `process_roles` with stage, inputs, and outputs.
 - **Variant** = a specific technology pathway that fulfils a role \
 (e.g. "gas-boiler", "heat-pump"). Defined in `process_variants` with \
 `role:` reference, efficiency, lifetime, costs.
-- **Stage** = one of: supply, conversion, storage, end_use, sink.
-- **Commodity type** = one of: fuel, energy, service, material, emission, money, other.
+__CANONICAL_ENUMS__
 
 ### Critical distinctions (avoid these mistakes):
 
@@ -239,6 +243,14 @@ if `has_variant_level_inputs` is true (variants provide the inputs).
 """
 
 
+def _build_system_prompt() -> str:
+    canonical_enum_lines = (
+        f"- **Stage** = one of: {format_enum_csv(process_stage_enum())}.\n"
+        f"- **Commodity type** = one of: {format_enum_csv(commodity_type_enum())}."
+    )
+    return _SYSTEM_PROMPT_TEMPLATE.replace("__CANONICAL_ENUMS__", canonical_enum_lines)
+
+
 def assemble_prompt(source: dict) -> tuple[str, str]:
     """Assemble the system and user prompts for LLM assessment.
 
@@ -262,7 +274,7 @@ def assemble_prompt(source: dict) -> tuple[str, str]:
         "Assess this RES for structural issues."
     )
 
-    return _SYSTEM_PROMPT, user_prompt
+    return _build_system_prompt(), user_prompt
 
 
 def parse_llm_response(raw: str) -> AssessmentResult:

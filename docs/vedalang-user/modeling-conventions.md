@@ -22,8 +22,10 @@ schema/compiler are authoritative.
 
 - `role` = **what service/transformation is provided**
 - `variant` = **how the role is provided** (technology pathway)
-- `stage` = one of `supply | conversion | storage | end_use | sink`
-- `commodity.type` = one of `energy | material | service | emission | money`
+<!-- GENERATED:canonical-enums:start -->
+- `stage` = one of `supply | conversion | distribution | storage | end_use | sink`
+- `commodity.type` = one of `fuel | energy | service | material | emission | money | other`
+<!-- GENERATED:canonical-enums:end -->
 
 Keep these terms consistent in model docs, PRDs, lint narratives, and
 diagnostics specs.

@@ -10,6 +10,8 @@ from pathlib import Path
 
 import yaml
 
+from vedalang.conventions import stage_label, stage_order
+
 
 def build_res_graph(parsed: dict, include_variants: bool = False) -> dict:
     """Build a Reference Energy System graph from a parsed VedaLang document.
@@ -91,9 +93,23 @@ def build_res_graph(parsed: dict, include_variants: bool = False) -> dict:
                     vid = variant.get("id") or variant.get("name")
                     if vid:
                         for cid in _commodity_ids(variant.get("inputs")):
-                            edges.append({"from": cid, "to": vid, "kind": "input", "commodityId": cid})
+                            edges.append(
+                                {
+                                    "from": cid,
+                                    "to": vid,
+                                    "kind": "input",
+                                    "commodityId": cid,
+                                }
+                            )
                         for cid in _commodity_ids(variant.get("outputs")):
-                            edges.append({"from": vid, "to": cid, "kind": "output", "commodityId": cid})
+                            edges.append(
+                                {
+                                    "from": vid,
+                                    "to": cid,
+                                    "kind": "output",
+                                    "commodityId": cid,
+                                }
+                            )
             else:
                 # Roles view: show contract (required_inputs/required_outputs)
                 # plus union of variant I/O for a complete picture
@@ -104,9 +120,23 @@ def build_res_graph(parsed: dict, include_variants: bool = False) -> dict:
                     all_outputs.update(_commodity_ids(variant.get("outputs")))
 
                 for cid in all_inputs:
-                    edges.append({"from": cid, "to": rid, "kind": "input", "commodityId": cid})
+                    edges.append(
+                        {
+                            "from": cid,
+                            "to": rid,
+                            "kind": "input",
+                            "commodityId": cid,
+                        }
+                    )
                 for cid in all_outputs:
-                    edges.append({"from": rid, "to": cid, "kind": "output", "commodityId": cid})
+                    edges.append(
+                        {
+                            "from": rid,
+                            "to": cid,
+                            "kind": "output",
+                            "commodityId": cid,
+                        }
+                    )
 
     # Also support legacy 'processes' syntax for backward compatibility
     for process in model.get("processes", []) or []:
@@ -172,25 +202,7 @@ def graph_to_mermaid(graph: dict) -> str:
     lines = ["flowchart LR"]
 
     # Define stage order for left-to-right layout
-    stage_order = {
-        "supply": 0,
-        "conversion": 1,
-        "storage": 2,
-        "distribution": 3,
-        "end_use": 4,
-        "demand": 5,
-        "sink": 6,
-    }
-
-    stage_labels = {
-        "supply": "Supply",
-        "conversion": "Conversion",
-        "storage": "Storage",
-        "distribution": "Distribution",
-        "end_use": "End Use",
-        "demand": "Demand",
-        "sink": "Sink",
-    }
+    stage_rank = stage_order(include_demand=True)
 
     # Separate nodes by type
     commodity_nodes = []
@@ -227,11 +239,11 @@ def graph_to_mermaid(graph: dict) -> str:
         if edge["kind"] == "output":
             proc_node = next(
                 (n for n in graph["nodes"] if n["id"] == edge["from"]),
-                None
+                None,
             )
             if proc_node:
                 proc_stage = proc_node.get("stage") or "conversion"
-                proc_rank = stage_order.get(proc_stage, 1)
+                proc_rank = stage_rank.get(proc_stage, 1)
                 commodity_stages[edge["to"]] = max(
                     commodity_stages.get(edge["to"], 0),
                     proc_rank + 0.5
@@ -239,11 +251,11 @@ def graph_to_mermaid(graph: dict) -> str:
         elif edge["kind"] == "input":
             proc_node = next(
                 (n for n in graph["nodes"] if n["id"] == edge["to"]),
-                None
+                None,
             )
             if proc_node:
                 proc_stage = proc_node.get("stage") or "conversion"
-                proc_rank = stage_order.get(proc_stage, 1)
+                proc_rank = stage_rank.get(proc_stage, 1)
                 commodity_stages[edge["from"]] = min(
                     commodity_stages.get(edge["from"], 10),
                     proc_rank - 0.5
@@ -252,10 +264,10 @@ def graph_to_mermaid(graph: dict) -> str:
     # Render nodes - processes first, grouped by stage subgraphs
     lines.append("")
     lines.append("    %% Process nodes grouped by stage")
-    for stage in sorted(nodes_by_stage.keys(), key=lambda s: stage_order.get(s, 99)):
-        stage_label = stage_labels.get(stage, stage.replace("_", " ").title())
+    for stage in sorted(nodes_by_stage.keys(), key=lambda s: stage_rank.get(s, 99)):
+        role_stage_label = stage_label(stage)
         safe_stage = sanitize_id(stage)
-        lines.append(f"    subgraph stage_{safe_stage}[\"{stage_label}\"]")
+        lines.append(f"    subgraph stage_{safe_stage}[\"{role_stage_label}\"]")
         for node in nodes_by_stage[stage]:
             safe_id = sanitize_id(node["id"])
             safe_label = node.get("label", node["id"])

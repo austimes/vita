@@ -143,7 +143,9 @@ process_roles:
     stage: sink
 ```
 
-Valid stages: `supply`, `conversion`, `storage`, `end_use`, `sink`.
+<!-- GENERATED:canonical-stages:start -->
+Valid stages: `supply`, `conversion`, `distribution`, `storage`, `end_use`, `sink`.
+<!-- GENERATED:canonical-stages:end -->
 
 **Compiler enforcement:** `[E_STAGE_ENUM]` — invalid stage value.
 

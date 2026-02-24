@@ -9,6 +9,8 @@ from pathlib import Path
 import jsonschema
 import yaml
 
+from vedalang.conventions import commodity_type_enum, process_stage_enum
+
 from .demands import compile_demands
 from .ir import (
     apply_process_parameters,
@@ -139,10 +141,8 @@ VALID_CATEGORIES = {
     "global_settings",
 }
 
-VALID_PROCESS_STAGES = ("supply", "conversion", "distribution", "storage", "end_use", "sink")
-VALID_COMMODITY_TYPES = (
-    "fuel", "energy", "service", "material", "emission", "money", "other"
-)
+VALID_PROCESS_STAGES = process_stage_enum()
+VALID_COMMODITY_TYPES = commodity_type_enum()
 
 NAMESPACE_TO_TYPES = {
     "energy": {"fuel", "energy"},

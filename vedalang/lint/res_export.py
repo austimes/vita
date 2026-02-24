@@ -14,6 +14,7 @@ from vedalang.compiler.compiler import (
     _derive_kind_from_structure,
 )
 from vedalang.compiler.ir import Role
+from vedalang.conventions import stage_label, stage_order
 
 
 def export_res_graph(source: dict) -> dict:
@@ -330,25 +331,7 @@ def res_graph_to_mermaid(graph: dict) -> str:
     """
     lines = ["flowchart LR"]
 
-    stage_order = {
-        "supply": 0,
-        "conversion": 1,
-        "storage": 2,
-        "distribution": 3,
-        "end_use": 4,
-        "demand": 5,
-        "sink": 6,
-    }
-
-    stage_labels = {
-        "supply": "Supply",
-        "conversion": "Conversion",
-        "storage": "Storage",
-        "distribution": "Distribution",
-        "end_use": "End Use",
-        "demand": "Demand",
-        "sink": "Sink",
-    }
+    stage_rank = stage_order(include_demand=True)
 
     # Group roles by stage
     roles_by_stage: dict[str, list[dict]] = {}
@@ -357,11 +340,11 @@ def res_graph_to_mermaid(graph: dict) -> str:
         roles_by_stage.setdefault(stage, []).append(role)
 
     # Render roles grouped by stage subgraphs
-    for stage in sorted(roles_by_stage.keys(), key=lambda s: stage_order.get(s, 99)):
-        stage_label = stage_labels.get(stage, stage.replace("_", " ").title())
+    for stage in sorted(roles_by_stage.keys(), key=lambda s: stage_rank.get(s, 99)):
+        role_stage_label = stage_label(stage)
         safe_stage = _sanitize(stage)
         lines.append("")
-        lines.append(f"    subgraph stage_{safe_stage}[\"{stage_label}\"]")
+        lines.append(f"    subgraph stage_{safe_stage}[\"{role_stage_label}\"]")
         for role in roles_by_stage[stage]:
             safe_id = _sanitize(role["id"])
             dk = role.get("derived_kind")
