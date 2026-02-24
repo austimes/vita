@@ -21,23 +21,23 @@ model:
 
   commodities:
     # Primary carriers
-    - id: energy:natural_gas
-      type: energy
+    - id: fuel:natural_gas
+      type: fuel
       unit: PJ
       description: Bulk natural gas
 
-    - id: energy:crude_oil
-      type: energy
+    - id: fuel:crude_oil
+      type: fuel
       unit: PJ
       description: Crude oil
 
-    - id: energy:wind_resource
-      type: energy
+    - id: resource:wind_resource
+      type: other
       unit: PJ
       description: Wind resource potential
 
-    - id: energy:solar_resource
-      type: energy
+    - id: resource:solar_resource
+      type: other
       unit: PJ
       description: Solar resource potential
 
@@ -52,13 +52,13 @@ model:
       unit: PJ
       description: Delivered electricity
 
-    - id: energy:natural_gas_grid
-      type: energy
+    - id: fuel:natural_gas_grid
+      type: fuel
       unit: PJ
       description: Delivered natural gas
 
-    - id: energy:petrol
-      type: energy
+    - id: fuel:petrol
+      type: fuel
       unit: PJ
       description: Refined petrol/diesel proxy
 
@@ -117,13 +117,13 @@ process_roles:
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: energy:natural_gas
+      - commodity: fuel:natural_gas
 
   - id: import_oil
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: energy:crude_oil
+      - commodity: fuel:crude_oil
 
   - id: import_hydrogen
     stage: supply
@@ -135,13 +135,13 @@ process_roles:
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: energy:wind_resource
+      - commodity: resource:wind_resource
 
   - id: supply_solar_resource
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: energy:solar_resource
+      - commodity: resource:solar_resource
 
   # Conversion — single generation role with variant-level inputs
   - id: generate_electricity
@@ -153,9 +153,9 @@ process_roles:
   - id: refine_oil
     stage: conversion
     required_inputs:
-      - commodity: energy:crude_oil
+      - commodity: fuel:crude_oil
     required_outputs:
-      - commodity: energy:petrol
+      - commodity: fuel:petrol
 
   - id: produce_hydrogen
     stage: conversion
@@ -175,9 +175,9 @@ process_roles:
   - id: deliver_gas
     stage: distribution
     required_inputs:
-      - commodity: energy:natural_gas
+      - commodity: fuel:natural_gas
     required_outputs:
-      - commodity: energy:natural_gas_grid
+      - commodity: fuel:natural_gas_grid
 
   # End-use: space heat (RES/COM/OTH)
   - id: provide_space_heat
@@ -215,7 +215,7 @@ process_variants:
     role: import_gas
     inputs: []
     outputs:
-      - commodity: energy:natural_gas
+      - commodity: fuel:natural_gas
     efficiency: 1.0
     lifetime: 100
     variable_om_cost: 8
@@ -224,7 +224,7 @@ process_variants:
     role: import_oil
     inputs: []
     outputs:
-      - commodity: energy:crude_oil
+      - commodity: fuel:crude_oil
     efficiency: 1.0
     lifetime: 100
     variable_om_cost: 10
@@ -248,7 +248,7 @@ process_variants:
     role: supply_wind_resource
     inputs: []
     outputs:
-      - commodity: energy:wind_resource
+      - commodity: resource:wind_resource
     efficiency: 1.0
     lifetime: 100
 
@@ -256,7 +256,7 @@ process_variants:
     role: supply_solar_resource
     inputs: []
     outputs:
-      - commodity: energy:solar_resource
+      - commodity: resource:solar_resource
     efficiency: 1.0
     lifetime: 100
 
@@ -264,7 +264,7 @@ process_variants:
   - id: ccgt
     role: generate_electricity
     inputs:
-      - commodity: energy:natural_gas_grid
+      - commodity: fuel:natural_gas_grid
     outputs:
       - commodity: energy:electricity
     efficiency: 0.55
@@ -278,7 +278,7 @@ process_variants:
   - id: solar_pv
     role: generate_electricity
     inputs:
-      - commodity: energy:solar_resource
+      - commodity: resource:solar_resource
     outputs:
       - commodity: energy:electricity
     efficiency: 1.0
@@ -294,7 +294,7 @@ process_variants:
   - id: onshore_wind
     role: generate_electricity
     inputs:
-      - commodity: energy:wind_resource
+      - commodity: resource:wind_resource
     outputs:
       - commodity: energy:electricity
     efficiency: 1.0
@@ -305,9 +305,9 @@ process_variants:
   - id: refinery
     role: refine_oil
     inputs:
-      - commodity: energy:crude_oil
+      - commodity: fuel:crude_oil
     outputs:
-      - commodity: energy:petrol
+      - commodity: fuel:petrol
     efficiency: 0.90
     lifetime: 40
     investment_cost: 200
@@ -341,16 +341,16 @@ process_variants:
     role: deliver_gas
     kind: network
     inputs:
-      - commodity: energy:natural_gas
+      - commodity: fuel:natural_gas
     outputs:
-      - commodity: energy:natural_gas_grid
+      - commodity: fuel:natural_gas_grid
     efficiency: 0.98
     lifetime: 100
 
   # End-use: space heat
   - id: gas_space_heater
     role: provide_space_heat
-    inputs: [{commodity: energy:natural_gas_grid}]
+    inputs: [{commodity: fuel:natural_gas_grid}]
     outputs:
       - commodity: service:space_heat
     efficiency: 0.90
@@ -371,7 +371,7 @@ process_variants:
   # End-use: industrial heat
   - id: gas_industrial_boiler
     role: provide_industrial_heat
-    inputs: [{commodity: energy:natural_gas_grid}]
+    inputs: [{commodity: fuel:natural_gas_grid}]
     outputs:
       - commodity: service:industrial_heat
     efficiency: 0.90
@@ -401,7 +401,7 @@ process_variants:
   # End-use: transport
   - id: ice_car
     role: provide_passenger_km
-    inputs: [{commodity: energy:petrol}]
+    inputs: [{commodity: fuel:petrol}]
     outputs:
       - commodity: service:passenger_km
     efficiency: 1.0
@@ -423,7 +423,7 @@ process_variants:
   # End-use: agriculture
   - id: petrol_tractor
     role: provide_farm_work
-    inputs: [{commodity: energy:petrol}]
+    inputs: [{commodity: fuel:petrol}]
     outputs:
       - commodity: service:farm_work
     efficiency: 1.0

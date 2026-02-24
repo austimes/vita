@@ -9,6 +9,7 @@ from tools.vedalang_lsp.server.server import (
     SEMANTIC_TO_TIMES,
     SymbolDef,
     code_action,
+    enum_values_from_schema,
     find_definition_range,
     format_commodity_hover,
     format_process_hover,
@@ -18,6 +19,8 @@ from tools.vedalang_lsp.server.server import (
     get_word_at_position,
     get_yaml_key_at_position,
     parse_and_index,
+    schema_for_key_at_position,
+    schema_for_path,
     server,
     validate_document,
 )
@@ -459,6 +462,119 @@ class TestValidation:
         errors = [d for d in diagnostics if d.severity == err_sev]
         duplicate_errors = [e for e in errors if "duplicate" in e.message.lower()]
         assert len(duplicate_errors) > 0
+
+
+class TestSchemaDrivenEnums:
+    """Tests for schema-driven enum hover/completion/diagnostics behavior."""
+
+    def test_process_variant_kind_enum_includes_network(self):
+        """Schema enum for process_variants.kind should include network."""
+        schema_node = schema_for_path(["process_variants", 0, "kind"])
+        assert schema_node is not None
+        enum_values = enum_values_from_schema(schema_node)
+        assert "network" in enum_values
+        assert "generator" in enum_values
+
+    def test_schema_lookup_for_kind_uses_process_variant_context(self):
+        """Context lookup should resolve process_variants.kind correctly."""
+        source = """model:
+  name: test
+  regions: [R1]
+  commodities:
+    - id: energy:electricity
+      type: energy
+  processes: []
+process_roles:
+  - id: deliver_power
+    required_inputs:
+      - commodity: energy:electricity
+    required_outputs:
+      - commodity: energy:electricity
+process_variants:
+  - id: grid_distribution
+    role: deliver_power
+    inputs:
+      - commodity: energy:electricity
+    outputs:
+      - commodity: energy:electricity
+    kind: network
+"""
+        doc = MockTextDocument(source)
+        line_idx = next(i for i, line in enumerate(doc.lines) if "kind:" in line)
+        key_start = doc.lines[line_idx].index("kind")
+        path, schema_node = schema_for_key_at_position(
+            doc, types.Position(line=line_idx, character=key_start), "kind"
+        )
+        assert path is not None
+        assert path[-3:] == ["process_variants", 0, "kind"]
+        assert schema_node is not None
+        assert "network" in enum_values_from_schema(schema_node)
+
+    def test_validate_invalid_process_variant_kind_emits_schema_error(self):
+        """Invalid enum value should be diagnosed by schema validation."""
+        source = """model:
+  name: test
+  regions: [R1]
+  commodities:
+    - id: energy:electricity
+      type: energy
+  processes: []
+process_roles:
+  - id: deliver_power
+    required_inputs:
+      - commodity: energy:electricity
+    required_outputs:
+      - commodity: energy:electricity
+process_variants:
+  - id: grid_distribution
+    role: deliver_power
+    inputs:
+      - commodity: energy:electricity
+    outputs:
+      - commodity: energy:electricity
+    kind: invalid_kind
+"""
+        doc = MockTextDocument(source)
+        diagnostics = validate_document(server, doc)
+        schema_errors = [
+            d for d in diagnostics
+            if d.source == "vedalang-schema" and "invalid_kind" in d.message
+        ]
+        assert len(schema_errors) >= 1
+
+    def test_validate_network_process_variant_kind_is_accepted(self):
+        """Valid network enum should not produce a schema error."""
+        source = """model:
+  name: test
+  regions: [R1]
+  commodities:
+    - id: energy:electricity
+      type: energy
+  processes: []
+process_roles:
+  - id: deliver_power
+    required_inputs:
+      - commodity: energy:electricity
+    required_outputs:
+      - commodity: energy:electricity
+process_variants:
+  - id: grid_distribution
+    role: deliver_power
+    inputs:
+      - commodity: energy:electricity
+    outputs:
+      - commodity: energy:electricity
+    kind: network
+"""
+        doc = MockTextDocument(source)
+        diagnostics = validate_document(server, doc)
+        network_enum_errors = [
+            d for d in diagnostics
+            if d.source == "vedalang-schema"
+            and "kind" in d.message.lower()
+            and "one of" in d.message.lower()
+        ]
+        assert len(network_enum_errors) == 0
 
 
 class TestKnownSets:

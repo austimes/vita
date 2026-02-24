@@ -28,24 +28,34 @@ EXAMPLES_DIR = PROJECT_ROOT / "vedalang" / "examples"
 MINISYSTEM_FEATURES = {
     1: {
         "description": "Minimal solvable model",
-        "commodities": {"electricity", "residential_demand"},
-        "processes": {"simple_generator_SINGLE", "residential_device_SINGLE_RES"},
+        "commodities": {"energy:electricity", "service:residential_electricity"},
+        "processes": {"grid_supply_SINGLE", "residential_device_SINGLE_RES"},
         "features": ["basic RES", "demand projection"],
     },
     2: {
         "description": "Fuel chain",
-        "commodities": {"gas", "electricity", "residential_demand"},
+        "commodities": {
+            "fuel:natural_gas",
+            "energy:electricity",
+            "service:residential_demand",
+        },
         "processes": {
-            "gas_import_SINGLE", "ccgt_SINGLE",
-            "residential_device_SINGLE_RES",
+            "pipeline_gas_import_SINGLE",
+            "ccgt_SINGLE",
+            "electric_residential_device_SINGLE_RES",
         },
         "features": ["input-output chains", "fuel supply"],
     },
     3: {
         "description": "Investment decisions",
-        "commodities": {"gas", "electricity", "residential_demand"},
+        "commodities": {
+            "fuel:natural_gas",
+            "energy:electricity",
+            "service:residential_demand",
+        },
         "processes": {
-            "gas_import_SINGLE", "ccgt_SINGLE",
+            "gas_import_SINGLE",
+            "ccgt_SINGLE",
             "residential_device_SINGLE_RES",
         },
         "features": [
@@ -55,34 +65,61 @@ MINISYSTEM_FEATURES = {
     },
     4: {
         "description": "Emissions",
-        "commodities": {"gas", "electricity", "residential_demand", "co2"},
+        "commodities": {
+            "fuel:natural_gas",
+            "energy:electricity",
+            "service:residential_demand",
+            "emission:co2",
+        },
         "processes": {
-            "gas_import_SINGLE", "ccgt_SINGLE",
+            "gas_import_SINGLE",
+            "ccgt_SINGLE",
             "residential_device_SINGLE_RES",
         },
         "features": ["emission tracking", "ENV_ACT"],
     },
     5: {
         "description": "Multiple generators",
-        "commodities": {"gas", "electricity", "residential_demand", "co2"},
+        "commodities": {
+            "fuel:natural_gas",
+            "energy:electricity",
+            "resource:wind_resource",
+            "service:residential_demand",
+            "emission:co2",
+        },
         "processes": {
-            "gas_import_SINGLE", "ccgt_SINGLE",
-            "wind_SINGLE", "residential_device_SINGLE_RES",
+            "lng_terminal_SINGLE",
+            "ccgt_SINGLE",
+            "wind_SINGLE",
+            "electric_enduse_SINGLE_RES",
         },
         "features": ["renewable generation", "technology choice"],
     },
     6: {
         "description": "Scenario parameters",
-        "commodities": {"gas", "electricity", "residential_demand", "co2"},
+        "commodities": {
+            "fuel:natural_gas",
+            "energy:electricity",
+            "resource:wind_resource",
+            "service:residential_demand",
+            "emission:co2",
+        },
         "processes": {
-            "gas_import_SINGLE", "ccgt_SINGLE",
-            "wind_SINGLE", "residential_device_SINGLE_RES",
+            "gas_import_SINGLE",
+            "ccgt_SINGLE",
+            "wind_SINGLE",
+            "residential_device_SINGLE_RES",
         },
         "features": ["CO2 price", "scenario files"],
     },
     7: {
         "description": "Multi-region",
-        "commodities": {"gas", "electricity", "residential_demand", "co2"},
+        "commodities": {
+            "fuel:gas",
+            "energy:electricity",
+            "service:residential_demand",
+            "emission:co2",
+        },
         # Process names include region, so we check for NORTH variants
         "processes": {
             "gas_import_NORTH", "ccgt_NORTH",
@@ -93,10 +130,17 @@ MINISYSTEM_FEATURES = {
     8: {
         "description": "Australian baseline scaffold",
         "commodities": {
-            "gas", "coal", "electricity", "hydrogen", "co2",
-            "solar_irradiance", "wind_resource",
-            "residential_demand", "commercial_demand",
-            "industrial_demand", "transport_demand",
+            "fuel:gas",
+            "fuel:coal",
+            "energy:electricity",
+            "energy:hydrogen",
+            "resource:solar_irradiance",
+            "resource:wind_resource",
+            "emission:co2",
+            "service:residential_demand",
+            "service:commercial_demand",
+            "service:industrial_demand",
+            "service:transport_demand",
         },
         # Check NEM_EAST region processes
         "processes": {
@@ -216,23 +260,23 @@ class TestMiniSystem1ExpectedSolution:
         source = load_vedalang(path)
         tableir = compile_vedalang_to_tableir(source)
 
-        # Find simple_generator cost row (process name is simple_generator_SINGLE)
+        # Find grid_supply cost row.
         for f in tableir["files"]:
             for s in f["sheets"]:
                 for t in s["tables"]:
                     if t["tag"] == "~FI_T":
                         for row in t["rows"]:
                             if (
-                                "simple_generator" in row.get("process", "")
+                                "grid_supply" in row.get("process", "")
                                 and "act_cost" in row
                             ):
                                 assert row["act_cost"] == 10
                                 return
 
-        pytest.fail("simple_generator should have act_cost=10")
+        pytest.fail("grid_supply should have act_cost=10")
 
     def test_minisystem1_has_demand_projection(self, get_minisystem_path):
-        """MiniSystem1 should have a demand projection for residential_demand."""
+        """MiniSystem1 should have demand projection for residential service."""
         path = get_minisystem_path(1)
         source = load_vedalang(path)
         tableir = compile_vedalang_to_tableir(source)
@@ -244,16 +288,14 @@ class TestMiniSystem1ExpectedSolution:
                     for t in s["tables"]:
                         if t["tag"] == "~TFM_DINS-AT":
                             for row in t["rows"]:
-                                # New P4 syntax uses
-                                # residential_demand@RES for scoped demand
                                 cset = str(row.get("cset_cn", ""))
-                                if "residential_demand" in cset:
+                                if "service:residential_electricity" in cset:
                                     assert row.get("com_proj") == 50
                                     return
 
         pytest.fail(
             "Should have demand projection for"
-            " residential_demand with value 50"
+            " service:residential_electricity with value 50"
         )
 
 
@@ -261,7 +303,7 @@ class TestMiniSystem2FuelChain:
     """Test MiniSystem2 fuel chain features (new P4 syntax)."""
 
     def test_minisystem2_has_fuel_import(self, get_minisystem_path):
-        """MiniSystem2 gas_import should output gas commodity."""
+        """MiniSystem2 gas import should output natural gas commodity."""
         path = get_minisystem_path(2)
         source = load_vedalang(path)
         tableir = compile_vedalang_to_tableir(source)
@@ -273,13 +315,13 @@ class TestMiniSystem2FuelChain:
                     if t["tag"] == "~FI_T":
                         for row in t["rows"]:
                             if (
-                                "gas_import" in row.get("process", "")
+                                "pipeline_gas_import" in row.get("process", "")
                                 and "commodity-out" in row
                             ):
-                                assert row["commodity-out"] == "gas"
+                                assert row["commodity-out"] == "fuel:natural_gas"
                                 return
 
-        pytest.fail("gas_import should have gas output")
+        pytest.fail("pipeline_gas_import should have fuel:natural_gas output")
 
     def test_minisystem2_has_ccgt_topology(self, get_minisystem_path):
         """MiniSystem2 ccgt should have gas input and electricity output."""
@@ -296,10 +338,10 @@ class TestMiniSystem2FuelChain:
                     if t["tag"] == "~FI_T":
                         for row in t["rows"]:
                             if "ccgt" in row.get("process", ""):
-                                if row.get("commodity-in") == "gas":
+                                if row.get("commodity-in") == "fuel:natural_gas":
                                     has_input = True
-                                if row.get("commodity-out") == "electricity":
+                                if row.get("commodity-out") == "energy:electricity":
                                     has_output = True
 
-        assert has_input, "ccgt should have gas input"
+        assert has_input, "ccgt should have natural gas input"
         assert has_output, "ccgt should have electricity output"

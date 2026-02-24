@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from vedalang.conventions import (
+    commodity_namespace_enum,
     commodity_type_enum,
     format_enum_pipe,
     process_stage_enum,
@@ -42,11 +43,14 @@ def _replace_generated_block(text: str, marker: str, body: str) -> str:
 def _specs(repo_root: Path) -> list[BlockSpec]:
     stages = process_stage_enum()
     commodity_types = commodity_type_enum()
+    commodity_namespaces = commodity_namespace_enum()
     scenario_categories = scenario_category_enum()
 
     canonical_enums_md = (
         f"- `stage` = one of `{format_enum_pipe(stages)}`\n"
-        f"- `commodity.type` = one of `{format_enum_pipe(commodity_types)}`"
+        f"- `commodity.type` = one of `{format_enum_pipe(commodity_types)}`\n"
+        "- `commodity namespace prefix` = one of "
+        f"`{format_enum_pipe(commodity_namespaces)}`"
     )
     canonical_stages_md = "Valid stages: " + ", ".join(
         f"`{stage}`" for stage in stages
@@ -59,6 +63,8 @@ def _specs(repo_root: Path) -> list[BlockSpec]:
         "### Canonical Enums (Schema-Derived)\n\n"
         f"- `stage`: `{format_enum_pipe(stages)}`\n"
         f"- `commodity.type`: `{format_enum_pipe(commodity_types)}`\n"
+        "- `commodity namespace prefix`: "
+        f"`{format_enum_pipe(commodity_namespaces)}`\n"
         "- `scenario category`: "
         f"`{format_enum_pipe(scenario_categories)}`"
     )

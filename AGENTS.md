@@ -594,6 +594,9 @@ See [docs/vedalang-design-agent/schema_evolution.md](docs/vedalang-design-agent/
 ### Validation Gates
 
 ```bash
+# Run before starting work (session-start guardrail)
+uv run python tools/sync_conventions.py --check
+
 # Run before committing
 uv run pytest tests/
 uv run ruff check .
@@ -636,7 +639,8 @@ The living status document is [`docs/project-status/STATUS.md`](docs/project-sta
 
 ### When to Update STATUS.md
 
-- **At session start** — Run sync script to check current state
+- **At session start** — Run `uv run python tools/sync_conventions.py --check` and
+  fix drift with `uv run python tools/sync_conventions.py` before any other work
 - **When closing issues** — Move from "Open Tasks" to completed section
 - **When creating issues** — Add to appropriate section
 - **On phase transitions** — Update "Current Phase" section
@@ -671,21 +675,26 @@ bd list --all | grep " closed " | wc -l
 
 1. **File issues for remaining work** - Create issues for anything that needs follow-up
 2. **Run quality gates** (if code changed) - Tests, linters, builds
-3. **Update issue status** - Close finished work, update in-progress items
-4. **Update STATUS.md** - Sync with current bd issue state
-5. **PUSH TO REMOTE** - This is MANDATORY:
+3. **Commit all completed work** - Stage and commit all intended changes before handoff
+4. **Update issue status** - Close finished work, update in-progress items
+5. **Update STATUS.md** - Sync with current bd issue state
+6. **PUSH TO REMOTE** - This is MANDATORY:
    ```bash
+   git add -A
+   git commit -m "<clear summary>"
    git pull --rebase
    bd sync
    git push
    git status  # MUST show "up to date with origin"
    ```
-6. **Clean up** - Clear stashes, prune remote branches
-7. **Verify** - All changes committed AND pushed
-8. **Hand off** - Provide context for next session
+7. **Clean up** - Clear stashes, prune remote branches
+8. **Verify** - All changes committed AND pushed
+9. **Hand off** - Provide context for next session
 
 **CRITICAL RULES:**
+- Work is NOT complete until all intended changes are committed
 - Work is NOT complete until `git push` succeeds
+- NEVER leave finished work only in the working tree
 - NEVER stop before pushing - that leaves work stranded locally
 - NEVER say "ready to push when you are" - YOU must push
 - If push fails, resolve and retry until it succeeds

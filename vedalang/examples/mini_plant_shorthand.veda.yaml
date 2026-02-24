@@ -12,8 +12,8 @@ model:
     - id: energy:electricity
       type: energy
       description: Electricity
-    - id: energy:natural_gas
-      type: energy
+    - id: fuel:natural_gas
+      type: fuel
       description: Natural Gas
     - id: service:delivered_electricity
       type: service
@@ -21,13 +21,16 @@ model:
     - id: emission:co2
       type: emission
       description: Carbon dioxide
-  
+
+segments:
+  sectors: [RES]
+
 process_roles:
   - id: import_natural_gas
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: energy:natural_gas
+      - commodity: fuel:natural_gas
 
   - id: generate_electricity
     stage: conversion
@@ -47,7 +50,7 @@ process_variants:
     role: import_natural_gas
     inputs: []
     outputs:
-      - commodity: energy:natural_gas
+      - commodity: fuel:natural_gas
     efficiency: 1.0
     variable_om_cost: 5.0
     lifetime: 100
@@ -55,7 +58,7 @@ process_variants:
   - id: ccgt
     role: generate_electricity
     inputs:
-      - commodity: energy:natural_gas
+      - commodity: fuel:natural_gas
     outputs:
       - commodity: energy:electricity
     efficiency: 0.55
@@ -82,3 +85,13 @@ availability:
 
   - variant: grid_connection
     regions: [REG1]
+    sectors: [RES]
+
+demands:
+  - commodity: service:delivered_electricity
+    region: REG1
+    sector: RES
+    interpolation: interp_extrap
+    values:
+      "2020": 10
+      "2030": 12

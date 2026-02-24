@@ -22,7 +22,7 @@ Read that file before authoring or reviewing any VedaLang model. It covers:
 - Three-layer framework (guidance → lint → compiler)
 - Service-level roles and technology variants
 - Primary supply roles (zero-input supply is valid)
-- Physical-only RES by default (demand_measure tagging for non-physical)
+- Physical-only RES by default (no pseudo-technology carveouts)
 - Naming conventions (snake_case, verb-noun roles, descriptive variants)
 - Stage and commodity typing discipline
 - Emissions as attributes (emission_factors, not outputs)

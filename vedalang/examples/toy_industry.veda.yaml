@@ -23,8 +23,8 @@ model:
       unit: PJ
       description: Electricity
 
-    - id: energy:natural_gas
-      type: energy
+    - id: fuel:natural_gas
+      type: fuel
       unit: PJ
       description: Natural gas
 
@@ -58,7 +58,7 @@ process_roles:
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: energy:natural_gas
+      - commodity: fuel:natural_gas
 
   - id: import_electricity
     stage: supply
@@ -83,7 +83,7 @@ process_variants:
     role: import_gas
     inputs: []
     outputs:
-      - commodity: energy:natural_gas
+      - commodity: fuel:natural_gas
     efficiency: 1.0
     lifetime: 100
     variable_om_cost: 8
@@ -115,7 +115,7 @@ process_variants:
   - id: gas_boiler
     role: provide_industrial_heat
     inputs:
-      - commodity: energy:natural_gas
+      - commodity: fuel:natural_gas
     outputs:
       - commodity: service:industrial_heat
     efficiency: 0.90

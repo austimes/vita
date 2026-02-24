@@ -7,14 +7,18 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import yaml
+from jsonschema import Draft7Validator
+from jsonschema.exceptions import ValidationError
 from lsprotocol import types
 from pygls.lsp.server import LanguageServer
 from pygls.workspace import TextDocument
+from yaml.nodes import MappingNode, Node, SequenceNode
 
 from .schema_docs import SCHEMA_FIELD_DOCS
 
 # Load schemas and attribute data
 SCHEMA_DIR = Path(__file__).parent.parent.parent.parent / "vedalang" / "schema"
+VEDALANG_SCHEMA_PATH = SCHEMA_DIR / "vedalang.schema.json"
 
 
 def load_attribute_master() -> dict:
@@ -29,7 +33,7 @@ def load_attribute_master() -> dict:
 
 def load_vedalang_schema() -> dict:
     """Load the VedaLang JSON schema."""
-    path = SCHEMA_DIR / "vedalang.schema.json"
+    path = VEDALANG_SCHEMA_PATH
     if path.exists():
         with open(path) as f:
             return json.load(f)
@@ -38,6 +42,26 @@ def load_vedalang_schema() -> dict:
 
 ATTR_MASTER = load_attribute_master()
 VEDALANG_SCHEMA = load_vedalang_schema()
+SCHEMA_VALIDATOR = Draft7Validator(VEDALANG_SCHEMA) if VEDALANG_SCHEMA else None
+SCHEMA_MTIME = (
+    VEDALANG_SCHEMA_PATH.stat().st_mtime if VEDALANG_SCHEMA_PATH.exists() else None
+)
+
+
+def refresh_schema_cache() -> None:
+    """Reload schema/validator when the schema file changes on disk."""
+    global VEDALANG_SCHEMA, SCHEMA_VALIDATOR, SCHEMA_MTIME
+
+    if not VEDALANG_SCHEMA_PATH.exists():
+        return
+
+    current_mtime = VEDALANG_SCHEMA_PATH.stat().st_mtime
+    if SCHEMA_MTIME is not None and current_mtime == SCHEMA_MTIME:
+        return
+
+    VEDALANG_SCHEMA = load_vedalang_schema()
+    SCHEMA_VALIDATOR = Draft7Validator(VEDALANG_SCHEMA) if VEDALANG_SCHEMA else None
+    SCHEMA_MTIME = current_mtime
 
 # VedaLang semantic attribute → TIMES attribute mapping
 SEMANTIC_TO_TIMES = {
@@ -106,12 +130,6 @@ COMMODITY_KEYWORDS = [
     "unit",
     "region",
 ]
-
-# Enum values from schema
-COMMODITY_TYPES = [
-    "energy", "emission", "material", "demand", "financial", "environment"
-]
-PROCESS_TYPES = ["standard", "storage", "interregional_exchange"]
 
 # Known TIMES sets (commonly used in VedaLang)
 KNOWN_SETS = [
@@ -259,6 +277,339 @@ def get_parent_section(document: TextDocument, line_no: int, indent: int) -> str
             if key:
                 return key
     return None
+
+
+def _decode_json_pointer_segment(segment: str) -> str:
+    """Decode a JSON pointer segment."""
+    return segment.replace("~1", "/").replace("~0", "~")
+
+
+def _resolve_schema_ref(schema_node: dict) -> dict:
+    """Resolve local $ref pointers in the loaded VedaLang schema."""
+    current = schema_node
+    while isinstance(current, dict) and "$ref" in current:
+        ref = current.get("$ref")
+        if not isinstance(ref, str) or not ref.startswith("#/"):
+            break
+        pointer = [_decode_json_pointer_segment(p) for p in ref[2:].split("/")]
+        target = VEDALANG_SCHEMA
+        for part in pointer:
+            if not isinstance(target, dict) or part not in target:
+                return current
+            target = target[part]
+        if not isinstance(target, dict):
+            return current
+        current = target
+    return current if isinstance(current, dict) else {}
+
+
+def _schema_child_for_token(schema_node: dict, token: str | int) -> dict | None:
+    """Follow a schema node for one path token (property or array index)."""
+    node = _resolve_schema_ref(schema_node)
+
+    if isinstance(token, int):
+        if isinstance(node.get("items"), dict):
+            return node["items"]
+    elif isinstance(token, str):
+        props = node.get("properties")
+        if (
+            isinstance(props, dict)
+            and token in props
+            and isinstance(props[token], dict)
+        ):
+            return props[token]
+
+        pattern_props = node.get("patternProperties")
+        if isinstance(pattern_props, dict):
+            for pattern, sub_schema in pattern_props.items():
+                if re.match(pattern, token) and isinstance(sub_schema, dict):
+                    return sub_schema
+
+        additional = node.get("additionalProperties")
+        if isinstance(additional, dict):
+            return additional
+
+    for branch_key in ("oneOf", "anyOf", "allOf"):
+        branches = node.get(branch_key)
+        if not isinstance(branches, list):
+            continue
+        for branch in branches:
+            if not isinstance(branch, dict):
+                continue
+            child = _schema_child_for_token(branch, token)
+            if child:
+                return child
+
+    return None
+
+
+def schema_for_path(path: list[str | int]) -> dict | None:
+    """Resolve the JSON Schema node for a YAML path."""
+    refresh_schema_cache()
+    if not VEDALANG_SCHEMA:
+        return None
+
+    node: dict = VEDALANG_SCHEMA
+    for token in path:
+        child = _schema_child_for_token(node, token)
+        if not isinstance(child, dict):
+            return None
+        node = child
+    return _resolve_schema_ref(node)
+
+
+def _position_in_node(node: Node, position: types.Position) -> bool:
+    """Return whether the position falls inside a YAML node."""
+    start = node.start_mark
+    end = node.end_mark
+    before_end = (
+        position.line < end.line
+        or (position.line == end.line and position.character <= end.column)
+    )
+    after_start = (
+        position.line > start.line
+        or (position.line == start.line and position.character >= start.column)
+    )
+    return after_start and before_end
+
+
+def _path_at_position(
+    node: Node, position: types.Position, prefix: list[str | int]
+) -> list[str | int] | None:
+    """Find the most specific YAML path containing the cursor position."""
+    if not _position_in_node(node, position):
+        return None
+
+    if isinstance(node, MappingNode):
+        # Key ranges are usually precise; check them first to avoid parent value
+        # nodes swallowing positions on later sibling keys.
+        for key_node, _value_node in node.value:
+            key = key_node.value
+            if _position_in_node(key_node, position):
+                return prefix + [key]
+
+        for key_node, value_node in node.value:
+            key = key_node.value
+            if _position_in_node(value_node, position):
+                nested = _path_at_position(value_node, position, prefix + [key])
+                return nested if nested is not None else prefix + [key]
+        return prefix
+
+    if isinstance(node, SequenceNode):
+        for idx, item in enumerate(node.value):
+            if _position_in_node(item, position):
+                nested = _path_at_position(item, position, prefix + [idx])
+                return nested if nested is not None else prefix + [idx]
+        return prefix
+
+    return prefix
+
+
+def yaml_path_at_position(
+    document: TextDocument, position: types.Position
+) -> list[str | int]:
+    """Get the YAML path at cursor location (e.g., ['process_variants', 0, 'kind'])."""
+    try:
+        root = yaml.compose(document.source)
+    except yaml.YAMLError:
+        return []
+    if root is None:
+        return []
+    return _path_at_position(root, position, []) or []
+
+
+def schema_for_key_at_position(
+    document: TextDocument, position: types.Position, key: str
+) -> tuple[list[str | int], dict] | tuple[None, None]:
+    """Resolve schema for a key at cursor location."""
+    path = yaml_path_at_position(document, position)
+    if not path:
+        return None, None
+    if not (isinstance(path[-1], str) and path[-1] == key):
+        path = [*path, key]
+
+    schema_node = schema_for_path(path)
+    if not isinstance(schema_node, dict):
+        return None, None
+    return path, schema_node
+
+
+def enum_values_from_schema(schema_node: dict) -> list[str]:
+    """Extract string enum candidates from a schema node."""
+    values: list[str] = []
+
+    node = _resolve_schema_ref(schema_node)
+    enums = node.get("enum")
+    if isinstance(enums, list):
+        for value in enums:
+            if isinstance(value, str):
+                values.append(value)
+
+    const_value = node.get("const")
+    if isinstance(const_value, str):
+        values.append(const_value)
+
+    for branch_key in ("oneOf", "anyOf", "allOf"):
+        branches = node.get(branch_key)
+        if not isinstance(branches, list):
+            continue
+        for branch in branches:
+            if isinstance(branch, dict):
+                values.extend(enum_values_from_schema(branch))
+
+    deduped: list[str] = []
+    seen = set()
+    for value in values:
+        if value in seen:
+            continue
+        seen.add(value)
+        deduped.append(value)
+    return deduped
+
+
+def _schema_type_label(schema_node: dict) -> str:
+    """Build a concise type label for schema hover content."""
+    node = _resolve_schema_ref(schema_node)
+    if isinstance(node.get("type"), str):
+        return str(node["type"])
+    if isinstance(node.get("type"), list):
+        return " | ".join(str(t) for t in node["type"])
+    if "enum" in node:
+        if all(isinstance(v, str) for v in node["enum"]):
+            return "string enum"
+        return "enum"
+    if "oneOf" in node:
+        return "oneOf"
+    if "anyOf" in node:
+        return "anyOf"
+    if "allOf" in node:
+        return "allOf"
+    return "unknown"
+
+
+def _format_yaml_path(path: list[str | int]) -> str:
+    """Format YAML path for display."""
+    formatted = []
+    for token in path:
+        if isinstance(token, int):
+            if not formatted:
+                formatted.append("[]")
+            else:
+                formatted[-1] = f"{formatted[-1]}[]"
+        else:
+            formatted.append(token)
+    return ".".join(formatted)
+
+
+def format_schema_hover(key: str, path: list[str | int], schema_node: dict) -> str:
+    """Generate context-aware hover content from JSON schema."""
+    lines = [f"## VedaLang: `{key}`", ""]
+    lines.append(f"**Type**: {_schema_type_label(schema_node)}")
+    lines.append(f"**Used in**: `{_format_yaml_path(path[:-1])}`")
+
+    description = _resolve_schema_ref(schema_node).get("description")
+    if isinstance(description, str) and description:
+        lines.extend(["", description])
+
+    enum_values = enum_values_from_schema(schema_node)
+    if enum_values:
+        lines.extend(["", "**Allowed values**:"])
+        lines.extend([f"- `{value}`" for value in enum_values])
+
+    return "\n".join(lines)
+
+
+def find_key_range(document: TextDocument, key: str) -> types.Range:
+    """Find a key location for diagnostics fallback."""
+    pattern = re.compile(rf"^(\s*-\s*|\s*){re.escape(key)}\s*:")
+    for i, line in enumerate(document.lines):
+        if not pattern.search(line):
+            continue
+        col = line.find(key)
+        if col >= 0:
+            return types.Range(
+                start=types.Position(line=i, character=col),
+                end=types.Position(line=i, character=col + len(key)),
+            )
+    return types.Range(
+        start=types.Position(line=0, character=0),
+        end=types.Position(line=0, character=1),
+    )
+
+
+def find_key_value_range(
+    document: TextDocument, key: str, value: object
+) -> types.Range:
+    """Find a key/value location for schema diagnostics."""
+    key_range = find_key_range(document, key)
+
+    if not isinstance(value, (str, int, float, bool)) and value is not None:
+        return key_range
+
+    value_variants: list[str] = []
+    if isinstance(value, bool):
+        value_variants = ["true" if value else "false"]
+    elif value is None:
+        value_variants = ["null"]
+    elif isinstance(value, str):
+        value_variants = [value, json.dumps(value), f"'{value}'"]
+    else:
+        value_variants = [str(value)]
+
+    for i, line in enumerate(document.lines):
+        if ":" not in line:
+            continue
+        key_part, value_part = line.split(":", 1)
+        normalized_key = key_part.strip().lstrip("-").strip()
+        if normalized_key != key:
+            continue
+        for variant in value_variants:
+            idx = value_part.find(variant)
+            if idx >= 0:
+                start = len(key_part) + 1 + idx
+                end = start + len(variant)
+                return types.Range(
+                    start=types.Position(line=i, character=start),
+                    end=types.Position(line=i, character=end),
+                )
+        return key_range
+
+    return key_range
+
+
+def range_for_schema_error(document: TextDocument, err: ValidationError) -> types.Range:
+    """Map jsonschema error path to a document range."""
+    path_tokens = list(err.path)
+    key = next((t for t in reversed(path_tokens) if isinstance(t, str)), None)
+    if key:
+        return find_key_value_range(document, key, err.instance)
+
+    return types.Range(
+        start=types.Position(line=0, character=0),
+        end=types.Position(line=0, character=1),
+    )
+
+
+def schema_validation_diagnostics(
+    document: TextDocument, parsed: dict
+) -> list[types.Diagnostic]:
+    """Run JSON Schema validation and return diagnostics."""
+    refresh_schema_cache()
+    if SCHEMA_VALIDATOR is None:
+        return []
+
+    diagnostics: list[types.Diagnostic] = []
+    errors = sorted(SCHEMA_VALIDATOR.iter_errors(parsed), key=lambda e: list(e.path))
+    for err in errors:
+        diagnostics.append(
+            types.Diagnostic(
+                range=range_for_schema_error(document, err),
+                message=f"Schema validation: {err.message}",
+                severity=types.DiagnosticSeverity.Error,
+                source="vedalang-schema",
+            )
+        )
+    return diagnostics
 
 
 def find_definition_range(
@@ -652,6 +1003,16 @@ def hover(ls: VedaLangServer, params: types.HoverParams) -> types.Hover | None:
                     kind=types.MarkupKind.Markdown, value=md
                 )
             )
+        # Prefer schema-aware docs so shared key names
+        # (e.g. `kind`) are context-correct.
+        schema_path, schema_node = schema_for_key_at_position(doc, params.position, key)
+        if schema_path and schema_node:
+            return types.Hover(
+                contents=types.MarkupContent(
+                    kind=types.MarkupKind.Markdown,
+                    value=format_schema_hover(key, schema_path, schema_node),
+                )
+            )
         # Check comprehensive schema field docs
         if schema_doc := SCHEMA_FIELD_DOCS.get(key):
             return types.Hover(
@@ -755,29 +1116,24 @@ def completions(params: types.CompletionParams) -> types.CompletionList:
             )
         return types.CompletionList(is_incomplete=False, items=items)
 
-    # Complete commodity types
-    if key == "type" and parent == "commodities":
-        for ct in COMMODITY_TYPES:
-            items.append(
-                types.CompletionItem(
-                    label=ct,
-                    kind=types.CompletionItemKind.EnumMember,
-                    detail="Commodity type",
-                )
-            )
-        return types.CompletionList(is_incomplete=False, items=items)
-
-    # Complete process types
-    if key == "type" and parent == "processes":
-        for pt in PROCESS_TYPES:
-            items.append(
-                types.CompletionItem(
-                    label=pt,
-                    kind=types.CompletionItemKind.EnumMember,
-                    detail="Process type",
-                )
-            )
-        return types.CompletionList(is_incomplete=False, items=items)
+    # Complete enum values directly from schema (context-aware by cursor path).
+    if key:
+        colon_idx = line_before.find(":")
+        in_value_position = colon_idx >= 0 and pos.character > colon_idx
+        if in_value_position:
+            _, schema_node = schema_for_key_at_position(document, pos, key)
+            if schema_node:
+                enum_values = enum_values_from_schema(schema_node)
+                if enum_values:
+                    for enum_value in enum_values:
+                        items.append(
+                            types.CompletionItem(
+                                label=enum_value,
+                                kind=types.CompletionItemKind.EnumMember,
+                                detail=f"Enum value for `{key}`",
+                            )
+                        )
+                    return types.CompletionList(is_incomplete=False, items=items)
 
     # Context-based completion
     if indent == 0 or stripped == "" or stripped == "model":
@@ -891,6 +1247,10 @@ def validate_document(
         return diagnostics
 
     model = parsed.get("model", {})
+
+    # Full schema validation keeps enum/required/type checks
+    # in sync with schema changes.
+    diagnostics.extend(schema_validation_diagnostics(document, parsed))
 
     # Check required model properties
     required_props = ["name", "regions", "commodities", "processes"]
@@ -1096,7 +1456,12 @@ def res_graph(ls: VedaLangServer, params) -> dict:
         uri = params.get("textDocument", {}).get("uri") or params.get("uri")
         include_variants = params.get("includeVariants", False)
     else:
-        return {"nodes": [], "edges": [], "mermaid": "", "error": "Invalid params: no uri found"}
+        return {
+            "nodes": [],
+            "edges": [],
+            "mermaid": "",
+            "error": "Invalid params: no uri found",
+        }
 
     doc = ls.workspace.get_text_document(uri)
     try:

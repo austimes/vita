@@ -14,18 +14,18 @@ model:
   milestone_years: [2020, 2030, 2040, 2050]
 
   commodities:
-    - id: energy:natural_gas
-      type: energy
+    - id: fuel:natural_gas
+      type: fuel
       unit: PJ
       description: Natural Gas
 
-    - id: energy:wind_resource
-      type: energy
+    - id: resource:wind_resource
+      type: other
       unit: PJ
       description: Wind resource
 
-    - id: energy:solar_resource
-      type: energy
+    - id: resource:solar_resource
+      type: other
       unit: PJ
       description: Solar resource
 
@@ -65,19 +65,19 @@ process_roles:
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: energy:natural_gas
+      - commodity: fuel:natural_gas
 
   - id: supply_wind_resource
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: energy:wind_resource
+      - commodity: resource:wind_resource
 
   - id: supply_solar_resource
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: energy:solar_resource
+      - commodity: resource:solar_resource
 
   - id: provide_electricity
     stage: conversion
@@ -90,7 +90,7 @@ process_variants:
     role: import_natural_gas
     inputs: []
     outputs:
-      - commodity: energy:natural_gas
+      - commodity: fuel:natural_gas
     efficiency: 1.0
     lifetime: 100
 
@@ -98,7 +98,7 @@ process_variants:
     role: supply_wind_resource
     inputs: []
     outputs:
-      - commodity: energy:wind_resource
+      - commodity: resource:wind_resource
     efficiency: 1.0
     lifetime: 100
 
@@ -106,14 +106,14 @@ process_variants:
     role: supply_solar_resource
     inputs: []
     outputs:
-      - commodity: energy:solar_resource
+      - commodity: resource:solar_resource
     efficiency: 1.0
     lifetime: 100
 
   - id: ccgt_generation
     role: provide_electricity
     inputs:
-      - commodity: energy:natural_gas
+      - commodity: fuel:natural_gas
     outputs:
       - commodity: energy:electricity
     efficiency: 0.55
@@ -124,7 +124,7 @@ process_variants:
   - id: wind_generation
     role: provide_electricity
     inputs:
-      - commodity: energy:wind_resource
+      - commodity: resource:wind_resource
     outputs:
       - commodity: energy:electricity
     efficiency: 1.0
@@ -133,7 +133,7 @@ process_variants:
   - id: solar_generation
     role: provide_electricity
     inputs:
-      - commodity: energy:solar_resource
+      - commodity: resource:solar_resource
     outputs:
       - commodity: energy:electricity
     efficiency: 1.0

@@ -34,13 +34,13 @@ model:
 
   commodities:
     # Tradable energy carriers
-    - id: energy:gas
-      type: energy
+    - id: fuel:gas
+      type: fuel
       unit: PJ
       description: Natural gas
 
-    - id: energy:coal
-      type: energy
+    - id: fuel:coal
+      type: fuel
       unit: PJ
       description: Coal
 
@@ -54,13 +54,13 @@ model:
       unit: PJ
       description: Hydrogen
 
-    - id: energy:solar_irradiance
-      type: energy
+    - id: resource:solar_irradiance
+      type: other
       unit: PJ
       description: Solar irradiance resource
 
-    - id: energy:wind_resource
-      type: energy
+    - id: resource:wind_resource
+      type: other
       unit: PJ
       description: Wind resource
 
@@ -118,25 +118,25 @@ process_roles:
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: energy:gas
+      - commodity: fuel:gas
 
   - id: import_coal
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: energy:coal
+      - commodity: fuel:coal
 
   - id: supply_solar_irradiance
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: energy:solar_irradiance
+      - commodity: resource:solar_irradiance
 
   - id: supply_wind_resource
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: energy:wind_resource
+      - commodity: resource:wind_resource
 
   # === ELECTRICITY GENERATION ===
   - id: generate_electricity
@@ -183,7 +183,7 @@ process_variants:
     role: import_gas
     inputs: []
     outputs:
-      - commodity: energy:gas
+      - commodity: fuel:gas
     efficiency: 1.0
     lifetime: 100
 
@@ -191,7 +191,7 @@ process_variants:
     role: import_coal
     inputs: []
     outputs:
-      - commodity: energy:coal
+      - commodity: fuel:coal
     efficiency: 1.0
     lifetime: 100
 
@@ -199,7 +199,7 @@ process_variants:
     role: supply_solar_irradiance
     inputs: []
     outputs:
-      - commodity: energy:solar_irradiance
+      - commodity: resource:solar_irradiance
     efficiency: 1.0
     lifetime: 100
 
@@ -207,7 +207,7 @@ process_variants:
     role: supply_wind_resource
     inputs: []
     outputs:
-      - commodity: energy:wind_resource
+      - commodity: resource:wind_resource
     efficiency: 1.0
     lifetime: 100
 
@@ -215,7 +215,7 @@ process_variants:
   - id: coal_plant
     role: generate_electricity
     inputs:
-      - commodity: energy:coal
+      - commodity: fuel:coal
     outputs:
       - commodity: energy:electricity
     efficiency: 0.38
@@ -229,7 +229,7 @@ process_variants:
   - id: ccgt
     role: generate_electricity
     inputs:
-      - commodity: energy:gas
+      - commodity: fuel:gas
     outputs:
       - commodity: energy:electricity
     efficiency: 0.55
@@ -243,7 +243,7 @@ process_variants:
   - id: wind
     role: generate_electricity
     inputs:
-      - commodity: energy:wind_resource
+      - commodity: resource:wind_resource
     outputs:
       - commodity: energy:electricity
     efficiency: 1.0
@@ -255,7 +255,7 @@ process_variants:
   - id: solar
     role: generate_electricity
     inputs:
-      - commodity: energy:solar_irradiance
+      - commodity: resource:solar_irradiance
     outputs:
       - commodity: energy:electricity
     efficiency: 1.0
@@ -268,7 +268,7 @@ process_variants:
   - id: smr
     role: produce_hydrogen
     inputs:
-      - commodity: energy:gas
+      - commodity: fuel:gas
     outputs:
       - commodity: energy:hydrogen
     efficiency: 0.75
@@ -313,7 +313,7 @@ process_variants:
   - id: industrial_gas_device
     role: provide_industrial_demand
     inputs:
-      - commodity: energy:gas
+      - commodity: fuel:gas
     outputs:
       - commodity: service:industrial_demand
     efficiency: 0.85

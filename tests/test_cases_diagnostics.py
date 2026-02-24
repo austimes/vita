@@ -75,9 +75,13 @@ def _minimal_new_syntax_source() -> dict:
             }
         ],
         "process_variants": [
-            {"id": "heat_pump", "role": "deliver_heat",
-             "inputs": [{"commodity": "electricity"}], "outputs": [{"commodity": "heat_service"}],
-             "efficiency": 0.9}
+            {
+                "id": "heat_pump",
+                "role": "deliver_heat",
+                "inputs": [{"commodity": "electricity"}],
+                "outputs": [{"commodity": "heat_service"}],
+                "efficiency": 0.9,
+            }
         ],
         "availability": [
             {"variant": "heat_pump", "regions": ["REG1"], "sectors": ["RES"]}
@@ -155,13 +159,21 @@ def _process_kind_source(explicit_kind: str | None = None) -> dict:
             },
         ],
         "process_variants": [
-            {"id": "ccgt", "role": "generate_power",
-             "inputs": [{"commodity": "gas"}], "outputs": [{"commodity": "electricity"}],
-             "efficiency": 0.55},
+            {
+                "id": "ccgt",
+                "role": "generate_power",
+                "inputs": [{"commodity": "gas"}],
+                "outputs": [{"commodity": "electricity"}],
+                "efficiency": 0.55,
+            },
             demand_variant,
-            {"id": "battery", "role": "store_power",
-             "inputs": [{"commodity": "electricity"}], "outputs": [{"commodity": "electricity"}],
-             "efficiency": 0.9},
+            {
+                "id": "battery",
+                "role": "store_power",
+                "inputs": [{"commodity": "electricity"}],
+                "outputs": [{"commodity": "electricity"}],
+                "efficiency": 0.9,
+            },
         ],
         "availability": [
             {"variant": "ccgt", "regions": ["REG1"]},
@@ -188,50 +200,48 @@ def test_exports_metadata_and_resolved_diagnostics():
     exported = tableir["diagnostics_export"]
     assert exported["contract"] == "diagnostics_are_solve_independent"
     assert exported["boundaries"][0]["id"] == "heat_end_use"
-    assert exported["boundaries"][0]["default_exclusions"] == ["kind=demand_measure"]
+    assert exported["boundaries"][0]["default_exclusions"] == []
     assert len(exported["boundaries"][0]["processes"]) == 1
 
-def test_end_use_diagnostics_excludes_demand_measure_variants_by_default():
+def test_end_use_diagnostics_include_all_end_use_variants_by_default():
     source = _minimal_new_syntax_source()
-    source["model"]["commodities"].append({"id": "demand_reduction", "type": "service"})
+    source["model"]["commodities"].append({"id": "aux_heat_service", "type": "service"})
     source["diagnostics"]["boundaries"][0]["selectors"] = {"stage_in": ["end_use"]}
     source["process_roles"].append(
         {
-            "id": "reduce_heat_demand",
+            "id": "deliver_aux_heat",
             "stage": "end_use",
-            "required_inputs": [],
-            "required_outputs": [{"commodity": "demand_reduction"}],
+            "required_inputs": [{"commodity": "electricity"}],
+            "required_outputs": [{"commodity": "aux_heat_service"}],
         }
     )
     source["process_variants"].append(
         {
-            "id": "retrofit_measure",
-            "role": "reduce_heat_demand",
-            "inputs": [],
-            "outputs": [{"commodity": "demand_reduction"}],
-            "kind": "demand_measure",
+            "id": "resistive_heater",
+            "role": "deliver_aux_heat",
+            "inputs": [{"commodity": "electricity"}],
+            "outputs": [{"commodity": "aux_heat_service"}],
         }
     )
     source["availability"].append(
         {
-            "variant": "retrofit_measure",
+            "variant": "resistive_heater",
             "regions": ["REG1"],
             "sectors": ["RES"],
         }
     )
 
     tableir = compile_vedalang_to_tableir(source)
-    meta_entries = tableir["metadata_map"]["processes"].values()
-
-    demand_measure_meta = [
-        m for m in meta_entries if m["variant"] == "retrofit_measure"
-    ]
-    assert len(demand_measure_meta) == 1
-    assert demand_measure_meta[0]["exclude_from_fuel_switch"] is True
+    by_variant = {
+        meta["variant"]: meta
+        for meta in tableir["metadata_map"]["processes"].values()
+    }
+    assert by_variant["heat_pump"]["exclude_from_fuel_switch"] is False
+    assert by_variant["resistive_heater"]["exclude_from_fuel_switch"] is False
 
     boundary = tableir["diagnostics_export"]["boundaries"][0]
-    assert boundary["default_exclusions"] == ["kind=demand_measure"]
-    assert len(boundary["processes"]) == 1
+    assert boundary["default_exclusions"] == []
+    assert len(boundary["processes"]) == 2
 
 
 def test_metadata_map_includes_derived_process_kinds():
@@ -260,7 +270,7 @@ def test_metadata_map_includes_derived_process_kinds():
 
 def test_explicit_kind_is_preserved_and_derived_kind_is_exposed():
     tableir = compile_vedalang_to_tableir(
-        _process_kind_source(explicit_kind="demand_measure")
+        _process_kind_source(explicit_kind="network")
     )
 
     by_variant = {
@@ -269,16 +279,16 @@ def test_explicit_kind_is_preserved_and_derived_kind_is_exposed():
     }
 
     demand_meta = by_variant["heat_pump"]
-    assert demand_meta["kind"] == "demand_measure"
+    assert demand_meta["kind"] == "network"
     assert demand_meta["derived_kind"] == "device"
     assert demand_meta["kind_source"] == "explicit"
-    assert demand_meta["exclude_from_fuel_switch"] is True
+    assert demand_meta["exclude_from_fuel_switch"] is False
 
 
 def test_explicit_or_derived_kind_does_not_change_compiled_topology():
     tableir_derived = compile_vedalang_to_tableir(_process_kind_source())
     tableir_explicit = compile_vedalang_to_tableir(
-        _process_kind_source(explicit_kind="demand_measure")
+        _process_kind_source(explicit_kind="network")
     )
 
     assert tableir_derived["files"] == tableir_explicit["files"]

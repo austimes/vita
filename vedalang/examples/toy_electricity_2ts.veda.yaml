@@ -38,18 +38,18 @@ model:
       unit: PJ
       description: Electricity service demand
 
-    - id: energy:natural_gas
-      type: energy
+    - id: fuel:natural_gas
+      type: fuel
       unit: PJ
       description: Natural gas
 
-    - id: energy:solar_irradiance
-      type: energy
+    - id: resource:solar_irradiance
+      type: other
       unit: PJ
       description: Solar irradiance resource
 
-    - id: energy:wind_resource
-      type: energy
+    - id: resource:wind_resource
+      type: other
       unit: PJ
       description: Wind energy resource
 
@@ -89,19 +89,19 @@ process_roles:
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: energy:natural_gas
+      - commodity: fuel:natural_gas
 
   - id: supply_solar_irradiance
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: energy:solar_irradiance
+      - commodity: resource:solar_irradiance
 
   - id: supply_wind_resource
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: energy:wind_resource
+      - commodity: resource:wind_resource
 
   - id: generate_electricity
     stage: conversion
@@ -135,31 +135,31 @@ process_variants:
     role: supply_gas
     inputs: []
     outputs:
-      - commodity: energy:natural_gas
+      - commodity: fuel:natural_gas
     efficiency: 1.0
     lifetime: 100
     variable_om_cost: 8
 
-  - id: solar_irradiance_supply
+  - id: exogenous_solar 
     role: supply_solar_irradiance
     inputs: []
     outputs:
-      - commodity: energy:solar_irradiance
+      - commodity: resource:solar_irradiance
     efficiency: 1.0
     lifetime: 100
 
-  - id: wind_resource_supply
+  - id: exogenous_wind
     role: supply_wind_resource
     inputs: []
     outputs:
-      - commodity: energy:wind_resource
+      - commodity: resource:wind_resource
     efficiency: 1.0
     lifetime: 100
 
   - id: ccgt
     role: generate_electricity
     inputs:
-      - commodity: energy:natural_gas
+      - commodity: fuel:natural_gas
     outputs:
       - commodity: energy:electricity
     efficiency: 0.55
@@ -173,7 +173,7 @@ process_variants:
   - id: ocgt
     role: generate_electricity
     inputs:
-      - commodity: energy:natural_gas
+      - commodity: fuel:natural_gas
     outputs:
       - commodity: energy:electricity
     efficiency: 0.35
@@ -187,7 +187,7 @@ process_variants:
   - id: solar_pv
     role: generate_electricity
     inputs:
-      - commodity: energy:solar_irradiance
+      - commodity: resource:solar_irradiance
     outputs:
       - commodity: energy:electricity
     efficiency: 1.0
@@ -199,7 +199,7 @@ process_variants:
   - id: onshore_wind
     role: generate_electricity
     inputs:
-      - commodity: energy:wind_resource
+      - commodity: resource:wind_resource
     outputs:
       - commodity: energy:electricity
     efficiency: 1.0
@@ -242,10 +242,10 @@ availability:
   - variant: gas_import
     regions: [SINGLE]
 
-  - variant: solar_irradiance_supply
+  - variant: exogenous_solar
     regions: [SINGLE]
 
-  - variant: wind_resource_supply
+  - variant: exogenous_wind
     regions: [SINGLE]
 
   - variant: ccgt
@@ -277,12 +277,12 @@ process_parameters:
     stock: 1000
 
   - selector:
-      variant: solar_irradiance_supply
+      variant: exogenous_solar
       region: SINGLE
     stock: 1000
 
   - selector:
-      variant: wind_resource_supply
+      variant: exogenous_wind
       region: SINGLE
     stock: 1000
 

@@ -9,7 +9,11 @@ from pathlib import Path
 import jsonschema
 import yaml
 
-from vedalang.conventions import commodity_type_enum, process_stage_enum
+from vedalang.conventions import (
+    commodity_namespace_enum,
+    commodity_type_enum,
+    process_stage_enum,
+)
 
 from .demands import compile_demands
 from .ir import (
@@ -143,9 +147,12 @@ VALID_CATEGORIES = {
 
 VALID_PROCESS_STAGES = process_stage_enum()
 VALID_COMMODITY_TYPES = commodity_type_enum()
+VALID_COMMODITY_NAMESPACES = set(commodity_namespace_enum())
 
 NAMESPACE_TO_TYPES = {
     "energy": {"fuel", "energy"},
+    "fuel": {"fuel"},
+    "resource": {"other", "energy"},
     "material": {"material"},
     "service": {"service"},
     "emission": {"emission"},
@@ -380,8 +387,6 @@ def _validate_new_syntax_structural_invariants(
         ]
         if physical_inputs:
             continue
-        if variant.get("kind") == "demand_measure":
-            continue
 
         errors.append(
             {
@@ -389,7 +394,7 @@ def _validate_new_syntax_structural_invariants(
                 "location": f"process_variants[{variant_id}]",
                 "message": (
                     "End-use variants must have at least one physical input "
-                    "(fuel/energy/material), unless kind='demand_measure'."
+                    "(fuel/energy/material)."
                 ),
             }
         )
@@ -772,19 +777,26 @@ def validate_cross_references(
         if comm_id:
             namespace, _ = _split_namespace(comm_id)
             if namespace is not None and not _is_legacy_namespace(namespace):
-                expected_types = NAMESPACE_TO_TYPES.get(namespace)
                 actual_type = c.get("type")
-                if expected_types is None:
+                if namespace not in VALID_COMMODITY_NAMESPACES:
                     errors.append(
                         f"Commodity '{comm_id}' in model.commodities[{i}] uses unknown "
                         f"namespace '{namespace}'."
                     )
-                elif actual_type not in expected_types:
-                    errors.append(
-                        f"Commodity '{comm_id}' namespace '{namespace}' "
-                        f"implies type in {sorted(expected_types)} but "
-                        f"commodity type is '{actual_type}'."
-                    )
+                else:
+                    expected_types = NAMESPACE_TO_TYPES.get(namespace)
+                    if expected_types is None:
+                        errors.append(
+                            "Commodity "
+                            f"'{comm_id}' uses namespace '{namespace}' but no "
+                            "compiler type mapping is defined for it."
+                        )
+                    elif actual_type not in expected_types:
+                        errors.append(
+                            f"Commodity '{comm_id}' namespace '{namespace}' "
+                            f"implies type in {sorted(expected_types)} but "
+                            f"commodity type is '{actual_type}'."
+                        )
             _warn_ambiguous_commodity_ref(
                 warnings, f"model.commodities[{i}]", comm_id
             )
@@ -1805,7 +1817,7 @@ def _build_metadata_map(
             "kind": semantic_kind,
             "derived_kind": derived_kind,
             "kind_source": "explicit" if "kind" in instance.attrs else "derived",
-            "exclude_from_fuel_switch": semantic_kind == "demand_measure",
+            "exclude_from_fuel_switch": False,
         }
     return metadata
 
@@ -1872,9 +1884,7 @@ def _resolve_diagnostics_boundaries(
                 "id": boundary["id"],
                 "measure": measure,
                 "selectors": selectors,
-                "default_exclusions": (
-                    ["kind=demand_measure"] if measure == "end_use_inputs" else []
-                ),
+                "default_exclusions": [],
                 "processes": sorted(matches),
             }
         )
@@ -3387,6 +3397,12 @@ def _compile_trade_links(
 
     from collections import defaultdict
 
+    def _safe_trade_sheet_name(direction: str, commodity_name: str) -> str:
+        """Build an Excel-safe trade sheet name from direction and commodity."""
+        raw = f"{direction}_{commodity_name}"
+        safe = re.sub(r"[:\\/?*\[\]]", "_", raw)
+        return safe[:31]
+
     # Group trade links by commodity and bidirectional flag
     grouped: dict[tuple[str, bool], list[dict]] = defaultdict(list)
     for link in trade_links:
@@ -3401,7 +3417,7 @@ def _compile_trade_links(
     for (commodity, bidirectional), links in grouped.items():
         # Sheet name encodes direction and commodity (kept for compatibility)
         direction = "Bi" if bidirectional else "Uni"
-        sheet_name = f"{direction}_{commodity}"
+        sheet_name = _safe_trade_sheet_name(direction, commodity)
 
         # Collect all unique regions for matrix columns
         all_regions: set[str] = set()

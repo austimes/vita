@@ -24,13 +24,13 @@ model:
       unit: PJ
       description: Electricity
 
-    - id: energy:diesel
-      type: energy
+    - id: fuel:diesel
+      type: fuel
       unit: PJ
       description: Diesel fuel
 
-    - id: energy:biodiesel
-      type: energy
+    - id: fuel:biodiesel
+      type: fuel
       unit: PJ
       description: Biodiesel
 
@@ -87,7 +87,7 @@ process_roles:
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: energy:diesel
+      - commodity: fuel:diesel
 
   - id: import_electricity
     stage: supply
@@ -99,7 +99,7 @@ process_roles:
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: energy:biodiesel
+      - commodity: fuel:biodiesel
 
   - id: provide_haul_work
     stage: end_use
@@ -112,7 +112,7 @@ process_variants:
     role: import_diesel
     inputs: []
     outputs:
-      - commodity: energy:diesel
+      - commodity: fuel:diesel
     efficiency: 1.0
     lifetime: 100
     variable_om_cost: 12
@@ -130,7 +130,7 @@ process_variants:
     role: import_biodiesel
     inputs: []
     outputs:
-      - commodity: energy:biodiesel
+      - commodity: fuel:biodiesel
     efficiency: 1.0
     lifetime: 100
     variable_om_cost: 20
@@ -138,7 +138,7 @@ process_variants:
   - id: diesel_haul
     role: provide_haul_work
     inputs:
-      - commodity: energy:diesel
+      - commodity: fuel:diesel
     outputs:
       - commodity: service:haul_work
     efficiency: 0.35
@@ -159,7 +159,7 @@ process_variants:
   - id: biodiesel_haul
     role: provide_haul_work
     inputs:
-      - commodity: energy:biodiesel
+      - commodity: fuel:biodiesel
     outputs:
       - commodity: service:haul_work
     efficiency: 0.35

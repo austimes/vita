@@ -16,8 +16,8 @@ model:
   milestone_years: [2020, 2025, 2030, 2040]
 
   commodities:
-    - id: energy:natural_gas
-      type: energy
+    - id: fuel:natural_gas
+      type: fuel
       unit: PJ
       description: Natural gas
 
@@ -26,8 +26,8 @@ model:
       unit: PJ
       description: Electricity
 
-    - id: energy:wind_resource
-      type: energy
+    - id: resource:wind_resource
+      type: other
       unit: PJ
       description: Wind energy resource
 
@@ -60,13 +60,13 @@ process_roles:
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: energy:natural_gas
+      - commodity: fuel:natural_gas
 
   - id: supply_wind_resource
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: energy:wind_resource
+      - commodity: resource:wind_resource
 
   - id: generate_electricity
     stage: conversion
@@ -86,7 +86,7 @@ process_variants:
     role: import_gas
     inputs: []
     outputs:
-      - commodity: energy:natural_gas
+      - commodity: fuel:natural_gas
     efficiency: 1.0
     lifetime: 100
 
@@ -94,14 +94,14 @@ process_variants:
     role: supply_wind_resource
     inputs: []
     outputs:
-      - commodity: energy:wind_resource
+      - commodity: resource:wind_resource
     efficiency: 1.0
     lifetime: 100
 
   - id: ccgt
     role: generate_electricity
     inputs:
-      - commodity: energy:natural_gas
+      - commodity: fuel:natural_gas
     outputs:
       - commodity: energy:electricity
     efficiency: 0.55
@@ -115,7 +115,7 @@ process_variants:
   - id: wind
     role: generate_electricity
     inputs:
-      - commodity: energy:wind_resource
+      - commodity: resource:wind_resource
     outputs:
       - commodity: energy:electricity
     efficiency: 1.0

@@ -16,8 +16,8 @@ model:
       unit: PJ
       description: Electricity
 
-    - id: energy:natural_gas
-      type: energy
+    - id: fuel:natural_gas
+      type: fuel
       unit: PJ
       description: Natural Gas
 
@@ -25,7 +25,7 @@ process_roles:
   - id: generate_electricity
     stage: conversion
     required_inputs:
-      - commodity: energy:natural_gas
+      - commodity: fuel:natural_gas
     required_outputs:
       - commodity: energy:electricity
 
@@ -33,7 +33,7 @@ process_variants:
   - id: ccgt
     role: generate_electricity
     inputs:
-      - commodity: energy:natural_gas
+      - commodity: fuel:natural_gas
     outputs:
       - commodity: energy:electricity
     efficiency: 0.55

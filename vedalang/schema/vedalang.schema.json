@@ -204,7 +204,7 @@
         },
         "kind": {
           "type": "string",
-          "enum": ["device", "storage", "generator", "network", "demand_measure"],
+          "enum": ["device", "storage", "generator", "network"],
           "description": "Optional semantic kind for diagnostics metadata. When omitted, compiler derives it."
         },
         "efficiency": {
@@ -653,6 +653,19 @@
       },
       "additionalProperties": false
     },
+    "commodity_namespace": {
+      "type": "string",
+      "enum": [
+        "fuel",
+        "resource",
+        "energy",
+        "service",
+        "material",
+        "emission",
+        "money"
+      ],
+      "description": "Canonical namespace prefixes allowed in commodity identifiers"
+    },
     "commodity": {
       "type": "object",
       "description": "Commodity definition",
@@ -660,8 +673,8 @@
       "properties": {
         "id": {
           "type": "string",
-          "pattern": "^(?:[a-z][a-z0-9_-]*:)?[a-z][a-z0-9_-]*$",
-          "description": "Commodity identifier (snake_case noun, preferred over 'name'). Namespaced form is supported (e.g., energy:electricity)."
+          "pattern": "^(?:(?:fuel|resource|energy|service|material|emission|money):)?[a-z][a-z0-9_-]*$",
+          "description": "Commodity identifier (snake_case noun, preferred over 'name'). Namespaced form must use a canonical prefix from $defs.commodity_namespace (e.g., energy:electricity, fuel:natural_gas)."
         },
         "name": {
           "type": "string",
@@ -857,7 +870,7 @@
           "type": "array",
           "items": {
             "type": "string",
-            "enum": ["device", "storage", "generator", "network", "demand_measure"]
+            "enum": ["device", "storage", "generator", "network"]
           }
         },
         "include_any": {

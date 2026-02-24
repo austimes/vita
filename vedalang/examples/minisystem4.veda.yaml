@@ -16,8 +16,8 @@ model:
   milestone_years: [2020, 2025, 2030, 2040]
 
   commodities:
-    - id: energy:natural_gas
-      type: energy
+    - id: fuel:natural_gas
+      type: fuel
       unit: PJ
       description: Natural gas
 
@@ -55,12 +55,12 @@ process_roles:
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: energy:natural_gas
+      - commodity: fuel:natural_gas
 
   - id: generate_electricity
     stage: conversion
     required_inputs:
-      - commodity: energy:natural_gas
+      - commodity: fuel:natural_gas
     required_outputs:
       - commodity: energy:electricity
 
@@ -76,14 +76,14 @@ process_variants:
     role: import_gas
     inputs: []
     outputs:
-      - commodity: energy:natural_gas
+      - commodity: fuel:natural_gas
     efficiency: 1.0
     lifetime: 100
 
   - id: ccgt
     role: generate_electricity
     inputs:
-      - commodity: energy:natural_gas
+      - commodity: fuel:natural_gas
     outputs:
       - commodity: energy:electricity
     efficiency: 0.55

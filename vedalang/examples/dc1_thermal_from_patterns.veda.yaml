@@ -1,6 +1,6 @@
 # DC1: Thermal plant generated from patterns
 # This model was created by combining pattern expansions:
-#   - add_energy_commodity: energy:natural_gas, energy:electricity
+#   - add_energy_commodity: fuel:natural_gas, energy:electricity
 #   - add_power_plant: ccgt
 model:
   name: MiniModel
@@ -12,8 +12,8 @@ model:
   milestone_years: [2020, 2030]
 
   commodities:
-    - id: energy:natural_gas
-      type: energy
+    - id: fuel:natural_gas
+      type: fuel
       unit: PJ
       description: Natural Gas
 
@@ -35,7 +35,7 @@ process_roles:
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: energy:natural_gas
+      - commodity: fuel:natural_gas
 
   - id: generate_electricity
     stage: conversion
@@ -61,14 +61,14 @@ process_variants:
     role: supply_natural_gas
     inputs: []
     outputs:
-      - commodity: energy:natural_gas
+      - commodity: fuel:natural_gas
     efficiency: 1.0
     lifetime: 100
 
   - id: ccgt
     role: generate_electricity
     inputs:
-      - commodity: energy:natural_gas
+      - commodity: fuel:natural_gas
     outputs:
       - commodity: energy:electricity
     efficiency: 0.55

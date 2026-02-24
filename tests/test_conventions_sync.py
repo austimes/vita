@@ -4,6 +4,7 @@ from pathlib import Path
 
 from tools.sync_conventions import sync_generated_blocks
 from vedalang.conventions import (
+    commodity_namespace_enum,
     commodity_type_enum,
     format_enum_csv,
     process_stage_enum,
@@ -47,9 +48,14 @@ def test_llm_system_prompt_uses_schema_enums():
     expected_type_line = (
         f"- **Commodity type** = one of: {format_enum_csv(commodity_type_enum())}."
     )
+    expected_namespace_line = (
+        "- **Commodity namespace prefix** = one of: "
+        f"{format_enum_csv(commodity_namespace_enum())}."
+    )
 
     assert expected_stage_line in system_prompt
     assert expected_type_line in system_prompt
+    assert expected_namespace_line in system_prompt
 
 
 def test_generated_conventions_blocks_are_synced():

@@ -35,8 +35,8 @@ model:
       WN: 0.25
 
   commodities:
-    - id: energy:gas
-      type: energy
+    - id: fuel:gas
+      type: fuel
       unit: PJ
       description: Natural gas
 
@@ -81,7 +81,7 @@ process_roles:
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: energy:gas
+      - commodity: fuel:gas
 
   - id: generate_electricity
     stage: conversion
@@ -101,14 +101,14 @@ process_variants:
     role: import_gas
     inputs: []
     outputs:
-      - commodity: energy:gas
+      - commodity: fuel:gas
     efficiency: 1.0
     lifetime: 100
 
   - id: ccgt
     role: generate_electricity
     inputs:
-      - commodity: energy:gas
+      - commodity: fuel:gas
     outputs:
       - commodity: energy:electricity
     efficiency: 0.55

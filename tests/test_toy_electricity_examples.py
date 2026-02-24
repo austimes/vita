@@ -21,13 +21,22 @@ def test_toy_electricity_examples_separate_delivery_and_end_use_roles():
         delivery = roles["deliver_electricity_grid"]
         end_use = roles["provide_electricity_service"]
 
-        assert delivery["stage"] == "conversion"
-        assert delivery["required_inputs"][0]["commodity"] == "electricity"
-        assert delivery["required_outputs"][0]["commodity"] == "delivered_electricity"
+        assert delivery["stage"] == "distribution"
+        assert delivery["required_inputs"][0]["commodity"] == "energy:electricity"
+        assert (
+            delivery["required_outputs"][0]["commodity"]
+            == "energy:delivered_electricity"
+        )
 
         assert end_use["stage"] == "end_use"
-        assert end_use["required_inputs"][0]["commodity"] == "delivered_electricity"
-        assert end_use["required_outputs"][0]["commodity"] == "electricity_service"
+        assert (
+            end_use["required_inputs"][0]["commodity"]
+            == "energy:delivered_electricity"
+        )
+        assert (
+            end_use["required_outputs"][0]["commodity"]
+            == "service:electricity_service"
+        )
 
         # Ensure the examples still compile under hard stage/typing validations.
         compile_vedalang_to_tableir(source)
@@ -85,5 +94,11 @@ def test_toy_electricity_renewable_resource_supply():
 
         # Renewable variants consume resources, not zero-input
         variants = {v["id"]: v for v in source["process_variants"]}
-        assert variants["solar_pv"]["inputs"][0]["commodity"] == "solar_irradiance"
-        assert variants["onshore_wind"]["inputs"][0]["commodity"] == "wind_resource"
+        assert (
+            variants["solar_pv"]["inputs"][0]["commodity"]
+            == "resource:solar_irradiance"
+        )
+        assert (
+            variants["onshore_wind"]["inputs"][0]["commodity"]
+            == "resource:wind_resource"
+        )

@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from vedalang.conventions import (
+    commodity_namespace_enum,
     commodity_type_enum,
     format_enum_csv,
     process_stage_enum,
@@ -143,7 +144,9 @@ def _build_system_prompt() -> str:
     system_template = _load_prompt_template(_SYSTEM_PROMPT_PATH)
     canonical_enum_lines = (
         f"- **Stage** = one of: {format_enum_csv(process_stage_enum())}.\n"
-        f"- **Commodity type** = one of: {format_enum_csv(commodity_type_enum())}."
+        f"- **Commodity type** = one of: {format_enum_csv(commodity_type_enum())}.\n"
+        "- **Commodity namespace prefix** = one of: "
+        f"{format_enum_csv(commodity_namespace_enum())}."
     )
     return system_template.replace("__CANONICAL_ENUMS__", canonical_enum_lines)
 

@@ -695,19 +695,11 @@ timeslices:
     "kind": """\
 ## VedaLang: `kind`
 
-**Type**: string enum (`TRADABLE`, `SERVICE`, `EMISSION`)
-**Used in**: `commodity`
+**Type**: string enum (context-dependent)
+**Used in**: multiple sections (for example `process_variants.kind`)
 
-Classifies the commodity:
-
-- `TRADABLE` – physical flows that can be transported/traded (e.g., fuels, electricity).
-- `SERVICE` – demand satisfaction or end-use services (e.g., heating, mobility).
-- `EMISSION` – byproduct or waste streams (e.g., CO2, NOx).
-
-Rules:
-
-- `SERVICE` commodities **must** define `context`.
-- `TRADABLE` and `EMISSION` commodities **must not** define `context`.
+`kind` does not have one global enum. The valid values depend on where the field appears.
+Use schema-aware hover/completion in the LSP for the current location's allowed values.
 """,
     "context": """\
 ## VedaLang: `context`

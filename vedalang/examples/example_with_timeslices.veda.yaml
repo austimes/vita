@@ -2,10 +2,12 @@
 # This model includes intra-annual temporal structure (seasons + day/night)
 model:
   name: TimesliceModel
-  description: A model with 4 timeslices (2 seasons × 2 daynite)
+  description: A model with 4 timeslices (2 seasons × 2 daynite) in role/variant syntax
   
   regions:
     - REG1
+
+  milestone_years: [2020, 2030]
   
   timeslices:
     season:
@@ -25,23 +27,105 @@ model:
       WN: 0.25    # Winter-Night
   
   commodities:
-    - name: energy:electricity
+    - id: energy:electricity
       type: energy
       unit: PJ
       description: Electricity
-    - name: energy:natural_gas
-      type: energy
+
+    - id: fuel:natural_gas
+      type: fuel
       unit: PJ
       description: Natural Gas
-  
-  processes:
-    - name: PP_CCGT
-      description: Combined Cycle Gas Turbine
-      sets: [ELE]
-      activity_unit: PJ
-      capacity_unit: GW
-      inputs:
-        - commodity: energy:natural_gas
-      outputs:
-        - commodity: energy:electricity
-      efficiency: 0.55
+
+    - id: service:electricity_demand
+      type: service
+      unit: PJ
+      description: Electricity demand service
+
+segments:
+  sectors: [RES]
+
+process_roles:
+  - id: supply_natural_gas
+    stage: supply
+    required_inputs: []
+    required_outputs:
+      - commodity: fuel:natural_gas
+
+  - id: generate_electricity
+    stage: conversion
+    required_inputs:
+      - commodity: fuel:natural_gas
+    required_outputs:
+      - commodity: energy:electricity
+
+  - id: provide_electricity_service
+    stage: end_use
+    required_inputs:
+      - commodity: energy:electricity
+    required_outputs:
+      - commodity: service:electricity_demand
+
+process_variants:
+  - id: gas_import
+    role: supply_natural_gas
+    inputs: []
+    outputs:
+      - commodity: fuel:natural_gas
+    efficiency: 1.0
+    lifetime: 100
+
+  - id: ccgt
+    role: generate_electricity
+    inputs:
+      - commodity: fuel:natural_gas
+    outputs:
+      - commodity: energy:electricity
+    efficiency: 0.55
+    lifetime: 30
+
+  - id: electric_device
+    role: provide_electricity_service
+    inputs:
+      - commodity: energy:electricity
+    outputs:
+      - commodity: service:electricity_demand
+    efficiency: 1.0
+    lifetime: 100
+
+availability:
+  - variant: gas_import
+    regions: [REG1]
+
+  - variant: ccgt
+    regions: [REG1]
+
+  - variant: electric_device
+    regions: [REG1]
+    sectors: [RES]
+
+process_parameters:
+  - selector:
+      variant: gas_import
+      region: REG1
+    stock: 1000
+
+  - selector:
+      variant: ccgt
+      region: REG1
+    stock: 10
+
+  - selector:
+      variant: electric_device
+      region: REG1
+      sector: RES
+    stock: 1000
+
+demands:
+  - commodity: service:electricity_demand
+    region: REG1
+    sector: RES
+    interpolation: interp_extrap
+    values:
+      "2020": 20
+      "2030": 24

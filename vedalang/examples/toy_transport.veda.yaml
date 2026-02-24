@@ -26,8 +26,8 @@ model:
       unit: PJ
       description: Electricity
 
-    - id: energy:petrol
-      type: energy
+    - id: fuel:petrol
+      type: fuel
       unit: PJ
       description: Petrol/gasoline
 
@@ -55,7 +55,7 @@ process_roles:
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: energy:petrol
+      - commodity: fuel:petrol
 
   - id: supply_electricity
     stage: supply
@@ -74,7 +74,7 @@ process_variants:
     role: supply_petrol
     inputs: []
     outputs:
-      - commodity: energy:petrol
+      - commodity: fuel:petrol
     efficiency: 1.0
     lifetime: 100
     variable_om_cost: 15
@@ -91,7 +91,7 @@ process_variants:
   - id: ice_car
     role: provide_passenger_km
     inputs:
-      - commodity: energy:petrol
+      - commodity: fuel:petrol
     outputs:
       - commodity: service:passenger_km
     efficiency: 1.0

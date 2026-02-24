@@ -169,9 +169,8 @@ class TestMiniSystemTableIRStructure:
         comm_rows = self._find_table_rows(tableir, "~FI_COMM")
         assert len(comm_rows) >= 4  # gas, electricity, co2, residential_demand minimum
         names = {r.get("commodity") for r in comm_rows}
-        # New P4 syntax uses lowercase snake_case commodity names
-        assert "gas" in names
-        assert "electricity" in names
+        assert "fuel:gas" in names
+        assert "energy:electricity" in names
 
     def test_has_processes(self, tableir):
         """Should have ~FI_PROCESS table with core processes (new P4 syntax)."""

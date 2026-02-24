@@ -8,7 +8,7 @@ PRD invariant has regressed.
 Criteria:
   A1  All toy_* models compile under new rules.
   A2  No fuel-pathway roles remain.
-  A3  No zero-input end_use supply processes (unless demand_measure).
+  A3  No zero-input end_use supply processes.
   A4  Cases overlay replaces duplicate toy files where appropriate.
   A5  Diagnostics remain independent of solve.
   A6  SKILL.md exists and documents conventions.
@@ -36,7 +36,13 @@ from vedalang.lint.res_export import export_res_graph, res_graph_to_mermaid
 
 PROJECT_ROOT = Path(__file__).parent.parent
 EXAMPLES_DIR = PROJECT_ROOT / "vedalang" / "examples"
-SKILL_PATH = PROJECT_ROOT / ".agents" / "skills" / "vedalang-modeling-conventions" / "SKILL.md"
+SKILL_PATH = (
+    PROJECT_ROOT
+    / ".agents"
+    / "skills"
+    / "vedalang-modeling-conventions"
+    / "SKILL.md"
+)
 
 TOY_MODELS = sorted(EXAMPLES_DIR.glob("toy_*.veda.yaml"))
 
@@ -82,7 +88,9 @@ class TestA2_NoFuelPathwayRoles:
         source = load_vedalang(model_path)
         if "process_roles" not in source:
             pytest.skip("Legacy-syntax model")
-        commodities = _normalize_commodities_for_new_syntax(source["model"]["commodities"])
+        commodities = _normalize_commodities_for_new_syntax(
+            source["model"]["commodities"]
+        )
         roles = build_roles(source, commodities)
         errors, _warnings = _detect_service_role_duplication(roles, commodities)
         assert len(errors) == 0, (
@@ -91,11 +99,11 @@ class TestA2_NoFuelPathwayRoles:
         )
 
 
-# ── A3: No zero-input end_use supply (unless demand_measure) ─────────────
+# ── A3: No zero-input end_use supply ──────────────────────────────────────
 
 class TestA3_NoZeroInputEndUse:
     @pytest.mark.parametrize("model_path", TOY_MODELS, ids=lambda p: p.stem)
-    def test_no_zero_input_end_use_without_demand_measure(self, model_path: Path):
+    def test_no_zero_input_end_use_variants(self, model_path: Path):
         source = load_vedalang(model_path)
         if "process_roles" not in source:
             pytest.skip("Legacy-syntax model")
@@ -110,14 +118,11 @@ class TestA3_NoZeroInputEndUse:
             )
             if role_inputs or variant_inputs_exist:
                 continue
-            # Zero-input end_use: every variant must be demand_measure
-            for v in variants:
-                if v.get("role") != role_id:
-                    continue
-                assert v.get("kind") == "demand_measure", (
-                    f"{model_path.name}: end_use role '{role_id}' variant "
-                    f"'{v['id']}' has no inputs and is not kind=demand_measure"
-                )
+            role_variants = [v["id"] for v in variants if v.get("role") == role_id]
+            pytest.fail(
+                f"{model_path.name}: end_use role '{role_id}' has no physical inputs "
+                f"at role or variant level (variants: {', '.join(role_variants)})"
+            )
 
     def test_compiler_hard_error_on_zero_input_end_use(self):
         """Compiler raises E_END_USE_PHYSICAL_INPUT for violations."""
@@ -142,8 +147,13 @@ class TestA3_NoZeroInputEndUse:
                 },
             ],
             "process_variants": [
-                {"id": "fake_device", "role": "provide_space_heat",
-                 "inputs": [], "outputs": [{"commodity": "space_heat"}], "efficiency": 1.0},
+                {
+                    "id": "fake_device",
+                    "role": "provide_space_heat",
+                    "inputs": [],
+                    "outputs": [{"commodity": "space_heat"}],
+                    "efficiency": 1.0,
+                },
             ],
             "availability": [
                 {"variant": "fake_device", "regions": ["R1"], "sectors": ["RES"]},
@@ -216,7 +226,7 @@ class TestA6_SkillMDExists:
             "physical",
             "stage",
             "commodity",
-            "demand_measure",
+            "physical-only",
             "cases",
             "diagnostics",
         ]:
@@ -327,7 +337,7 @@ class TestA8_CompilerStructuralInvariants:
 
     def test_e_stage_enum(self):
         src = self._base_source()
-        src["process_roles"][0]["stage"] = "distribution"
+        src["process_roles"][0]["stage"] = "bogus_stage"
         with pytest.raises(Exception, match=r"\[E_STAGE_ENUM\]"):
             compile_vedalang_to_tableir(src, validate=False)
 

@@ -34,9 +34,11 @@ end-to-end replacement for the baseline, not an add-on. Flag variant \
 names that sound like standalone measures or bolt-on modifiers when they \
 share a role with a baseline variant.
 
-2. **Zero-input processes are only valid at stage: supply.** \
+2. **Zero-input processes are valid at `stage: supply` (and sometimes `stage: sink`).** \
 A process at end_use or conversion that has no inputs in its role \
 definition AND no variant-level inputs is suspicious (fake supply). \
+For `stage: sink`, zero-input can be intentional when modeling ledger-style \
+removals via negative `emission_factors` without explicit CO2 material flows. \
 However, VedaLang supports **variant-level inputs**: when different \
 variants under a role consume different fuels (e.g. gas_heater→natural_gas, \
 heat_pump→electricity), the role correctly has empty `required_inputs` \
@@ -51,6 +53,9 @@ currently has, what type would be expected in this context (and why), \
 and what diagnostic confusion might result. For example, if xl2times \
 expects a "fuel" type for process inputs but finds "material", explain \
 that xl2times may misclassify the flow in its diagnostics.
+Use the conventions distinction: `fuel:*` + `type: fuel` for combustible \
+primary inputs, `resource:*` + `type: other` for exogenous non-combustible \
+resources, and `energy:*` + `type: energy` for secondary carriers.
 
 ## You will receive:
 1. Modeling conventions that define best practices
@@ -117,5 +122,10 @@ IMPORTANT:
 - Do NOT flag multiple variants under one role as "over-fragmented".
 - Do NOT flag a process as "zero-input" if its role declares inputs OR \
 if `has_variant_level_inputs` is true (variants provide the inputs).
+- Do NOT flag zero-input `sink` roles as errors when they clearly model \
+ledger-only removals with negative emission factors.
+- Commodity namespace migration advice (`energy:*` fuel/resource → \
+`fuel:*`/`resource:*`) should normally be `warning` or `suggestion`, not \
+`critical`, unless it causes a concrete structural contradiction.
 - If no genuine issues are found, return: {"findings": []}
 - Prefer fewer, high-quality findings over many low-quality ones.

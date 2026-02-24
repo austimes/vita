@@ -25,6 +25,7 @@ schema/compiler are authoritative.
 <!-- GENERATED:canonical-enums:start -->
 - `stage` = one of `supply | conversion | distribution | storage | end_use | sink`
 - `commodity.type` = one of `fuel | energy | service | material | emission | money | other`
+- `commodity namespace prefix` = one of `fuel | resource | energy | service | material | emission | money`
 <!-- GENERATED:canonical-enums:end -->
 
 Keep these terms consistent in model docs, PRDs, lint narratives, and
@@ -43,7 +44,7 @@ process_roles:
   - id: provide_space_heat
     stage: end_use
     inputs:
-      - commodity: energy:natural_gas
+      - commodity: fuel:natural_gas
     outputs:
       - commodity: service:space_heat
 
@@ -64,7 +65,7 @@ Avoid:
 process_roles:
   - id: heat_from_gas
     stage: end_use
-    inputs: [{commodity: energy:natural_gas}]
+    inputs: [{commodity: fuel:natural_gas}]
     outputs: [{commodity: service:space_heat}]
   - id: heat_from_electricity
     stage: end_use
@@ -93,7 +94,10 @@ process_roles:
 ```
 
 Only flag zero-input roles at **non-supply stages** (especially `end_use`) as
-suspicious fake supply:
+suspicious fake supply. One intentional exception is `stage: sink` when the
+process represents ledger-only removals via negative `emission_factors`
+(for example, reforestation/LULUCF accounting without explicit CO2 material
+flows).
 
 ```yaml
 # Suspicious — end_use role with no inputs looks like fake supply
@@ -120,15 +124,6 @@ model:
       demand_overrides:
         - commodity: service:space_heat
           scale: 0.85
-```
-
-Allowed carveout (explicit non-physical demand measure):
-
-```yaml
-process_variants:
-  - id: insulation_upgrade
-    role: provide_space_heat
-    kind: demand_measure
 ```
 
 Avoid (implicit fake supply):
@@ -167,7 +162,7 @@ All IDs use **snake_case** (underscores, not dashes).
   bolt-on modifier rather than a complete replacement pathway)
 
 - **Commodity IDs** — namespaced snake_case descriptive names:
-  `energy:electricity`, `service:space_heat`, `emission:co2`, `energy:natural_gas`, `material:biomass`
+  `energy:electricity`, `service:space_heat`, `emission:co2`, `fuel:natural_gas`, `resource:wind_resource`, `material:biomass`
 
 ### 5) Stage and Commodity Typing Discipline
 
@@ -180,6 +175,10 @@ model:
   commodities:
     - id: energy:electricity
       type: energy
+    - id: fuel:natural_gas
+      type: fuel
+    - id: resource:wind_resource
+      type: other
     - id: service:space_heat
       type: service
     - id: emission:co2
@@ -194,6 +193,19 @@ model:
     - id: service:space_heat
       type: energy   # should be service
 ```
+
+Preferred namespace discipline for primary-vs-secondary energy clarity:
+
+- `fuel:*` + `type: fuel` for combustible/extractable primary fuels
+  (`fuel:natural_gas`, `fuel:coal`, `fuel:diesel`)
+- `resource:*` + `type: other` for exogenous non-combustible resources
+  (`resource:wind_resource`, `resource:solar_irradiance`)
+- `energy:*` + `type: energy` for secondary carriers
+  (`energy:electricity`, `energy:hydrogen`, `energy:delivered_electricity`)
+
+Legacy models that use `energy:*` for fuels/resources are still schema-valid,
+but migrating improves diagnostics readability and avoids primary-vs-secondary
+accounting ambiguity.
 
 ### 6) Cases Are Scenario Overlays, Not New RES Architectures
 
@@ -223,7 +235,7 @@ process_variants:
   - id: gas_boiler
     role: provide_space_heat
     inputs:
-      - commodity: energy:natural_gas
+      - commodity: fuel:natural_gas
     outputs:
       - commodity: service:space_heat
     emission_factors:
@@ -261,9 +273,9 @@ The following are enforced today by schema/compiler behavior:
 - `stage` enum values are schema-enforced
 - `commodity.type` enum values are schema-enforced
 - non-storage/non-sink roles require exactly one primary non-emission output
+- end-use variants must include at least one physical input
+  (`fuel`/`energy`/`material`)
 - `demand_projection` must target `commodity.type=service` (semantic xref check)
-- diagnostics boundary measure `end_use_inputs` excludes
-  `kind=demand_measure` variants by default
 - diagnostics export contract is solve-independent
   (`diagnostics_are_solve_independent`)
 - `emission:*` must not appear in inputs/outputs (L1)
@@ -274,7 +286,8 @@ The following should be treated as guidance/lint focus (unless hard rules are ad
 
 - detecting fuel-pathway role fragmentation and suggesting role merges
 - flagging suspicious zero-input roles at **non-supply** stages (especially
-  `end_use`) — zero-input `supply` stage roles are valid primary sources
+  `end_use`) — zero-input `supply` stage roles are valid primary sources;
+  `sink` roles can also be intentionally zero-input for ledger-style removals
 - flagging service commodities used as intermediate carriers when this
   obscures diagnostics intent
 - enforcing snake_case naming for role, variant, and commodity IDs
@@ -287,13 +300,15 @@ The following should be treated as guidance/lint focus (unless hard rules are ad
 - [ ] Role IDs follow verb-noun pattern
 - [ ] Variants encode technology pathways and costs/performance
 - [ ] Variant IDs are descriptive pathway names (not repeating the role ID)
-- [ ] Supply-stage roles with zero inputs are intentional primary sources
+- [ ] Zero-input roles are intentional only for `supply` or specific
+  `sink` ledger-removal patterns
 - [ ] End-use demand changes use case `demand_overrides` where possible
-- [ ] Any pseudo-technology is explicitly tagged `kind: demand_measure`
+- [ ] End-use variants include at least one physical input
 - [ ] Commodity typing is explicit and consistent with use
 - [ ] Stages are explicit and from the canonical enum
 - [ ] Diagnostics boundaries are semantic and solver-independent
-- [ ] Commodity IDs use namespace prefixes (energy:, service:, emission:, etc.)
+- [ ] Commodity IDs use namespace prefixes (`fuel:`, `resource:`, `energy:`,
+  `service:`, `emission:`, etc.) consistently
 - [ ] Emissions use emission_factors dict, not inputs/outputs
 - [ ] `uv run vedalang lint <model>.veda.yaml` and
   `uv run vedalang validate <model>.veda.yaml` pass

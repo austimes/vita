@@ -88,19 +88,8 @@ model:
           scale: {2030: 0.85, 2050: 0.70}
 ```
 
-**After — option B: explicit demand_measure kind:**
-
-```yaml
-process_variants:
-  - id: insulation
-    role: provide_space_heat
-    kind: demand_measure          # opt out of physical-input check
-    efficiency: 1.0
-```
-
 **Compiler enforcement:** `[E_END_USE_PHYSICAL_INPUT]` — an end_use role
-with zero inputs (at both role and variant level) requires all its variants
-to have `kind: demand_measure`.
+with zero inputs (at both role and variant level) is rejected.
 
 ### 3. Add Commodity Typing
 
@@ -240,7 +229,7 @@ uv run pytest tests/test_prd_acceptance.py -v
 | `E_EMISSION_COMMODITY_TYPE` | Hard error | Emission constraint targeting non-emission commodity |
 | `E_ROLE_PRIMARY_OUTPUT` | Hard error | Role with ≠1 primary non-emission output |
 | `E1_DUPLICATE_SERVICE_ROLES` | Hard error | Multiple roles sharing output+stage |
-| `E_END_USE_PHYSICAL_INPUT` | Hard error | Zero-input end_use without demand_measure |
+| `E_END_USE_PHYSICAL_INPUT` | Hard error | Zero-input end_use variant |
 | `W1_SPLIT_IDENTICAL_IO_ROLES` | Warning | Roles with identical I/O signatures |
 | `W2_FUEL_PATHWAY_ROLE_NAME` | Warning | Role name suggests fuel-pathway pattern |
 

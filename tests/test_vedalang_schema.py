@@ -582,12 +582,30 @@ def test_namespaced_commodity_id_validates():
             "regions": ["R1"],
             "commodities": [
                 {"id": "energy:electricity", "type": "energy"},
+                {"id": "fuel:natural_gas", "type": "fuel"},
+                {"id": "resource:wind_resource", "type": "other"},
                 {"id": "service:space_heat", "type": "service"},
                 {"id": "emission:co2", "type": "emission"},
             ],
         },
     }
     jsonschema.validate(data, schema)
+
+
+def test_unknown_commodity_namespace_rejected_by_schema():
+    """Commodity id namespace prefix must be from canonical schema enum."""
+    schema = load_schema()
+    data = {
+        "model": {
+            "name": "BadNamespace",
+            "regions": ["R1"],
+            "commodities": [
+                {"id": "unknown:electricity", "type": "energy"},
+            ],
+        },
+    }
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(data, schema)
 
 
 def test_negative_emission_factor_validates():

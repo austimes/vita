@@ -9,13 +9,18 @@ This module provides utilities for:
 
 from dataclasses import dataclass
 
+from vedalang.conventions import commodity_namespace_enum
+
 NAMESPACE_TO_TYPES = {
     "energy": {"fuel", "energy"},
+    "fuel": {"fuel"},
+    "resource": {"other", "energy"},
     "material": {"material"},
     "service": {"service"},
     "emission": {"emission"},
     "money": {"money"},
 }
+VALID_COMMODITY_NAMESPACES = set(commodity_namespace_enum())
 
 
 def build_segments(model: dict) -> list[str]:
@@ -174,10 +179,14 @@ def normalize_commodity(raw: dict) -> dict:
     base_name = comm_id
     if ":" in comm_id:
         namespace, _, base_name = comm_id.partition(":")
+        if namespace not in VALID_COMMODITY_NAMESPACES:
+            raise ValueError(
+                f"Commodity '{comm_id}' has unsupported namespace '{namespace}'"
+            )
         expected_types = NAMESPACE_TO_TYPES.get(namespace)
         if expected_types is None:
             raise ValueError(
-                f"Commodity '{comm_id}' has unsupported namespace '{namespace}'"
+                f"Commodity '{comm_id}' namespace '{namespace}' has no type mapping"
             )
         if raw_type not in expected_types:
             raise ValueError(
