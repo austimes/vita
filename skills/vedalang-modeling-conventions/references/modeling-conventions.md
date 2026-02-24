@@ -1,0 +1,1 @@
+../../../docs/vedalang-user/modeling-conventions.md

@@ -12,8 +12,10 @@ description: >-
 This skill loads the canonical modeling conventions for VedaLang.
 It is intentionally a thin wrapper and should not duplicate convention content.
 
-**The single source of truth is:**
-[`docs/vedalang-user/modeling-conventions.md`](../../../docs/vedalang-user/modeling-conventions.md)
+**Primary reference in this skill folder:**
+[`references/modeling-conventions.md`](references/modeling-conventions.md)
+
+That file is symlinked to the canonical conventions document in `docs/`.
 
 Read that file before authoring or reviewing any VedaLang model. It covers:
 

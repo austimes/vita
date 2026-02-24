@@ -1,0 +1,44 @@
+{
+  "type": "object",
+  "required": [
+    "findings"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "severity",
+          "category",
+          "message",
+          "suggestion"
+        ],
+        "additionalProperties": true,
+        "properties": {
+          "severity": {
+            "type": "string",
+            "enum": [
+              "critical",
+              "warning",
+              "suggestion"
+            ]
+          },
+          "category": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
+          },
+          "suggestion": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

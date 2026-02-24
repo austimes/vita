@@ -8,7 +8,7 @@ This repository serves **two distinct AI personas** — understanding this disti
 
 | Persona | Purpose | Documentation |
 |---------|---------|---------------|
-| **VedaLang User Agent** | Uses VedaLang to author energy system models | `docs/vedalang-user/` and `docs/vedalang-user/LLMS.md` |
+| **VedaLang User Agent** | Uses VedaLang to author energy system models | `skills/vedalang-dsl-cli/` and `docs/vedalang-user/` |
 | **VedaLang Design Agent** | Designs and evolves the VedaLang DSL itself | This file (`AGENTS.md`) and `docs/vedalang-design-agent/` |
 
 ## VedaLang User Agent
@@ -21,8 +21,9 @@ An AI agent that **uses VedaLang** to create `.veda.yaml` models for energy syst
 
 **User agent documentation:**
 - `docs/LLM_DOCS.md` — LLM-facing documentation map (purpose + ownership)
+- `skills/vedalang-dsl-cli/SKILL.md` — Canonical DSL + CLI operational skill
+- `skills/vedalang-modeling-conventions/SKILL.md` — Modeling conventions skill
 - `docs/vedalang-user/` — User documentation index
-- `docs/vedalang-user/LLMS.md` — LLM guide for authoring VedaLang
 - `vedalang/schema/vedalang.schema.json` — Language schema
 - `vedalang/examples/` — Example models
 - `rules/patterns.yaml` — Pattern "standard library"

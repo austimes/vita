@@ -2,7 +2,7 @@
 
 Canonical reference for VedaLang modeling conventions. This document is the
 single source of truth used by both the
-[modeling conventions skill](../../.agents/skills/vedalang-modeling-conventions/SKILL.md)
+[modeling conventions skill](../../skills/vedalang-modeling-conventions/SKILL.md)
 and the LLM structural linter. It is **non-binding** at compile time — it
 complements lint checks and compiler enforcement.
 
@@ -300,7 +300,7 @@ The following should be treated as guidance/lint focus (unless hard rules are ad
 
 ## Cross-References
 
-- `docs/vedalang-user/LLMS.md` (authoring workflow)
+- `skills/vedalang-dsl-cli/SKILL.md` (authoring workflow)
 - `docs/vedalang-user/heuristics.md` (lint heuristics)
 - `docs/prds/vedalang_toy_refactor_prd_updated.txt`
   (three-layer convention framework)

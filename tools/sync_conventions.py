@@ -75,8 +75,12 @@ def _specs(repo_root: Path) -> list[BlockSpec]:
             body=canonical_stages_md,
         ),
         BlockSpec(
-            path=repo_root / "docs" / "vedalang-user" / "LLMS.md",
-            marker="llms-canonical-enums",
+            path=repo_root
+            / "skills"
+            / "vedalang-dsl-cli"
+            / "references"
+            / "dsl-cli-pipeline.md",
+            marker="dsl-cli-canonical-enums",
             body=llms_canonical_enums_md,
         ),
         BlockSpec(

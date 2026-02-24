@@ -135,7 +135,7 @@ availability:
 
 ## Next Steps
 
-- **[LLMS.md](LLMS.md)** — Comprehensive reference for all VedaLang features
+- **[DSL + CLI skill](../../skills/vedalang-dsl-cli/SKILL.md)** — Canonical operational guidance
 - **[vedalang/examples/](../../vedalang/examples/)** — More example models
 - **[rules/patterns.yaml](../../rules/patterns.yaml)** — Pattern library for common modeling idioms
 - **[attribute_mapping.md](attribute_mapping.md)** — How VedaLang maps to VEDA/TIMES

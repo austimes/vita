@@ -10,7 +10,7 @@ The refactor established a **three-layer convention framework**:
 
 | Layer | Mechanism | Enforcement |
 |-------|-----------|-------------|
-| 1. Skill guidance | `.agents/skills/vedalang-modeling-conventions/SKILL.md` | Advisory |
+| 1. Skill guidance | `skills/vedalang-modeling-conventions/SKILL.md` | Advisory |
 | 2. Lint + LLM assessment | `vedalang lint --llm-assess` | Warnings / optional strict mode |
 | 3. Compiler hard rules | `vedalang compile` / `vedalang validate` | Hard errors |
 
@@ -247,6 +247,6 @@ uv run pytest tests/test_prd_acceptance.py -v
 ## Reference
 
 - **PRD:** `docs/prds/vedalang_toy_refactor_prd_updated.txt`
-- **Modeling conventions:** `.agents/skills/vedalang-modeling-conventions/SKILL.md`
+- **Modeling conventions:** `skills/vedalang-modeling-conventions/SKILL.md`
 - **Acceptance tests:** `tests/test_prd_acceptance.py`
 - **Schema:** `vedalang/schema/vedalang.schema.json`

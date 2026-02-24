@@ -12,7 +12,7 @@ VedaLang Source (.veda.yaml)  →  VEDA Excel (.xlsx)  →  TIMES DD files
 
 ## Quick Start
 
-1. Read [LLMS.md](LLMS.md) — the comprehensive LLM guide for authoring VedaLang
+1. Read [`skills/vedalang-dsl-cli/SKILL.md`](../../skills/vedalang-dsl-cli/SKILL.md) — canonical DSL + CLI operational skill
 2. Study the examples in `vedalang/examples/`
 3. Check the schema at `vedalang/schema/vedalang.schema.json`
 4. Use patterns from `rules/patterns.yaml`
@@ -22,7 +22,7 @@ VedaLang Source (.veda.yaml)  →  VEDA Excel (.xlsx)  →  TIMES DD files
 | Resource | Description |
 |----------|-------------|
 | [tutorial.md](tutorial.md) | Your first VedaLang model |
-| [LLMS.md](LLMS.md) | LLM guide for authoring VedaLang models |
+| [`skills/vedalang-dsl-cli/SKILL.md`](../../skills/vedalang-dsl-cli/SKILL.md) | LLM skill for authoring + CLI pipeline |
 | [attribute_mapping.md](attribute_mapping.md) | VedaLang → VEDA/TIMES attribute mapping |
 | [heuristics.md](heuristics.md) | Heuristic checks that catch modeling mistakes |
 | `vedalang/schema/vedalang.schema.json` | Formal language schema |
@@ -30,7 +30,7 @@ VedaLang Source (.veda.yaml)  →  VEDA Excel (.xlsx)  →  TIMES DD files
 | `rules/patterns.yaml` | Pattern "standard library" |
 
 For structural modeling conventions guidance, see
-`.agents/skills/vedalang-modeling-conventions/SKILL.md`.
+`skills/vedalang-modeling-conventions/SKILL.md`.
 
 For the full LLM-facing docs ownership map (what each doc is for), see
 `docs/LLM_DOCS.md`.

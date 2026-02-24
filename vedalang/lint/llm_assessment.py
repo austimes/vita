@@ -35,6 +35,15 @@ _CONVENTIONS_PATH = (
     / "vedalang-user"
     / "modeling-conventions.md"
 )
+_PROMPT_VERSION = "v1"
+_PROMPT_DIR = (
+    Path(__file__).resolve().parent
+    / "prompts"
+    / "res-assessment"
+    / _PROMPT_VERSION
+)
+_SYSTEM_PROMPT_PATH = _PROMPT_DIR / "system.txt"
+_USER_PROMPT_PATH = _PROMPT_DIR / "user_prefix.txt"
 
 # Severity levels for LLM assessment findings
 Severity = Literal["critical", "warning", "suggestion"]
@@ -121,134 +130,32 @@ def load_conventions() -> str:
     )
 
 
-_SYSTEM_PROMPT_TEMPLATE = """\
-You are a VedaLang structural assessment engine. Your task is to review the \
-Reference Energy System (RES) graph of a VedaLang model and identify \
-architectural inconsistencies.
-
-## VedaLang Key Concepts
-
-Understanding these precisely is critical to avoid false positives:
-
-- **Role** = a service/transformation provided (e.g. "provide-space-heat"). \
-Defined in `process_roles` with stage, inputs, and outputs.
-- **Variant** = a specific technology pathway that fulfils a role \
-(e.g. "gas-boiler", "heat-pump"). Defined in `process_variants` with \
-`role:` reference, efficiency, lifetime, costs.
-__CANONICAL_ENUMS__
-
-### Critical distinctions (avoid these mistakes):
-
-1. **Multiple variants under one role is GOOD, not fragmented.** \
-The whole point of the role/variant pattern is that one service role \
-(e.g. "provide-ag-output") can have many technology variants \
-(e.g. "traditional-baseline", "traditional-with-feed-additives", \
-"traditional-with-improved-manure"). \
-This is correct design. "Over-fragmented roles" means having too many \
-ROLES that serve the same purpose — NOT too many variants under one role.
-
-4. **Variant names should indicate complete replacement pathways**, not \
-bolt-on modifiers. When variants represent improved versions of a \
-baseline practice, use bundle naming like "traditional-with-feed-additives" \
-(not just "feed-additives") to make clear each variant is a complete \
-end-to-end replacement for the baseline, not an add-on. Flag variant \
-names that sound like standalone measures or bolt-on modifiers when they \
-share a role with a baseline variant.
-
-2. **Zero-input processes are only valid at stage: supply.** \
-A process at end_use or conversion that has no inputs in its role \
-definition AND no variant-level inputs is suspicious (fake supply). \
-However, VedaLang supports **variant-level inputs**: when different \
-variants under a role consume different fuels (e.g. gas_heater→natural_gas, \
-heat_pump→electricity), the role correctly has empty `required_inputs` \
-while each variant declares its own inputs. Check the role's \
-`has_variant_level_inputs` field and `variant_inputs` list in the JSON — \
-if `has_variant_level_inputs` is true, the role is NOT a zero-input device. \
-Also check the edges section for commodity→role input edges. \
-Do NOT flag roles that have variant-level inputs as zero-input devices.
-
-3. **Commodity type mismatches** must explain: what type the commodity \
-currently has, what type would be expected in this context (and why), \
-and what diagnostic confusion might result. For example, if xl2times \
-expects a "fuel" type for process inputs but finds "material", explain \
-that xl2times may misclassify the flow in its diagnostics.
-
-## You will receive:
-1. Modeling conventions that define best practices
-2. A normalized RES graph (JSON) describing commodities, roles, variants, \
-and edges
-3. A Mermaid diagram of the same graph (for visual reference — role-level \
-only; variant-specific flows are in the JSON)
-
-## Interpreting edge scope (CRITICAL — read carefully)
-
-Edges in the JSON have a `scope` field:
-- `"scope": "role"` — declared in `process_roles.required_inputs/outputs`. \
-Applies to ALL variants under this role.
-- `"scope": "variant"` — declared only by specific variant(s). The \
-`source_variants` list shows WHICH variant(s) produce this edge.
-
-**Variant-level emissions**: If an emission edge has `"scope": "variant"` \
-and `"source_variants": ["gas_heater"]`, it means ONLY `gas_heater` emits \
-that commodity — NOT the role as a whole, and NOT other variants like \
-`heat_pump`. Do NOT generalise variant-scoped edges to the role.
-
-Similarly, each variant node now includes its own `inputs`, `outputs`, \
-and `emission_factors` so you can verify exactly which variants have \
-which topology.
-
-## What to assess:
-- Violations of service-level role abstraction (fuel-pathway roles)
-- Suspicious zero-input end-use devices (processes at non-supply stage \
-with no inputs declared in their role)
-- Over-fragmented ROLES (multiple roles serving the same service that \
-should be merged — NOT multiple variants under one role)
-- Inconsistent stage usage
-- Commodity type mismatches (with specific xl2times/VEDA expectations)
-- **Ambiguous variant naming**: variants that sound like bolt-on modifiers \
-(e.g. "feed-additives") when they should use bundle naming to indicate \
-complete replacement pathways (e.g. "traditional-with-feed-additives"). \
-Flag variants whose names suggest they are add-on measures rather than \
-complete end-to-end replacements for a baseline variant.
-- Any other structural anti-patterns
-
-## Response format
-
-Respond with ONLY a JSON object (no markdown fencing) matching this schema:
-
-{
-  "findings": [
-    {
-      "severity": "critical" | "warning" | "suggestion",
-      "category": "string (e.g. fuel_pathway_roles, zero_input_device, \
-stage_mismatch, commodity_type_mismatch, over_fragmented_roles, \
-ambiguous_variant_naming, other)",
-      "message": "Detailed description of the issue: what is wrong, why \
-it is a problem, and what the model expects vs what it found.",
-      "location": "string identifying where in the model (role/variant id)",
-      "suggestion": "Concrete guidance on how to fix the issue, including \
-a VedaLang YAML snippet showing the corrected structure."
-    }
-  ]
-}
-
-IMPORTANT:
-- Every finding MUST include a non-empty "suggestion" with a concrete fix.
-- "message" must explain the root cause and downstream consequences.
-- Do NOT flag multiple variants under one role as "over-fragmented".
-- Do NOT flag a process as "zero-input" if its role declares inputs OR \
-if `has_variant_level_inputs` is true (variants provide the inputs).
-- If no genuine issues are found, return: {"findings": []}
-- Prefer fewer, high-quality findings over many low-quality ones.
-"""
+def _load_prompt_template(path: Path) -> str:
+    if not path.exists():
+        raise RuntimeError(
+            f"Prompt template not found: {path}. "
+            "Run with a complete source tree that includes vedalang/lint/prompts."
+        )
+    return path.read_text(encoding="utf-8")
 
 
 def _build_system_prompt() -> str:
+    system_template = _load_prompt_template(_SYSTEM_PROMPT_PATH)
     canonical_enum_lines = (
         f"- **Stage** = one of: {format_enum_csv(process_stage_enum())}.\n"
         f"- **Commodity type** = one of: {format_enum_csv(commodity_type_enum())}."
     )
-    return _SYSTEM_PROMPT_TEMPLATE.replace("__CANONICAL_ENUMS__", canonical_enum_lines)
+    return system_template.replace("__CANONICAL_ENUMS__", canonical_enum_lines)
+
+
+def _build_user_prompt(conventions: str, graph: dict, mermaid: str) -> str:
+    user_template = _load_prompt_template(_USER_PROMPT_PATH)
+    return (
+        user_template
+        .replace("__MODELING_CONVENTIONS__", conventions)
+        .replace("__RES_GRAPH_JSON__", json.dumps(graph, indent=2))
+        .replace("__RES_GRAPH_MERMAID__", mermaid)
+    )
 
 
 def assemble_prompt(source: dict) -> tuple[str, str]:
@@ -263,17 +170,7 @@ def assemble_prompt(source: dict) -> tuple[str, str]:
     conventions = load_conventions()
     graph = export_res_graph(source)
     mermaid = res_graph_to_mermaid(graph)
-
-    user_prompt = (
-        "## Modeling Conventions\n\n"
-        f"{conventions}\n\n"
-        "## RES Graph (JSON)\n\n"
-        f"```json\n{json.dumps(graph, indent=2)}\n```\n\n"
-        "## RES Graph (Mermaid)\n\n"
-        f"```mermaid\n{mermaid}\n```\n\n"
-        "Assess this RES for structural issues."
-    )
-
+    user_prompt = _build_user_prompt(conventions, graph, mermaid)
     return _build_system_prompt(), user_prompt
 
 
