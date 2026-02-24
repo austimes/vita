@@ -21,7 +21,8 @@ repo so conventions updates do not require hunting across duplicate docs.
 | `skills/vedalang-modeling-conventions/SKILL.md` | Skill-enabled agents | Thin pointer to conventions document | **Keep** as a wrapper only; no duplicated convention prose |
 | `.agents/skills` (symlink) | Skill-enabled agents | Compatibility path for agents expecting `.agents/skills/*` | **Keep** as symlink to `skills/` |
 | `AGENTS.md` | VedaLang Design Agent | Design-agent operating rules and workflow | **Keep** as design persona root |
-| `docs/vedalang-design-agent/exploration_prompt.md` | VedaLang Design Agent | Structured experimentation protocol | **Keep** as a specialist prompt, scoped to design exploration |
+| `skills/vedalang-design-exploration/SKILL.md` (+ `references/`) | VedaLang Design Agent | Structured experimentation protocol for primitive exploration | **Keep** as canonical design-exploration skill |
+| `docs/vedalang-design-agent/exploration_prompt.md` | VedaLang Design Agent | Compatibility pointer to exploration skill | **Keep** as pointer shim only |
 | `vedalang/lint/llm_assessment.py` prompt template | LLM lint runtime | System/user prompt assembly for structural assessment | **Keep** as executable prompt logic; pull enums from schema-derived helpers |
 | `vedalang/lint/prompts/res-assessment/v1/*` | LLM lint runtime | Versioned prompt text and response schema for reproducible evaluation | **Keep** as canonical prompt text artifacts |
 

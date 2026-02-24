@@ -20,7 +20,8 @@ This directory contains supporting documentation:
 
 | Document | Purpose |
 |----------|---------|
-| [exploration_prompt.md](exploration_prompt.md) | Protocol for exploring new VEDA patterns |
+| [`skills/vedalang-design-exploration/SKILL.md`](../../skills/vedalang-design-exploration/SKILL.md) | Canonical exploration protocol skill |
+| [exploration_prompt.md](exploration_prompt.md) | Compatibility pointer to the exploration skill |
 | [schema_evolution.md](schema_evolution.md) | Rules for evolving the VedaLang schema |
 | [pattern_validation.md](pattern_validation.md) | Pattern catalog and validation methodology |
 | [canonical_form.md](canonical_form.md) | Canonical table form and semantics |

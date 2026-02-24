@@ -36,6 +36,9 @@ An AI agent that **designs and evolves VedaLang** — the DSL, compiler, schemas
 - Discovers new VEDA patterns through experimentation
 - Validates changes against xl2times (the oracle)
 
+Canonical exploration workflow skill:
+- `skills/vedalang-design-exploration/SKILL.md`
+
 **The rest of this file is for the VedaLang Design Agent.**
 
 ---
