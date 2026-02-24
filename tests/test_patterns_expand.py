@@ -126,7 +126,7 @@ class TestExpandPattern:
 
         parsed = yaml.safe_load(result)
         assert "commodities" in parsed
-        assert parsed["commodities"][0]["name"] == "energy:NG"
+        assert parsed["commodities"][0]["name"] == "secondary:NG"
         assert parsed["commodities"][0]["type"] == "energy"
 
     def test_expand_emission_commodity(self):
@@ -184,25 +184,25 @@ class TestFullPipeline:
             "add_power_plant",
             {
                 "plant_name": "PP_CCGT",
-                "fuel_commodity": "energy:natural_gas",
-                "output_commodity": "energy:electricity",
+                "fuel_commodity": "primary:natural_gas",
+                "output_commodity": "secondary:electricity",
                 "efficiency": 0.55,
             }
         )
         process_data = yaml.safe_load(process_yaml)
 
-        # Also expand commodities - pattern adds energy: prefix
+        # Also expand commodities - pattern adds secondary: prefix
         elc_yaml = expand_pattern(
             "add_energy_commodity",
             {"name": "electricity", "unit": "PJ"}
         )
-        ng_yaml = expand_pattern(
-            "add_energy_commodity",
-            {"name": "natural_gas", "unit": "PJ"}
-        )
-
         elc_data = yaml.safe_load(elc_yaml)
-        ng_data = yaml.safe_load(ng_yaml)
+        # Primary fuels are modeled with primary:* namespace and type=fuel.
+        ng_data = {
+            "commodities": [
+                {"name": "primary:natural_gas", "type": "fuel", "unit": "PJ"}
+            ]
+        }
 
         # Build full VedaLang model
         model = {

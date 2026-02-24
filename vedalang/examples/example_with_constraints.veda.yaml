@@ -14,7 +14,7 @@ model:
   milestone_years: [2020, 2030, 2040, 2050]
 
   commodities:
-    - id: fuel:natural_gas
+    - id: primary:natural_gas
       type: fuel
       unit: PJ
       description: Natural Gas
@@ -29,7 +29,7 @@ model:
       unit: PJ
       description: Solar resource
 
-    - id: energy:electricity
+    - id: secondary:electricity
       type: energy
       unit: PJ
       description: Electricity
@@ -53,7 +53,7 @@ model:
     # Renewable energy target: at least 30% of electricity from wind+solar
     - name: ren_target
       type: activity_share
-      commodity: energy:electricity
+      commodity: secondary:electricity
       processes: [wind_generation, solar_generation]
       minimum_share: 0.30
 
@@ -65,7 +65,7 @@ process_roles:
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: fuel:natural_gas
+      - commodity: primary:natural_gas
 
   - id: supply_wind_resource
     stage: supply
@@ -83,14 +83,14 @@ process_roles:
     stage: conversion
     required_inputs: []
     required_outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
 
 process_variants:
   - id: pipeline_import
     role: import_natural_gas
     inputs: []
     outputs:
-      - commodity: fuel:natural_gas
+      - commodity: primary:natural_gas
     efficiency: 1.0
     lifetime: 100
 
@@ -113,9 +113,9 @@ process_variants:
   - id: ccgt_generation
     role: provide_electricity
     inputs:
-      - commodity: fuel:natural_gas
+      - commodity: primary:natural_gas
     outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     efficiency: 0.55
     lifetime: 30
     emission_factors:
@@ -126,7 +126,7 @@ process_variants:
     inputs:
       - commodity: resource:wind_resource
     outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     efficiency: 1.0
     lifetime: 25
 
@@ -135,7 +135,7 @@ process_variants:
     inputs:
       - commodity: resource:solar_resource
     outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     efficiency: 1.0
     lifetime: 25
 

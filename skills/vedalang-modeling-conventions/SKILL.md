@@ -26,7 +26,7 @@ Read that file before authoring or reviewing any VedaLang model. It covers:
 - Naming conventions (snake_case, verb-noun roles, descriptive variants)
 - Stage and commodity typing discipline
 - Emissions as attributes (emission_factors, not outputs)
-- Commodity namespace conventions (energy:, service:, emission:, etc.)
+- Commodity namespace conventions (primary:, secondary:, service:, emission:, etc.)
 - Cases as scenario overlays
 - Solve-independent diagnostics
 - Authoring checklist

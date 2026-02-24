@@ -22,16 +22,16 @@ def test_toy_electricity_examples_separate_delivery_and_end_use_roles():
         end_use = roles["provide_electricity_service"]
 
         assert delivery["stage"] == "distribution"
-        assert delivery["required_inputs"][0]["commodity"] == "energy:electricity"
+        assert delivery["required_inputs"][0]["commodity"] == "secondary:electricity"
         assert (
             delivery["required_outputs"][0]["commodity"]
-            == "energy:delivered_electricity"
+            == "secondary:delivered_electricity"
         )
 
         assert end_use["stage"] == "end_use"
         assert (
             end_use["required_inputs"][0]["commodity"]
-            == "energy:delivered_electricity"
+            == "secondary:delivered_electricity"
         )
         assert (
             end_use["required_outputs"][0]["commodity"]

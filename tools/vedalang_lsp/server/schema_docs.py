@@ -388,7 +388,7 @@ cases:
 process_templates:
   - name: CCGT_GEN
     tags:
-      fuel: gas
+      carrier: gas
       flexibility: high
 ```
 """,

@@ -1,6 +1,6 @@
 # DC1: Thermal plant generated from patterns
 # This model was created by combining pattern expansions:
-#   - add_energy_commodity: fuel:natural_gas, energy:electricity
+#   - add_energy_commodity: primary:natural_gas, secondary:electricity
 #   - add_power_plant: ccgt
 model:
   name: MiniModel
@@ -12,12 +12,12 @@ model:
   milestone_years: [2020, 2030]
 
   commodities:
-    - id: fuel:natural_gas
+    - id: primary:natural_gas
       type: fuel
       unit: PJ
       description: Natural Gas
 
-    - id: energy:electricity
+    - id: secondary:electricity
       type: energy
       unit: PJ
       description: Electricity
@@ -35,18 +35,18 @@ process_roles:
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: fuel:natural_gas
+      - commodity: primary:natural_gas
 
   - id: generate_electricity
     stage: conversion
     required_inputs: []
     required_outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
 
   - id: provide_generic_electric_end_use
     stage: end_use
     required_inputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     required_outputs:
       - commodity: service:generic_electric_end_use
 
@@ -61,23 +61,23 @@ process_variants:
     role: supply_natural_gas
     inputs: []
     outputs:
-      - commodity: fuel:natural_gas
+      - commodity: primary:natural_gas
     efficiency: 1.0
     lifetime: 100
 
   - id: ccgt
     role: generate_electricity
     inputs:
-      - commodity: fuel:natural_gas
+      - commodity: primary:natural_gas
     outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     efficiency: 0.55
     lifetime: 30
 
   - id: baseline_electric_end_use
     role: provide_generic_electric_end_use
     inputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     outputs:
       - commodity: service:generic_electric_end_use
     efficiency: 1.0

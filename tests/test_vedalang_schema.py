@@ -581,8 +581,8 @@ def test_namespaced_commodity_id_validates():
             "name": "NamespacedIdTest",
             "regions": ["R1"],
             "commodities": [
-                {"id": "energy:electricity", "type": "energy"},
-                {"id": "fuel:natural_gas", "type": "fuel"},
+                {"id": "secondary:electricity", "type": "energy"},
+                {"id": "primary:natural_gas", "type": "fuel"},
                 {"id": "resource:wind_resource", "type": "other"},
                 {"id": "service:space_heat", "type": "service"},
                 {"id": "emission:co2", "type": "emission"},
@@ -616,7 +616,7 @@ def test_negative_emission_factor_validates():
             "name": "NegativeEmissionFactor",
             "regions": ["R1"],
             "commodities": [
-                {"id": "energy:electricity", "type": "energy"},
+                {"id": "secondary:electricity", "type": "energy"},
                 {"id": "service:co2_removal", "type": "service"},
                 {"id": "emission:co2", "type": "emission"},
             ],
@@ -624,7 +624,7 @@ def test_negative_emission_factor_validates():
         "process_roles": [
             {
                 "id": "remove_co2",
-                "required_inputs": [{"commodity": "energy:electricity"}],
+                "required_inputs": [{"commodity": "secondary:electricity"}],
                 "required_outputs": [{"commodity": "service:co2_removal"}],
             }
         ],
@@ -632,7 +632,7 @@ def test_negative_emission_factor_validates():
             {
                 "id": "dac",
                 "role": "remove_co2",
-                "inputs": [{"commodity": "energy:electricity"}],
+                "inputs": [{"commodity": "secondary:electricity"}],
                 "outputs": [{"commodity": "service:co2_removal"}],
                 "emission_factors": {"emission:co2": -1.0},
             }

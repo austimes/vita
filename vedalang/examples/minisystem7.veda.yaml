@@ -35,12 +35,12 @@ model:
       WN: 0.25
 
   commodities:
-    - id: fuel:gas
+    - id: primary:gas
       type: fuel
       unit: PJ
       description: Natural gas
 
-    - id: energy:electricity
+    - id: secondary:electricity
       type: energy
       unit: PJ
       description: Electricity
@@ -58,7 +58,7 @@ model:
   trade_links:
     - origin: NORTH
       destination: SOUTH
-      commodity: energy:electricity
+      commodity: secondary:electricity
       bidirectional: false
       efficiency: 0.97
 
@@ -81,18 +81,18 @@ process_roles:
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: fuel:gas
+      - commodity: primary:gas
 
   - id: generate_electricity
     stage: conversion
     required_inputs: []
     required_outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
 
   - id: deliver_residential
     stage: end_use
     required_inputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     required_outputs:
       - commodity: service:residential_demand
 
@@ -101,16 +101,16 @@ process_variants:
     role: import_gas
     inputs: []
     outputs:
-      - commodity: fuel:gas
+      - commodity: primary:gas
     efficiency: 1.0
     lifetime: 100
 
   - id: ccgt
     role: generate_electricity
     inputs:
-      - commodity: fuel:gas
+      - commodity: primary:gas
     outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     efficiency: 0.55
     investment_cost: 800
     fixed_om_cost: 20
@@ -123,7 +123,7 @@ process_variants:
     role: generate_electricity
     inputs: []
     outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     efficiency: 1.0
     investment_cost: 1200
     fixed_om_cost: 25
@@ -133,7 +133,7 @@ process_variants:
   - id: residential_device
     role: deliver_residential
     inputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     outputs:
       - commodity: service:residential_demand
     efficiency: 1.0

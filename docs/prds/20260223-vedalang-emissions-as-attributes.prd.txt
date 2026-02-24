@@ -5,7 +5,7 @@ Adopt a namespace + type scheme in VedaLang that keeps the language obvious and 
 
 Key principle:
 - Emissions are attributes recorded in an emissions ledger, not “useful outputs”.
-- Users write emission:co2, energy:natural_gas, service:space_heat, material:co2 (etc.).
+- Users write emission:co2, primary:natural_gas, service:space_heat, material:co2 (etc.).
 - The compiler maps these to VEDA commodity Csets (NRG/MAT/DEM/ENV/FIN) and process group codes (ELE/CHP/PRE/…).
 
 This reduces semantic ambiguity, improves RES diagnostics, and makes export/mapping to TIMES more reliable.
@@ -55,7 +55,8 @@ Proposed User-Facing Namespaces (Obvious Names)
 
 Commodity namespaces (user-facing → VEDA Csets)
 
-- energy:     Meaning: energy carriers (gas, electricity, hydrogen, etc.)     Compiles to: NRG
+- primary:   Meaning: primary combustible/extractable fuels               Compiles to: NRG
+- secondary: Meaning: secondary carriers (electricity, hydrogen, etc.)    Compiles to: NRG
 - material:   Meaning: physical materials/streams (including captured CO2)    Compiles to: MAT
 - service:    Meaning: demand/service commodities (heat service, pkm, etc.)   Compiles to: DEM
 - emission:   Meaning: environmental ledger species (CO2, CH4, N2O)           Compiles to: ENV
@@ -77,14 +78,14 @@ process_variants:
   - id: gas_heater
     role: provide_space_heat
     inputs:
-      - commodity: energy:natural_gas
+      - commodity: primary:natural_gas
     outputs:
       - commodity: service:space_heat
     emission_factors:
       emission:co2: 0.056
 
 Compile intent:
-- energy:natural_gas → NRG commodity
+- primary:natural_gas → NRG commodity
 - service:space_heat → DEM commodity
 - emission:co2 → ENV emission commodity
 
@@ -104,7 +105,7 @@ process_variants:
   - id: dac
     role: remove_co2
     inputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     emission_factors:
       emission:co2: -1.0
 
@@ -114,7 +115,7 @@ process_variants:
   - id: dac
     role: remove_co2
     inputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     outputs:
       - commodity: material:co2
     emission_factors:

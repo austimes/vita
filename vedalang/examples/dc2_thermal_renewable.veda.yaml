@@ -14,7 +14,7 @@ model:
   milestone_years: [2020, 2030]
 
   commodities:
-    - id: fuel:natural_gas
+    - id: primary:natural_gas
       type: fuel
       unit: PJ
       description: Natural gas fuel
@@ -22,7 +22,7 @@ model:
       type: other
       unit: PJ
       description: Wind resource input
-    - id: energy:electricity
+    - id: secondary:electricity
       type: energy
       unit: PJ
       description: Electricity carrier
@@ -39,7 +39,7 @@ process_roles:
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: fuel:natural_gas
+      - commodity: primary:natural_gas
 
   - id: supply_wind_resource
     stage: supply
@@ -51,12 +51,12 @@ process_roles:
     stage: conversion
     required_inputs: []
     required_outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
 
   - id: provide_useful_electric_service
     stage: end_use
     required_inputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     required_outputs:
       - commodity: service:useful_electricity
 
@@ -65,7 +65,7 @@ process_variants:
     role: supply_natural_gas
     inputs: []
     outputs:
-      - commodity: fuel:natural_gas
+      - commodity: primary:natural_gas
     efficiency: 1.0
     lifetime: 100
 
@@ -80,9 +80,9 @@ process_variants:
   - id: ccgt
     role: generate_electricity
     inputs:
-      - commodity: fuel:natural_gas
+      - commodity: primary:natural_gas
     outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     efficiency: 0.55
 
   - id: wind_turbine
@@ -90,13 +90,13 @@ process_variants:
     inputs:
       - commodity: resource:wind_resource
     outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     efficiency: 1.0
 
   - id: generic_electric_end_use
     role: provide_useful_electric_service
     inputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     outputs:
       - commodity: service:useful_electricity
     efficiency: 1.0

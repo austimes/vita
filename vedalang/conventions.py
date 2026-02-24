@@ -32,9 +32,9 @@ _FALLBACK_COMMODITY_TYPES = (
     "other",
 )
 _FALLBACK_COMMODITY_NAMESPACES = (
-    "fuel",
+    "primary",
     "resource",
-    "energy",
+    "secondary",
     "service",
     "material",
     "emission",

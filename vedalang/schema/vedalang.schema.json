@@ -656,9 +656,9 @@
     "commodity_namespace": {
       "type": "string",
       "enum": [
-        "fuel",
+        "primary",
         "resource",
-        "energy",
+        "secondary",
         "service",
         "material",
         "emission",
@@ -673,8 +673,8 @@
       "properties": {
         "id": {
           "type": "string",
-          "pattern": "^(?:(?:fuel|resource|energy|service|material|emission|money):)?[a-z][a-z0-9_-]*$",
-          "description": "Commodity identifier (snake_case noun, preferred over 'name'). Namespaced form must use a canonical prefix from $defs.commodity_namespace (e.g., energy:electricity, fuel:natural_gas)."
+          "pattern": "^(?:(?:primary|resource|secondary|service|material|emission|money):)?[a-z][a-z0-9_-]*$",
+          "description": "Commodity identifier (snake_case noun, preferred over 'name'). Namespaced form must use a canonical prefix from $defs.commodity_namespace (e.g., secondary:electricity, primary:natural_gas)."
         },
         "name": {
           "type": "string",

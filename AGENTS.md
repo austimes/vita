@@ -183,7 +183,11 @@ We are NOT porting legacy models. This is for new model development.
 ## Design Principle: Commodity Namespaces and Emissions-as-Attributes
 
 **Commodity namespaces** map human-readable prefixes to VEDA Csets:
-- `energy:` → NRG, `material:` → MAT, `service:` → DEM, `emission:` → ENV, `money:` → FIN
+- `primary:` → NRG, `secondary:` → NRG, `resource:` → NRG, `material:` → MAT, `service:` → DEM, `emission:` → ENV, `money:` → FIN
+
+**Decision (2026-02-24):** Use `primary:*` for primary combustible/extractable fuels and
+`secondary:*` for secondary carriers. This replaces older `fuel:*`/`energy:*` namespace
+wording to make primary-vs-secondary energy pedigree explicit.
 
 **Emissions are ledger entries, not flows.** `emission:*` commodities MUST NOT appear in process `inputs` or `outputs`. They enter the model only via `emission_factors`:
 
@@ -191,7 +195,7 @@ We are NOT porting legacy models. This is for new model development.
 process_variants:
   - id: gas_heater
     inputs:
-      - commodity: energy:natural_gas
+      - commodity: primary:natural_gas
     outputs:
       - commodity: service:space_heat
     emission_factors:

@@ -15,7 +15,7 @@ generation agents.
 
 - `stage`: `supply | conversion | distribution | storage | end_use | sink`
 - `commodity.type`: `fuel | energy | service | material | emission | money | other`
-- `commodity namespace prefix`: `fuel | resource | energy | service | material | emission | money`
+- `commodity namespace prefix`: `primary | resource | secondary | service | material | emission | money`
 - `scenario category`: `demands | prices | policies | technology_assumptions | resource_availability | global_settings`
 <!-- GENERATED:dsl-cli-canonical-enums:end -->
 

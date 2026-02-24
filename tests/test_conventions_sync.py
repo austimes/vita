@@ -16,7 +16,7 @@ MINIMAL_SOURCE = {
         "name": "conventions_sync_test",
         "regions": ["R1"],
         "commodities": [
-            {"id": "energy:electricity", "type": "energy"},
+            {"id": "secondary:electricity", "type": "energy"},
             {"id": "service:space_heat", "type": "service"},
         ],
     },
@@ -24,7 +24,7 @@ MINIMAL_SOURCE = {
         {
             "id": "provide_space_heat",
             "stage": "end_use",
-            "required_inputs": [{"commodity": "energy:electricity"}],
+            "required_inputs": [{"commodity": "secondary:electricity"}],
             "required_outputs": [{"commodity": "service:space_heat"}],
         }
     ],
@@ -32,7 +32,7 @@ MINIMAL_SOURCE = {
         {
             "id": "heat_pump",
             "role": "provide_space_heat",
-            "inputs": [{"commodity": "energy:electricity"}],
+            "inputs": [{"commodity": "secondary:electricity"}],
             "outputs": [{"commodity": "service:space_heat"}],
         }
     ],

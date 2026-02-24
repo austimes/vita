@@ -12,8 +12,8 @@ from dataclasses import dataclass
 from vedalang.conventions import commodity_namespace_enum
 
 NAMESPACE_TO_TYPES = {
-    "energy": {"fuel", "energy"},
-    "fuel": {"fuel"},
+    "secondary": {"energy"},
+    "primary": {"fuel"},
     "resource": {"other", "energy"},
     "material": {"material"},
     "service": {"service"},

@@ -60,8 +60,8 @@ def test_commodities_become_fi_comm():
 
     assert len(comm_tables) >= 1
     comm_names = [r.get("commodity") for r in comm_tables[0]["rows"]]
-    assert "energy:electricity" in comm_names
-    assert "fuel:natural_gas" in comm_names
+    assert "secondary:electricity" in comm_names
+    assert "primary:natural_gas" in comm_names
 
 
 def test_processes_become_fi_process():
@@ -1772,7 +1772,7 @@ def test_l1_emission_namespace_flow_error_in_cross_refs():
         "name": "EmissionFlowError",
         "regions": ["REG1"],
         "commodities": [
-            {"id": "energy:natural_gas", "type": "energy"},
+            {"id": "primary:natural_gas", "type": "fuel"},
             {"id": "service:heat", "type": "service"},
             {"id": "emission:co2", "type": "emission"},
         ],
@@ -2927,9 +2927,9 @@ def test_toy_buildings_uses_service_role_and_case_demand_override_conventions():
     # Variants use variant-level inputs
     variants = {v["id"]: v for v in source["process_variants"]}
     assert variants["gas_heater"]["role"] == "provide_space_heat"
-    assert variants["gas_heater"]["inputs"] == [{"commodity": "fuel:natural_gas"}]
+    assert variants["gas_heater"]["inputs"] == [{"commodity": "primary:natural_gas"}]
     assert variants["heat_pump"]["role"] == "provide_space_heat"
-    assert variants["heat_pump"]["inputs"] == [{"commodity": "energy:electricity"}]
+    assert variants["heat_pump"]["inputs"] == [{"commodity": "secondary:electricity"}]
     assert "space_heat_delivery" not in variants
 
     cases = {case["name"]: case for case in source["model"]["cases"]}
@@ -2962,13 +2962,13 @@ def test_toy_industry_uses_variant_level_inputs():
         for variant in source["process_variants"]
     }
     assert variants["gas_boiler"]["role"] == "provide_industrial_heat"
-    assert variants["gas_boiler"]["inputs"] == [{"commodity": "fuel:natural_gas"}]
+    assert variants["gas_boiler"]["inputs"] == [{"commodity": "primary:natural_gas"}]
     assert variants["electric_heater"]["role"] == "provide_industrial_heat"
     assert variants["electric_heater"]["inputs"] == [
-        {"commodity": "energy:electricity"}
+        {"commodity": "secondary:electricity"}
     ]
     assert variants["h2_boiler"]["role"] == "provide_industrial_heat"
-    assert variants["h2_boiler"]["inputs"] == [{"commodity": "energy:hydrogen"}]
+    assert variants["h2_boiler"]["inputs"] == [{"commodity": "secondary:hydrogen"}]
     assert "industrial_heat_delivery" not in variants
 
 def test_toy_transport_uses_service_role_with_pathway_variants():
@@ -2988,9 +2988,9 @@ def test_toy_transport_uses_service_role_with_pathway_variants():
 
     variants = {v["id"]: v for v in source["process_variants"]}
     assert variants["ice_car"]["role"] == "provide_passenger_km"
-    assert variants["ice_car"]["inputs"] == [{"commodity": "fuel:petrol"}]
+    assert variants["ice_car"]["inputs"] == [{"commodity": "primary:petrol"}]
     assert variants["ev_car"]["role"] == "provide_passenger_km"
-    assert variants["ev_car"]["inputs"] == [{"commodity": "energy:electricity"}]
+    assert variants["ev_car"]["inputs"] == [{"commodity": "secondary:electricity"}]
     assert "passenger_service_delivery" not in variants
 
 def test_toy_resources_uses_service_role_with_case_overlays():

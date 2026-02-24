@@ -149,9 +149,9 @@ Emissions are **ledger entries**, not flows. They are specified as a dict on the
 process_variants:
   - id: gas_plant
     inputs:
-      - commodity: energy:natural_gas
+      - commodity: primary:natural_gas
     outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     emission_factors:
       emission:co2: 0.05  # Mt CO2 per PJ fuel input
 
@@ -220,9 +220,9 @@ processes:
     
     # I/O topology
     inputs:
-      - commodity: energy:natural_gas
+      - commodity: primary:natural_gas
     outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     
     # Emissions (ledger entries, not flows)
     emission_factors:
@@ -266,7 +266,7 @@ processes:
     sets: [IMP]
     primary_commodity_group: NRGO
     outputs:
-      - commodity: energy:natural_gas
+      - commodity: primary:natural_gas
     efficiency: 1.0
     import_price: 5.0                # IRE_PRICE ($/PJ)
     stock: 1000                      # Effectively unlimited import capacity

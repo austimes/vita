@@ -21,12 +21,12 @@ model:
 
   commodities:
     # Primary carriers
-    - id: fuel:natural_gas
+    - id: primary:natural_gas
       type: fuel
       unit: PJ
       description: Bulk natural gas
 
-    - id: fuel:crude_oil
+    - id: primary:crude_oil
       type: fuel
       unit: PJ
       description: Crude oil
@@ -42,27 +42,27 @@ model:
       description: Solar resource potential
 
     # Converted/distributed carriers
-    - id: energy:electricity
+    - id: secondary:electricity
       type: energy
       unit: PJ
       description: Bulk electricity (generation bus)
 
-    - id: energy:electricity_grid
+    - id: secondary:electricity_grid
       type: energy
       unit: PJ
       description: Delivered electricity
 
-    - id: fuel:natural_gas_grid
+    - id: primary:natural_gas_grid
       type: fuel
       unit: PJ
       description: Delivered natural gas
 
-    - id: fuel:petrol
+    - id: primary:petrol
       type: fuel
       unit: PJ
       description: Refined petrol/diesel proxy
 
-    - id: energy:hydrogen
+    - id: secondary:hydrogen
       type: energy
       unit: PJ
       description: Hydrogen
@@ -117,19 +117,19 @@ process_roles:
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: fuel:natural_gas
+      - commodity: primary:natural_gas
 
   - id: import_oil
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: fuel:crude_oil
+      - commodity: primary:crude_oil
 
   - id: import_hydrogen
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: energy:hydrogen
+      - commodity: secondary:hydrogen
 
   - id: supply_wind_resource
     stage: supply
@@ -148,36 +148,36 @@ process_roles:
     stage: conversion
     required_inputs: []
     required_outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
 
   - id: refine_oil
     stage: conversion
     required_inputs:
-      - commodity: fuel:crude_oil
+      - commodity: primary:crude_oil
     required_outputs:
-      - commodity: fuel:petrol
+      - commodity: primary:petrol
 
   - id: produce_hydrogen
     stage: conversion
     required_inputs:
-      - commodity: energy:electricity_grid
+      - commodity: secondary:electricity_grid
     required_outputs:
-      - commodity: energy:hydrogen
+      - commodity: secondary:hydrogen
 
   # Distribution
   - id: transmit_electricity
     stage: conversion
     required_inputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     required_outputs:
-      - commodity: energy:electricity_grid
+      - commodity: secondary:electricity_grid
 
   - id: deliver_gas
     stage: distribution
     required_inputs:
-      - commodity: fuel:natural_gas
+      - commodity: primary:natural_gas
     required_outputs:
-      - commodity: fuel:natural_gas_grid
+      - commodity: primary:natural_gas_grid
 
   # End-use: space heat (RES/COM/OTH)
   - id: provide_space_heat
@@ -215,7 +215,7 @@ process_variants:
     role: import_gas
     inputs: []
     outputs:
-      - commodity: fuel:natural_gas
+      - commodity: primary:natural_gas
     efficiency: 1.0
     lifetime: 100
     variable_om_cost: 8
@@ -224,7 +224,7 @@ process_variants:
     role: import_oil
     inputs: []
     outputs:
-      - commodity: fuel:crude_oil
+      - commodity: primary:crude_oil
     efficiency: 1.0
     lifetime: 100
     variable_om_cost: 10
@@ -233,7 +233,7 @@ process_variants:
     role: import_hydrogen
     inputs: []
     outputs:
-      - commodity: energy:hydrogen
+      - commodity: secondary:hydrogen
     efficiency: 1.0
     lifetime: 100
     variable_om_cost:
@@ -264,9 +264,9 @@ process_variants:
   - id: ccgt
     role: generate_electricity
     inputs:
-      - commodity: fuel:natural_gas_grid
+      - commodity: primary:natural_gas_grid
     outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     efficiency: 0.55
     lifetime: 40
     investment_cost: 800
@@ -280,7 +280,7 @@ process_variants:
     inputs:
       - commodity: resource:solar_resource
     outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     efficiency: 1.0
     lifetime: 25
     investment_cost:
@@ -296,7 +296,7 @@ process_variants:
     inputs:
       - commodity: resource:wind_resource
     outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     efficiency: 1.0
     lifetime: 25
     investment_cost: 1200
@@ -305,9 +305,9 @@ process_variants:
   - id: refinery
     role: refine_oil
     inputs:
-      - commodity: fuel:crude_oil
+      - commodity: primary:crude_oil
     outputs:
-      - commodity: fuel:petrol
+      - commodity: primary:petrol
     efficiency: 0.90
     lifetime: 40
     investment_cost: 200
@@ -318,9 +318,9 @@ process_variants:
   - id: electrolyser
     role: produce_hydrogen
     inputs:
-      - commodity: energy:electricity_grid
+      - commodity: secondary:electricity_grid
     outputs:
-      - commodity: energy:hydrogen
+      - commodity: secondary:hydrogen
     efficiency: 0.70
     lifetime: 25
     investment_cost: 600
@@ -331,9 +331,9 @@ process_variants:
     role: transmit_electricity
     kind: network
     inputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     outputs:
-      - commodity: energy:electricity_grid
+      - commodity: secondary:electricity_grid
     efficiency: 0.95
     lifetime: 100
 
@@ -341,16 +341,16 @@ process_variants:
     role: deliver_gas
     kind: network
     inputs:
-      - commodity: fuel:natural_gas
+      - commodity: primary:natural_gas
     outputs:
-      - commodity: fuel:natural_gas_grid
+      - commodity: primary:natural_gas_grid
     efficiency: 0.98
     lifetime: 100
 
   # End-use: space heat
   - id: gas_space_heater
     role: provide_space_heat
-    inputs: [{commodity: fuel:natural_gas_grid}]
+    inputs: [{commodity: primary:natural_gas_grid}]
     outputs:
       - commodity: service:space_heat
     efficiency: 0.90
@@ -361,7 +361,7 @@ process_variants:
 
   - id: electric_space_heater
     role: provide_space_heat
-    inputs: [{commodity: energy:electricity_grid}]
+    inputs: [{commodity: secondary:electricity_grid}]
     outputs:
       - commodity: service:space_heat
     efficiency: 0.95
@@ -371,7 +371,7 @@ process_variants:
   # End-use: industrial heat
   - id: gas_industrial_boiler
     role: provide_industrial_heat
-    inputs: [{commodity: fuel:natural_gas_grid}]
+    inputs: [{commodity: primary:natural_gas_grid}]
     outputs:
       - commodity: service:industrial_heat
     efficiency: 0.90
@@ -382,7 +382,7 @@ process_variants:
 
   - id: electric_industrial_heater
     role: provide_industrial_heat
-    inputs: [{commodity: energy:electricity_grid}]
+    inputs: [{commodity: secondary:electricity_grid}]
     outputs:
       - commodity: service:industrial_heat
     efficiency: 0.95
@@ -391,7 +391,7 @@ process_variants:
 
   - id: h2_industrial_boiler
     role: provide_industrial_heat
-    inputs: [{commodity: energy:hydrogen}]
+    inputs: [{commodity: secondary:hydrogen}]
     outputs:
       - commodity: service:industrial_heat
     efficiency: 0.85
@@ -401,7 +401,7 @@ process_variants:
   # End-use: transport
   - id: ice_car
     role: provide_passenger_km
-    inputs: [{commodity: fuel:petrol}]
+    inputs: [{commodity: primary:petrol}]
     outputs:
       - commodity: service:passenger_km
     efficiency: 1.0
@@ -412,7 +412,7 @@ process_variants:
 
   - id: ev_car
     role: provide_passenger_km
-    inputs: [{commodity: energy:electricity_grid}]
+    inputs: [{commodity: secondary:electricity_grid}]
     outputs:
       - commodity: service:passenger_km
     efficiency: 1.0
@@ -423,7 +423,7 @@ process_variants:
   # End-use: agriculture
   - id: petrol_tractor
     role: provide_farm_work
-    inputs: [{commodity: fuel:petrol}]
+    inputs: [{commodity: primary:petrol}]
     outputs:
       - commodity: service:farm_work
     efficiency: 1.0
@@ -434,7 +434,7 @@ process_variants:
 
   - id: electric_tractor
     role: provide_farm_work
-    inputs: [{commodity: energy:electricity_grid}]
+    inputs: [{commodity: secondary:electricity_grid}]
     outputs:
       - commodity: service:farm_work
     efficiency: 1.0

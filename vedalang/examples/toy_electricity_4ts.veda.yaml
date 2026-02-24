@@ -30,12 +30,12 @@ model:
       WN: 0.25
 
   commodities:
-    - id: energy:electricity
+    - id: secondary:electricity
       type: energy
       unit: PJ
       description: Electricity
 
-    - id: energy:delivered_electricity
+    - id: secondary:delivered_electricity
       type: energy
       unit: PJ
       description: Grid-delivered electricity at end-use connection
@@ -45,7 +45,7 @@ model:
       unit: PJ
       description: Electricity service demand
 
-    - id: fuel:natural_gas
+    - id: primary:natural_gas
       type: fuel
       unit: PJ
       description: Natural gas
@@ -96,7 +96,7 @@ process_roles:
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: fuel:natural_gas
+      - commodity: primary:natural_gas
 
   - id: supply_solar_irradiance
     stage: supply
@@ -114,26 +114,26 @@ process_roles:
     stage: conversion
     required_inputs: []
     required_outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
 
   - id: store_electricity
     stage: storage
     required_inputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     required_outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
 
   - id: deliver_electricity_grid
     stage: distribution
     required_inputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     required_outputs:
-      - commodity: energy:delivered_electricity
+      - commodity: secondary:delivered_electricity
 
   - id: provide_electricity_service
     stage: end_use
     required_inputs:
-      - commodity: energy:delivered_electricity
+      - commodity: secondary:delivered_electricity
     required_outputs:
       - commodity: service:electricity_service
 
@@ -142,7 +142,7 @@ process_variants:
     role: supply_gas
     inputs: []
     outputs:
-      - commodity: fuel:natural_gas
+      - commodity: primary:natural_gas
     efficiency: 1.0
     lifetime: 100
     variable_om_cost: 8
@@ -166,9 +166,9 @@ process_variants:
   - id: ccgt
     role: generate_electricity
     inputs:
-      - commodity: fuel:natural_gas
+      - commodity: primary:natural_gas
     outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     efficiency: 0.55
     lifetime: 40
     investment_cost: 800
@@ -180,9 +180,9 @@ process_variants:
   - id: ocgt
     role: generate_electricity
     inputs:
-      - commodity: fuel:natural_gas
+      - commodity: primary:natural_gas
     outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     efficiency: 0.35
     lifetime: 30
     investment_cost: 400
@@ -196,7 +196,7 @@ process_variants:
     inputs:
       - commodity: resource:solar_irradiance
     outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     efficiency: 1.0
     lifetime: 25
     investment_cost: 1000
@@ -208,7 +208,7 @@ process_variants:
     inputs:
       - commodity: resource:wind_resource
     outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     efficiency: 1.0
     lifetime: 25
     investment_cost: 1200
@@ -218,9 +218,9 @@ process_variants:
   - id: battery
     role: store_electricity
     inputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     efficiency: 0.85
     lifetime: 15
     investment_cost: 300
@@ -229,9 +229,9 @@ process_variants:
   - id: grid_distribution
     role: deliver_electricity_grid
     inputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     outputs:
-      - commodity: energy:delivered_electricity
+      - commodity: secondary:delivered_electricity
     efficiency: 0.95
     lifetime: 100
     kind: network
@@ -239,7 +239,7 @@ process_variants:
   - id: direct_electric
     role: provide_electricity_service
     inputs:
-      - commodity: energy:delivered_electricity
+      - commodity: secondary:delivered_electricity
     outputs:
       - commodity: service:electricity_service
     efficiency: 1.0

@@ -19,17 +19,17 @@ model:
       unit: PJ
       description: Haulage work demand
 
-    - id: energy:electricity
+    - id: secondary:electricity
       type: energy
       unit: PJ
       description: Electricity
 
-    - id: fuel:diesel
+    - id: primary:diesel
       type: fuel
       unit: PJ
       description: Diesel fuel
 
-    - id: fuel:biodiesel
+    - id: primary:biodiesel
       type: fuel
       unit: PJ
       description: Biodiesel
@@ -87,19 +87,19 @@ process_roles:
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: fuel:diesel
+      - commodity: primary:diesel
 
   - id: import_electricity
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
 
   - id: import_biodiesel
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: fuel:biodiesel
+      - commodity: primary:biodiesel
 
   - id: provide_haul_work
     stage: end_use
@@ -112,7 +112,7 @@ process_variants:
     role: import_diesel
     inputs: []
     outputs:
-      - commodity: fuel:diesel
+      - commodity: primary:diesel
     efficiency: 1.0
     lifetime: 100
     variable_om_cost: 12
@@ -121,7 +121,7 @@ process_variants:
     role: import_electricity
     inputs: []
     outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     efficiency: 1.0
     lifetime: 100
     variable_om_cost: 25
@@ -130,7 +130,7 @@ process_variants:
     role: import_biodiesel
     inputs: []
     outputs:
-      - commodity: fuel:biodiesel
+      - commodity: primary:biodiesel
     efficiency: 1.0
     lifetime: 100
     variable_om_cost: 20
@@ -138,7 +138,7 @@ process_variants:
   - id: diesel_haul
     role: provide_haul_work
     inputs:
-      - commodity: fuel:diesel
+      - commodity: primary:diesel
     outputs:
       - commodity: service:haul_work
     efficiency: 0.35
@@ -149,7 +149,7 @@ process_variants:
   - id: electric_haul
     role: provide_haul_work
     inputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     outputs:
       - commodity: service:haul_work
     efficiency: 0.85
@@ -159,7 +159,7 @@ process_variants:
   - id: biodiesel_haul
     role: provide_haul_work
     inputs:
-      - commodity: fuel:biodiesel
+      - commodity: primary:biodiesel
     outputs:
       - commodity: service:haul_work
     efficiency: 0.35

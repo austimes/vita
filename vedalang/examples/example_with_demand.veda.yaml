@@ -7,7 +7,7 @@ model:
   milestone_years: [2020, 2030, 2040, 2050, 2060]
 
   commodities:
-    - id: energy:electricity
+    - id: secondary:electricity
       type: energy
       unit: PJ
       description: Electricity
@@ -25,12 +25,12 @@ process_roles:
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
 
   - id: provide_residential_electric_service
     stage: end_use
     required_inputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     required_outputs:
       - commodity: service:residential_electric_service
 
@@ -39,14 +39,14 @@ process_variants:
     role: supply_electricity
     inputs: []
     outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     efficiency: 1.0
     lifetime: 100
 
   - id: residential_device
     role: provide_residential_electric_service
     inputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     outputs:
       - commodity: service:residential_electric_service
     efficiency: 1.0

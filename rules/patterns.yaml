@@ -20,11 +20,11 @@ patterns:
       - name: fuel_commodity
         type: string
         required: true
-        description: Input fuel commodity using namespaced ID (e.g., energy:natural_gas, energy:coal)
+        description: Input fuel commodity using namespaced ID (e.g., primary:natural_gas, primary:coal)
       - name: output_commodity
         type: string
         required: true
-        description: Output commodity using namespaced ID (e.g., energy:electricity)
+        description: Output commodity using namespaced ID (e.g., secondary:electricity)
       - name: efficiency
         type: number
         required: false
@@ -62,8 +62,8 @@ patterns:
             emission:co2: {{ emission_factor }}
     example:
       plant_name: PP_CCGT
-      fuel_commodity: energy:natural_gas
-      output_commodity: energy:electricity
+      fuel_commodity: primary:natural_gas
+      output_commodity: secondary:electricity
       efficiency: 0.55
       emission_factor: 0.05
 
@@ -79,7 +79,7 @@ patterns:
       - name: output_commodity
         type: string
         required: true
-        default: energy:electricity
+        default: secondary:electricity
       - name: technology_type
         type: string
         required: true
@@ -113,16 +113,16 @@ patterns:
       - name: fuel_commodity
         type: string
         required: true
-        description: Input fuel commodity using namespaced ID (e.g., energy:natural_gas)
+        description: Input fuel commodity using namespaced ID (e.g., primary:natural_gas)
       - name: electricity_commodity
         type: string
         required: false
-        default: energy:electricity
+        default: secondary:electricity
         description: Electricity output commodity
       - name: heat_commodity
         type: string
         required: true
-        description: Heat output commodity using namespaced ID (e.g., energy:heat)
+        description: Heat output commodity using namespaced ID (e.g., secondary:heat)
       - name: elec_share
         type: number
         required: false
@@ -155,9 +155,9 @@ patterns:
           efficiency: {{ total_efficiency }}
     example:
       plant_name: CHP_GAS
-      fuel_commodity: energy:natural_gas
-      electricity_commodity: energy:electricity
-      heat_commodity: energy:heat
+      fuel_commodity: primary:natural_gas
+      electricity_commodity: secondary:electricity
+      heat_commodity: secondary:heat
       elec_share: 0.40
       heat_share: 0.50
       total_efficiency: 0.90
@@ -176,7 +176,7 @@ patterns:
       - name: commodity
         type: string
         required: true
-        description: Commodity to store using namespaced ID (e.g., energy:electricity, energy:heat)
+        description: Commodity to store using namespaced ID (e.g., secondary:electricity, secondary:heat)
       - name: round_trip_efficiency
         type: number
         required: false
@@ -203,7 +203,7 @@ patterns:
           efficiency: {{ round_trip_efficiency }}
     example:
       storage_name: STG_BATTERY
-      commodity: energy:electricity
+      commodity: secondary:electricity
       round_trip_efficiency: 0.85
       capacity_unit: GW
 
@@ -226,7 +226,7 @@ patterns:
         default: ""
     vedalang_template: |
       commodities:
-        - name: energy:{{ name }}
+        - name: secondary:{{ name }}
           type: energy
           unit: {{ unit }}
           {% if description %}description: {{ description }}{% endif %}

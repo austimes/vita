@@ -45,7 +45,7 @@ processes:
 
 **Pattern detected:** A demand device (process that outputs a demand commodity) has no `stock` or initial capacity specified.
 
-**Why it matters:** Demand devices convert energy commodities (like `energy:electricity`) into demand services (like `service:residential_demand`). Without capacity, they cannot operate, and the model becomes infeasible in the base year.
+**Why it matters:** Demand devices convert energy commodities (like `secondary:electricity`) into demand services (like `service:residential_demand`). Without capacity, they cannot operate, and the model becomes infeasible in the base year.
 
 **Example (problematic):**
 ```yaml
@@ -53,7 +53,7 @@ processes:
   - name: DMD_RSD
     sets: [DMD]
     inputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     outputs:
       - commodity: service:residential_demand  # Service commodity
     # Missing: stock
@@ -183,7 +183,7 @@ model:
     
   - name: DMD_RSD
     inputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     outputs:
       - commodity: service:residential_demand
     stock: 100  # Large capacity to avoid bottleneck

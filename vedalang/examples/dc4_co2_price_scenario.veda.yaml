@@ -14,7 +14,7 @@ model:
   milestone_years: [2025, 2030, 2040, 2050]
 
   commodities:
-    - id: fuel:natural_gas
+    - id: primary:natural_gas
       type: fuel
       unit: PJ
       description: Natural Gas
@@ -24,7 +24,7 @@ model:
       unit: PJ
       description: Wind resource potential
 
-    - id: energy:electricity
+    - id: secondary:electricity
       type: energy
       unit: PJ
       description: Electricity carrier
@@ -59,7 +59,7 @@ process_roles:
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: fuel:natural_gas
+      - commodity: primary:natural_gas
 
   - id: supply_wind_resource
     stage: supply
@@ -71,12 +71,12 @@ process_roles:
     stage: conversion
     required_inputs: []
     required_outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
 
   - id: satisfy_electricity_demand
     stage: end_use
     required_inputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     required_outputs:
       - commodity: service:electricity_demand
 
@@ -86,7 +86,7 @@ process_variants:
     role: import_natural_gas
     inputs: []
     outputs:
-      - commodity: fuel:natural_gas
+      - commodity: primary:natural_gas
     efficiency: 1.0
     lifetime: 100
 
@@ -101,9 +101,9 @@ process_variants:
   - id: ccgt
     role: generate_electricity
     inputs:
-      - commodity: fuel:natural_gas
+      - commodity: primary:natural_gas
     outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     efficiency: 0.55
     lifetime: 40
     emission_factors:
@@ -115,14 +115,14 @@ process_variants:
     inputs:
       - commodity: resource:wind_resource
     outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     efficiency: 1.0
     lifetime: 25
 
   - id: grid_delivery
     role: satisfy_electricity_demand
     inputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     outputs:
       - commodity: service:electricity_demand
     efficiency: 1.0

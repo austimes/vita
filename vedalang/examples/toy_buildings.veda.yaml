@@ -18,12 +18,12 @@ model:
       unit: PJ
       description: Space heating demand
 
-    - id: energy:electricity
+    - id: secondary:electricity
       type: energy
       unit: PJ
       description: Electricity
 
-    - id: fuel:natural_gas
+    - id: primary:natural_gas
       type: fuel
       unit: PJ
       description: Natural gas
@@ -61,13 +61,13 @@ process_roles:
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: fuel:natural_gas
+      - commodity: primary:natural_gas
 
   - id: supply_electricity
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
 
   - id: provide_space_heat
     stage: end_use
@@ -83,7 +83,7 @@ process_variants:
     variable_om_cost: 8
     inputs: []
     outputs:
-      - commodity: fuel:natural_gas
+      - commodity: primary:natural_gas
 
   - id: grid_import 
     role: supply_electricity
@@ -92,12 +92,12 @@ process_variants:
     variable_om_cost: 25
     inputs: []
     outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
 
   - id: gas_heater
     role: provide_space_heat
     inputs:
-      - commodity: fuel:natural_gas
+      - commodity: primary:natural_gas
     outputs:
       - commodity: service:space_heat
     efficiency: 0.90
@@ -109,7 +109,7 @@ process_variants:
   - id: heat_pump
     role: provide_space_heat
     inputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     outputs:
       - commodity: service:space_heat
     # COP is 3.0 but schema constrains efficiency to 0-1 range.

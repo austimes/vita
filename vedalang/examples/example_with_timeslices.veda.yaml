@@ -27,12 +27,12 @@ model:
       WN: 0.25    # Winter-Night
   
   commodities:
-    - id: energy:electricity
+    - id: secondary:electricity
       type: energy
       unit: PJ
       description: Electricity
 
-    - id: fuel:natural_gas
+    - id: primary:natural_gas
       type: fuel
       unit: PJ
       description: Natural Gas
@@ -50,19 +50,19 @@ process_roles:
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: fuel:natural_gas
+      - commodity: primary:natural_gas
 
   - id: generate_electricity
     stage: conversion
     required_inputs:
-      - commodity: fuel:natural_gas
+      - commodity: primary:natural_gas
     required_outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
 
   - id: provide_electricity_service
     stage: end_use
     required_inputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     required_outputs:
       - commodity: service:electricity_demand
 
@@ -71,23 +71,23 @@ process_variants:
     role: supply_natural_gas
     inputs: []
     outputs:
-      - commodity: fuel:natural_gas
+      - commodity: primary:natural_gas
     efficiency: 1.0
     lifetime: 100
 
   - id: ccgt
     role: generate_electricity
     inputs:
-      - commodity: fuel:natural_gas
+      - commodity: primary:natural_gas
     outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     efficiency: 0.55
     lifetime: 30
 
   - id: electric_device
     role: provide_electricity_service
     inputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     outputs:
       - commodity: service:electricity_demand
     efficiency: 1.0

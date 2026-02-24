@@ -150,8 +150,8 @@ VALID_COMMODITY_TYPES = commodity_type_enum()
 VALID_COMMODITY_NAMESPACES = set(commodity_namespace_enum())
 
 NAMESPACE_TO_TYPES = {
-    "energy": {"fuel", "energy"},
-    "fuel": {"fuel"},
+    "secondary": {"energy"},
+    "primary": {"fuel"},
     "resource": {"other", "energy"},
     "material": {"material"},
     "service": {"service"},

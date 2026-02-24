@@ -53,9 +53,9 @@ currently has, what type would be expected in this context (and why), \
 and what diagnostic confusion might result. For example, if xl2times \
 expects a "fuel" type for process inputs but finds "material", explain \
 that xl2times may misclassify the flow in its diagnostics.
-Use the conventions distinction: `fuel:*` + `type: fuel` for combustible \
+Use the conventions distinction: `primary:*` + `type: fuel` for combustible \
 primary inputs, `resource:*` + `type: other` for exogenous non-combustible \
-resources, and `energy:*` + `type: energy` for secondary carriers.
+resources, and `secondary:*` + `type: energy` for secondary carriers.
 
 ## You will receive:
 1. Modeling conventions that define best practices
@@ -124,8 +124,8 @@ IMPORTANT:
 if `has_variant_level_inputs` is true (variants provide the inputs).
 - Do NOT flag zero-input `sink` roles as errors when they clearly model \
 ledger-only removals with negative emission factors.
-- Commodity namespace migration advice (`energy:*` fuel/resource → \
-`fuel:*`/`resource:*`) should normally be `warning` or `suggestion`, not \
+- Commodity namespace migration advice (legacy `fuel:*`/`energy:*` → \
+`primary:*`/`secondary:*`) should normally be `warning` or `suggestion`, not \
 `critical`, unless it causes a concrete structural contradiction.
 - If no genuine issues are found, return: {"findings": []}
 - Prefer fewer, high-quality findings over many low-quality ones.

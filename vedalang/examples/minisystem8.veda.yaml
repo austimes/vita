@@ -34,22 +34,22 @@ model:
 
   commodities:
     # Tradable energy carriers
-    - id: fuel:gas
+    - id: primary:gas
       type: fuel
       unit: PJ
       description: Natural gas
 
-    - id: fuel:coal
+    - id: primary:coal
       type: fuel
       unit: PJ
       description: Coal
 
-    - id: energy:electricity
+    - id: secondary:electricity
       type: energy
       unit: PJ
       description: Electricity
 
-    - id: energy:hydrogen
+    - id: secondary:hydrogen
       type: energy
       unit: PJ
       description: Hydrogen
@@ -94,7 +94,7 @@ model:
   trade_links:
     - origin: NEM_EAST
       destination: NEM_SOUTH
-      commodity: energy:electricity
+      commodity: secondary:electricity
       bidirectional: false
       efficiency: 0.97
 
@@ -118,13 +118,13 @@ process_roles:
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: fuel:gas
+      - commodity: primary:gas
 
   - id: import_coal
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: fuel:coal
+      - commodity: primary:coal
 
   - id: supply_solar_irradiance
     stage: supply
@@ -143,14 +143,14 @@ process_roles:
     stage: conversion
     required_inputs: []
     required_outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
 
   # === HYDROGEN PRODUCTION ===
   - id: produce_hydrogen
     stage: conversion
     required_inputs: []
     required_outputs:
-      - commodity: energy:hydrogen
+      - commodity: secondary:hydrogen
 
   # === END USE ===
   - id: provide_residential_demand
@@ -183,7 +183,7 @@ process_variants:
     role: import_gas
     inputs: []
     outputs:
-      - commodity: fuel:gas
+      - commodity: primary:gas
     efficiency: 1.0
     lifetime: 100
 
@@ -191,7 +191,7 @@ process_variants:
     role: import_coal
     inputs: []
     outputs:
-      - commodity: fuel:coal
+      - commodity: primary:coal
     efficiency: 1.0
     lifetime: 100
 
@@ -215,9 +215,9 @@ process_variants:
   - id: coal_plant
     role: generate_electricity
     inputs:
-      - commodity: fuel:coal
+      - commodity: primary:coal
     outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     efficiency: 0.38
     investment_cost: 2500
     fixed_om_cost: 40
@@ -229,9 +229,9 @@ process_variants:
   - id: ccgt
     role: generate_electricity
     inputs:
-      - commodity: fuel:gas
+      - commodity: primary:gas
     outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     efficiency: 0.55
     investment_cost: 800
     fixed_om_cost: 20
@@ -245,7 +245,7 @@ process_variants:
     inputs:
       - commodity: resource:wind_resource
     outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     efficiency: 1.0
     investment_cost: 1200
     fixed_om_cost: 25
@@ -257,7 +257,7 @@ process_variants:
     inputs:
       - commodity: resource:solar_irradiance
     outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     efficiency: 1.0
     investment_cost: 1000
     fixed_om_cost: 15
@@ -268,9 +268,9 @@ process_variants:
   - id: smr
     role: produce_hydrogen
     inputs:
-      - commodity: fuel:gas
+      - commodity: primary:gas
     outputs:
-      - commodity: energy:hydrogen
+      - commodity: secondary:hydrogen
     efficiency: 0.75
     investment_cost: 1500
     fixed_om_cost: 50
@@ -282,9 +282,9 @@ process_variants:
   - id: electrolyzer
     role: produce_hydrogen
     inputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     outputs:
-      - commodity: energy:hydrogen
+      - commodity: secondary:hydrogen
     efficiency: 0.70
     investment_cost: 2000
     fixed_om_cost: 30
@@ -295,7 +295,7 @@ process_variants:
   - id: residential_electric_device
     role: provide_residential_demand
     inputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     outputs:
       - commodity: service:residential_demand
     efficiency: 1.0
@@ -304,7 +304,7 @@ process_variants:
   - id: commercial_electric_device
     role: provide_commercial_demand
     inputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     outputs:
       - commodity: service:commercial_demand
     efficiency: 1.0
@@ -313,7 +313,7 @@ process_variants:
   - id: industrial_gas_device
     role: provide_industrial_demand
     inputs:
-      - commodity: fuel:gas
+      - commodity: primary:gas
     outputs:
       - commodity: service:industrial_demand
     efficiency: 0.85
@@ -322,7 +322,7 @@ process_variants:
   - id: industrial_hydrogen_device
     role: provide_industrial_demand
     inputs:
-      - commodity: energy:hydrogen
+      - commodity: secondary:hydrogen
     outputs:
       - commodity: service:industrial_demand
     efficiency: 0.80
@@ -331,7 +331,7 @@ process_variants:
   - id: transport_elec_device
     role: provide_transport_demand
     inputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     outputs:
       - commodity: service:transport_demand
     efficiency: 0.90
@@ -340,7 +340,7 @@ process_variants:
   - id: transport_hydrogen_device
     role: provide_transport_demand
     inputs:
-      - commodity: energy:hydrogen
+      - commodity: secondary:hydrogen
     outputs:
       - commodity: service:transport_demand
     efficiency: 0.60

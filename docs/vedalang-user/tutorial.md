@@ -17,13 +17,13 @@ model:
   milestone_years: [2020, 2030]
 
   commodities:
-    - id: energy:electricity
+    - id: secondary:electricity
       type: energy
       unit: PJ
       description: Electricity
 
-    - id: energy:natural_gas
-      type: energy
+    - id: primary:natural_gas
+      type: fuel
       unit: PJ
       description: Natural Gas
 
@@ -31,9 +31,9 @@ process_roles:
   - id: generate_electricity
     stage: conversion
     inputs:
-      - commodity: energy:natural_gas
+      - commodity: primary:natural_gas
     outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
 
 process_variants:
   - id: gas_plant
@@ -49,7 +49,7 @@ availability:
 
 - **model.regions**: Geographic regions in your model
 - **model.milestone_years**: Time periods the model solves for
-- **model.commodities**: Energy carriers, services, and emissions — with namespace prefixes (e.g., `energy:`, `service:`, `emission:`)
+- **model.commodities**: Energy carriers, services, and emissions — with namespace prefixes (e.g., `secondary:`, `service:`, `emission:`)
 - **process_roles**: Templates defining what a process does (inputs → outputs)
 - **process_variants**: Specific technologies that implement a role
 - **availability**: Where and when each variant is available
@@ -98,7 +98,7 @@ uv run vedalang validate my_first_model.veda.yaml --keep-workdir
 
 ```yaml
 commodities:
-  - id: energy:electricity  # ← Required
+  - id: secondary:electricity  # ← Required
     type: energy
     unit: PJ
 ```
@@ -111,14 +111,14 @@ commodities:
 
 ```yaml
 commodities:
-  - id: energy:electricity  # ← Defined here
+  - id: secondary:electricity  # ← Defined here
     type: energy
     unit: PJ
 
 process_roles:
   - id: generate_electricity
     outputs:
-      - commodity: energy:electricity  # ← Must match exactly
+      - commodity: secondary:electricity  # ← Must match exactly
 ```
 
 ### Missing Availability

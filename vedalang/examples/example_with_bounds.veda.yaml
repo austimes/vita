@@ -10,7 +10,7 @@ model:
   milestone_years: [2020, 2030, 2040, 2050]
 
   commodities:
-    - id: fuel:natural_gas
+    - id: primary:natural_gas
       type: fuel
       unit: PJ
 
@@ -18,7 +18,7 @@ model:
       type: other
       unit: PJ
 
-    - id: energy:electricity
+    - id: secondary:electricity
       type: energy
       unit: PJ
 
@@ -34,7 +34,7 @@ process_roles:
     stage: supply
     required_inputs: []
     required_outputs:
-      - commodity: fuel:natural_gas
+      - commodity: primary:natural_gas
 
   - id: supply_wind_resource
     stage: supply
@@ -46,12 +46,12 @@ process_roles:
     stage: conversion
     required_inputs: []
     required_outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
 
   - id: provide_residential_energy_services
     stage: end_use
     required_inputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     required_outputs:
       - commodity: service:residential_energy_services
 
@@ -60,7 +60,7 @@ process_variants:
     role: import_gas
     inputs: []
     outputs:
-      - commodity: fuel:natural_gas
+      - commodity: primary:natural_gas
     efficiency: 1.0
     lifetime: 100
 
@@ -75,9 +75,9 @@ process_variants:
   - id: ccgt
     role: generate_electricity
     inputs:
-      - commodity: fuel:natural_gas
+      - commodity: primary:natural_gas
     outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     efficiency: 0.55
     investment_cost: 800
     fixed_om_cost: 20
@@ -88,7 +88,7 @@ process_variants:
     inputs:
       - commodity: resource:wind_resource
     outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     efficiency: 1.0
     investment_cost: 1200
     fixed_om_cost: 25
@@ -97,16 +97,16 @@ process_variants:
   - id: existing_gas_steam
     role: generate_electricity
     inputs:
-      - commodity: fuel:natural_gas
+      - commodity: primary:natural_gas
     outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     efficiency: 0.40
     lifetime: 40
 
   - id: electric_residential_devices
     role: provide_residential_energy_services
     inputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     outputs:
       - commodity: service:residential_energy_services
     efficiency: 1.0

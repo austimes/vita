@@ -25,7 +25,7 @@ schema/compiler are authoritative.
 <!-- GENERATED:canonical-enums:start -->
 - `stage` = one of `supply | conversion | distribution | storage | end_use | sink`
 - `commodity.type` = one of `fuel | energy | service | material | emission | money | other`
-- `commodity namespace prefix` = one of `fuel | resource | energy | service | material | emission | money`
+- `commodity namespace prefix` = one of `primary | resource | secondary | service | material | emission | money`
 <!-- GENERATED:canonical-enums:end -->
 
 Keep these terms consistent in model docs, PRDs, lint narratives, and
@@ -44,7 +44,7 @@ process_roles:
   - id: provide_space_heat
     stage: end_use
     inputs:
-      - commodity: fuel:natural_gas
+      - commodity: primary:natural_gas
     outputs:
       - commodity: service:space_heat
 
@@ -65,11 +65,11 @@ Avoid:
 process_roles:
   - id: heat_from_gas
     stage: end_use
-    inputs: [{commodity: fuel:natural_gas}]
+    inputs: [{commodity: primary:natural_gas}]
     outputs: [{commodity: service:space_heat}]
   - id: heat_from_electricity
     stage: end_use
-    inputs: [{commodity: energy:electricity}]
+    inputs: [{commodity: secondary:electricity}]
     outputs: [{commodity: service:space_heat}]
 ```
 
@@ -162,7 +162,7 @@ All IDs use **snake_case** (underscores, not dashes).
   bolt-on modifier rather than a complete replacement pathway)
 
 - **Commodity IDs** — namespaced snake_case descriptive names:
-  `energy:electricity`, `service:space_heat`, `emission:co2`, `fuel:natural_gas`, `resource:wind_resource`, `material:biomass`
+  `secondary:electricity`, `service:space_heat`, `emission:co2`, `primary:natural_gas`, `resource:wind_resource`, `material:biomass`
 
 ### 5) Stage and Commodity Typing Discipline
 
@@ -173,9 +173,9 @@ Good:
 ```yaml
 model:
   commodities:
-    - id: energy:electricity
+    - id: secondary:electricity
       type: energy
-    - id: fuel:natural_gas
+    - id: primary:natural_gas
       type: fuel
     - id: resource:wind_resource
       type: other
@@ -196,16 +196,15 @@ model:
 
 Preferred namespace discipline for primary-vs-secondary energy clarity:
 
-- `fuel:*` + `type: fuel` for combustible/extractable primary fuels
-  (`fuel:natural_gas`, `fuel:coal`, `fuel:diesel`)
+- `primary:*` + `type: fuel` for combustible/extractable primary fuels
+  (`primary:natural_gas`, `primary:coal`, `primary:diesel`)
 - `resource:*` + `type: other` for exogenous non-combustible resources
   (`resource:wind_resource`, `resource:solar_irradiance`)
-- `energy:*` + `type: energy` for secondary carriers
-  (`energy:electricity`, `energy:hydrogen`, `energy:delivered_electricity`)
+- `secondary:*` + `type: energy` for secondary carriers
+  (`secondary:electricity`, `secondary:hydrogen`, `secondary:delivered_electricity`)
 
-Legacy models that use `energy:*` for fuels/resources are still schema-valid,
-but migrating improves diagnostics readability and avoids primary-vs-secondary
-accounting ambiguity.
+Legacy models that use older `fuel:*`/`energy:*` namespaces should be migrated
+to `primary:*`/`secondary:*` for clarity.
 
 ### 6) Cases Are Scenario Overlays, Not New RES Architectures
 
@@ -235,7 +234,7 @@ process_variants:
   - id: gas_boiler
     role: provide_space_heat
     inputs:
-      - commodity: fuel:natural_gas
+      - commodity: primary:natural_gas
     outputs:
       - commodity: service:space_heat
     emission_factors:
@@ -259,7 +258,7 @@ process_variants:
   - id: dac
     role: remove_co2
     inputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     emission_factors:
       emission:co2: -1.0
 ```
@@ -307,7 +306,7 @@ The following should be treated as guidance/lint focus (unless hard rules are ad
 - [ ] Commodity typing is explicit and consistent with use
 - [ ] Stages are explicit and from the canonical enum
 - [ ] Diagnostics boundaries are semantic and solver-independent
-- [ ] Commodity IDs use namespace prefixes (`fuel:`, `resource:`, `energy:`,
+- [ ] Commodity IDs use namespace prefixes (`primary:`, `resource:`, `secondary:`,
   `service:`, `emission:`, etc.) consistently
 - [ ] Emissions use emission_factors dict, not inputs/outputs
 - [ ] `uv run vedalang lint <model>.veda.yaml` and

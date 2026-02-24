@@ -28,15 +28,15 @@ EXAMPLES_DIR = PROJECT_ROOT / "vedalang" / "examples"
 MINISYSTEM_FEATURES = {
     1: {
         "description": "Minimal solvable model",
-        "commodities": {"energy:electricity", "service:residential_electricity"},
+        "commodities": {"secondary:electricity", "service:residential_electricity"},
         "processes": {"grid_supply_SINGLE", "residential_device_SINGLE_RES"},
         "features": ["basic RES", "demand projection"],
     },
     2: {
         "description": "Fuel chain",
         "commodities": {
-            "fuel:natural_gas",
-            "energy:electricity",
+            "primary:natural_gas",
+            "secondary:electricity",
             "service:residential_demand",
         },
         "processes": {
@@ -49,8 +49,8 @@ MINISYSTEM_FEATURES = {
     3: {
         "description": "Investment decisions",
         "commodities": {
-            "fuel:natural_gas",
-            "energy:electricity",
+            "primary:natural_gas",
+            "secondary:electricity",
             "service:residential_demand",
         },
         "processes": {
@@ -66,8 +66,8 @@ MINISYSTEM_FEATURES = {
     4: {
         "description": "Emissions",
         "commodities": {
-            "fuel:natural_gas",
-            "energy:electricity",
+            "primary:natural_gas",
+            "secondary:electricity",
             "service:residential_demand",
             "emission:co2",
         },
@@ -81,8 +81,8 @@ MINISYSTEM_FEATURES = {
     5: {
         "description": "Multiple generators",
         "commodities": {
-            "fuel:natural_gas",
-            "energy:electricity",
+            "primary:natural_gas",
+            "secondary:electricity",
             "resource:wind_resource",
             "service:residential_demand",
             "emission:co2",
@@ -98,8 +98,8 @@ MINISYSTEM_FEATURES = {
     6: {
         "description": "Scenario parameters",
         "commodities": {
-            "fuel:natural_gas",
-            "energy:electricity",
+            "primary:natural_gas",
+            "secondary:electricity",
             "resource:wind_resource",
             "service:residential_demand",
             "emission:co2",
@@ -115,8 +115,8 @@ MINISYSTEM_FEATURES = {
     7: {
         "description": "Multi-region",
         "commodities": {
-            "fuel:gas",
-            "energy:electricity",
+            "primary:gas",
+            "secondary:electricity",
             "service:residential_demand",
             "emission:co2",
         },
@@ -130,10 +130,10 @@ MINISYSTEM_FEATURES = {
     8: {
         "description": "Australian baseline scaffold",
         "commodities": {
-            "fuel:gas",
-            "fuel:coal",
-            "energy:electricity",
-            "energy:hydrogen",
+            "primary:gas",
+            "primary:coal",
+            "secondary:electricity",
+            "secondary:hydrogen",
             "resource:solar_irradiance",
             "resource:wind_resource",
             "emission:co2",
@@ -318,10 +318,10 @@ class TestMiniSystem2FuelChain:
                                 "pipeline_gas_import" in row.get("process", "")
                                 and "commodity-out" in row
                             ):
-                                assert row["commodity-out"] == "fuel:natural_gas"
+                                assert row["commodity-out"] == "primary:natural_gas"
                                 return
 
-        pytest.fail("pipeline_gas_import should have fuel:natural_gas output")
+        pytest.fail("pipeline_gas_import should have primary:natural_gas output")
 
     def test_minisystem2_has_ccgt_topology(self, get_minisystem_path):
         """MiniSystem2 ccgt should have gas input and electricity output."""
@@ -338,9 +338,9 @@ class TestMiniSystem2FuelChain:
                     if t["tag"] == "~FI_T":
                         for row in t["rows"]:
                             if "ccgt" in row.get("process", ""):
-                                if row.get("commodity-in") == "fuel:natural_gas":
+                                if row.get("commodity-in") == "primary:natural_gas":
                                     has_input = True
-                                if row.get("commodity-out") == "energy:electricity":
+                                if row.get("commodity-out") == "secondary:electricity":
                                     has_output = True
 
         assert has_input, "ccgt should have natural gas input"

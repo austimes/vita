@@ -264,7 +264,7 @@ For `*-TS` tags:
 
 ### Complete Canonical Example
 
-The compiler maps VedaLang namespace prefixes to VEDA Csets (`energy:` → NRG, `emission:` → ENV, `service:` → DEM, `material:` → MAT, `money:` → FIN). Emission commodities (`emission:*`) are emitted strictly through emission constructs (ENV_ACT), never as flow outputs.
+The compiler maps VedaLang namespace prefixes to VEDA Csets (`primary:`/`secondary:`/`resource:` → NRG, `emission:` → ENV, `service:` → DEM, `material:` → MAT, `money:` → FIN). Emission commodities (`emission:*`) are emitted strictly through emission constructs (ENV_ACT), never as flow outputs.
 
 ```yaml
 files:

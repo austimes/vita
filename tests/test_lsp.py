@@ -481,22 +481,22 @@ class TestSchemaDrivenEnums:
   name: test
   regions: [R1]
   commodities:
-    - id: energy:electricity
+    - id: secondary:electricity
       type: energy
   processes: []
 process_roles:
   - id: deliver_power
     required_inputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     required_outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
 process_variants:
   - id: grid_distribution
     role: deliver_power
     inputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     kind: network
 """
         doc = MockTextDocument(source)
@@ -516,22 +516,22 @@ process_variants:
   name: test
   regions: [R1]
   commodities:
-    - id: energy:electricity
+    - id: secondary:electricity
       type: energy
   processes: []
 process_roles:
   - id: deliver_power
     required_inputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     required_outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
 process_variants:
   - id: grid_distribution
     role: deliver_power
     inputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     kind: invalid_kind
 """
         doc = MockTextDocument(source)
@@ -548,22 +548,22 @@ process_variants:
   name: test
   regions: [R1]
   commodities:
-    - id: energy:electricity
+    - id: secondary:electricity
       type: energy
   processes: []
 process_roles:
   - id: deliver_power
     required_inputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     required_outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
 process_variants:
   - id: grid_distribution
     role: deliver_power
     inputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     outputs:
-      - commodity: energy:electricity
+      - commodity: secondary:electricity
     kind: network
 """
         doc = MockTextDocument(source)

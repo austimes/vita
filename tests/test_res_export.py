@@ -186,14 +186,14 @@ class TestToyBuildingsSemantics:
         gas = next(
             v for v in toy_buildings_graph["variants"] if v["id"] == "gas_heater"
         )
-        assert gas["inputs"] == ["energy:natural_gas"]
+        assert gas["inputs"] == ["primary:natural_gas"]
         assert gas["outputs"] == ["service:space_heat"]
         assert gas["emission_factors"] == {"emission:co2": 0.056}
 
         hp = next(
             v for v in toy_buildings_graph["variants"] if v["id"] == "heat_pump"
         )
-        assert hp["inputs"] == ["energy:electricity"]
+        assert hp["inputs"] == ["secondary:electricity"]
         assert hp["outputs"] == ["service:space_heat"]
         assert "emission_factors" not in hp
 
