@@ -15,6 +15,7 @@ from vedalang.conventions import (
     commodity_type_enum,
     format_enum_pipe,
     process_stage_enum,
+    scenario_category_enum,
 )
 
 
@@ -41,6 +42,7 @@ def _replace_generated_block(text: str, marker: str, body: str) -> str:
 def _specs(repo_root: Path) -> list[BlockSpec]:
     stages = process_stage_enum()
     commodity_types = commodity_type_enum()
+    scenario_categories = scenario_category_enum()
 
     canonical_enums_md = (
         f"- `stage` = one of `{format_enum_pipe(stages)}`\n"
@@ -49,6 +51,17 @@ def _specs(repo_root: Path) -> list[BlockSpec]:
     canonical_stages_md = "Valid stages: " + ", ".join(
         f"`{stage}`" for stage in stages
     ) + "."
+    canonical_scenario_categories_md = (
+        "**Canonical scenario categories:** "
+        + " | ".join(f"`{category}`" for category in scenario_categories)
+    )
+    llms_canonical_enums_md = (
+        "### Canonical Enums (Schema-Derived)\n\n"
+        f"- `stage`: `{format_enum_pipe(stages)}`\n"
+        f"- `commodity.type`: `{format_enum_pipe(commodity_types)}`\n"
+        "- `scenario category`: "
+        f"`{format_enum_pipe(scenario_categories)}`"
+    )
 
     return [
         BlockSpec(
@@ -60,6 +73,21 @@ def _specs(repo_root: Path) -> list[BlockSpec]:
             path=repo_root / "docs" / "migration_guide_toy_refactor.md",
             marker="canonical-stages",
             body=canonical_stages_md,
+        ),
+        BlockSpec(
+            path=repo_root / "docs" / "vedalang-user" / "LLMS.md",
+            marker="llms-canonical-enums",
+            body=llms_canonical_enums_md,
+        ),
+        BlockSpec(
+            path=repo_root / "README.md",
+            marker="scenario-categories",
+            body=canonical_scenario_categories_md,
+        ),
+        BlockSpec(
+            path=repo_root / "AGENTS.md",
+            marker="scenario-categories",
+            body=canonical_scenario_categories_md,
         ),
     ]
 

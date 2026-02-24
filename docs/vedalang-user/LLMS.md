@@ -4,8 +4,8 @@
 
 For service-oriented RES structure conventions
 (`role=service`, `variant=pathway`, physical-only modeling, diagnostics
-boundaries), see the companion skill guide:
-`.agents/skills/vedalang-modeling-conventions/SKILL.md`.
+boundaries), see the canonical conventions reference:
+`docs/vedalang-user/modeling-conventions.md`.
 
 ## Purpose & Scope
 
@@ -36,6 +36,14 @@ VedaLang uses precise terminology to avoid ambiguity:
 2. **`vedalang/schema/attribute-master.json`** — Canonical TIMES attribute names (use ONLY these, never aliases)
 3. **`rules/constraints.yaml`** — Valid tag/file/field combinations
 4. **`rules/patterns.yaml`** — Reusable modeling patterns
+
+<!-- GENERATED:llms-canonical-enums:start -->
+### Canonical Enums (Schema-Derived)
+
+- `stage`: `supply | conversion | distribution | storage | end_use | sink`
+- `commodity.type`: `fuel | energy | service | material | emission | money | other`
+- `scenario category`: `demands | prices | policies | technology_assumptions | resource_availability | global_settings`
+<!-- GENERATED:llms-canonical-enums:end -->
 
 ### Golden Rules
 
@@ -134,7 +142,7 @@ commodities:
     description: Residential demand
 ```
 
-**Valid types:** `energy`, `material`, `emission`, `service`, `money`
+**Valid types:** see `commodity.type` in the canonical enums block above.
 
 ### Commodity Namespaces
 
@@ -293,7 +301,7 @@ cases:
     excludes: []  # Include all parameters
 ```
 
-**Categories:** `demands`, `prices`, `policies`, `technology_assumptions`, `resource_availability`, `global_settings`
+**Categories:** see `scenario category` in the canonical enums block above.
 
 **File output:** `Scen_{case}_{category}.xlsx` (e.g., `Scen_baseline_demands.xlsx`)
 

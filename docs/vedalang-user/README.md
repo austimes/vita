@@ -32,6 +32,9 @@ VedaLang Source (.veda.yaml)  →  VEDA Excel (.xlsx)  →  TIMES DD files
 For structural modeling conventions guidance, see
 `.agents/skills/vedalang-modeling-conventions/SKILL.md`.
 
+For the full LLM-facing docs ownership map (what each doc is for), see
+`docs/LLM_DOCS.md`.
+
 ## Validation
 
 Always validate your models:

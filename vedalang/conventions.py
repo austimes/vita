@@ -31,6 +31,14 @@ _FALLBACK_COMMODITY_TYPES = (
     "money",
     "other",
 )
+_FALLBACK_SCENARIO_CATEGORIES = (
+    "demands",
+    "prices",
+    "policies",
+    "technology_assumptions",
+    "resource_availability",
+    "global_settings",
+)
 
 
 @lru_cache(maxsize=1)
@@ -67,6 +75,14 @@ def commodity_type_enum() -> tuple[str, ...]:
     if isinstance(enum, list) and enum and all(isinstance(x, str) for x in enum):
         return tuple(enum)
     return _FALLBACK_COMMODITY_TYPES
+
+
+def scenario_category_enum() -> tuple[str, ...]:
+    """Canonical scenario category enum from schema."""
+    enum = _load_schema().get("$defs", {}).get("category", {}).get("enum")
+    if isinstance(enum, list) and enum and all(isinstance(x, str) for x in enum):
+        return tuple(enum)
+    return _FALLBACK_SCENARIO_CATEGORIES
 
 
 def format_enum_pipe(values: tuple[str, ...] | list[str]) -> str:

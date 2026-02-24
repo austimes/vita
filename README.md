@@ -17,9 +17,13 @@ VedaLang uses precise terminology to avoid ambiguity:
 | Term | Definition |
 |------|------------|
 | **Scenario Parameter** | An atomic time-series or value assumption (e.g., CO2 price path, demand projection) |
-| **Category** | Logical grouping of scenario parameters: `demands`, `prices`, `policies`, `technology_assumptions`, `resource_availability`, `global_settings` |
+| **Category** | Logical grouping of scenario parameters (canonical enum below) |
 | **Case** | A named combination of scenario parameters for a specific model run (e.g., `baseline`, `ambitious`) |
 | **Study** | A collection of cases for comparison |
+
+<!-- GENERATED:scenario-categories:start -->
+**Canonical scenario categories:** `demands` | `prices` | `policies` | `technology_assumptions` | `resource_availability` | `global_settings`
+<!-- GENERATED:scenario-categories:end -->
 
 **File naming convention:** `Scen_{case}_{category}.xlsx`
 - Example: `Scen_baseline_demands.xlsx`, `Scen_ambitious_policies.xlsx`
@@ -36,6 +40,21 @@ This separation distinguishes between:
 |------|--------------|------------|
 | **Author energy system models** using VedaLang | Model Developer | [Using VedaLang](#using-vedalang) |
 | **Extend or improve** the VedaLang language itself | Language Designer | [Developing VedaLang](#developing-vedalang) |
+
+## LLM-Facing Docs
+
+The repo keeps LLM-facing guidance split by persona, with explicit ownership:
+
+- [docs/LLM_DOCS.md](docs/LLM_DOCS.md) — full index of each LLM-facing file, purpose, and source-of-truth
+- `vedalang/schema/vedalang.schema.json` — canonical enums and syntax truth
+- `docs/vedalang-user/modeling-conventions.md` — canonical modeling conventions guidance text
+- `tools/sync_conventions.py` — regenerates schema-derived enum snippets in docs
+
+To verify docs are in sync with schema enums:
+
+```bash
+uv run python tools/sync_conventions.py --check
+```
 
 ---
 
