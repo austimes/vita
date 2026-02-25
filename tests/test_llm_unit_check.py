@@ -320,4 +320,5 @@ def test_cmd_llm_check_units_text_prints_fix_suggestions(
     out = capsys.readouterr().out
 
     assert exit_code == 1
-    assert "fix: Set activity_unit=PJ and recompute coefficients." in out
+    assert "Set activity_unit=PJ and recompute coefficients." in out
+    assert "Summary:" in out

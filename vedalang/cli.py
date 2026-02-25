@@ -427,37 +427,15 @@ def cmd_llm_check_units(args) -> int:
         }
         print(json.dumps(payload, indent=2))
     else:
-        print(f"LLM unit check: {file_path}")
-        print(f"Store: {store_path}")
-        if skipped:
-            print(f"Skipped certified/current: {', '.join(skipped)}")
-        for r in results:
-            print(
-                f"  - {r.component}: {r.status} "
-                f"(quorum {r.quorum}, models={','.join(v.model for v in r.votes)})"
-            )
-            for vote in r.votes:
-                summary = summarize_vote(vote)
-                print(
-                    "      "
-                    f"{summary['model']}: {summary['status']} "
-                    f"(critical={summary['critical']}, "
-                    f"warning={summary['warning']}, "
-                    f"suggestion={summary['suggestion']})"
-                )
-                if not summary["top_findings"]:
-                    print("        - No findings returned by model.")
-                for msg in summary["top_findings"]:
-                    print(f"        - {msg}")
-                for fix in summary["top_suggestions"]:
-                    print(f"          fix: {fix}")
-        for err in run_errors:
-            print(f"  - {err['component']}: error: {err['error']}")
-        print()
-        print(
-            "Summary: "
-            f"{certified} certified, {needs_review} needs_review, "
-            f"{len(run_errors)} errors"
+        _output_llm_unit_check_result(
+            file_path=file_path,
+            store_path=store_path,
+            results=results,
+            skipped=skipped,
+            run_errors=run_errors,
+            certified=certified,
+            needs_review=needs_review,
+            summarize_vote=summarize_vote,
         )
 
     if run_errors:
@@ -494,6 +472,229 @@ def _split_fenced_code_blocks(text: str) -> list[dict]:
         out.append({"kind": "text", "text": tail.strip("\n")})
 
     return out
+
+
+def _output_llm_unit_check_result(
+    *,
+    file_path: Path,
+    store_path: Path,
+    results: list,
+    skipped: list[str],
+    run_errors: list[dict],
+    certified: int,
+    needs_review: int,
+    summarize_vote,
+) -> None:
+    """Render llm-check-units output in the same style as lint --llm-assess."""
+
+    diagnostics: list[dict] = []
+    for result in results:
+        for vote in result.votes:
+            vote_summary = summarize_vote(vote)
+            if not vote.findings and vote.status != "pass":
+                diagnostics.append(
+                    {
+                        "code": "LLM_UNIT_CHECK",
+                        "severity": "warning",
+                        "category": "unit_coefficient",
+                        "location": f"{result.component} [{vote.model}]",
+                        "message": (
+                            "LLM returned non-pass status but provided no findings."
+                        ),
+                    }
+                )
+                continue
+
+            for finding in vote.findings:
+                message = (
+                    str(finding.get("message", "")).strip()
+                    or "No message provided."
+                )
+                context_parts: list[str] = []
+
+                expected_process_units = finding.get("expected_process_units")
+                if expected_process_units:
+                    context_parts.append(
+                        "Expected process units: "
+                        f"{json.dumps(expected_process_units, sort_keys=True)}"
+                    )
+
+                expected_commodity_units = finding.get("expected_commodity_units")
+                if expected_commodity_units:
+                    context_parts.append(
+                        "Expected commodity units: "
+                        f"{json.dumps(expected_commodity_units, sort_keys=True)}"
+                    )
+
+                observed_units = finding.get("observed_units")
+                if observed_units:
+                    context_parts.append(
+                        f"Observed units: {json.dumps(observed_units, sort_keys=True)}"
+                    )
+
+                model_expectation = finding.get("model_expectation")
+                if model_expectation:
+                    context_parts.append(
+                        f"Model expectation: {str(model_expectation).strip()}"
+                    )
+
+                if context_parts:
+                    message = message + "\n\n" + "\n".join(context_parts)
+
+                field = finding.get("field")
+                location = f"{result.component} [{vote.model}]"
+                if field:
+                    location = f"{location} :: {field}"
+
+                diagnostics.append(
+                    {
+                        "code": "LLM_UNIT_CHECK",
+                        "severity": finding.get("severity", "warning"),
+                        "category": "unit_coefficient",
+                        "location": location,
+                        "message": message,
+                        "suggestion": finding.get("suggestion"),
+                    }
+                )
+
+            if vote_summary["status"] != "pass" and not vote_summary["top_findings"]:
+                diagnostics.append(
+                    {
+                        "code": "LLM_UNIT_CHECK",
+                        "severity": "warning",
+                        "category": "unit_coefficient",
+                        "location": f"{result.component} [{vote.model}]",
+                        "message": (
+                            "Needs review but no actionable findings were "
+                            "returned."
+                        ),
+                    }
+                )
+
+    for err in run_errors:
+        diagnostics.append(
+            {
+                "code": "LLM_UNIT_CHECK_ERROR",
+                "severity": "error",
+                "category": "unit_coefficient",
+                "location": err.get("component", ""),
+                "message": str(err.get("error", "Unknown error")),
+            }
+        )
+
+    try:
+        from rich import box
+        from rich.console import Console
+        from rich.panel import Panel
+        from rich.table import Table
+        from rich.text import Text
+
+        console = Console()
+
+        header_tbl = Table.grid(expand=True)
+        header_tbl.add_column("left", ratio=1)
+        header_tbl.add_column("right", justify="right")
+        header_tbl.add_row(
+            Text("VedaLang LLM Unit Check", style="bold"),
+            Text(str(file_path), style="dim"),
+        )
+        header_tbl.add_row(
+            Text("Store", style="dim"),
+            Text(str(store_path), style="dim"),
+        )
+        if skipped:
+            header_tbl.add_row(
+                Text("Skipped certified/current", style="dim"),
+                Text(", ".join(skipped), style="dim"),
+            )
+
+        console.print(
+            Panel(
+                header_tbl,
+                box=box.ROUNDED,
+                border_style="blue",
+                padding=(1, 1),
+            )
+        )
+
+        status_tbl = Table(show_header=True, header_style="bold")
+        status_tbl.add_column("Component")
+        status_tbl.add_column("Status")
+        status_tbl.add_column("Quorum")
+        status_tbl.add_column("Models")
+        for result in results:
+            status_style = "green" if result.status == "certified" else "yellow"
+            status_tbl.add_row(
+                result.component,
+                f"[{status_style}]{result.status}[/{status_style}]",
+                result.quorum,
+                ",".join(v.model for v in result.votes),
+            )
+        if results:
+            console.print(
+                Panel(status_tbl, box=box.ROUNDED, border_style="cyan", padding=(0, 1))
+            )
+
+        if diagnostics:
+            total = len(diagnostics)
+            for i, d in enumerate(diagnostics, start=1):
+                console.print(_format_finding_rich(d, i, total))
+                console.print()
+
+        summary = Table.grid(expand=True)
+        summary.add_column("left", ratio=1)
+        summary.add_column("right", justify="right")
+        left = Text.assemble(
+            ("Summary: ", "bold"),
+            (f"{certified} certified", "bold green" if certified else "dim"),
+            ("  ", ""),
+            (f"{needs_review} needs_review", "bold yellow" if needs_review else "dim"),
+            ("  ", ""),
+            (
+                f"{len(run_errors)} errors",
+                "bold red" if run_errors else "dim",
+            ),
+        )
+        right = (
+            Text("✓ OK", style="bold green")
+            if not run_errors and needs_review == 0
+            else Text("✗ Needs attention", style="bold red")
+        )
+        summary.add_row(left, right)
+        console.print(
+            Panel(
+                summary,
+                box=box.ROUNDED,
+                border_style="green" if not run_errors and needs_review == 0 else "red",
+                padding=(1, 1),
+            )
+        )
+    except ImportError:
+        print(f"LLM unit check: {file_path}")
+        print(f"Store: {store_path}")
+        if skipped:
+            print(f"Skipped certified/current: {', '.join(skipped)}")
+        for result in results:
+            print(
+                f"  - {result.component}: {result.status} "
+                "(quorum "
+                f"{result.quorum}, models={','.join(v.model for v in result.votes)})"
+            )
+        for d in diagnostics:
+            severity = str(d.get("severity", "warning")).upper()
+            code = d.get("code", "LLM_UNIT_CHECK")
+            location = d.get("location", "")
+            location_str = f" ({location})" if location else ""
+            print(f"{severity} [{code}]{location_str}: {d.get('message', '')}")
+            suggestion = d.get("suggestion")
+            if suggestion:
+                print(f"  ↳ Fix: {suggestion}")
+        print()
+        print(
+            "Summary: "
+            f"{certified} certified, {needs_review} needs_review, "
+            f"{len(run_errors)} errors"
+        )
 
 
 def _format_finding_rich(finding: dict, index: int, total: int):
