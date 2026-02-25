@@ -52,7 +52,6 @@ All 13 subtasks closed. Deliverables:
 - All toy_* examples refactored (buildings, industry, transport, resources, electricity, agriculture)
 - Cases overlay system for multi-case models
 - A1-A8 acceptance test matrix (`tests/test_prd_acceptance.py`)
-- Migration guide (`docs/migration_guide_toy_refactor.md`)
 
 **Sector toy problems** (`vedalang-248`) — DSL syntax exploration via sector-specific models:
 

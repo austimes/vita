@@ -52,9 +52,6 @@ def _specs(repo_root: Path) -> list[BlockSpec]:
         "- `commodity namespace prefix` = one of "
         f"`{format_enum_pipe(commodity_namespaces)}`"
     )
-    canonical_stages_md = "Valid stages: " + ", ".join(
-        f"`{stage}`" for stage in stages
-    ) + "."
     canonical_scenario_categories_md = (
         "**Canonical scenario categories:** "
         + " | ".join(f"`{category}`" for category in scenario_categories)
@@ -74,11 +71,6 @@ def _specs(repo_root: Path) -> list[BlockSpec]:
             path=repo_root / "docs" / "vedalang-user" / "modeling-conventions.md",
             marker="canonical-enums",
             body=canonical_enums_md,
-        ),
-        BlockSpec(
-            path=repo_root / "docs" / "migration_guide_toy_refactor.md",
-            marker="canonical-stages",
-            body=canonical_stages_md,
         ),
         BlockSpec(
             path=repo_root
