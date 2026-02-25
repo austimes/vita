@@ -137,3 +137,9 @@ class TestHelp:
         result = run_vedalang("validate", "--help")
         assert result.returncode == 0
         assert "validate" in result.stdout.lower()
+
+    def test_vedalang_llm_check_units_help(self):
+        """llm-check-units subcommand help works."""
+        result = run_vedalang("llm-check-units", "--help")
+        assert result.returncode == 0
+        assert "llm-check-units" in result.stdout.lower()

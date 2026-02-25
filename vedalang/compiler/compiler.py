@@ -505,6 +505,7 @@ def _validate_new_syntax_structural_invariants(
         emission_factors = variant.get("emission_factors") or {}
         activity_unit = variant.get("activity_unit", "PJ")
         capacity_unit = variant.get("capacity_unit", "GW")
+        performance_metric = variant.get("performance_metric", "efficiency")
 
         variant_unit_errors: list[str] = []
         variant_unit_warnings: list[str] = []
@@ -516,6 +517,43 @@ def _validate_new_syntax_structural_invariants(
             errors=variant_unit_errors,
             warnings=variant_unit_warnings,
         )
+        has_flow_anchors = any(
+            "coefficient" in flow
+            for flow in (variant.get("inputs", []) + variant.get("outputs", []))
+        )
+        if "efficiency" in variant:
+            _validate_efficiency_metric(
+                process_label=f"process_variants[{variant_id}]",
+                efficiency_value=variant.get("efficiency"),
+                performance_metric=performance_metric,
+                policy=unit_policy,
+                errors=variant_unit_errors,
+                warnings=variant_unit_warnings,
+            )
+        if has_flow_anchors:
+            if "efficiency" not in variant:
+                _record_unit_diagnostic(
+                    variant_unit_errors,
+                    variant_unit_warnings,
+                    unit_policy,
+                    (
+                        "process_variants"
+                        f"[{variant_id}] defines coefficient anchors but has no "
+                        "efficiency value; cannot run anchor magnitude checks."
+                    ),
+                )
+            else:
+                _validate_flow_coefficient_anchors(
+                    process_label=f"process_variants[{variant_id}]",
+                    inputs=variant.get("inputs", []),
+                    outputs=variant.get("outputs", []),
+                    efficiency_value=variant.get("efficiency"),
+                    performance_metric=performance_metric,
+                    commodities=commodities,
+                    policy=unit_policy,
+                    errors=variant_unit_errors,
+                    warnings=variant_unit_warnings,
+                )
         for msg in variant_unit_errors:
             errors.append(
                 {
@@ -879,6 +917,206 @@ def _validate_process_unit_pair(
                 f"({capacity_unit}, {activity_unit}); cannot derive PRC_CAPACT."
             ),
         )
+
+
+def _validate_efficiency_metric(
+    *,
+    process_label: str,
+    efficiency_value,
+    performance_metric: str,
+    policy: dict,
+    errors: list[str],
+    warnings: list[str],
+) -> None:
+    """Validate efficiency value against declared performance metric."""
+    if _is_time_varying(efficiency_value):
+        return
+    if not isinstance(efficiency_value, (int, float)):
+        return
+    if efficiency_value <= 0:
+        _record_unit_diagnostic(
+            errors,
+            warnings,
+            policy,
+            f"{process_label} has non-positive efficiency value {efficiency_value}.",
+        )
+        return
+
+    if performance_metric == "cop":
+        return
+
+    if efficiency_value > 1:
+        _record_unit_diagnostic(
+            errors,
+            warnings,
+            policy,
+            (
+                f"{process_label} has efficiency={efficiency_value} > 1. "
+                "Use performance_metric='cop' for heat-pump/COP-style components."
+            ),
+        )
+
+
+def _validate_flow_coefficient_anchors(
+    *,
+    process_label: str,
+    inputs: list[dict],
+    outputs: list[dict],
+    efficiency_value,
+    performance_metric: str,
+    commodities: dict[str, dict],
+    policy: dict,
+    errors: list[str],
+    warnings: list[str],
+) -> None:
+    """Check flow coefficient anchors against efficiency and unit conversions.
+
+    Coefficients are validation-only anchors (commodity_unit/activity_unit).
+    This check currently supports standard converter cases in the energy domain.
+    """
+    if performance_metric == "cop":
+        return
+    if _is_time_varying(efficiency_value):
+        return
+    if not isinstance(efficiency_value, (int, float)) or efficiency_value <= 0:
+        return
+
+    def flow_unit(flow: dict) -> str | None:
+        comm = flow.get("commodity")
+        if not comm:
+            return None
+        comm_info = commodities.get(comm)
+        if not comm_info:
+            return None
+        comm_type = comm_info.get("type", "energy")
+        return comm_info.get("unit") or _get_default_unit(comm_type)
+
+    def is_energy_flow(flow: dict) -> bool:
+        unit = flow_unit(flow)
+        return unit in ENERGY_UNIT_TO_PJ
+
+    def coeff(flow: dict) -> float | None:
+        val = flow.get("coefficient")
+        if val is None:
+            return None
+        if not isinstance(val, (int, float)) or val <= 0:
+            _record_unit_diagnostic(
+                errors,
+                warnings,
+                policy,
+                (
+                    f"{process_label} flow coefficient for commodity "
+                    f"'{flow.get('commodity')}' must be > 0."
+                ),
+            )
+            return None
+        return float(val)
+
+    any_coeff = any("coefficient" in f for f in inputs + outputs)
+    if not any_coeff:
+        return
+
+    energy_inputs = [f for f in inputs if is_energy_flow(f)]
+    energy_outputs = [f for f in outputs if is_energy_flow(f)]
+    if not energy_inputs or not energy_outputs:
+        _record_unit_diagnostic(
+            errors,
+            warnings,
+            policy,
+            (
+                f"{process_label} defines coefficient anchors but no energy-domain "
+                "input/output pair was found for anchor checks."
+            ),
+        )
+        return
+
+    explicit_output = [f for f in energy_outputs if f.get("coefficient") is not None]
+    if len(explicit_output) > 1:
+        _record_unit_diagnostic(
+            errors,
+            warnings,
+            policy,
+            (
+                f"{process_label} has multiple output coefficient anchors; "
+                "anchor check expects a single anchored output."
+            ),
+        )
+        return
+    if explicit_output:
+        output_anchor = explicit_output[0]
+        output_coeff = coeff(output_anchor)
+    elif len(energy_outputs) == 1:
+        output_anchor = energy_outputs[0]
+        output_coeff = 1.0
+    else:
+        _record_unit_diagnostic(
+            errors,
+            warnings,
+            policy,
+            (
+                f"{process_label} has no unique output anchor coefficient "
+                "(set one output coefficient explicitly)."
+            ),
+        )
+        return
+    if output_coeff is None:
+        return
+
+    out_unit = flow_unit(output_anchor)
+    assert out_unit is not None  # guarded by energy_outputs
+    out_pj = ENERGY_UNIT_TO_PJ[out_unit]
+
+    single_energy_input = len(energy_inputs) == 1
+    tolerance = 0.02  # 2%
+    checked = 0
+
+    for inp in energy_inputs:
+        observed = coeff(inp)
+        if observed is None:
+            if single_energy_input:
+                observed = 1.0
+            else:
+                continue
+
+        in_unit = flow_unit(inp)
+        assert in_unit is not None  # guarded by energy_inputs
+        in_pj = ENERGY_UNIT_TO_PJ[in_unit]
+        expected = output_coeff * out_pj / (efficiency_value * in_pj)
+        if expected <= 0:
+            continue
+        rel_err = abs(observed - expected) / expected
+        if rel_err > tolerance:
+            inversion_expected = output_coeff * out_pj * efficiency_value / in_pj
+            inversion_hint = ""
+            if inversion_expected > 0:
+                inv_rel_err = abs(observed - inversion_expected) / inversion_expected
+                if inv_rel_err <= tolerance:
+                    inversion_hint = " Possible efficiency inversion detected."
+            _record_unit_diagnostic(
+                errors,
+                warnings,
+                policy,
+                (
+                    f"{process_label} coefficient mismatch for input "
+                    f"'{inp.get('commodity')}': expected ~{expected:.6g} "
+                    f"{in_unit}/{out_unit}_act from efficiency={efficiency_value}, "
+                    f"got {observed:.6g}.{inversion_hint}"
+                ),
+            )
+        checked += 1
+
+    if checked == 0:
+        _record_unit_diagnostic(
+            errors,
+            warnings,
+            policy,
+            (
+                f"{process_label} has coefficient anchors but no checkable "
+                "input anchor "
+                "(set one input coefficient explicitly for multi-input processes)."
+            ),
+        )
+
 
 def _get_scalar_value(value):
     """Get scalar value from scalar or time-varying spec (returns None for latter)."""
@@ -1299,6 +1537,7 @@ def validate_cross_references(
 
         activity_unit = process.get("activity_unit", "PJ")
         capacity_unit = process.get("capacity_unit", "GW")
+        performance_metric = process.get("performance_metric", "efficiency")
         _validate_process_unit_pair(
             process_label=f"Process '{proc_name}'",
             activity_unit=activity_unit,
@@ -1307,6 +1546,42 @@ def validate_cross_references(
             errors=errors,
             warnings=warnings,
         )
+        has_flow_anchors = any(
+            "coefficient" in flow
+            for flow in (process.get("inputs", []) + process.get("outputs", []))
+        )
+        if "efficiency" in process:
+            _validate_efficiency_metric(
+                process_label=f"Process '{proc_name}'",
+                efficiency_value=process.get("efficiency"),
+                performance_metric=performance_metric,
+                policy=unit_policy,
+                errors=errors,
+                warnings=warnings,
+            )
+        if has_flow_anchors:
+            if "efficiency" not in process:
+                _record_unit_diagnostic(
+                    errors,
+                    warnings,
+                    unit_policy,
+                    (
+                        f"Process '{proc_name}' defines coefficient anchors but has no "
+                        "efficiency value; cannot run anchor magnitude checks."
+                    ),
+                )
+            else:
+                _validate_flow_coefficient_anchors(
+                    process_label=f"Process '{proc_name}'",
+                    inputs=process.get("inputs", []),
+                    outputs=process.get("outputs", []),
+                    efficiency_value=process.get("efficiency"),
+                    performance_metric=performance_metric,
+                    commodities=commodities,
+                    policy=unit_policy,
+                    errors=errors,
+                    warnings=warnings,
+                )
 
         all_flow_commodities = [
             inp["commodity"] for inp in process.get("inputs", [])
@@ -1593,6 +1868,7 @@ def validate_cross_references(
 
             activity_unit = variant.get("activity_unit", "PJ")
             capacity_unit = variant.get("capacity_unit", "GW")
+            performance_metric = variant.get("performance_metric", "efficiency")
             _validate_process_unit_pair(
                 process_label=f"process_variants[{variant_id}]",
                 activity_unit=activity_unit,
@@ -1601,6 +1877,43 @@ def validate_cross_references(
                 errors=errors,
                 warnings=warnings,
             )
+            has_flow_anchors = any(
+                "coefficient" in flow
+                for flow in (variant.get("inputs", []) + variant.get("outputs", []))
+            )
+            if "efficiency" in variant:
+                _validate_efficiency_metric(
+                    process_label=f"process_variants[{variant_id}]",
+                    efficiency_value=variant.get("efficiency"),
+                    performance_metric=performance_metric,
+                    policy=unit_policy,
+                    errors=errors,
+                    warnings=warnings,
+                )
+            if has_flow_anchors:
+                if "efficiency" not in variant:
+                    _record_unit_diagnostic(
+                        errors,
+                        warnings,
+                        unit_policy,
+                        (
+                            "process_variants"
+                            f"[{variant_id}] defines coefficient anchors but has no "
+                            "efficiency value; cannot run anchor magnitude checks."
+                        ),
+                    )
+                else:
+                    _validate_flow_coefficient_anchors(
+                        process_label=f"process_variants[{variant_id}]",
+                        inputs=variant.get("inputs", []),
+                        outputs=variant.get("outputs", []),
+                        efficiency_value=variant.get("efficiency"),
+                        performance_metric=performance_metric,
+                        commodities=commodities,
+                        policy=unit_policy,
+                        errors=errors,
+                        warnings=warnings,
+                    )
 
             variant_flow_commodities = [
                 inp["commodity"] for inp in variant.get("inputs", [])

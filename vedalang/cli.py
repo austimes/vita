@@ -32,6 +32,7 @@ def main():
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     _add_lint_parser(subparsers)
+    _add_llm_units_parser(subparsers)
     _add_compile_parser(subparsers)
     _add_validate_parser(subparsers)
     _add_viz_parser(subparsers)
@@ -40,6 +41,8 @@ def main():
 
     if args.command == "lint":
         sys.exit(cmd_lint(args))
+    elif args.command == "llm-check-units":
+        sys.exit(cmd_llm_check_units(args))
     elif args.command == "compile":
         sys.exit(cmd_compile(args))
     elif args.command == "validate":
@@ -95,6 +98,44 @@ def _add_compile_parser(subparsers):
         help="Compile only the specified case (repeatable)",
     )
     p.add_argument("--no-lint", action="store_true", help="Skip linting before compile")
+    p.add_argument("--json", action="store_true", help="Output JSON format")
+
+
+def _add_llm_units_parser(subparsers):
+    p = subparsers.add_parser(
+        "llm-check-units",
+        help="Advisory LLM unit/coefficient certification",
+        description=(
+            "Run optional LLM unit/coefficient checks on model components with "
+            "fingerprint-based certification metadata."
+        ),
+    )
+    p.add_argument("file", type=Path, help="Path to VedaLang source (.veda.yaml)")
+    p.add_argument(
+        "--component",
+        action="append",
+        help="Specific component to check (repeatable). Defaults to all pending.",
+    )
+    p.add_argument(
+        "--all",
+        action="store_true",
+        help="Check all components that are not already certified/current.",
+    )
+    p.add_argument(
+        "--force",
+        action="store_true",
+        help="Re-check even certified components.",
+    )
+    p.add_argument(
+        "--model",
+        action="append",
+        help="LLM model for quorum vote (repeatable, default is two models).",
+    )
+    p.add_argument(
+        "--store",
+        type=Path,
+        help="Path to sidecar certification store (default: <source>.unit_checks.json)",
+    )
     p.add_argument("--json", action="store_true", help="Output JSON format")
 
 
@@ -274,6 +315,118 @@ def cmd_lint(args) -> int:
     )
 
 
+def cmd_llm_check_units(args) -> int:
+    """Run optional LLM unit/coefficient certification workflow."""
+    file_path: Path = args.file
+    output_json: bool = args.json
+    selected_components: list[str] | None = args.component
+    run_all: bool = args.all
+    force: bool = args.force
+    models: list[str] | None = args.model
+
+    if not file_path.exists():
+        _error(f"File not found: {file_path}", output_json, str(file_path))
+        return 2
+
+    try:
+        source = load_vedalang(file_path)
+        validate_vedalang(source)
+    except Exception as e:
+        _error(f"Failed to load/validate source: {e}", output_json, str(file_path))
+        return 2
+
+    from vedalang.lint.llm_unit_check import (
+        default_store_path,
+        load_store,
+        run_component_unit_check,
+        save_store,
+        select_components,
+        update_store_with_result,
+    )
+
+    store_path = args.store or default_store_path(file_path)
+    store = load_store(store_path)
+
+    try:
+        to_check, skipped = select_components(
+            source=source,
+            store=store,
+            selected=selected_components,
+            run_all=run_all,
+            force=force,
+        )
+    except Exception as e:
+        _error(str(e), output_json, str(file_path))
+        return 2
+
+    results = []
+    run_errors = []
+    for component in to_check:
+        try:
+            result = run_component_unit_check(
+                source=source,
+                component=component,
+                models=models,
+            )
+            update_store_with_result(store, result)
+            results.append(result)
+        except Exception as e:
+            run_errors.append({"component": component, "error": str(e)})
+
+    save_store(store_path, store)
+
+    reviewed = len(results)
+    certified = sum(1 for r in results if r.status == "certified")
+    needs_review = reviewed - certified
+
+    if output_json:
+        payload = {
+            "success": len(run_errors) == 0 and needs_review == 0,
+            "source": str(file_path),
+            "store": str(store_path),
+            "checked": reviewed,
+            "certified": certified,
+            "needs_review": needs_review,
+            "skipped_certified": skipped,
+            "results": [
+                {
+                    "component": r.component,
+                    "status": r.status,
+                    "fingerprint": r.fingerprint,
+                    "quorum": r.quorum,
+                    "models": [v.model for v in r.votes],
+                }
+                for r in results
+            ],
+            "errors": run_errors,
+        }
+        print(json.dumps(payload, indent=2))
+    else:
+        print(f"LLM unit check: {file_path}")
+        print(f"Store: {store_path}")
+        if skipped:
+            print(f"Skipped certified/current: {', '.join(skipped)}")
+        for r in results:
+            print(
+                f"  - {r.component}: {r.status} "
+                f"(quorum {r.quorum}, models={','.join(v.model for v in r.votes)})"
+            )
+        for err in run_errors:
+            print(f"  - {err['component']}: error: {err['error']}")
+        print()
+        print(
+            "Summary: "
+            f"{certified} certified, {needs_review} needs_review, "
+            f"{len(run_errors)} errors"
+        )
+
+    if run_errors:
+        return 2
+    if needs_review > 0:
+        return 1
+    return 0
+
+
 def _split_fenced_code_blocks(text: str) -> list[dict]:
     """Split a markdown-ish string into alternating text/code segments."""
     import re
@@ -308,7 +461,6 @@ def _format_finding_rich(finding: dict, index: int, total: int):
     from rich import box
     from rich.console import Group
     from rich.markdown import Markdown
-    from rich.padding import Padding
     from rich.panel import Panel
     from rich.rule import Rule
     from rich.syntax import Syntax

@@ -249,7 +249,9 @@ def parse_llm_response(raw: str) -> AssessmentResult:
 _MODEL = "gpt-5.2"
 
 
-def _call_openai(system_prompt: str, user_prompt: str) -> tuple[str, str]:
+def _call_openai(
+    system_prompt: str, user_prompt: str, model: str = _MODEL
+) -> tuple[str, str]:
     """Call OpenAI Responses API for structural assessment.
 
     Uses OPENAI_API_KEY from environment. Raises RuntimeError if unavailable.
@@ -275,14 +277,14 @@ def _call_openai(system_prompt: str, user_prompt: str) -> tuple[str, str]:
     client = openai.OpenAI(api_key=api_key)
 
     response = client.responses.create(
-        model=_MODEL,
+        model=model,
         instructions=system_prompt,
         input=user_prompt,
         text={"format": {"type": "json_object"}},
         reasoning={"effort": "medium"},
     )
 
-    return response.output_text or "{}", _MODEL
+    return response.output_text or "{}", model
 
 
 def run_llm_assessment(

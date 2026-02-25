@@ -1840,6 +1840,133 @@ def test_strict_unit_policy_requires_basis_for_energy_mass_process():
     assert any("has no basis" in e for e in errors)
 
 
+def test_efficiency_gt_one_requires_cop_metric_in_permissive_mode():
+    """Efficiency > 1 should warn unless performance_metric='cop'."""
+    model = {
+        "name": "CopCheckPermissive",
+        "regions": ["REG1"],
+        "commodities": [
+            {"name": "C:ELC_IN", "type": "energy", "unit": "PJ"},
+            {"name": "C:ELC_OUT", "type": "energy", "unit": "PJ"},
+        ],
+        "processes": [
+            {
+                "name": "HP1",
+                "sets": ["ELE"],
+                "primary_commodity_group": "NRGO",
+                "inputs": [{"commodity": "C:ELC_IN"}],
+                "outputs": [{"commodity": "C:ELC_OUT"}],
+                "efficiency": 3.2,
+            }
+        ],
+    }
+    errors, warnings = validate_cross_references(model)
+    assert errors == []
+    assert any("performance_metric='cop'" in w for w in warnings)
+
+
+def test_efficiency_gt_one_with_cop_metric_is_allowed():
+    """COP-style processes allow efficiency > 1 without diagnostics."""
+    model = {
+        "name": "CopCheckAllowed",
+        "regions": ["REG1"],
+        "commodities": [
+            {"name": "C:ELC_IN", "type": "energy", "unit": "PJ"},
+            {"name": "C:ELC_OUT", "type": "energy", "unit": "PJ"},
+        ],
+        "processes": [
+            {
+                "name": "HP1",
+                "sets": ["ELE"],
+                "primary_commodity_group": "NRGO",
+                "inputs": [{"commodity": "C:ELC_IN"}],
+                "outputs": [{"commodity": "C:ELC_OUT"}],
+                "efficiency": 3.2,
+                "performance_metric": "cop",
+            }
+        ],
+    }
+    errors, warnings = validate_cross_references(model)
+    assert errors == []
+    assert all("performance_metric='cop'" not in w for w in warnings)
+
+
+def test_coefficient_anchor_mismatch_warns_in_permissive_mode():
+    """Coefficient anchors should catch wrong magnitudes in permissive mode."""
+    model = {
+        "name": "CoeffAnchorMismatchWarn",
+        "regions": ["REG1"],
+        "commodities": [
+            {"name": "C:GAS", "type": "fuel", "unit": "PJ"},
+            {"name": "C:ELC", "type": "energy", "unit": "TWh"},
+        ],
+        "processes": [
+            {
+                "name": "CCGT",
+                "sets": ["ELE"],
+                "primary_commodity_group": "NRGO",
+                "inputs": [{"commodity": "C:GAS", "coefficient": 1.0}],
+                "outputs": [{"commodity": "C:ELC", "coefficient": 1.0}],
+                "efficiency": 0.55,
+            }
+        ],
+    }
+    errors, warnings = validate_cross_references(model)
+    assert errors == []
+    assert any("coefficient mismatch" in w for w in warnings)
+
+
+def test_coefficient_anchor_mismatch_errors_in_strict_mode():
+    """Coefficient anchor mismatches should be hard errors in strict mode."""
+    model = {
+        "name": "CoeffAnchorMismatchStrict",
+        "regions": ["REG1"],
+        "unit_policy": {"mode": "strict"},
+        "commodities": [
+            {"name": "C:GAS", "type": "fuel", "unit": "PJ"},
+            {"name": "C:ELC", "type": "energy", "unit": "TWh"},
+        ],
+        "processes": [
+            {
+                "name": "CCGT",
+                "sets": ["ELE"],
+                "primary_commodity_group": "NRGO",
+                "inputs": [{"commodity": "C:GAS", "coefficient": 1.0}],
+                "outputs": [{"commodity": "C:ELC", "coefficient": 1.0}],
+                "efficiency": 0.55,
+            }
+        ],
+    }
+    errors, warnings = validate_cross_references(model)
+    assert any("coefficient mismatch" in e for e in errors)
+    assert all("coefficient mismatch" not in w for w in warnings)
+
+
+def test_coefficient_anchor_detects_efficiency_inversion_hint():
+    """Anchor mismatch should surface inversion hint for common efficiency flip."""
+    model = {
+        "name": "CoeffAnchorInversionHint",
+        "regions": ["REG1"],
+        "commodities": [
+            {"name": "C:GAS", "type": "fuel", "unit": "PJ"},
+            {"name": "C:ELC", "type": "energy", "unit": "PJ"},
+        ],
+        "processes": [
+            {
+                "name": "CCGT",
+                "sets": ["ELE"],
+                "primary_commodity_group": "NRGO",
+                "inputs": [{"commodity": "C:GAS", "coefficient": 0.55}],
+                "outputs": [{"commodity": "C:ELC", "coefficient": 1.0}],
+                "efficiency": 0.55,
+            }
+        ],
+    }
+    errors, warnings = validate_cross_references(model)
+    assert errors == []
+    assert any("Possible efficiency inversion detected" in w for w in warnings)
+
+
 def test_l1_emission_namespace_flow_error_in_cross_refs():
     """Namespace emission commodities are rejected in process inputs/outputs."""
     model = {
@@ -2796,6 +2923,49 @@ def _base_new_syntax_source() -> dict:
     }
 
 
+def _new_syntax_conversion_source() -> dict:
+    return {
+        "model": {
+            "name": "UnitAnchorVariantTest",
+            "regions": ["REG1"],
+            "milestone_years": [2020],
+            "commodities": [
+                {"id": "primary:natural_gas", "type": "fuel", "unit": "PJ"},
+                {"id": "secondary:electricity", "type": "energy", "unit": "TWh"},
+            ],
+        },
+        "segments": {"sectors": ["RES"]},
+        "process_roles": [
+            {
+                "id": "generate_electricity",
+                "stage": "conversion",
+                "required_inputs": [{"commodity": "primary:natural_gas"}],
+                "required_outputs": [{"commodity": "secondary:electricity"}],
+            }
+        ],
+        "process_variants": [
+            {
+                "id": "ccgt",
+                "role": "generate_electricity",
+                "inputs": [
+                    {"commodity": "primary:natural_gas", "coefficient": 1.0},
+                ],
+                "outputs": [
+                    {"commodity": "secondary:electricity", "coefficient": 1.0},
+                ],
+                "efficiency": 0.55,
+            }
+        ],
+        "availability": [
+            {
+                "variant": "ccgt",
+                "regions": ["REG1"],
+                "sectors": ["RES"],
+            }
+        ],
+    }
+
+
 def test_new_syntax_structural_invariants_valid_model_compiles():
     source = _base_new_syntax_source()
     tableir = compile_vedalang_to_tableir(source)
@@ -2971,6 +3141,32 @@ def test_new_syntax_false_positive_guard_different_service_outputs():
     warnings = tableir["convention_diagnostics"]["warnings"]
     assert "convention_diagnostics" in tableir
     assert all(w["code"] != "W1_SPLIT_IDENTICAL_IO_ROLES" for w in warnings)
+
+
+def test_new_syntax_coefficient_anchor_mismatch_is_warning_by_default():
+    source = _new_syntax_conversion_source()
+    tableir = compile_vedalang_to_tableir(source)
+    warnings = tableir["convention_diagnostics"]["warnings"]
+    assert any(
+        w["code"] == "W_PROCESS_UNITS" and "coefficient mismatch" in w["message"]
+        for w in warnings
+    )
+
+
+def test_new_syntax_coefficient_anchor_mismatch_is_error_in_strict_mode():
+    source = _new_syntax_conversion_source()
+    source["model"]["unit_policy"] = {"mode": "strict"}
+    with pytest.raises(Exception, match=r"\[E_PROCESS_UNITS\]"):
+        compile_vedalang_to_tableir(source)
+
+
+def test_new_syntax_cop_metric_allows_efficiency_above_one():
+    source = _new_syntax_conversion_source()
+    source["process_variants"][0]["efficiency"] = 3.0
+    source["process_variants"][0]["performance_metric"] = "cop"
+
+    tableir = compile_vedalang_to_tableir(source)
+    assert "files" in tableir
 
 
 def test_toy_agriculture_uses_service_role_and_sink_sequestration_conventions():

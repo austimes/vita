@@ -272,6 +272,23 @@
       },
       "additionalProperties": false
     },
+    "variant_flow": {
+      "type": "object",
+      "description": "Commodity reference in a variant input/output with optional validation-only coefficient anchor",
+      "required": ["commodity"],
+      "properties": {
+        "commodity": {
+          "type": "string",
+          "description": "Reference to commodity id"
+        },
+        "coefficient": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Validation-only anchor coefficient in commodity_unit/activity_unit. Used for unit/magnitude checks; compiler emission remains based on topology + efficiency."
+        }
+      },
+      "additionalProperties": false
+    },
     "process_variant": {
       "type": "object",
       "description": "Concrete technology implementing a process role. Declares full explicit I/O (no inheritance from role).",
@@ -296,12 +313,12 @@
         },
         "inputs": {
           "type": "array",
-          "items": { "$ref": "#/$defs/role_flow" },
+          "items": { "$ref": "#/$defs/variant_flow" },
           "description": "Full list of input commodities consumed by this variant. Must include all role required_inputs."
         },
         "outputs": {
           "type": "array",
-          "items": { "$ref": "#/$defs/role_flow" },
+          "items": { "$ref": "#/$defs/variant_flow" },
           "description": "Full list of output commodities produced by this variant. Must include all role required_outputs."
         },
         "kind": {
@@ -311,10 +328,16 @@
         },
         "efficiency": {
           "oneOf": [
-            { "type": "number", "minimum": 0, "maximum": 1 },
+            { "type": "number", "minimum": 0 },
             { "$ref": "#/$defs/time_varying_value" }
           ],
-          "description": "Conversion efficiency (0-1)"
+          "description": "Conversion performance value. Interpreted by performance_metric (efficiency or COP)."
+        },
+        "performance_metric": {
+          "type": "string",
+          "enum": ["efficiency", "cop"],
+          "default": "efficiency",
+          "description": "Interpretation of efficiency value. Use 'cop' for heat-pump style components where values > 1 are expected."
         },
         "lifetime": {
           "oneOf": [
@@ -915,7 +938,7 @@
         "enabled": { "type": "boolean", "default": true },
         "efficiency": {
           "oneOf": [
-            { "type": "number", "minimum": 0, "maximum": 1 },
+            { "type": "number", "minimum": 0 },
             { "$ref": "#/$defs/time_varying_value" }
           ]
         },
@@ -1088,6 +1111,7 @@
       "properties": {
         "commodity": { "type": "string", "description": "Reference to commodity name" },
         "share": { "type": "number", "minimum": 0, "maximum": 1, "default": 1.0, "description": "Flow share for non-emission outputs (FLO_SHAR)" },
+        "coefficient": { "type": "number", "exclusiveMinimum": 0, "description": "Validation-only anchor coefficient in commodity_unit/activity_unit. Used for lint/compile unit checks; emission semantics remain driven by topology + efficiency." },
         "emission_factor": { "type": "number", "description": "Emission per unit PROCESS ACTIVITY. Units: <emission_commodity.unit> per <process.activity_unit> (e.g., Mt CO2 per PJ activity). Implemented via ENV_ACT in TIMES, which xl2times maps to FLO_EMIS. Always per-activity, NOT per-flow. Use instead of 'share' for emission commodities." }
       }
     },

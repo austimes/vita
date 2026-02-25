@@ -26,7 +26,7 @@ VedaLang is a typed DSL that compiles to VEDA Excel tables for TIMES energy mode
 
 ## Current Status: Maintenance & Extension
 
-**208 issues closed.** All core design phases complete.
+**210 issues closed.** All core design phases complete.
 
 ### Active Work
 
@@ -78,9 +78,9 @@ All 13 subtasks closed. Deliverables:
 | `vedalang-a9m` | P3 | Units and dimension checking system (epic) | ○ Open |
 | `vedalang-a9m.1` | P2 | Strict unit policy and enums in schema | ✓ Closed |
 | `vedalang-a9m.2` | P2 | Deterministic unit registry + canonical conversion validation | ✓ Closed |
-| `vedalang-a9m.3` | P2 | Coefficient magnitude checks with process anchors | ○ Open |
+| `vedalang-a9m.3` | P2 | Coefficient magnitude checks with process anchors | ✓ Closed |
 | `vedalang-a9m.4` | P2 | Detect and forbid fake unit-transformation processes | ✓ Closed |
-| `vedalang-a9m.5` | P3 | LLM unit/coefficient certification workflow | ○ Open |
+| `vedalang-a9m.5` | P3 | LLM unit/coefficient certification workflow | ✓ Closed |
 
 ### Future Work (P4)
 
@@ -175,7 +175,9 @@ All 10 energy system primitives explored and implemented:
 | Explicit milestone years | ✅ |
 | Existing stock vs facility capacity | ✅ |
 | PRC_CAPACT (unit conversion) | ✅ |
-| Strict unit policy (`model.unit_policy`) | ✅ (initial slice) |
+| Strict unit policy (`model.unit_policy`) | ✅ |
+| Coefficient anchor magnitude checks (`coefficient`) | ✅ |
+| Advisory LLM unit certification (`llm-check-units`) | ✅ |
 | Primary commodity group (explicit + inferred) | ✅ |
 
 ### Not Yet Implemented

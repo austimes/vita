@@ -102,8 +102,8 @@ def test_invalid_commodity_unit_enum_rejected():
         jsonschema.validate(data, schema)
 
 
-def test_efficiency_range():
-    """Efficiency must be between 0 and 1 for process_variants."""
+def test_efficiency_allows_cop_style_values():
+    """Schema allows efficiency > 1 (validated semantically via performance_metric)."""
     schema = load_schema()
     data = {
         "model": {
@@ -124,12 +124,79 @@ def test_efficiency_range():
                 "role": "generate_power",
                 "inputs": [],
                 "outputs": [{"commodity": "electricity"}],
-                "efficiency": 1.5,  # Invalid: > 1
+                "efficiency": 1.5,
+                "performance_metric": "cop",
+            }
+        ],
+    }
+    jsonschema.validate(data, schema)
+
+
+def test_process_variant_rejects_unknown_performance_metric():
+    """process_variants.performance_metric must be one of allowed enum values."""
+    schema = load_schema()
+    data = {
+        "model": {
+            "name": "Test",
+            "regions": ["R1"],
+            "commodities": [{"id": "electricity", "type": "energy"}],
+        },
+        "process_roles": [
+            {
+                "id": "generate_power",
+                "required_inputs": [],
+                "required_outputs": [{"commodity": "electricity"}],
+            }
+        ],
+        "process_variants": [
+            {
+                "id": "bad_plant",
+                "role": "generate_power",
+                "inputs": [],
+                "outputs": [{"commodity": "electricity"}],
+                "efficiency": 1.2,
+                "performance_metric": "invalid_metric",
             }
         ],
     }
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(data, schema)
+
+
+def test_process_variant_flow_coefficient_anchor_validates():
+    """Variant flow coefficient anchors validate as optional positive values."""
+    schema = load_schema()
+    data = {
+        "model": {
+            "name": "CoeffAnchorTest",
+            "regions": ["R1"],
+            "commodities": [
+                {"id": "primary:natural_gas", "type": "fuel", "unit": "PJ"},
+                {"id": "secondary:electricity", "type": "energy", "unit": "TWh"},
+            ],
+        },
+        "process_roles": [
+            {
+                "id": "generate_power",
+                "required_inputs": [{"commodity": "primary:natural_gas"}],
+                "required_outputs": [{"commodity": "secondary:electricity"}],
+            }
+        ],
+        "process_variants": [
+            {
+                "id": "ccgt",
+                "role": "generate_power",
+                "inputs": [
+                    {"commodity": "primary:natural_gas", "coefficient": 6.3},
+                ],
+                "outputs": [
+                    {"commodity": "secondary:electricity", "coefficient": 1.0},
+                ],
+                "efficiency": 0.55,
+            }
+        ],
+    }
+    jsonschema.validate(data, schema)
 
 
 def test_process_variant_activity_capacity_units_validate():

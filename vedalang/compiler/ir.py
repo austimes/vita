@@ -193,6 +193,7 @@ def build_variants(
         "activity_unit",
         "capacity_unit",
         "efficiency",
+        "performance_metric",
         "lifetime",
         "investment_cost",
         "fixed_om_cost",
