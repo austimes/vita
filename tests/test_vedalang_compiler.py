@@ -1766,6 +1766,80 @@ def test_unit_warning_for_unusual_capacity_unit():
     assert "capacity_unit" in warnings[0]
 
 
+def test_strict_unit_policy_rejects_unrecognized_activity_unit():
+    """Strict mode should fail on unrecognized process activity unit."""
+    model = {
+        "name": "StrictUnitPolicy",
+        "regions": ["REG1"],
+        "unit_policy": {"mode": "strict"},
+        "commodities": [{"name": "C:ELC", "type": "energy"}],
+        "processes": [
+            {
+                "name": "PP_CCGT",
+                "sets": ["ELE"],
+                "primary_commodity_group": "NRGO",
+                "activity_unit": "kg",
+                "outputs": [{"commodity": "C:ELC"}],
+                "efficiency": 0.55,
+            },
+        ],
+    }
+    errors, warnings = validate_cross_references(model)
+    assert len(errors) == 1
+    assert len(warnings) == 0
+    assert "activity_unit" in errors[0]
+    assert "kg" in errors[0]
+
+
+def test_strict_unit_policy_rejects_fake_unit_transform_process():
+    """Strict policy should reject same-commodity pass-through unit transformers."""
+    model = {
+        "name": "NoUnitTransformers",
+        "regions": ["REG1"],
+        "unit_policy": {
+            "mode": "strict",
+            "forbid_unit_transform_processes": True,
+        },
+        "commodities": [{"name": "C:ELC", "type": "energy"}],
+        "processes": [
+            {
+                "name": "fake_twh_to_pj",
+                "sets": ["ELE"],
+                "primary_commodity_group": "NRGO",
+                "inputs": [{"commodity": "C:ELC"}],
+                "outputs": [{"commodity": "C:ELC"}],
+            },
+        ],
+    }
+    errors, _ = validate_cross_references(model)
+    assert any("unit-only transformation" in e for e in errors)
+
+
+def test_strict_unit_policy_requires_basis_for_energy_mass_process():
+    """Strict mode should require HHV/LHV basis on energy<->mass pathways."""
+    model = {
+        "name": "BasisRequired",
+        "regions": ["REG1"],
+        "unit_policy": {"mode": "strict", "energy_basis": "HHV"},
+        "commodities": [
+            {"name": "C:GAS", "type": "fuel", "unit": "PJ"},
+            {"name": "C:H2", "type": "material", "unit": "Mt"},
+        ],
+        "processes": [
+            {
+                "name": "h2_production",
+                "sets": ["IND"],
+                "primary_commodity_group": "MATO",
+                "inputs": [{"commodity": "C:GAS"}],
+                "outputs": [{"commodity": "C:H2"}],
+                "efficiency": 0.7,
+            }
+        ],
+    }
+    errors, _ = validate_cross_references(model)
+    assert any("has no basis" in e for e in errors)
+
+
 def test_l1_emission_namespace_flow_error_in_cross_refs():
     """Namespace emission commodities are rejected in process inputs/outputs."""
     model = {
@@ -2434,6 +2508,38 @@ def test_prc_capact_emitted_for_gw_pj_units():
     assert eff_row["prc_capact"] == 31.536, (
         f"PRC_CAPACT should be 31.536, got {eff_row.get('prc_capact')}"
     )
+
+
+def test_new_syntax_variant_units_emit_tact_tcap_and_prc_capact():
+    """P4 variants should emit authored tact/tcap and computed PRC_CAPACT."""
+    source = _base_new_syntax_source()
+    source["process_variants"][0]["activity_unit"] = "TWh"
+    source["process_variants"][0]["capacity_unit"] = "GW"
+
+    tableir = compile_vedalang_to_tableir(source)
+
+    fi_process_rows = []
+    fi_t_rows = []
+    for file_spec in tableir.get("files", []):
+        for sheet in file_spec.get("sheets", []):
+            for table in sheet.get("tables", []):
+                if table.get("tag") == "~FI_PROCESS":
+                    fi_process_rows.extend(table.get("rows", []))
+                if table.get("tag") == "~FI_T":
+                    fi_t_rows.extend(table.get("rows", []))
+
+    heat_pump_rows = [r for r in fi_process_rows if "heat_pump" in r.get("process", "")]
+    assert heat_pump_rows
+    assert all(r["tact"] == "TWh" for r in heat_pump_rows)
+    assert all(r["tcap"] == "GW" for r in heat_pump_rows)
+
+    eff_rows = [
+        r
+        for r in fi_t_rows
+        if "heat_pump" in r.get("process", "") and "eff" in r
+    ]
+    assert eff_rows
+    assert eff_rows[0].get("prc_capact") == 8.76
 
 
 def test_explicit_cost_attribute_names():

@@ -1,6 +1,6 @@
 # VedaLang Project Status
 
-**Last updated:** 2026-02-21
+**Last updated:** 2026-02-25
 
 ## Executive Summary
 
@@ -26,7 +26,7 @@ VedaLang is a typed DSL that compiles to VEDA Excel tables for TIMES energy mode
 
 ## Current Status: Maintenance & Extension
 
-**162 issues closed.** All core design phases complete.
+**208 issues closed.** All core design phases complete.
 
 ### Active Work
 
@@ -35,7 +35,7 @@ VedaLang is a typed DSL that compiles to VEDA Excel tables for TIMES energy mode
 | Issue | Priority | Description | Status |
 |-------|----------|-------------|--------|
 | `vedalang-qv4` | P2 | Repository hygiene audit — 2026-02 | ○ Open (epic) |
-| `vedalang-qv4.1` | P1 | Sync STATUS.md with reality | 🔄 In progress |
+| `vedalang-qv4.1` | P1 | Sync STATUS.md with reality | ✓ Closed |
 | `vedalang-qv4.2` | P1 | Update AGENTS.md phase status and fix stale paths | ○ Open |
 | `vedalang-qv4.3` | P2 | Fix 99 ruff lint errors | ○ Open |
 | `vedalang-qv4.4` | P2 | Delete stale experiments/ directory | ○ Open |
@@ -70,6 +70,17 @@ All 13 subtasks closed. Deliverables:
 | Issue | Priority | Description | Status |
 |-------|----------|-------------|--------|
 | `vedalang-iil` | P2 | xl2times: Add --force-veda flag | ○ Open |
+
+**Units & dimensions** (`vedalang-a9m`) — deterministic unit safety implementation:
+
+| Issue | Priority | Description | Status |
+|-------|----------|-------------|--------|
+| `vedalang-a9m` | P3 | Units and dimension checking system (epic) | ○ Open |
+| `vedalang-a9m.1` | P2 | Strict unit policy and enums in schema | ✓ Closed |
+| `vedalang-a9m.2` | P2 | Deterministic unit registry + canonical conversion validation | ✓ Closed |
+| `vedalang-a9m.3` | P2 | Coefficient magnitude checks with process anchors | ○ Open |
+| `vedalang-a9m.4` | P2 | Detect and forbid fake unit-transformation processes | ✓ Closed |
+| `vedalang-a9m.5` | P3 | LLM unit/coefficient certification workflow | ○ Open |
 
 ### Future Work (P4)
 
@@ -164,6 +175,7 @@ All 10 energy system primitives explored and implemented:
 | Explicit milestone years | ✅ |
 | Existing stock vs facility capacity | ✅ |
 | PRC_CAPACT (unit conversion) | ✅ |
+| Strict unit policy (`model.unit_policy`) | ✅ (initial slice) |
 | Primary commodity group (explicit + inferred) | ✅ |
 
 ### Not Yet Implemented
@@ -172,7 +184,7 @@ All 10 energy system primitives explored and implemented:
 |---------|-------|----------|
 | Storage primitives (enhanced) | `vedalang-jis` | P4 |
 | Scenario composition | `vedalang-9xy` | P4 |
-| Units/dimension checking | `vedalang-a9m` | P4 |
+| Units/dimension checking (advanced) | `vedalang-a9m` | P4 |
 | Vintage/age tracking | — | Future |
 | Growth rate constraints | — | Future |
 

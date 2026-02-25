@@ -52,6 +52,56 @@ def test_invalid_commodity_type_rejected():
         jsonschema.validate(data, schema)
 
 
+def test_unit_policy_validates():
+    """Model-level unit_policy should validate against schema."""
+    schema = load_schema()
+    data = {
+        "model": {
+            "name": "UnitPolicyTest",
+            "regions": ["R1"],
+            "unit_policy": {
+                "mode": "strict",
+                "energy_basis": "HHV",
+                "forbid_unit_transform_processes": True,
+                "allowed_units": {
+                    "energy": ["PJ", "TWh"],
+                    "power": ["GW"],
+                    "mass": ["Mt"],
+                    "currency": ["MUSD"],
+                },
+            },
+            "commodities": [
+                {
+                    "id": "secondary:electricity",
+                    "type": "energy",
+                    "unit": "TWh",
+                }
+            ],
+        }
+    }
+    jsonschema.validate(data, schema)
+
+
+def test_invalid_commodity_unit_enum_rejected():
+    """Commodity unit must use supported unit symbols."""
+    schema = load_schema()
+    data = {
+        "model": {
+            "name": "BadCommodityUnit",
+            "regions": ["R1"],
+            "commodities": [
+                {
+                    "id": "secondary:electricity",
+                    "type": "energy",
+                    "unit": "foo",
+                }
+            ],
+        }
+    }
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(data, schema)
+
+
 def test_efficiency_range():
     """Efficiency must be between 0 and 1 for process_variants."""
     schema = load_schema()
@@ -62,7 +112,11 @@ def test_efficiency_range():
             "commodities": [],
         },
         "process_roles": [
-            {"id": "generate_power", "required_inputs": [], "required_outputs": [{"commodity": "electricity"}]}
+            {
+                "id": "generate_power",
+                "required_inputs": [],
+                "required_outputs": [{"commodity": "electricity"}],
+            }
         ],
         "process_variants": [
             {
@@ -76,6 +130,44 @@ def test_efficiency_range():
     }
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(data, schema)
+
+
+def test_process_variant_activity_capacity_units_validate():
+    """process_variants should accept explicit activity/capacity units."""
+    schema = load_schema()
+    data = {
+        "model": {
+            "name": "VariantUnits",
+            "regions": ["R1"],
+            "commodities": [
+                {
+                    "id": "secondary:electricity",
+                    "type": "energy",
+                    "unit": "TWh",
+                },
+                {"id": "service:space_heat", "type": "service", "unit": "TWh"},
+            ],
+        },
+        "process_roles": [
+            {
+                "id": "provide_space_heat",
+                "required_inputs": [{"commodity": "secondary:electricity"}],
+                "required_outputs": [{"commodity": "service:space_heat"}],
+            }
+        ],
+        "process_variants": [
+            {
+                "id": "heat_pump",
+                "role": "provide_space_heat",
+                "inputs": [{"commodity": "secondary:electricity"}],
+                "outputs": [{"commodity": "service:space_heat"}],
+                "activity_unit": "TWh",
+                "capacity_unit": "GW",
+                "efficiency": 1.0,
+            }
+        ],
+    }
+    jsonschema.validate(data, schema)
 
 
 def test_timeslices_validates():
@@ -405,7 +497,11 @@ def test_process_variants_validates():
             "commodities": [{"id": "electricity", "type": "energy"}],
         },
         "process_roles": [
-            {"id": "generate_power", "required_inputs": [], "required_outputs": [{"commodity": "electricity"}]},
+            {
+                "id": "generate_power",
+                "required_inputs": [],
+                "required_outputs": [{"commodity": "electricity"}],
+            },
         ],
         "process_variants": [
             {

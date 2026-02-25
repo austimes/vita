@@ -190,6 +190,8 @@ def build_variants(
 
     attr_keys = {
         "kind",
+        "activity_unit",
+        "capacity_unit",
         "efficiency",
         "lifetime",
         "investment_cost",

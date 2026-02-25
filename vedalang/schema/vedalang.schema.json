@@ -30,6 +30,10 @@
           "minItems": 1,
           "description": "List of model milestone years (e.g., [2020, 2030, 2040, 2050]). First year is the model start year."
         },
+        "unit_policy": {
+          "$ref": "#/$defs/unit_policy",
+          "description": "Unit validation policy (strict/permissive, basis, and allowed unit sets)"
+        },
         "timeslices": {
           "$ref": "#/$defs/timeslices",
           "description": "Timeslice structure for intra-annual temporal resolution"
@@ -122,6 +126,104 @@
             "pattern": "^[a-z][a-z0-9_-]*$"
           },
           "description": "Optional end-use types for finer granularity (e.g., lighting, heating)"
+        }
+      },
+      "additionalProperties": false
+    },
+    "energy_unit": {
+      "type": "string",
+      "enum": ["PJ", "TJ", "GJ", "MWh", "GWh", "TWh", "MTOE", "KTOE"],
+      "description": "Supported energy units"
+    },
+    "power_unit": {
+      "type": "string",
+      "enum": ["GW", "MW", "kW", "TW"],
+      "description": "Supported power/capacity units"
+    },
+    "mass_unit": {
+      "type": "string",
+      "enum": ["Mt", "kt", "t", "Gt"],
+      "description": "Supported mass units"
+    },
+    "currency_unit": {
+      "type": "string",
+      "enum": ["USD", "kUSD", "MUSD", "BUSD"],
+      "description": "Supported currency units"
+    },
+    "service_unit": {
+      "type": "string",
+      "enum": ["Bvkm"],
+      "description": "Supported service units"
+    },
+    "unit_symbol": {
+      "type": "string",
+      "enum": [
+        "PJ", "TJ", "GJ", "MWh", "GWh", "TWh", "MTOE", "KTOE",
+        "GW", "MW", "kW", "TW",
+        "Mt", "kt", "t", "Gt",
+        "USD", "kUSD", "MUSD", "BUSD",
+        "Bvkm"
+      ],
+      "description": "Supported unit symbols"
+    },
+    "energy_basis": {
+      "type": "string",
+      "enum": ["HHV", "LHV"],
+      "description": "Energy basis for fuel/energy-mass consistency"
+    },
+    "unit_policy": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["permissive", "strict"],
+          "default": "permissive",
+          "description": "Strict mode turns unit warnings into hard errors"
+        },
+        "energy_basis": {
+          "$ref": "#/$defs/energy_basis",
+          "description": "Default model-wide energy basis"
+        },
+        "forbid_unit_transform_processes": {
+          "type": "boolean",
+          "default": false,
+          "description": "Reject pass-through processes that only transform units without physical conversion intent"
+        },
+        "allowed_units": {
+          "type": "object",
+          "properties": {
+            "energy": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/energy_unit" },
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "power": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/power_unit" },
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "mass": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/mass_unit" },
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "currency": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/currency_unit" },
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "service": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/service_unit" },
+              "minItems": 1,
+              "uniqueItems": true
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -241,6 +343,14 @@
             { "$ref": "#/$defs/time_varying_value" }
           ],
           "description": "Variable O&M cost per unit activity"
+        },
+        "activity_unit": {
+          "$ref": "#/$defs/energy_unit",
+          "description": "Activity unit for this variant (defaults to PJ)"
+        },
+        "capacity_unit": {
+          "$ref": "#/$defs/power_unit",
+          "description": "Capacity unit for this variant (defaults to GW)"
         },
         "emission_factors": {
           "type": "object",
@@ -686,8 +796,12 @@
           "description": "Canonical commodity type used by diagnostics semantics and COM_TYPE mapping."
         },
         "unit": {
-          "type": "string",
+          "$ref": "#/$defs/unit_symbol",
           "description": "Unit of measurement (e.g., PJ, Mt)"
+        },
+        "basis": {
+          "$ref": "#/$defs/energy_basis",
+          "description": "Energy basis used for this commodity when relevant to energy/mass consistency"
         },
         "description": {
           "type": "string",

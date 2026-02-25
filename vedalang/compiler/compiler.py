@@ -33,6 +33,35 @@ SCHEMA_DIR = Path(__file__).parent.parent / "schema"
 ENERGY_UNITS = {"PJ", "TJ", "GJ", "MWh", "GWh", "TWh", "MTOE", "KTOE"}
 POWER_UNITS = {"GW", "MW", "kW", "TW"}
 MASS_UNITS = {"Mt", "kt", "t", "Gt"}
+CURRENCY_UNITS = {"USD", "kUSD", "MUSD", "BUSD"}
+SERVICE_UNITS = {"Bvkm"}
+ENERGY_BASES = {"HHV", "LHV"}
+
+UNIT_DIMENSIONS = {
+    **{u: "energy" for u in ENERGY_UNITS},
+    **{u: "power" for u in POWER_UNITS},
+    **{u: "mass" for u in MASS_UNITS},
+    **{u: "currency" for u in CURRENCY_UNITS},
+    **{u: "service" for u in SERVICE_UNITS},
+}
+
+ENERGY_UNIT_TO_PJ = {
+    "PJ": 1.0,
+    "TJ": 1e-3,
+    "GJ": 1e-6,
+    "MWh": 3.6e-6,
+    "GWh": 3.6e-3,
+    "TWh": 3.6,
+    "MTOE": 41.868,
+    "KTOE": 0.041868,
+}
+
+POWER_UNIT_TO_GW = {
+    "GW": 1.0,
+    "MW": 1e-3,
+    "kW": 1e-6,
+    "TW": 1e3,
+}
 
 # Default units by canonical commodity type
 DEFAULT_UNITS = {
@@ -46,18 +75,9 @@ DEFAULT_UNITS = {
     "other": "PJ",
 }
 
-# Capacity-to-activity conversion factors (PRC_CAPACT)
-# When capacity is in power units (GW) and activity is in energy units (PJ),
-# we need to specify how much activity 1 unit of capacity can produce per year.
-# Formula: 1 GW × 8760 hours × 3600 seconds / 1e15 J/PJ = 31.536 PJ/GW/year
-CAP2ACT_CONVERSIONS = {
-    # (capacity_unit, activity_unit): conversion_factor
-    ("GW", "PJ"): 31.536,
-    ("GW", "TWh"): 8.76,
-    ("MW", "GWh"): 8.76,
-    ("MW", "PJ"): 0.031536,
-    ("TW", "PJ"): 31536.0,
-}
+# Capacity-to-activity conversion constant:
+# 1 GW used for a full year = 31.536 PJ/year.
+GW_YEAR_TO_PJ = 31.536
 
 # Process attributes that support time-varying values
 TIME_VARYING_ATTRS = {
@@ -261,6 +281,13 @@ def _normalize_commodities_for_new_syntax(
             )
             continue
 
+        # Override normalize_commodity's generic PJ default with
+        # canonical type-based defaults used by the compiler.
+        if "unit" not in raw:
+            norm["unit"] = _get_default_unit(comm_type)
+        if "basis" in raw:
+            norm["basis"] = raw["basis"]
+
         normalized[norm["id"]] = norm
 
     if errors:
@@ -277,6 +304,63 @@ def _validate_new_syntax_structural_invariants(
     """Validate compiler-enforced structural invariants for new syntax."""
     errors: list[dict[str, str]] = []
     warnings: list[dict[str, str]] = []
+    unit_policy = _resolve_unit_policy(source.get("model", {}))
+
+    def append_unit_issue(
+        *,
+        location: str,
+        message: str,
+        error_code: str,
+        warning_code: str,
+    ) -> None:
+        issue = {
+            "code": error_code if _is_strict_unit_mode(unit_policy) else warning_code,
+            "location": location,
+            "message": message,
+        }
+        if _is_strict_unit_mode(unit_policy):
+            errors.append(issue)
+        else:
+            warnings.append(issue)
+
+    for comm_id, comm in sorted(commodities.items()):
+        comm_type = comm.get("type", "energy")
+        unit = comm.get("unit") or _get_default_unit(comm_type)
+        dimension = UNIT_DIMENSIONS.get(unit)
+        if dimension is None:
+            append_unit_issue(
+                location=f"model.commodities[{comm_id}]",
+                message=(
+                    f"Commodity '{comm_id}' has unsupported unit '{unit}'. "
+                    "Use a unit from the schema enum."
+                ),
+                error_code="E_UNIT_UNSUPPORTED",
+                warning_code="W_UNIT_UNSUPPORTED",
+            )
+            continue
+
+        if unit not in unit_policy["allowed_units"].get(dimension, set()):
+            append_unit_issue(
+                location=f"model.commodities[{comm_id}]",
+                message=(
+                    f"Commodity '{comm_id}' uses unit '{unit}' which is not allowed by "
+                    "model.unit_policy.allowed_units."
+                ),
+                error_code="E_UNIT_POLICY_DISALLOWED",
+                warning_code="W_UNIT_POLICY_DISALLOWED",
+            )
+
+        basis = comm.get("basis")
+        if basis is not None and basis not in ENERGY_BASES:
+            append_unit_issue(
+                location=f"model.commodities[{comm_id}]",
+                message=(
+                    f"Commodity '{comm_id}' has invalid basis '{basis}'. "
+                    "Expected HHV or LHV."
+                ),
+                error_code="E_BASIS_ENUM",
+                warning_code="W_BASIS_ENUM",
+            )
 
     for role_id, role in sorted(roles.items()):
         if role.stage not in VALID_PROCESS_STAGES:
@@ -419,6 +503,96 @@ def _validate_new_syntax_structural_invariants(
     for variant in source.get("process_variants") or []:
         variant_id = variant.get("id", "<variant>")
         emission_factors = variant.get("emission_factors") or {}
+        activity_unit = variant.get("activity_unit", "PJ")
+        capacity_unit = variant.get("capacity_unit", "GW")
+
+        variant_unit_errors: list[str] = []
+        variant_unit_warnings: list[str] = []
+        _validate_process_unit_pair(
+            process_label=f"process_variants[{variant_id}]",
+            activity_unit=activity_unit,
+            capacity_unit=capacity_unit,
+            policy=unit_policy,
+            errors=variant_unit_errors,
+            warnings=variant_unit_warnings,
+        )
+        for msg in variant_unit_errors:
+            errors.append(
+                {
+                    "code": "E_PROCESS_UNITS",
+                    "location": f"process_variants[{variant_id}]",
+                    "message": msg,
+                }
+            )
+        for msg in variant_unit_warnings:
+            warnings.append(
+                {
+                    "code": "W_PROCESS_UNITS",
+                    "location": f"process_variants[{variant_id}]",
+                    "message": msg,
+                }
+            )
+
+        flow_commodities = [i["commodity"] for i in variant.get("inputs") or []]
+        flow_commodities.extend(o["commodity"] for o in variant.get("outputs") or [])
+        flow_units = {
+            comm_id: (commodities.get(comm_id, {}).get("unit") or "")
+            for comm_id in flow_commodities
+            if comm_id in commodities
+        }
+        flow_dims = {
+            UNIT_DIMENSIONS.get(unit)
+            for unit in flow_units.values()
+            if UNIT_DIMENSIONS.get(unit) in {"energy", "mass"}
+        }
+        if {"energy", "mass"}.issubset(flow_dims):
+            policy_basis = unit_policy.get("energy_basis")
+            for comm_id, unit in sorted(flow_units.items()):
+                dim = UNIT_DIMENSIONS.get(unit)
+                if dim not in {"energy", "mass"}:
+                    continue
+                basis = commodities.get(comm_id, {}).get("basis")
+                if not basis:
+                    append_unit_issue(
+                        location=f"process_variants[{variant_id}]",
+                        message=(
+                            "Energy/mass conversion requires basis metadata: "
+                            f"commodity '{comm_id}' (unit '{unit}') has no basis."
+                        ),
+                        error_code="E_ENERGY_MASS_BASIS_REQUIRED",
+                        warning_code="W_ENERGY_MASS_BASIS_REQUIRED",
+                    )
+                    continue
+                if policy_basis and basis != policy_basis:
+                    append_unit_issue(
+                        location=f"process_variants[{variant_id}]",
+                        message=(
+                            f"Commodity '{comm_id}' basis '{basis}' conflicts with "
+                            f"model.unit_policy.energy_basis '{policy_basis}'."
+                        ),
+                        error_code="E_ENERGY_MASS_BASIS_MISMATCH",
+                        warning_code="W_ENERGY_MASS_BASIS_MISMATCH",
+                    )
+
+        if (
+            unit_policy.get("forbid_unit_transform_processes", False)
+            and _detect_fake_unit_transform_process(
+                inputs=[inp["commodity"] for inp in variant.get("inputs", [])],
+                outputs=[out["commodity"] for out in variant.get("outputs", [])],
+                attrs=variant,
+                kind=variant.get("kind"),
+            )
+        ):
+            errors.append(
+                {
+                    "code": "E_UNIT_TRANSFORM_PROCESS",
+                    "location": f"process_variants[{variant_id}]",
+                    "message": (
+                        "Variant appears to be a unit-only pass-through "
+                        "(same commodity in/out without physical transformation)."
+                    ),
+                }
+            )
 
         has_negative = False
         for emission_comm in sorted(emission_factors.keys()):
@@ -545,6 +719,166 @@ def _get_default_unit(commodity_type: str) -> str:
     """Get default unit for a commodity type."""
     return DEFAULT_UNITS.get(commodity_type, "PJ")
 
+
+def _resolve_unit_policy(model: dict) -> dict:
+    """Resolve unit policy with defaults."""
+    raw = model.get("unit_policy") or {}
+    return {
+        "mode": raw.get("mode", "permissive"),
+        "energy_basis": raw.get("energy_basis"),
+        "forbid_unit_transform_processes": raw.get(
+            "forbid_unit_transform_processes", False
+        ),
+        "allowed_units": {
+            "energy": set(raw.get("allowed_units", {}).get("energy", ENERGY_UNITS)),
+            "power": set(raw.get("allowed_units", {}).get("power", POWER_UNITS)),
+            "mass": set(raw.get("allowed_units", {}).get("mass", MASS_UNITS)),
+            "currency": set(
+                raw.get("allowed_units", {}).get("currency", CURRENCY_UNITS)
+            ),
+            "service": set(
+                raw.get("allowed_units", {}).get("service", SERVICE_UNITS)
+            ),
+        },
+    }
+
+
+def _is_strict_unit_mode(policy: dict) -> bool:
+    """Return True when unit policy should fail on violations."""
+    return policy.get("mode") == "strict"
+
+
+def _compute_cap2act(capacity_unit: str, activity_unit: str) -> float | None:
+    """Compute PRC_CAPACT for a (capacity_unit, activity_unit) pair."""
+    if capacity_unit not in POWER_UNIT_TO_GW:
+        return None
+    if activity_unit not in ENERGY_UNIT_TO_PJ:
+        return None
+    value = GW_YEAR_TO_PJ * POWER_UNIT_TO_GW[capacity_unit] / ENERGY_UNIT_TO_PJ[
+        activity_unit
+    ]
+    return round(value, 12)
+
+
+def _record_unit_diagnostic(
+    errors: list[str],
+    warnings: list[str],
+    policy: dict,
+    message: str,
+) -> None:
+    """Record as error in strict mode, warning otherwise."""
+    if _is_strict_unit_mode(policy):
+        errors.append(message)
+    else:
+        warnings.append(message)
+
+
+def _detect_fake_unit_transform_process(
+    *,
+    inputs: list[str],
+    outputs: list[str],
+    attrs: dict,
+    kind: str | None = None,
+) -> bool:
+    """Detect suspicious pass-through process likely used only for unit scaling."""
+    if len(inputs) != 1 or len(outputs) != 1:
+        return False
+    if inputs[0] != outputs[0]:
+        return False
+    if kind == "network":
+        return False
+
+    efficiency = attrs.get("efficiency")
+    if efficiency is not None and efficiency != 1.0:
+        return False
+
+    # Treat any additional technical/economic attribute as physical intent.
+    nontrivial_keys = {
+        "investment_cost",
+        "fixed_om_cost",
+        "variable_om_cost",
+        "lifetime",
+        "stock",
+        "existing_capacity",
+        "cap_bound",
+        "ncap_bound",
+        "activity_bound",
+        "emission_factors",
+    }
+    if any(k in attrs for k in nontrivial_keys):
+        return False
+    return True
+
+
+def _validate_process_unit_pair(
+    *,
+    process_label: str,
+    activity_unit: str,
+    capacity_unit: str,
+    policy: dict,
+    errors: list[str],
+    warnings: list[str],
+) -> None:
+    """Validate process activity/capacity unit pair and conversion support."""
+    if activity_unit not in ENERGY_UNITS:
+        _record_unit_diagnostic(
+            errors,
+            warnings,
+            policy,
+            (
+                f"{process_label} has activity_unit '{activity_unit}' which is not a "
+                f"recognized energy unit. Expected one of: "
+                f"{', '.join(sorted(ENERGY_UNITS))}"
+            ),
+        )
+    elif activity_unit not in policy["allowed_units"]["energy"]:
+        _record_unit_diagnostic(
+            errors,
+            warnings,
+            policy,
+            (
+                f"{process_label} uses activity_unit '{activity_unit}' which is not "
+                "allowed by model.unit_policy.allowed_units.energy."
+            ),
+        )
+
+    if capacity_unit not in POWER_UNITS:
+        _record_unit_diagnostic(
+            errors,
+            warnings,
+            policy,
+            (
+                f"{process_label} has capacity_unit '{capacity_unit}' which is not a "
+                f"recognized power unit. Expected one of: "
+                f"{', '.join(sorted(POWER_UNITS))}"
+            ),
+        )
+    elif capacity_unit not in policy["allowed_units"]["power"]:
+        _record_unit_diagnostic(
+            errors,
+            warnings,
+            policy,
+            (
+                f"{process_label} uses capacity_unit '{capacity_unit}' which is not "
+                "allowed by model.unit_policy.allowed_units.power."
+            ),
+        )
+
+    cap2act = _compute_cap2act(capacity_unit, activity_unit)
+    if (
+        activity_unit in ENERGY_UNITS
+        and capacity_unit in POWER_UNITS
+        and cap2act is None
+    ):
+        _record_unit_diagnostic(
+            errors,
+            warnings,
+            policy,
+            (
+                f"{process_label} has unsupported capacity/activity unit pair "
+                f"({capacity_unit}, {activity_unit}); cannot derive PRC_CAPACT."
+            ),
+        )
 
 def _get_scalar_value(value):
     """Get scalar value from scalar or time-varying spec (returns None for latter)."""
@@ -769,6 +1103,7 @@ def validate_cross_references(
     """
     errors: list[str] = []
     warnings: list[str] = []
+    unit_policy = _resolve_unit_policy(model)
 
     # Build lookup sets - support both new syntax ('id') and old syntax ('name')
     commodities = {}
@@ -800,6 +1135,42 @@ def validate_cross_references(
             _warn_ambiguous_commodity_ref(
                 warnings, f"model.commodities[{i}]", comm_id
             )
+            comm_type = c.get("type", "energy")
+            comm_unit = c.get("unit") or _get_default_unit(comm_type)
+            comm_dimension = UNIT_DIMENSIONS.get(comm_unit)
+            if comm_dimension is None:
+                _record_unit_diagnostic(
+                    errors,
+                    warnings,
+                    unit_policy,
+                    (
+                        f"Commodity '{comm_id}' has unsupported unit '{comm_unit}'. "
+                        "Use a unit from the schema enum."
+                    ),
+                )
+            else:
+                allowed_units = unit_policy["allowed_units"].get(comm_dimension, set())
+                if comm_unit not in allowed_units:
+                    _record_unit_diagnostic(
+                        errors,
+                        warnings,
+                        unit_policy,
+                        (
+                            f"Commodity '{comm_id}' uses unit '{comm_unit}' which is "
+                            "not allowed by model.unit_policy.allowed_units."
+                        ),
+                    )
+            comm_basis = c.get("basis")
+            if comm_basis is not None and comm_basis not in ENERGY_BASES:
+                _record_unit_diagnostic(
+                    errors,
+                    warnings,
+                    unit_policy,
+                    (
+                        f"Commodity '{comm_id}' has invalid basis '{comm_basis}'. "
+                        "Expected one of: HHV, LHV."
+                    ),
+                )
             commodities[comm_id] = c
     commodity_names = set(commodities.keys())
     processes = set()
@@ -832,6 +1203,52 @@ def validate_cross_references(
         if matches:
             return f" Did you mean '{matches[0]}'?"
         return ""
+
+    def check_energy_mass_basis(flow_comms: list[str], process_label: str) -> None:
+        # Only enforce basis consistency when crossing between energy and mass domains.
+        units_by_comm: dict[str, str] = {}
+        dims: set[str] = set()
+        for comm in set(flow_comms):
+            comm_info = commodities.get(comm)
+            if not comm_info:
+                continue
+            comm_type = comm_info.get("type", "energy")
+            unit = comm_info.get("unit") or _get_default_unit(comm_type)
+            dimension = UNIT_DIMENSIONS.get(unit)
+            units_by_comm[comm] = unit
+            if dimension in {"energy", "mass"}:
+                dims.add(dimension)
+        if not {"energy", "mass"}.issubset(dims):
+            return
+
+        policy_basis = unit_policy.get("energy_basis")
+        for comm, unit in sorted(units_by_comm.items()):
+            dimension = UNIT_DIMENSIONS.get(unit)
+            if dimension not in {"energy", "mass"}:
+                continue
+            comm_basis = commodities.get(comm, {}).get("basis")
+            if not comm_basis:
+                _record_unit_diagnostic(
+                    errors,
+                    warnings,
+                    unit_policy,
+                    (
+                        f"{process_label} crosses energy<->mass units but commodity "
+                        f"'{comm}' (unit '{unit}') has no basis. Add basis: HHV/LHV."
+                    ),
+                )
+                continue
+            if policy_basis and comm_basis != policy_basis:
+                _record_unit_diagnostic(
+                    errors,
+                    warnings,
+                    unit_policy,
+                    (
+                        f"{process_label} uses commodity '{comm}' with basis "
+                        f"'{comm_basis}', which conflicts with model.unit_policy "
+                        f"energy_basis '{policy_basis}'."
+                    ),
+                )
 
     # Validate process references (only for legacy processes array)
     for raw_process in model.get("processes", []):
@@ -880,21 +1297,35 @@ def validate_cross_references(
                     f"'{proc_name}' outputs[{i}].{hint}"
                 )
 
-        # Check unit compatibility (warnings only)
-        activity_unit = process.get("activity_unit")
-        if activity_unit and activity_unit not in ENERGY_UNITS:
-            warnings.append(
-                f"Process '{proc_name}' has activity_unit '{activity_unit}' "
-                f"which is not a recognized energy unit. "
-                f"Expected one of: {', '.join(sorted(ENERGY_UNITS))}"
-            )
+        activity_unit = process.get("activity_unit", "PJ")
+        capacity_unit = process.get("capacity_unit", "GW")
+        _validate_process_unit_pair(
+            process_label=f"Process '{proc_name}'",
+            activity_unit=activity_unit,
+            capacity_unit=capacity_unit,
+            policy=unit_policy,
+            errors=errors,
+            warnings=warnings,
+        )
 
-        capacity_unit = process.get("capacity_unit")
-        if capacity_unit and capacity_unit not in POWER_UNITS:
-            warnings.append(
-                f"Process '{proc_name}' has capacity_unit '{capacity_unit}' "
-                f"which is not a recognized power unit. "
-                f"Expected one of: {', '.join(sorted(POWER_UNITS))}"
+        all_flow_commodities = [
+            inp["commodity"] for inp in process.get("inputs", [])
+        ] + [
+            out["commodity"] for out in process.get("outputs", [])
+        ]
+        check_energy_mass_basis(all_flow_commodities, f"Process '{proc_name}'")
+
+        if (
+            unit_policy.get("forbid_unit_transform_processes", False)
+            and _detect_fake_unit_transform_process(
+                inputs=[inp["commodity"] for inp in process.get("inputs", [])],
+                outputs=[out["commodity"] for out in process.get("outputs", [])],
+                attrs=process,
+            )
+        ):
+            errors.append(
+                f"Process '{proc_name}' appears to be a unit-only transformation "
+                "pass-through (same commodity in/out without physical conversion)."
             )
 
     # Validate constraint references
@@ -1160,6 +1591,42 @@ def validate_cross_references(
                         "be namespaced as emission:*."
                     )
 
+            activity_unit = variant.get("activity_unit", "PJ")
+            capacity_unit = variant.get("capacity_unit", "GW")
+            _validate_process_unit_pair(
+                process_label=f"process_variants[{variant_id}]",
+                activity_unit=activity_unit,
+                capacity_unit=capacity_unit,
+                policy=unit_policy,
+                errors=errors,
+                warnings=warnings,
+            )
+
+            variant_flow_commodities = [
+                inp["commodity"] for inp in variant.get("inputs", [])
+            ] + [
+                out["commodity"] for out in variant.get("outputs", [])
+            ]
+            check_energy_mass_basis(
+                variant_flow_commodities,
+                f"process_variants[{variant_id}]",
+            )
+
+            if (
+                unit_policy.get("forbid_unit_transform_processes", False)
+                and _detect_fake_unit_transform_process(
+                    inputs=[inp["commodity"] for inp in variant.get("inputs", [])],
+                    outputs=[out["commodity"] for out in variant.get("outputs", [])],
+                    attrs=variant,
+                    kind=variant.get("kind"),
+                )
+            ):
+                errors.append(
+                    "UNIT_TRANSFORM_PROCESS_FORBIDDEN in process_variants"
+                    f"[{variant_id}]: appears to be a unit-only pass-through "
+                    "without physical transformation."
+                )
+
     if len(baseline_cases) > 1:
         errors.append(
             "Only one case may be marked is_baseline=true. Found: "
@@ -1288,6 +1755,9 @@ def _compile_new_syntax(
     fi_process_rows = []
     for key, instance in sorted(instances.items()):
         prc_name = registry.get_process_symbol(key.variant_id, key.region, key.segment)
+        attrs = instance.attrs
+        activity_unit = attrs.get("activity_unit", "PJ")
+        capacity_unit = attrs.get("capacity_unit", "GW")
         row = {
             "region": key.region,
             "process": prc_name,
@@ -1296,8 +1766,8 @@ def _compile_new_syntax(
                 if _produces_service_comm(instance.variant.outputs, commodities)
                 else []
             ),
-            "tact": "PJ",
-            "tcap": "GW",
+            "tact": activity_unit,
+            "tcap": capacity_unit,
         }
         fi_process_rows.append(row)
 
@@ -1307,6 +1777,9 @@ def _compile_new_syntax(
     for key, instance in sorted(instances.items()):
         prc_name = registry.get_process_symbol(key.variant_id, key.region, key.segment)
         attrs = instance.attrs
+        activity_unit = attrs.get("activity_unit", "PJ")
+        capacity_unit = attrs.get("capacity_unit", "GW")
+        prc_capact = _compute_cap2act(capacity_unit, activity_unit)
 
         # Input commodities (from variant's explicit I/O)
         for inp_id in instance.variant.inputs:
@@ -1345,6 +1818,8 @@ def _compile_new_syntax(
                 "process": prc_name,
                 "eff": attrs["efficiency"],
             }
+            if prc_capact is not None:
+                eff_row["prc_capact"] = prc_capact
             # Add scalar costs to FI_T row; time-varying costs go to TFM_INS
             cost_attrs = {
                 "investment_cost": ("ncap_cost", "NCAP_COST"),
@@ -1371,6 +1846,25 @@ def _compile_new_syntax(
                 else:
                     eff_row[col_name] = val
             fi_t_rows.append(eff_row)
+        elif prc_capact is not None:
+            # Emit standalone PRC_CAPACT row when no efficiency row exists.
+            row = {
+                "region": key.region,
+                "process": prc_name,
+                "prc_capact": prc_capact,
+            }
+            first_output = (
+                instance.variant.outputs[0] if instance.variant.outputs else None
+            )
+            if first_output:
+                comm = commodities.get(first_output, {})
+                tradable = comm.get("tradable", True)
+                if _commodity_kind(comm) == "emission" or tradable:
+                    scoped_id = registry.get_commodity_symbol(first_output, None)
+                else:
+                    scoped_id = registry.get_commodity_symbol(first_output, key.segment)
+                row["commodity-out"] = scoped_id
+            fi_t_rows.append(row)
 
         # Stock (PRC_RESID) - use TFM_INS pattern to avoid commodity requirement
         if "stock" in attrs:
@@ -2026,9 +2520,9 @@ def compile_vedalang_to_tableir(
         # to know the conversion factor (31.536 PJ/GW/year for full-year operation)
         activity_unit = process.get("activity_unit", "PJ")
         capacity_unit = process.get("capacity_unit", "GW")
-        cap2act_key = (capacity_unit, activity_unit)
-        if cap2act_key in CAP2ACT_CONVERSIONS:
-            cost_params["prc_capact"] = CAP2ACT_CONVERSIONS[cap2act_key]
+        cap2act = _compute_cap2act(capacity_unit, activity_unit)
+        if cap2act is not None:
+            cost_params["prc_capact"] = cap2act
 
         # Add input flows
         for inp in inputs:
