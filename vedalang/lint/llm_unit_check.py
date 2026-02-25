@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -303,17 +304,40 @@ def run_component_unit_check(
     component: str,
     models: list[str] | None = None,
     llm_callable: Any | None = None,
+    progress_callback: Callable[[dict[str, Any]], None] | None = None,
 ) -> ComponentUnitCheckResult:
     """Run quorum LLM checks for a component."""
     system_prompt, user_prompt = assemble_unit_prompt(source, component)
     chosen_models = models or list(DEFAULT_MODELS)
     votes: list[VoteResult] = []
-    for model in chosen_models:
+    for index, model in enumerate(chosen_models, start=1):
+        if progress_callback:
+            progress_callback(
+                {
+                    "event": "model_start",
+                    "component": component,
+                    "model": model,
+                    "index": index,
+                    "total_models": len(chosen_models),
+                }
+            )
         if llm_callable is not None:
             raw = llm_callable(system_prompt, user_prompt, model)
         else:
             raw, _ = _call_openai(system_prompt, user_prompt, model=model)
         status, findings = parse_unit_check_response(raw)
+        if progress_callback:
+            progress_callback(
+                {
+                    "event": "model_done",
+                    "component": component,
+                    "model": model,
+                    "index": index,
+                    "total_models": len(chosen_models),
+                    "status": status,
+                    "findings_count": len(findings),
+                }
+            )
         votes.append(
             VoteResult(
                 model=model,

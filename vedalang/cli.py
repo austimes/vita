@@ -11,6 +11,7 @@ import json
 import sys
 import tempfile
 from pathlib import Path
+from time import perf_counter
 
 import jsonschema
 
@@ -336,6 +337,7 @@ def cmd_llm_check_units(args) -> int:
         return 2
 
     from vedalang.lint.llm_unit_check import (
+        DEFAULT_MODELS,
         default_store_path,
         load_store,
         run_component_unit_check,
@@ -361,17 +363,53 @@ def cmd_llm_check_units(args) -> int:
 
     results = []
     run_errors = []
-    for component in to_check:
+    total_components = len(to_check)
+    total_models = len(models) if models else len(DEFAULT_MODELS)
+    for component_index, component in enumerate(to_check, start=1):
+        component_start = perf_counter()
+
+        def progress_callback(event: dict) -> None:
+            if output_json:
+                return
+            if event.get("event") == "model_start":
+                print(
+                    "    "
+                    f"[{event.get('index')}/{event.get('total_models')}] "
+                    f"{event.get('model')} ..."
+                )
+            elif event.get("event") == "model_done":
+                print(
+                    "      -> "
+                    f"{event.get('status')} "
+                    f"({event.get('findings_count')} findings)"
+                )
+
+        if not output_json:
+            print(
+                f"[{component_index}/{total_components}] "
+                f"Checking {component} ({total_models} model votes)"
+            )
         try:
             result = run_component_unit_check(
                 source=source,
                 component=component,
                 models=models,
+                progress_callback=progress_callback,
             )
             update_store_with_result(store, result)
             results.append(result)
+            if not output_json:
+                elapsed = perf_counter() - component_start
+                print(
+                    "    "
+                    f"done in {elapsed:.1f}s -> {result.status} "
+                    f"(quorum {result.quorum})"
+                )
         except Exception as e:
             run_errors.append({"component": component, "error": str(e)})
+            if not output_json:
+                elapsed = perf_counter() - component_start
+                print(f"    error after {elapsed:.1f}s: {e}")
 
     save_store(store_path, store)
 

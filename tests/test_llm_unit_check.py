@@ -161,6 +161,29 @@ def test_run_component_unit_check_needs_review_on_split_votes():
     assert result.quorum == "1/2"
 
 
+def test_run_component_unit_check_emits_progress_events():
+    events = []
+
+    def mock_llm(system: str, user: str, model: str) -> str:
+        del system, user, model
+        return json.dumps({"status": "pass", "findings": []})
+
+    result = llm_unit_check.run_component_unit_check(
+        source=SOURCE,
+        component="ccgt",
+        models=["m1", "m2"],
+        llm_callable=mock_llm,
+        progress_callback=events.append,
+    )
+    assert result.status == "certified"
+    assert [e["event"] for e in events] == [
+        "model_start",
+        "model_done",
+        "model_start",
+        "model_done",
+    ]
+
+
 def test_update_store_with_result_persists_component_record():
     store = {"version": 1, "components": {}}
     result = _certified_result(SOURCE, "ccgt")
@@ -176,8 +199,34 @@ def test_cmd_llm_check_units_json_success(tmp_path, monkeypatch, capsys):
     model_file.write_text(yaml.safe_dump(SOURCE), encoding="utf-8")
     store_file = tmp_path / "checks.json"
 
-    def fake_run_component_unit_check(source: dict, component: str, models=None):
+    def fake_run_component_unit_check(
+        source: dict,
+        component: str,
+        models=None,
+        progress_callback=None,
+    ):
         del models
+        if progress_callback:
+            progress_callback(
+                {
+                    "event": "model_start",
+                    "component": component,
+                    "model": "m1",
+                    "index": 1,
+                    "total_models": 2,
+                }
+            )
+            progress_callback(
+                {
+                    "event": "model_done",
+                    "component": component,
+                    "model": "m1",
+                    "index": 1,
+                    "total_models": 2,
+                    "status": "pass",
+                    "findings_count": 0,
+                }
+            )
         return _certified_result(source, component)
 
     monkeypatch.setattr(
@@ -209,8 +258,34 @@ def test_cmd_llm_check_units_needs_review_exit_code(tmp_path, monkeypatch, capsy
     model_file = tmp_path / "test.veda.yaml"
     model_file.write_text(yaml.safe_dump(SOURCE), encoding="utf-8")
 
-    def fake_run_component_unit_check(source: dict, component: str, models=None):
+    def fake_run_component_unit_check(
+        source: dict,
+        component: str,
+        models=None,
+        progress_callback=None,
+    ):
         del models
+        if progress_callback:
+            progress_callback(
+                {
+                    "event": "model_start",
+                    "component": component,
+                    "model": "m1",
+                    "index": 1,
+                    "total_models": 2,
+                }
+            )
+            progress_callback(
+                {
+                    "event": "model_done",
+                    "component": component,
+                    "model": "m1",
+                    "index": 1,
+                    "total_models": 2,
+                    "status": "fail",
+                    "findings_count": 1,
+                }
+            )
         votes = [
             llm_unit_check.VoteResult(model="m1", status="pass", findings=[]),
             llm_unit_check.VoteResult(
@@ -274,8 +349,34 @@ def test_cmd_llm_check_units_text_prints_fix_suggestions(
     model_file = tmp_path / "test.veda.yaml"
     model_file.write_text(yaml.safe_dump(SOURCE), encoding="utf-8")
 
-    def fake_run_component_unit_check(source: dict, component: str, models=None):
+    def fake_run_component_unit_check(
+        source: dict,
+        component: str,
+        models=None,
+        progress_callback=None,
+    ):
         del models
+        if progress_callback:
+            progress_callback(
+                {
+                    "event": "model_start",
+                    "component": component,
+                    "model": "m1",
+                    "index": 1,
+                    "total_models": 2,
+                }
+            )
+            progress_callback(
+                {
+                    "event": "model_done",
+                    "component": component,
+                    "model": "m1",
+                    "index": 1,
+                    "total_models": 2,
+                    "status": "fail",
+                    "findings_count": 1,
+                }
+            )
         votes = [
             llm_unit_check.VoteResult(
                 model="m1",
@@ -320,5 +421,6 @@ def test_cmd_llm_check_units_text_prints_fix_suggestions(
     out = capsys.readouterr().out
 
     assert exit_code == 1
+    assert "[1/1] Checking ccgt" in out
     assert "Set activity_unit=PJ and recompute coefficients." in out
     assert "Summary:" in out
