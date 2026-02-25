@@ -577,6 +577,9 @@ Current status: this is still a prototype. Do not preserve backward compatibilit
 - **No deprecation cycles required** — remove or rename freely when it improves the design
 - **Focus on correctness** — better to fix a design flaw now than carry it forward
 - **Examples and fixtures are updated in-place** — when schema changes, update all examples
+- **Do not keep migration guides by default** — transitional docs/policies for legacy compatibility create agent/dev confusion and should be removed unless explicitly needed for an external release handoff
+- **Do not carry backward-compat shims** — remove compatibility aliases and transitional pathways once the new design lands
+- **Record decisions in `HISTORY.md`** — concise dated rationale entries plus git history are sufficient for traceability during prototype phase
 
 This policy applies until VedaLang reaches a stable 1.0 release.
 

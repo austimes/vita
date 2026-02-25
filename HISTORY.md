@@ -138,3 +138,9 @@ Pre-compilation checks that catch modeling patterns causing solver infeasibility
 ## Repository Hygiene — 2026-02-21
 
 - Removed `experiments/` directory — all Phase 1 exploration artifacts (capacity_bounds, chp, demand, fuel_supply, storage, timeslices, trade, transmission, user_constraints) fully captured in HISTORY.md and patterns.yaml
+
+## Prototype Governance — 2026-02-25
+
+- **Decision:** During pre-1.0 prototype phase, do not maintain migration guides or backward-compatibility scaffolding unless explicitly required for external release communication.
+- **Decision:** Prefer direct in-place design evolution (schema/compiler/examples/tests) with clear commits.
+- **Decision:** Use git history + concise dated decisions in `HISTORY.md` as the canonical change log and rationale record.
