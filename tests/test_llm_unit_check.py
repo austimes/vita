@@ -101,6 +101,46 @@ def test_parse_unit_check_response_handles_fenced_json():
     assert findings[0]["severity"] == "warning"
 
 
+def test_parse_unit_check_response_preserves_fix_guidance_fields():
+    raw = json.dumps({
+        "status": "needs_review",
+        "findings": [
+            {
+                "severity": "critical",
+                "message": "Input coefficient appears off by 3.6x",
+                "suggestion": "Use PJ for process activity and convert from TWh.",
+                "expected_process_units": {
+                    "activity_unit": "PJ",
+                    "capacity_unit": "GW",
+                },
+                "expected_commodity_units": {
+                    "primary:natural_gas": "PJ",
+                    "secondary:electricity": "TWh",
+                },
+                "observed_units": {
+                    "activity_unit": "TWh",
+                    "capacity_unit": "GW",
+                },
+                "model_expectation": "Thermal generator should use PJ activity.",
+            }
+        ],
+    })
+    status, findings = llm_unit_check.parse_unit_check_response(raw)
+    assert status == "needs_review"
+    assert len(findings) == 1
+    assert findings[0]["suggestion"]
+    assert findings[0]["expected_process_units"]["activity_unit"] == "PJ"
+    assert findings[0]["expected_commodity_units"]["secondary:electricity"] == "TWh"
+
+
+def test_assemble_unit_prompt_includes_unit_enums_and_policy():
+    system_prompt, user_prompt = llm_unit_check.assemble_unit_prompt(SOURCE, "ccgt")
+    assert "status" in system_prompt
+    assert "Allowed unit enums from schema" in user_prompt
+    assert "Model unit policy" in user_prompt
+    assert "energy_unit" in user_prompt
+
+
 def test_run_component_unit_check_needs_review_on_split_votes():
     def mock_llm(system: str, user: str, model: str) -> str:
         del system, user
@@ -226,3 +266,58 @@ def test_cmd_llm_check_units_unknown_component_returns_error(tmp_path, capsys):
     assert exit_code == 2
     assert out["success"] is False
     assert "Unknown component" in out["error"]
+
+
+def test_cmd_llm_check_units_text_prints_fix_suggestions(
+    tmp_path, monkeypatch, capsys
+):
+    model_file = tmp_path / "test.veda.yaml"
+    model_file.write_text(yaml.safe_dump(SOURCE), encoding="utf-8")
+
+    def fake_run_component_unit_check(source: dict, component: str, models=None):
+        del models
+        votes = [
+            llm_unit_check.VoteResult(
+                model="m1",
+                status="fail",
+                findings=[
+                    {
+                        "severity": "critical",
+                        "message": (
+                            "Mismatch between process activity and "
+                            "commodity units."
+                        ),
+                        "suggestion": (
+                            "Set activity_unit=PJ and recompute coefficients."
+                        ),
+                    }
+                ],
+            ),
+            llm_unit_check.VoteResult(model="m2", status="pass", findings=[]),
+        ]
+        return llm_unit_check.ComponentUnitCheckResult(
+            component=component,
+            fingerprint=llm_unit_check.component_fingerprint(source, component),
+            votes=votes,
+        )
+
+    monkeypatch.setattr(
+        llm_unit_check,
+        "run_component_unit_check",
+        fake_run_component_unit_check,
+    )
+
+    args = argparse.Namespace(
+        file=model_file,
+        json=False,
+        component=None,
+        all=False,
+        force=False,
+        model=None,
+        store=None,
+    )
+    exit_code = cli.cmd_llm_check_units(args)
+    out = capsys.readouterr().out
+
+    assert exit_code == 1
+    assert "fix: Set activity_unit=PJ and recompute coefficients." in out

@@ -19,6 +19,36 @@ from vedalang.lint.llm_assessment import _call_openai
 DEFAULT_MODELS = ("gpt-5.2", "gpt-5")
 
 
+def _schema_unit_reference() -> dict[str, list[str]]:
+    """Load canonical unit enums from schema for prompt grounding."""
+    schema_path = (
+        Path(__file__).resolve().parents[1] / "schema" / "vedalang.schema.json"
+    )
+    try:
+        with open(schema_path) as f:
+            schema = json.load(f)
+    except Exception:
+        return {}
+
+    defs = schema.get("$defs", {})
+
+    def read_enum(key: str) -> list[str]:
+        value = defs.get(key, {})
+        enum = value.get("enum", [])
+        if not isinstance(enum, list):
+            return []
+        return [str(v) for v in enum]
+
+    return {
+        "unit_symbol": read_enum("unit_symbol"),
+        "energy_unit": read_enum("energy_unit"),
+        "power_unit": read_enum("power_unit"),
+        "mass_unit": read_enum("mass_unit"),
+        "currency_unit": read_enum("currency_unit"),
+        "service_unit": read_enum("service_unit"),
+    }
+
+
 @dataclass
 class VoteResult:
     model: str
@@ -223,6 +253,10 @@ def parse_unit_check_response(raw: str) -> tuple[str, list[dict[str, Any]]]:
                 "message": str(item.get("message", "")),
                 "field": item.get("field"),
                 "suggestion": item.get("suggestion"),
+                "expected_process_units": item.get("expected_process_units"),
+                "expected_commodity_units": item.get("expected_commodity_units"),
+                "observed_units": item.get("observed_units"),
+                "model_expectation": item.get("model_expectation"),
             }
         )
     return status, normalized
@@ -231,17 +265,31 @@ def parse_unit_check_response(raw: str) -> tuple[str, list[dict[str, Any]]]:
 def assemble_unit_prompt(source: dict, component: str) -> tuple[str, str]:
     """Assemble system and user prompts for one component."""
     payload = _component_payload(source, component)
+    model = source.get("model", {})
+    unit_policy = model.get("unit_policy", {})
+    unit_reference = _schema_unit_reference()
     system_prompt = (
         "You are a strict unit/coefficient reviewer for energy system DSL models. "
         "Return JSON only with keys: status, findings. "
         "status must be one of pass|fail|needs_review. "
-        "Each finding must include severity (critical|warning|suggestion) and message; "
-        "optionally include field and suggestion."
+        "Each finding must include severity (critical|warning|suggestion) and message. "
+        "For findings that are not suggestion-only, include concrete remediation in "
+        "'suggestion', plus unit expectations where possible: "
+        "'expected_process_units' (activity_unit/capacity_unit), "
+        "'expected_commodity_units' (commodity->unit), "
+        "'observed_units', and 'model_expectation'. "
+        "Be explicit and actionable; do not be vague."
     )
     user_prompt = (
         "Assess unit/coefficient consistency for this component. "
         "Focus on unit conversions, efficiency-vs-coefficient plausibility, "
-        "basis mismatches (HHV/LHV), and likely inversion/factor mistakes.\n\n"
+        "basis mismatches (HHV/LHV), and likely inversion/factor mistakes. "
+        "When raising a concern, propose a fix and expected units based on "
+        "process/commodity names, role intent, and model context.\n\n"
+        "Allowed unit enums from schema:\n"
+        f"{json.dumps(unit_reference, indent=2)}\n\n"
+        "Model unit policy:\n"
+        f"{json.dumps(unit_policy, indent=2)}\n\n"
         f"Component ID: {component}\n"
         "Payload JSON:\n"
         f"{json.dumps(payload, indent=2)}"

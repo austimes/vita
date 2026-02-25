@@ -379,6 +379,30 @@ def cmd_llm_check_units(args) -> int:
     certified = sum(1 for r in results if r.status == "certified")
     needs_review = reviewed - certified
 
+    def summarize_vote(vote):
+        critical = sum(1 for f in vote.findings if f.get("severity") == "critical")
+        warning = sum(1 for f in vote.findings if f.get("severity") == "warning")
+        suggestion = sum(1 for f in vote.findings if f.get("severity") == "suggestion")
+        top_findings = []
+        top_suggestions = []
+        for item in vote.findings[:3]:
+            msg = str(item.get("message", "")).strip()
+            if msg:
+                top_findings.append(msg)
+            fix = str(item.get("suggestion", "")).strip()
+            if fix:
+                top_suggestions.append(fix)
+        return {
+            "model": vote.model,
+            "status": vote.status,
+            "critical": critical,
+            "warning": warning,
+            "suggestion": suggestion,
+            "top_findings": top_findings,
+            "top_suggestions": top_suggestions,
+            "findings": vote.findings,
+        }
+
     if output_json:
         payload = {
             "success": len(run_errors) == 0 and needs_review == 0,
@@ -395,6 +419,7 @@ def cmd_llm_check_units(args) -> int:
                     "fingerprint": r.fingerprint,
                     "quorum": r.quorum,
                     "models": [v.model for v in r.votes],
+                    "votes": [summarize_vote(v) for v in r.votes],
                 }
                 for r in results
             ],
@@ -411,6 +436,21 @@ def cmd_llm_check_units(args) -> int:
                 f"  - {r.component}: {r.status} "
                 f"(quorum {r.quorum}, models={','.join(v.model for v in r.votes)})"
             )
+            for vote in r.votes:
+                summary = summarize_vote(vote)
+                print(
+                    "      "
+                    f"{summary['model']}: {summary['status']} "
+                    f"(critical={summary['critical']}, "
+                    f"warning={summary['warning']}, "
+                    f"suggestion={summary['suggestion']})"
+                )
+                if not summary["top_findings"]:
+                    print("        - No findings returned by model.")
+                for msg in summary["top_findings"]:
+                    print(f"        - {msg}")
+                for fix in summary["top_suggestions"]:
+                    print(f"          fix: {fix}")
         for err in run_errors:
             print(f"  - {err['component']}: error: {err['error']}")
         print()
