@@ -12,6 +12,9 @@ import yaml
 
 from vedalang.conventions import stage_label, stage_order
 
+DEFAULT_ACTIVITY_UNIT = "PJ"
+DEFAULT_CAPACITY_UNIT = "GW"
+
 
 def build_res_graph(parsed: dict, include_variants: bool = False) -> dict:
     """Build a Reference Energy System graph from a parsed VedaLang document.
@@ -38,6 +41,7 @@ def build_res_graph(parsed: dict, include_variants: bool = False) -> dict:
                 "label": cid,
                 "kind": "commodity",
                 "type": commodity.get("kind") or commodity.get("type"),
+                "unit": commodity.get("unit"),
                 "stage": None,
             })
 
@@ -48,16 +52,30 @@ def build_res_graph(parsed: dict, include_variants: bool = False) -> dict:
         if role_id:
             role_variants.setdefault(role_id, []).append(variant)
 
+    def _first_non_empty(items):
+        for item in items:
+            if item:
+                return item
+        return None
+
     # Extract process_roles (new P4 syntax) - these define the RES topology
     for role in parsed.get("process_roles", []) or []:
         rid = role.get("id") or role.get("name")
         if rid:
+            role_activity_unit = role.get("activity_unit") or _first_non_empty(
+                v.get("activity_unit") for v in role_variants.get(rid, [])
+            )
+            role_capacity_unit = role.get("capacity_unit") or _first_non_empty(
+                v.get("capacity_unit") for v in role_variants.get(rid, [])
+            )
             nodes.append({
                 "id": rid,
                 "label": rid,
                 "kind": "process",
                 "type": "role",
                 "stage": role.get("stage"),
+                "activity_unit": role_activity_unit,
+                "capacity_unit": role_capacity_unit,
             })
 
             # Add variant nodes if requested
@@ -72,6 +90,12 @@ def build_res_graph(parsed: dict, include_variants: bool = False) -> dict:
                             "type": "variant",
                             "stage": role.get("stage"),
                             "parentRole": rid,
+                            "activity_unit": (
+                                variant.get("activity_unit") or role_activity_unit
+                            ),
+                            "capacity_unit": (
+                                variant.get("capacity_unit") or role_capacity_unit
+                            ),
                         })
 
             # Helper to extract commodity IDs from flow lists
@@ -148,6 +172,8 @@ def build_res_graph(parsed: dict, include_variants: bool = False) -> dict:
                 "kind": "process",
                 "type": process.get("type"),
                 "stage": process.get("stage"),
+                "activity_unit": process.get("activity_unit"),
+                "capacity_unit": process.get("capacity_unit"),
             })
 
             inputs = process.get("inputs", []) or []
@@ -188,6 +214,28 @@ def build_res_graph(parsed: dict, include_variants: bool = False) -> dict:
 def sanitize_id(s: str) -> str:
     """Sanitize a string for use as a Mermaid node ID."""
     return "".join(c if c.isalnum() or c == "_" else "_" for c in s)
+
+
+def _escape_label(s: str) -> str:
+    """Escape Mermaid label text."""
+    return s.replace('"', '\\"')
+
+
+def _format_commodity_label(node: dict) -> str:
+    """Build commodity label with unit suffix."""
+    label = str(node.get("label", node["id"]))
+    unit = node.get("unit")
+    if unit:
+        return _escape_label(f"{label}<br/>({unit})")
+    return _escape_label(label)
+
+
+def _format_process_label(node: dict) -> str:
+    """Build process label with capacity/activity units."""
+    label = str(node.get("label", node["id"]))
+    cap_unit = node.get("capacity_unit") or DEFAULT_CAPACITY_UNIT
+    act_unit = node.get("activity_unit") or DEFAULT_ACTIVITY_UNIT
+    return _escape_label(f"{label}<br/>cap: {cap_unit} | act: {act_unit}")
 
 
 def graph_to_mermaid(graph: dict) -> str:
@@ -270,27 +318,27 @@ def graph_to_mermaid(graph: dict) -> str:
         lines.append(f"    subgraph stage_{safe_stage}[\"{role_stage_label}\"]")
         for node in nodes_by_stage[stage]:
             safe_id = sanitize_id(node["id"])
-            safe_label = node.get("label", node["id"])
+            safe_label = _format_process_label(node)
 
             if has_variants and node["id"] in role_to_variants:
                 # Render as subgraph containing variants
-                lines.append(f"        subgraph {safe_id}[{safe_label}]")
+                lines.append(f"        subgraph {safe_id}[\"{safe_label}\"]")
                 for variant in role_to_variants[node["id"]]:
                     v_safe_id = sanitize_id(variant["id"])
-                    v_safe_label = variant.get("label", variant["id"])
-                    lines.append(f"            V_{v_safe_id}[{v_safe_label}]")
+                    v_safe_label = _format_process_label(variant)
+                    lines.append(f"            V_{v_safe_id}[\"{v_safe_label}\"]")
                 lines.append("        end")
             else:
                 # Render as simple node
-                lines.append(f"        P_{safe_id}[{safe_label}]")
+                lines.append(f"        P_{safe_id}[\"{safe_label}\"]")
         lines.append("    end")
 
     lines.append("")
     lines.append("    %% Commodity nodes")
     for node in commodity_nodes:
         safe_id = sanitize_id(node["id"])
-        safe_label = node.get("label", node["id"])
-        lines.append(f"    C_{safe_id}(({safe_label}))")
+        safe_label = _format_commodity_label(node)
+        lines.append(f"    C_{safe_id}((\"{safe_label}\"))")
 
     # Build set of role IDs that have subgraphs (for edge targeting)
     roles_with_subgraphs = set(role_to_variants.keys()) if has_variants else set()

@@ -16,6 +16,18 @@ from vedalang.compiler.compiler import (
 from vedalang.compiler.ir import Role
 from vedalang.conventions import stage_label, stage_order
 
+DEFAULT_ACTIVITY_UNIT = "PJ"
+DEFAULT_CAPACITY_UNIT = "GW"
+DEFAULT_COMMODITY_UNITS = {
+    "fuel": "PJ",
+    "energy": "PJ",
+    "service": "PJ",
+    "material": "Mt",
+    "emission": "Mt",
+    "money": "MUSD",
+    "other": "PJ",
+}
+
 
 def export_res_graph(source: dict) -> dict:
     """Build a normalized RES graph from a parsed VedaLang source.
@@ -70,6 +82,12 @@ def export_res_graph(source: dict) -> dict:
         if role_id:
             variant_by_role.setdefault(role_id, []).append(variant)
 
+    def _first_non_empty(items):
+        for item in items:
+            if item:
+                return item
+        return None
+
     for raw_role in process_roles:
         role_id = raw_role.get("id")
         if not role_id:
@@ -112,6 +130,13 @@ def export_res_graph(source: dict) -> dict:
                 if inp_id not in required_inputs:
                     variant_input_set.add(inp_id)
 
+        role_activity_unit = raw_role.get("activity_unit") or _first_non_empty(
+            v.get("activity_unit") for v in variant_by_role.get(role_id, [])
+        )
+        role_capacity_unit = raw_role.get("capacity_unit") or _first_non_empty(
+            v.get("capacity_unit") for v in variant_by_role.get(role_id, [])
+        )
+
         role_entry = {
             "id": role_id,
             "stage": stage,
@@ -121,6 +146,10 @@ def export_res_graph(source: dict) -> dict:
             "variant_count": len(variant_by_role.get(role_id, [])),
             "has_variant_level_inputs": bool(variant_input_set),
         }
+        if role_activity_unit:
+            role_entry["activity_unit"] = role_activity_unit
+        if role_capacity_unit:
+            role_entry["capacity_unit"] = role_capacity_unit
         if variant_input_set:
             role_entry["variant_inputs"] = sorted(variant_input_set)
         if primary_output:
@@ -202,6 +231,10 @@ def export_res_graph(source: dict) -> dict:
             "inputs": sorted(v_inputs),
             "outputs": sorted(v_outputs),
         }
+        if variant.get("activity_unit"):
+            variant_entry["activity_unit"] = variant["activity_unit"]
+        if variant.get("capacity_unit"):
+            variant_entry["capacity_unit"] = variant["capacity_unit"]
         emission_factors = variant.get("emission_factors") or {}
         if emission_factors:
             variant_entry["emission_factors"] = emission_factors
@@ -347,9 +380,7 @@ def res_graph_to_mermaid(graph: dict) -> str:
         lines.append(f"    subgraph stage_{safe_stage}[\"{role_stage_label}\"]")
         for role in roles_by_stage[stage]:
             safe_id = _sanitize(role["id"])
-            dk = role.get("derived_kind")
-            kind_label = f" [{dk}]" if dk else ""
-            label = f"{role['id']}{kind_label}"
+            label = _format_role_label(role)
             lines.append(f"        R_{safe_id}[\"{label}\"]")
         lines.append("    end")
 
@@ -358,7 +389,8 @@ def res_graph_to_mermaid(graph: dict) -> str:
     lines.append("    %% Commodities")
     for comm in graph.get("commodities", []):
         safe_id = _sanitize(comm["id"])
-        lines.append(f"    C_{safe_id}(({comm['id']}))")
+        label = _format_commodity_label(comm)
+        lines.append(f"    C_{safe_id}((\"{label}\"))")
 
     # Render edges
     lines.append("")
@@ -401,3 +433,25 @@ def res_graph_to_mermaid(graph: dict) -> str:
 def _sanitize(s: str) -> str:
     """Sanitize a string for use as a Mermaid node ID."""
     return "".join(c if c.isalnum() or c == "_" else "_" for c in s)
+
+
+def _escape_label(s: str) -> str:
+    """Escape Mermaid label text."""
+    return s.replace('"', '\\"')
+
+
+def _format_commodity_label(comm: dict) -> str:
+    """Build commodity label with volume unit."""
+    unit = comm.get("unit") or DEFAULT_COMMODITY_UNITS.get(comm.get("type"), "PJ")
+    return _escape_label(f"{comm['id']}<br/>({unit})")
+
+
+def _format_role_label(role: dict) -> str:
+    """Build role label with derived kind and process units."""
+    dk = role.get("derived_kind")
+    kind_label = f" [{dk}]" if dk else ""
+    cap_unit = role.get("capacity_unit") or DEFAULT_CAPACITY_UNIT
+    act_unit = role.get("activity_unit") or DEFAULT_ACTIVITY_UNIT
+    return _escape_label(
+        f"{role['id']}{kind_label}<br/>cap: {cap_unit} | act: {act_unit}"
+    )

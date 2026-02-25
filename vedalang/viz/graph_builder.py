@@ -8,6 +8,18 @@ from __future__ import annotations
 
 from typing import Any
 
+DEFAULT_ACTIVITY_UNIT = "PJ"
+DEFAULT_CAPACITY_UNIT = "GW"
+DEFAULT_COMMODITY_UNITS = {
+    "fuel": "PJ",
+    "energy": "PJ",
+    "service": "PJ",
+    "material": "Mt",
+    "emission": "Mt",
+    "money": "MUSD",
+    "other": "PJ",
+}
+
 
 def build_graph(source: dict[str, Any]) -> dict[str, Any]:
     """Convert VedaLang source to visualization graph.
@@ -47,14 +59,16 @@ def _build_commodity_nodes(model: dict[str, Any]) -> list[dict[str, Any]]:
     commodities = model.get("commodities", [])
 
     for comm in commodities:
-        name = comm.get("name", "")
+        name = comm.get("name") or comm.get("id", "")
+        ctype = comm.get("type", "energy")
+        unit = comm.get("unit") or DEFAULT_COMMODITY_UNITS.get(ctype, "PJ")
         nodes.append({
             "data": {
                 "id": f"C:{name}",
-                "label": name,
+                "label": f"{name}\n({unit})",
                 "type": "commodity",
-                "commodityType": comm.get("type", "energy"),
-                "unit": comm.get("unit", ""),
+                "commodityType": ctype,
+                "unit": unit,
                 "description": comm.get("description", ""),
             }
         })
@@ -70,13 +84,15 @@ def _build_process_nodes(model: dict[str, Any]) -> list[dict[str, Any]]:
     for proc in processes:
         name = proc.get("name", "")
         sets = proc.get("sets", [])
+        capacity_unit = proc.get("capacity_unit", DEFAULT_CAPACITY_UNIT)
+        activity_unit = proc.get("activity_unit", DEFAULT_ACTIVITY_UNIT)
 
         process_class = _classify_process(sets)
 
         nodes.append({
             "data": {
                 "id": f"P:{name}",
-                "label": name,
+                "label": f"{name}\ncap: {capacity_unit} | act: {activity_unit}",
                 "type": "process",
                 "processClass": process_class,
                 "sets": sets,
@@ -86,6 +102,8 @@ def _build_process_nodes(model: dict[str, Any]) -> list[dict[str, Any]]:
                 "invcost": proc.get("invcost"),
                 "life": proc.get("life"),
                 "stock": proc.get("stock"),
+                "capacityUnit": capacity_unit,
+                "activityUnit": activity_unit,
             }
         })
 

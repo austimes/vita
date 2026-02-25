@@ -11,9 +11,9 @@ def _make_model_with_emissions():
             "regions": ["R1"],
             "milestone_years": [2020, 2030],
             "commodities": [
-                {"id": "gas", "kind": "carrier"},
-                {"id": "elc", "kind": "carrier"},
-                {"id": "co2", "kind": "emission"},
+                {"id": "gas", "kind": "carrier", "unit": "PJ"},
+                {"id": "elc", "kind": "carrier", "unit": "PJ"},
+                {"id": "co2", "kind": "emission", "unit": "Mt"},
             ],
         },
         "process_roles": [
@@ -93,3 +93,18 @@ class TestGraphToMermaid:
 
         assert "--> C_elc" in mermaid
         assert "--> P_generate_elc" in mermaid
+
+    def test_commodity_units_rendered(self):
+        """Commodity nodes include unit labels."""
+        graph = build_res_graph(_make_model_with_emissions())
+        mermaid = graph_to_mermaid(graph)
+
+        assert "gas<br/>(PJ)" in mermaid
+        assert "co2<br/>(Mt)" in mermaid
+
+    def test_process_units_rendered(self):
+        """Process nodes include capacity/activity units."""
+        graph = build_res_graph(_make_model_with_emissions())
+        mermaid = graph_to_mermaid(graph)
+
+        assert "cap: GW | act: PJ" in mermaid

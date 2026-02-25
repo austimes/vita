@@ -253,11 +253,12 @@ class TestMermaidOutput:
 
     def test_commodity_nodes_use_round_parens(self, toy_buildings_graph):
         mermaid = res_graph_to_mermaid(toy_buildings_graph)
-        assert "C_service_space_heat((service:space_heat))" in mermaid
+        assert 'C_service_space_heat(("service:space_heat<br/>(PJ)"))' in mermaid
 
     def test_role_nodes_include_kind(self, toy_buildings_graph):
         mermaid = res_graph_to_mermaid(toy_buildings_graph)
         assert "[device]" in mermaid
+        assert "cap: GW | act: PJ" in mermaid
 
     def test_emission_edges_use_dotted_arrow(self, toy_buildings_graph):
         mermaid = res_graph_to_mermaid(toy_buildings_graph)
