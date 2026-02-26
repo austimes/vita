@@ -74,8 +74,8 @@ process_variants:
 |-------------------|-----------------|-------------|------|-------------|
 | `lifetime` | NCAP_TLIFE | ncap_tlife | years | Technical lifetime of new capacity |
 | `economic_life` | NCAP_ELIFE | ncap_elife | years | Economic lifetime for cost amortization |
-| `stock` | PRC_RESID | prc_resid | GW | Aggregate residual capacity (mixed vintages) |
-| `existing_capacity` | NCAP_PASTI | ncap_pasti | GW | Past capacity with vintage year (preferred) |
+| `stock` | PRC_RESID | prc_resid | `<capacity_unit>` | Aggregate residual capacity (mixed vintages) |
+| `existing_capacity` | NCAP_PASTI | ncap_pasti | `<capacity_unit>` | Past capacity with vintage year (preferred) |
 | `availability_factor` | NCAP_AF | ncap_af | fraction | Annual availability/capacity factor |
 
 ### Technical Lifetime vs Economic Lifetime
@@ -214,6 +214,7 @@ VedaLang uses consistent unit conventions:
 |----------|--------------|--------------|
 | Energy | PJ | TJ, GWh, TWh |
 | Power/Capacity | GW | MW, TW |
+| Throughput Capacity | `<activity_unit>/yr` | e.g., PJ/yr, Bvkm/yr |
 | Emissions | Mt | kt, Gt |
 | Currency | $ (or USD) | - |
 | Time | years | - |
@@ -221,11 +222,17 @@ VedaLang uses consistent unit conventions:
 
 ### Capacity-to-Activity Conversion
 
-When capacity is in **power units** (GW) and activity is in **energy units** (PJ):
-- 1 GW at 100% capacity factor = 31.536 PJ/year
-- Formula: `PRC_CAPACT = 8760 hours × 3600 sec/hour / 1e15 = 31.536`
+`PRC_CAPACT` is derived from an explicit annual basis:
 
-VedaLang automatically emits `PRC_CAPACT` when these units differ.
+- Formula: `PRC_CAPACT = convert(1 * capacity_unit * 1 yr -> activity_unit)`
+- Example: `GW -> PJ` gives `31.536`
+- Example: `PJ/yr -> PJ` gives `1.0`
+- Example: `Bvkm/yr -> Bvkm` gives `1.0`
+
+Rules:
+- `activity_unit` must be an extensive unit (e.g., `PJ`, `Bvkm`, `Mt`)
+- `capacity_unit` must be either power (`GW`, `MW`, `TW`, `kW`) or explicit annual rate (`<unit>/yr`)
+- Ambiguous non-power pairs like `capacity_unit: PJ` with `activity_unit: PJ` are rejected
 
 ---
 

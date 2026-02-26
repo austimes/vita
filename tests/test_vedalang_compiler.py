@@ -17,6 +17,7 @@ from vedalang.compiler.compiler import (
     _normalize_commodities_for_new_syntax,
 )
 from vedalang.compiler.ir import build_roles
+from vedalang.compiler.registry import VedaLangError
 
 PROJECT_ROOT = Path(__file__).parent.parent
 EXAMPLES_DIR = PROJECT_ROOT / "vedalang" / "examples"
@@ -259,7 +260,7 @@ def test_monetary_cost_literal_normalizes_to_canonical_currency():
                 "id": "supply_power",
                 "stage": "supply",
                 "activity_unit": "PJ",
-                "capacity_unit": "PJ",
+                "capacity_unit": "PJ/yr",
                 "required_inputs": [],
                 "required_outputs": [{"commodity": "secondary:electricity"}],
             }
@@ -326,8 +327,9 @@ def test_monetary_cost_literal_denominator_mismatch_raises():
         "process_roles": [
             {
                 "id": "supply_power",
+                "stage": "supply",
                 "activity_unit": "PJ",
-                "capacity_unit": "PJ",
+                "capacity_unit": "PJ/yr",
                 "required_inputs": [],
                 "required_outputs": [{"commodity": "secondary:electricity"}],
             }
@@ -367,8 +369,9 @@ def test_monetary_policy_rejects_unitless_cost_scalars():
         "process_roles": [
             {
                 "id": "supply_power",
+                "stage": "supply",
                 "activity_unit": "PJ",
-                "capacity_unit": "PJ",
+                "capacity_unit": "PJ/yr",
                 "required_inputs": [],
                 "required_outputs": [{"commodity": "secondary:electricity"}],
             }
@@ -2793,6 +2796,98 @@ def test_prc_capact_emitted_for_gw_pj_units():
     assert eff_row["prc_capact"] == 31.536, (
         f"PRC_CAPACT should be 31.536, got {eff_row.get('prc_capact')}"
     )
+
+
+def test_prc_capact_emitted_for_explicit_annual_rate_capacity():
+    """Capacity in PJ/yr and activity in PJ should emit PRC_CAPACT=1."""
+    source = {
+        "model": {
+            "name": "ExplicitRateCap2ActTest",
+            "regions": ["R1"],
+            "commodities": [
+                {"id": "secondary:electricity", "type": "energy", "unit": "PJ"},
+            ],
+        },
+        "process_roles": [
+            {
+                "id": "supply_power",
+                "stage": "supply",
+                "activity_unit": "PJ",
+                "capacity_unit": "PJ/yr",
+                "required_inputs": [],
+                "required_outputs": [{"commodity": "secondary:electricity"}],
+            }
+        ],
+        "process_variants": [
+            {
+                "id": "grid_import",
+                "role": "supply_power",
+                "inputs": [],
+                "outputs": [{"commodity": "secondary:electricity"}],
+                "efficiency": 1.0,
+            }
+        ],
+        "availability": [{"variant": "grid_import", "regions": ["R1"]}],
+    }
+
+    tableir = compile_vedalang_to_tableir(source)
+
+    fi_t_rows = []
+    for file_spec in tableir.get("files", []):
+        for sheet in file_spec.get("sheets", []):
+            for table in sheet.get("tables", []):
+                if table.get("tag") == "~FI_T":
+                    fi_t_rows.extend(table.get("rows", []))
+
+    eff_row = next(
+        (
+            row
+            for row in fi_t_rows
+            if row.get("process") == "grid_import_R1" and "eff" in row
+        ),
+        None,
+    )
+    assert eff_row is not None
+    assert eff_row.get("prc_capact") == 1.0
+
+
+def test_incompatible_activity_capacity_pair_is_rejected():
+    """Even explicit rate units must be dimensionally compatible with activity."""
+    source = {
+        "model": {
+            "name": "BadUnitPair",
+            "regions": ["R1"],
+            "unit_policy": {"mode": "strict"},
+            "commodities": [
+                {"id": "secondary:electricity", "type": "energy", "unit": "PJ"},
+                {"id": "service:passenger_km", "type": "service", "unit": "Bvkm"},
+            ],
+        },
+        "process_roles": [
+            {
+                "id": "provide_mobility",
+                "stage": "end_use",
+                "activity_unit": "PJ",
+                "capacity_unit": "Bvkm/yr",
+                "required_inputs": [{"commodity": "secondary:electricity"}],
+                "required_outputs": [{"commodity": "service:passenger_km"}],
+            }
+        ],
+        "process_variants": [
+            {
+                "id": "bad_variant",
+                "role": "provide_mobility",
+                "inputs": [{"commodity": "secondary:electricity"}],
+                "outputs": [{"commodity": "service:passenger_km"}],
+                "efficiency": 1.0,
+            }
+        ],
+        "availability": [{"variant": "bad_variant", "regions": ["R1"]}],
+    }
+
+    with pytest.raises(VedaLangError) as exc_info:
+        compile_vedalang_to_tableir(source)
+    assert "incompatible capacity/activity unit pair" in str(exc_info.value)
 
 
 def test_new_syntax_role_units_emit_tact_tcap_and_prc_capact():

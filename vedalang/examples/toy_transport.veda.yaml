@@ -58,7 +58,7 @@ process_roles:
   - id: supply_petrol
     stage: supply
     activity_unit: PJ
-    capacity_unit: PJ
+    capacity_unit: PJ/yr
     required_inputs: []
     required_outputs:
       - commodity: primary:petrol
@@ -66,7 +66,7 @@ process_roles:
   - id: supply_electricity
     stage: supply
     activity_unit: PJ
-    capacity_unit: PJ
+    capacity_unit: PJ/yr
     required_inputs: []
     required_outputs:
       - commodity: secondary:electricity
@@ -74,7 +74,7 @@ process_roles:
   - id: provide_passenger_km
     stage: end_use
     activity_unit: Bvkm
-    capacity_unit: Bvkm
+    capacity_unit: Bvkm/yr
     required_inputs: []
     required_outputs:
       - commodity: service:passenger_km
@@ -118,7 +118,7 @@ process_variants:
       - commodity: service:passenger_km
     efficiency: 1.0
     lifetime: 15
-    investment_cost: "100 MAUD24/Bvkm"
+    investment_cost: "100 MAUD24/Bvkm/yr"
     variable_om_cost: "20 MAUD24/Bvkm"
 
 availability:

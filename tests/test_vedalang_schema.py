@@ -101,7 +101,7 @@ def test_monetary_policy_and_cost_literals_validate():
             {
                 "id": "supply_power",
                 "activity_unit": "PJ",
-                "capacity_unit": "PJ",
+                "capacity_unit": "PJ/yr",
                 "required_inputs": [],
                 "required_outputs": [{"commodity": "secondary:electricity"}],
             }
@@ -278,6 +278,39 @@ def test_process_role_activity_capacity_units_validate():
         ],
     }
     jsonschema.validate(data, schema)
+
+
+def test_process_role_rejects_ambiguous_non_power_capacity_unit():
+    """Non-power capacity units must declare explicit annual rate (/yr)."""
+    schema = load_schema()
+    data = {
+        "model": {
+            "name": "BadCapacityUnit",
+            "regions": ["R1"],
+            "commodities": [
+                {"id": "secondary:electricity", "type": "energy", "unit": "PJ"},
+            ],
+        },
+        "process_roles": [
+            {
+                "id": "supply_power",
+                "activity_unit": "PJ",
+                "capacity_unit": "PJ",
+                "required_inputs": [],
+                "required_outputs": [{"commodity": "secondary:electricity"}],
+            }
+        ],
+        "process_variants": [
+            {
+                "id": "grid_import",
+                "role": "supply_power",
+                "inputs": [],
+                "outputs": [{"commodity": "secondary:electricity"}],
+            }
+        ],
+    }
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(data, schema)
 
 
 def test_timeslices_validates():

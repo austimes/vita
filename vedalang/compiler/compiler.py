@@ -4,10 +4,13 @@ import json
 import re
 from copy import deepcopy
 from difflib import get_close_matches
+from functools import lru_cache
 from pathlib import Path
 
 import jsonschema
 import yaml
+from pint import UnitRegistry
+from pint.errors import DimensionalityError, UndefinedUnitError
 
 from vedalang.conventions import (
     commodity_namespace_enum,
@@ -43,10 +46,15 @@ MONETARY_SCALE_FACTORS = {
 }
 MONETARY_TOKEN_RE = re.compile(r"^\s*([kMB]?)([A-Z]{3})(\d{2}|\d{4})\s*$")
 COST_RATE_LITERAL_RE = re.compile(
-    r"^\s*([+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\s+([kMB]?)([A-Z]{3})(\d{2}|\d{4})/([A-Za-z][A-Za-z0-9]*)(?:/(yr))?\s*$"
+    r"^\s*([+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\s+([kMB]?)([A-Z]{3})(\d{2}|\d{4})/([A-Za-z][A-Za-z0-9]*(?:/[A-Za-z][A-Za-z0-9]*)?)(?:/(yr))?\s*$"
 )
 SERVICE_UNITS = {"Bvkm"}
 ENERGY_BASES = {"HHV", "LHV"}
+PROCESS_UNIT_EXPR_RE = re.compile(
+    r"^([A-Za-z][A-Za-z0-9]*)(?:/([A-Za-z][A-Za-z0-9]*))?$"
+)
+SUPPORTED_RATE_DENOMINATORS = {"yr"}
+MODEL_TIME_BASIS = "model_year"
 
 UNIT_DIMENSIONS = {
     **{u: "energy" for u in ENERGY_UNITS},
@@ -89,6 +97,54 @@ DEFAULT_UNITS = {
 # Capacity-to-activity conversion constant:
 # 1 GW used for a full year = 31.536 PJ/year.
 GW_YEAR_TO_PJ = 31.536
+
+
+@lru_cache(maxsize=1)
+def _unit_registry() -> UnitRegistry:
+    """Build shared unit registry for explicit unit expression conversion."""
+    ureg = UnitRegistry(case_sensitive=True)
+
+    def define_if_missing(symbol: str, definition: str) -> None:
+        try:
+            ureg.parse_units(symbol)
+            return
+        except UndefinedUnitError:
+            pass
+        ureg.define(definition)
+
+    define_if_missing(MODEL_TIME_BASIS, f"{MODEL_TIME_BASIS} = 365 * day")
+    define_if_missing("toe", "toe = 41.868e9 * joule")
+    define_if_missing("MTOE", "MTOE = 1e6 * toe")
+    define_if_missing("KTOE", "KTOE = 1e3 * toe")
+    define_if_missing("Bvkm", "Bvkm = 1e9 * kilometer")
+    define_if_missing("kt", "kt = 1e3 * tonne")
+    define_if_missing("Mt", "Mt = 1e6 * tonne")
+    define_if_missing("Gt", "Gt = 1e9 * tonne")
+    return ureg
+
+
+def _parse_process_unit_expression(unit_expr: str) -> tuple[str, str | None] | None:
+    """Parse '<base>' or '<base>/yr' process unit expressions."""
+    if not isinstance(unit_expr, str):
+        return None
+    match = PROCESS_UNIT_EXPR_RE.fullmatch(unit_expr.strip())
+    if not match:
+        return None
+    base, denominator = match.groups()
+    return base, denominator
+
+
+def _to_pint_unit_expression(unit_expr: str) -> str | None:
+    """Map process unit expression to pint syntax with model time basis."""
+    parsed = _parse_process_unit_expression(unit_expr)
+    if parsed is None:
+        return None
+    base, denominator = parsed
+    if denominator is None:
+        return base
+    if denominator not in SUPPORTED_RATE_DENOMINATORS:
+        return None
+    return f"{base}/{MODEL_TIME_BASIS}"
 
 # Process attributes that support time-varying values
 TIME_VARYING_ATTRS = {
@@ -1217,14 +1273,18 @@ def _normalize_new_syntax_monetary_costs(source: dict) -> tuple[dict, dict]:
 
 def _compute_cap2act(capacity_unit: str, activity_unit: str) -> float | None:
     """Compute PRC_CAPACT for a (capacity_unit, activity_unit) pair."""
-    if capacity_unit not in POWER_UNIT_TO_GW:
+    capacity_expr = _to_pint_unit_expression(capacity_unit)
+    activity_expr = _to_pint_unit_expression(activity_unit)
+    if capacity_expr is None or activity_expr is None:
         return None
-    if activity_unit not in ENERGY_UNIT_TO_PJ:
+    try:
+        ureg = _unit_registry()
+        cap_unit = ureg.parse_units(capacity_expr)
+        act_unit = ureg.parse_units(activity_expr)
+        converted = (1 * cap_unit * ureg.parse_units(MODEL_TIME_BASIS)).to(act_unit)
+    except (UndefinedUnitError, DimensionalityError):
         return None
-    value = GW_YEAR_TO_PJ * POWER_UNIT_TO_GW[capacity_unit] / ENERGY_UNIT_TO_PJ[
-        activity_unit
-    ]
-    return round(value, 12)
+    return round(float(converted.magnitude), 12)
 
 
 def _record_unit_diagnostic(
@@ -1286,126 +1346,148 @@ def _validate_process_unit_pair(
     errors: list[str],
     warnings: list[str],
 ) -> None:
-    """Validate process activity/capacity unit pair and conversion support."""
-    if activity_unit in ENERGY_UNITS:
-        if activity_unit not in policy["allowed_units"]["energy"]:
-            _record_unit_diagnostic(
-                errors,
-                warnings,
-                policy,
-                (
-                    f"{process_label} uses activity_unit "
-                    f"'{activity_unit}' which is not "
-                    "allowed by model.unit_policy.allowed_units.energy."
-                ),
-            )
-    elif activity_unit in SERVICE_UNITS:
-        if activity_unit not in policy["allowed_units"]["service"]:
-            _record_unit_diagnostic(
-                errors,
-                warnings,
-                policy,
-                (
-                    f"{process_label} uses activity_unit "
-                    f"'{activity_unit}' which is not "
-                    "allowed by model.unit_policy.allowed_units.service."
-                ),
-            )
-    elif activity_unit in MASS_UNITS:
-        if activity_unit not in policy["allowed_units"]["mass"]:
-            _record_unit_diagnostic(
-                errors,
-                warnings,
-                policy,
-                (
-                    f"{process_label} uses activity_unit "
-                    f"'{activity_unit}' which is not "
-                    "allowed by model.unit_policy.allowed_units.mass."
-                ),
-            )
-    else:
+    """Validate explicit process activity/capacity unit semantics."""
+    parsed_activity = _parse_process_unit_expression(activity_unit)
+    if parsed_activity is None:
         _record_unit_diagnostic(
             errors,
             warnings,
             policy,
             (
                 f"{process_label} has unsupported activity_unit '{activity_unit}'. "
-                "Use an energy, service, or mass unit from schema."
+                "Use '<unit>' with an allowed energy/service/mass base."
+            ),
+        )
+        return
+
+    activity_valid_for_pair = True
+    activity_base, activity_denominator = parsed_activity
+    activity_dimension = UNIT_DIMENSIONS.get(activity_base)
+    if activity_dimension not in {"energy", "service", "mass"}:
+        activity_valid_for_pair = False
+        _record_unit_diagnostic(
+            errors,
+            warnings,
+            policy,
+            (
+                f"{process_label} has unsupported activity_unit '{activity_unit}'. "
+                "Activity must use an energy, service, or mass base unit."
+            ),
+        )
+    elif activity_base not in policy["allowed_units"][activity_dimension]:
+        _record_unit_diagnostic(
+            errors,
+            warnings,
+            policy,
+            (
+                f"{process_label} uses activity_unit '{activity_unit}' which is not "
+                "allowed by model.unit_policy.allowed_units."
+            ),
+        )
+    if activity_denominator is not None:
+        activity_valid_for_pair = False
+        _record_unit_diagnostic(
+            errors,
+            warnings,
+            policy,
+            (
+                f"{process_label} uses activity_unit '{activity_unit}' "
+                "with denominator "
+                f"'{activity_denominator}'. Activity must be an annual extensive unit "
+                "(no '/yr')."
             ),
         )
 
-    if capacity_unit in POWER_UNITS:
-        if capacity_unit not in policy["allowed_units"]["power"]:
-            _record_unit_diagnostic(
-                errors,
-                warnings,
-                policy,
-                (
-                    f"{process_label} uses capacity_unit "
-                    f"'{capacity_unit}' which is not "
-                    "allowed by model.unit_policy.allowed_units.power."
-                ),
-            )
-    elif capacity_unit in ENERGY_UNITS:
-        if capacity_unit not in policy["allowed_units"]["energy"]:
-            _record_unit_diagnostic(
-                errors,
-                warnings,
-                policy,
-                (
-                    f"{process_label} uses capacity_unit "
-                    f"'{capacity_unit}' which is not "
-                    "allowed by model.unit_policy.allowed_units.energy."
-                ),
-            )
-    elif capacity_unit in SERVICE_UNITS:
-        if capacity_unit not in policy["allowed_units"]["service"]:
-            _record_unit_diagnostic(
-                errors,
-                warnings,
-                policy,
-                (
-                    f"{process_label} uses capacity_unit "
-                    f"'{capacity_unit}' which is not "
-                    "allowed by model.unit_policy.allowed_units.service."
-                ),
-            )
-    elif capacity_unit in MASS_UNITS:
-        if capacity_unit not in policy["allowed_units"]["mass"]:
-            _record_unit_diagnostic(
-                errors,
-                warnings,
-                policy,
-                (
-                    f"{process_label} uses capacity_unit "
-                    f"'{capacity_unit}' which is not "
-                    "allowed by model.unit_policy.allowed_units.mass."
-                ),
-            )
-    else:
+    parsed_capacity = _parse_process_unit_expression(capacity_unit)
+    if parsed_capacity is None:
         _record_unit_diagnostic(
             errors,
             warnings,
             policy,
             (
                 f"{process_label} has unsupported capacity_unit '{capacity_unit}'. "
-                "Use a power, service, or mass unit from schema."
+                "Use a power unit (e.g., GW) or explicit annual rate '<unit>/yr'."
             ),
         )
+        return
 
-    cap2act = _compute_cap2act(capacity_unit, activity_unit)
-    if (
-        activity_unit in ENERGY_UNITS
-        and capacity_unit in POWER_UNITS
-        and cap2act is None
-    ):
+    capacity_valid_for_pair = True
+    capacity_base, capacity_denominator = parsed_capacity
+    capacity_dimension = UNIT_DIMENSIONS.get(capacity_base)
+    if capacity_dimension not in {"power", "energy", "service", "mass"}:
+        capacity_valid_for_pair = False
         _record_unit_diagnostic(
             errors,
             warnings,
             policy,
             (
-                f"{process_label} has unsupported capacity/activity unit pair "
-                f"({capacity_unit}, {activity_unit}); cannot derive PRC_CAPACT."
+                f"{process_label} has unsupported capacity_unit '{capacity_unit}'. "
+                "Capacity must use a power base unit or annual rate "
+                "of energy/service/mass."
+            ),
+        )
+    elif capacity_base not in policy["allowed_units"][capacity_dimension]:
+        _record_unit_diagnostic(
+            errors,
+            warnings,
+            policy,
+            (
+                f"{process_label} uses capacity_unit '{capacity_unit}' which is not "
+                "allowed by model.unit_policy.allowed_units."
+            ),
+        )
+
+    if capacity_dimension == "power":
+        if capacity_denominator is not None:
+            capacity_valid_for_pair = False
+            _record_unit_diagnostic(
+                errors,
+                warnings,
+                policy,
+                (
+                    f"{process_label} uses capacity_unit '{capacity_unit}'. Power "
+                    "capacity should not include a denominator (use GW/MW/TW/kW)."
+                ),
+            )
+    elif capacity_dimension in {"energy", "service", "mass"}:
+        if capacity_denominator is None:
+            capacity_valid_for_pair = False
+            _record_unit_diagnostic(
+                errors,
+                warnings,
+                policy,
+                (
+                    f"{process_label} uses capacity_unit '{capacity_unit}' without "
+                    "explicit time basis. Use '<unit>/yr' for non-power capacities."
+                ),
+            )
+        elif capacity_denominator not in SUPPORTED_RATE_DENOMINATORS:
+            allowed = ", ".join(sorted(SUPPORTED_RATE_DENOMINATORS))
+            capacity_valid_for_pair = False
+            _record_unit_diagnostic(
+                errors,
+                warnings,
+                policy,
+                (
+                    f"{process_label} uses capacity_unit '{capacity_unit}' with "
+                    f"unsupported denominator '{capacity_denominator}'. "
+                    f"Supported rate denominators: {allowed}."
+                ),
+            )
+
+    if not activity_valid_for_pair or not capacity_valid_for_pair:
+        return
+
+    cap2act = _compute_cap2act(capacity_unit, activity_unit)
+    if cap2act is None:
+        _record_unit_diagnostic(
+            errors,
+            warnings,
+            policy,
+            (
+                f"{process_label} has incompatible capacity/activity unit pair "
+                f"({capacity_unit}, {activity_unit}); cannot derive PRC_CAPACT "
+                f"using a 1-{next(iter(SUPPORTED_RATE_DENOMINATORS))} basis."
             ),
         )
 

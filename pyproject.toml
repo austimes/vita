@@ -26,6 +26,7 @@ dependencies = [
     "lsprotocol>=2024.0.0",
     "openai>=2.21.0",
     "rich>=13.0",
+    "pint>=0.25.2",
 ]
 
 [project.optional-dependencies]

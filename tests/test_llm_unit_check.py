@@ -53,7 +53,7 @@ SOURCE_WITH_MONETARY = {
         {
             "id": "supply_power",
             "activity_unit": "PJ",
-            "capacity_unit": "PJ",
+            "capacity_unit": "PJ/yr",
             "required_inputs": [],
             "required_outputs": [{"commodity": "secondary:electricity"}],
         }
