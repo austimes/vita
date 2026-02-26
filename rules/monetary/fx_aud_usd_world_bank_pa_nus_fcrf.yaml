@@ -1,0 +1,88 @@
+metadata:
+  source: world_bank
+  indicator: PA.NUS.FCRF
+  indicator_name: Official exchange rate (LCU per US$, period average)
+  country: AUS
+  retrieved_utc: "2026-02-25T00:00:00Z"
+  source_url: "https://api.worldbank.org/v2/country/AUS/indicator/PA.NUS.FCRF?format=json&per_page=1000"
+  years: [2000, 2024]
+  definitions:
+    aud_per_usd: "AUD per 1 USD (period-average annual exchange rate)"
+    usd_per_aud: "USD per 1 AUD (inverse of aud_per_usd)"
+
+rates:
+  "2000":
+    aud_per_usd: 1.724826666667
+    usd_per_aud: 0.579768401849
+  "2001":
+    aud_per_usd: 1.933442500000
+    usd_per_aud: 0.517212174657
+  "2002":
+    aud_per_usd: 1.840562500000
+    usd_per_aud: 0.543312166797
+  "2003":
+    aud_per_usd: 1.541914166667
+    usd_per_aud: 0.648544530959
+  "2004":
+    aud_per_usd: 1.359752500000
+    usd_per_aud: 0.735427954720
+  "2005":
+    aud_per_usd: 1.309473333333
+    usd_per_aud: 0.763665799482
+  "2006":
+    aud_per_usd: 1.327973440500
+    usd_per_aud: 0.753027108451
+  "2007":
+    aud_per_usd: 1.195072500000
+    usd_per_aud: 0.836769317343
+  "2008":
+    aud_per_usd: 1.192178333333
+    usd_per_aud: 0.838800682784
+  "2009":
+    aud_per_usd: 1.282188810085
+    usd_per_aud: 0.779916336919
+  "2010":
+    aud_per_usd: 1.090159486387
+    usd_per_aud: 0.917296975798
+  "2011":
+    aud_per_usd: 0.969463201497
+    usd_per_aud: 1.031498666949
+  "2012":
+    aud_per_usd: 0.965801030659
+    usd_per_aud: 1.035409953247
+  "2013":
+    aud_per_usd: 1.035843096521
+    usd_per_aud: 0.965397175846
+  "2014":
+    aud_per_usd: 1.109363292817
+    usd_per_aud: 0.901417963326
+  "2015":
+    aud_per_usd: 1.331090262455
+    usd_per_aud: 0.751263853554
+  "2016":
+    aud_per_usd: 1.345213976019
+    usd_per_aud: 0.743376160095
+  "2017":
+    aud_per_usd: 1.304758076716
+    usd_per_aud: 0.766425606283
+  "2018":
+    aud_per_usd: 1.338412146465
+    usd_per_aud: 0.747154008309
+  "2019":
+    aud_per_usd: 1.438506544214
+    usd_per_aud: 0.695165415842
+  "2020":
+    aud_per_usd: 1.453085118470
+    usd_per_aud: 0.688190930654
+  "2021":
+    aud_per_usd: 1.331224259571
+    usd_per_aud: 0.751188233546
+  "2022":
+    aud_per_usd: 1.441664458965
+    usd_per_aud: 0.693642680709
+  "2023":
+    aud_per_usd: 1.505191065605
+    usd_per_aud: 0.664367483206
+  "2024":
+    aud_per_usd: 1.515358038556
+    usd_per_aud: 0.659910050666

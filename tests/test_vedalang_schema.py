@@ -82,6 +82,43 @@ def test_unit_policy_validates():
     jsonschema.validate(data, schema)
 
 
+def test_monetary_policy_and_cost_literals_validate():
+    """Schema should accept shorthand monetary policy + explicit cost literals."""
+    schema = load_schema()
+    data = {
+        "model": {
+            "name": "MoneyTest",
+            "regions": ["R1"],
+            "monetary": {
+                "canonical": "MAUD24",
+                "fx_table": "rules/monetary/fx_aud_usd_world_bank_pa_nus_fcrf.yaml",
+            },
+            "commodities": [
+                {"id": "secondary:electricity", "type": "energy", "unit": "PJ"}
+            ],
+        },
+        "process_roles": [
+            {
+                "id": "supply_power",
+                "activity_unit": "PJ",
+                "capacity_unit": "PJ",
+                "required_inputs": [],
+                "required_outputs": [{"commodity": "secondary:electricity"}],
+            }
+        ],
+        "process_variants": [
+            {
+                "id": "grid_import",
+                "role": "supply_power",
+                "inputs": [],
+                "outputs": [{"commodity": "secondary:electricity"}],
+                "variable_om_cost": "6.944444 MUSD24/PJ",
+            }
+        ],
+    }
+    jsonschema.validate(data, schema)
+
+
 def test_invalid_commodity_unit_enum_rejected():
     """Commodity unit must use supported unit symbols."""
     schema = load_schema()
@@ -114,6 +151,8 @@ def test_efficiency_allows_cop_style_values():
         "process_roles": [
             {
                 "id": "generate_power",
+                "activity_unit": "PJ",
+                "capacity_unit": "GW",
                 "required_inputs": [],
                 "required_outputs": [{"commodity": "electricity"}],
             }
@@ -144,6 +183,8 @@ def test_process_variant_rejects_unknown_performance_metric():
         "process_roles": [
             {
                 "id": "generate_power",
+                "activity_unit": "PJ",
+                "capacity_unit": "GW",
                 "required_inputs": [],
                 "required_outputs": [{"commodity": "electricity"}],
             }
@@ -178,6 +219,8 @@ def test_process_variant_flow_coefficient_anchor_validates():
         "process_roles": [
             {
                 "id": "generate_power",
+                "activity_unit": "PJ",
+                "capacity_unit": "GW",
                 "required_inputs": [{"commodity": "primary:natural_gas"}],
                 "required_outputs": [{"commodity": "secondary:electricity"}],
             }
@@ -199,8 +242,8 @@ def test_process_variant_flow_coefficient_anchor_validates():
     jsonschema.validate(data, schema)
 
 
-def test_process_variant_activity_capacity_units_validate():
-    """process_variants should accept explicit activity/capacity units."""
+def test_process_role_activity_capacity_units_validate():
+    """process_roles should accept explicit activity/capacity units."""
     schema = load_schema()
     data = {
         "model": {
@@ -218,6 +261,8 @@ def test_process_variant_activity_capacity_units_validate():
         "process_roles": [
             {
                 "id": "provide_space_heat",
+                "activity_unit": "TWh",
+                "capacity_unit": "GW",
                 "required_inputs": [{"commodity": "secondary:electricity"}],
                 "required_outputs": [{"commodity": "service:space_heat"}],
             }
@@ -228,8 +273,6 @@ def test_process_variant_activity_capacity_units_validate():
                 "role": "provide_space_heat",
                 "inputs": [{"commodity": "secondary:electricity"}],
                 "outputs": [{"commodity": "service:space_heat"}],
-                "activity_unit": "TWh",
-                "capacity_unit": "GW",
                 "efficiency": 1.0,
             }
         ],
@@ -519,12 +562,16 @@ def test_process_roles_validates():
         "process_roles": [
             {
                 "id": "generate_electricity",
+                "activity_unit": "PJ",
+                "capacity_unit": "GW",
                 "stage": "conversion",
                 "required_inputs": [],
                 "required_outputs": [{"commodity": "electricity"}],
             },
             {
                 "id": "deliver_lighting",
+                "activity_unit": "PJ",
+                "capacity_unit": "GW",
                 "stage": "end_use",
                 "required_inputs": [{"commodity": "electricity"}],
                 "required_outputs": [{"commodity": "lighting"}],
@@ -546,6 +593,8 @@ def test_process_roles_invalid_stage_rejected():
         "process_roles": [
             {
                 "id": "bad_role",
+                "activity_unit": "PJ",
+                "capacity_unit": "GW",
                 "stage": "invalid_stage",  # Not in enum
             },
         ],
@@ -566,6 +615,8 @@ def test_process_variants_validates():
         "process_roles": [
             {
                 "id": "generate_power",
+                "activity_unit": "PJ",
+                "capacity_unit": "GW",
                 "required_inputs": [],
                 "required_outputs": [{"commodity": "electricity"}],
             },
@@ -787,6 +838,8 @@ def test_negative_emission_factor_validates():
         "process_roles": [
             {
                 "id": "remove_co2",
+                "activity_unit": "PJ",
+                "capacity_unit": "GW",
                 "required_inputs": [{"commodity": "secondary:electricity"}],
                 "required_outputs": [{"commodity": "service:co2_removal"}],
             }
@@ -823,12 +876,16 @@ def test_full_roles_variants_model_validates():
         "process_roles": [
             {
                 "id": "generate_electricity",
+                "activity_unit": "PJ",
+                "capacity_unit": "GW",
                 "stage": "conversion",
                 "required_inputs": [],
                 "required_outputs": [{"commodity": "electricity"}],
             },
             {
                 "id": "deliver_lighting",
+                "activity_unit": "PJ",
+                "capacity_unit": "GW",
                 "stage": "end_use",
                 "required_inputs": [{"commodity": "electricity"}],
                 "required_outputs": [{"commodity": "lighting"}],

@@ -69,6 +69,8 @@ def _minimal_new_syntax_source() -> dict:
         "process_roles": [
             {
                 "id": "deliver_heat",
+                "activity_unit": "PJ",
+                "capacity_unit": "GW",
                 "stage": "end_use",
                 "required_inputs": [{"commodity": "electricity"}],
                 "required_outputs": [{"commodity": "heat_service"}],
@@ -141,18 +143,24 @@ def _process_kind_source(explicit_kind: str | None = None) -> dict:
         "process_roles": [
             {
                 "id": "generate_power",
+                "activity_unit": "PJ",
+                "capacity_unit": "GW",
                 "stage": "conversion",
                 "required_inputs": [{"commodity": "gas"}],
                 "required_outputs": [{"commodity": "electricity"}],
             },
             {
                 "id": "deliver_heat",
+                "activity_unit": "PJ",
+                "capacity_unit": "GW",
                 "stage": "end_use",
                 "required_inputs": [{"commodity": "electricity"}],
                 "required_outputs": [{"commodity": "heat_service"}],
             },
             {
                 "id": "store_power",
+                "activity_unit": "PJ",
+                "capacity_unit": "GW",
                 "stage": "storage",
                 "required_inputs": [{"commodity": "electricity"}],
                 "required_outputs": [{"commodity": "electricity"}],
@@ -210,6 +218,8 @@ def test_end_use_diagnostics_include_all_end_use_variants_by_default():
     source["process_roles"].append(
         {
             "id": "deliver_aux_heat",
+            "activity_unit": "PJ",
+            "capacity_unit": "GW",
             "stage": "end_use",
             "required_inputs": [{"commodity": "electricity"}],
             "required_outputs": [{"commodity": "aux_heat_service"}],

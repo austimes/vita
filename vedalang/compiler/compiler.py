@@ -34,6 +34,17 @@ ENERGY_UNITS = {"PJ", "TJ", "GJ", "MWh", "GWh", "TWh", "MTOE", "KTOE"}
 POWER_UNITS = {"GW", "MW", "kW", "TW"}
 MASS_UNITS = {"Mt", "kt", "t", "Gt"}
 CURRENCY_UNITS = {"USD", "kUSD", "MUSD", "BUSD"}
+SUPPORTED_MONETARY_CURRENCIES = {"AUD", "USD"}
+MONETARY_SCALE_FACTORS = {
+    "": 1.0,
+    "k": 1e3,
+    "M": 1e6,
+    "B": 1e9,
+}
+MONETARY_TOKEN_RE = re.compile(r"^\s*([kMB]?)([A-Z]{3})(\d{2}|\d{4})\s*$")
+COST_RATE_LITERAL_RE = re.compile(
+    r"^\s*([+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\s+([kMB]?)([A-Z]{3})(\d{2}|\d{4})/([A-Za-z][A-Za-z0-9]*)(?:/(yr))?\s*$"
+)
 SERVICE_UNITS = {"Bvkm"}
 ENERGY_BASES = {"HHV", "LHV"}
 
@@ -502,9 +513,10 @@ def _validate_new_syntax_structural_invariants(
 
     for variant in source.get("process_variants") or []:
         variant_id = variant.get("id", "<variant>")
+        role = roles.get(variant.get("role"))
         emission_factors = variant.get("emission_factors") or {}
-        activity_unit = variant.get("activity_unit", "PJ")
-        capacity_unit = variant.get("capacity_unit", "GW")
+        activity_unit = role.activity_unit if role is not None else "PJ"
+        capacity_unit = role.capacity_unit if role is not None else "GW"
         performance_metric = variant.get("performance_metric", "efficiency")
 
         variant_unit_errors: list[str] = []
@@ -786,6 +798,423 @@ def _is_strict_unit_mode(policy: dict) -> bool:
     return policy.get("mode") == "strict"
 
 
+def _parse_money_year(year_token: str) -> int:
+    """Parse 2-digit or 4-digit money year token into YYYY."""
+    if len(year_token) == 2:
+        return 2000 + int(year_token)
+    return int(year_token)
+
+
+def _parse_monetary_token(token: str, *, field_path: str) -> tuple[str, str, int]:
+    """Parse shorthand token like MUSD24 into (scale, currency, year)."""
+    match = MONETARY_TOKEN_RE.match(token)
+    if not match:
+        raise SemanticValidationError(
+            [
+                f"{field_path} must use shorthand like MAUD24 or USD23; "
+                f"got '{token}'."
+            ]
+        )
+    scale, currency, year_token = match.groups()
+    if currency not in SUPPORTED_MONETARY_CURRENCIES:
+        allowed = ", ".join(sorted(SUPPORTED_MONETARY_CURRENCIES))
+        raise SemanticValidationError(
+            [
+                f"{field_path} uses unsupported currency '{currency}'. "
+                f"Supported currencies: {allowed}."
+            ]
+        )
+    return scale, currency, _parse_money_year(year_token)
+
+
+def _load_yaml_file(path: Path) -> dict:
+    """Load YAML file as dict."""
+    with open(path) as f:
+        data = yaml.safe_load(f)
+    if not isinstance(data, dict):
+        raise SemanticValidationError([f"YAML file '{path}' must contain an object"])
+    return data
+
+
+def _load_fx_table(path: Path) -> dict[int, dict[str, float]]:
+    """Load FX table in rules/monetary fx format."""
+    data = _load_yaml_file(path)
+    rates = data.get("rates")
+    if not isinstance(rates, dict):
+        raise SemanticValidationError(
+            [f"FX table '{path}' must contain top-level 'rates' mapping."]
+        )
+
+    result: dict[int, dict[str, float]] = {}
+    for year_key, row in rates.items():
+        if not isinstance(row, dict):
+            continue
+        try:
+            year = int(year_key)
+        except (TypeError, ValueError):
+            continue
+        if "aud_per_usd" in row and "usd_per_aud" in row:
+            result[year] = {
+                "aud_per_usd": float(row["aud_per_usd"]),
+                "usd_per_aud": float(row["usd_per_aud"]),
+            }
+    if not result:
+        raise SemanticValidationError(
+            [f"FX table '{path}' does not contain usable yearly AUD/USD rates."]
+        )
+    return result
+
+
+def _load_cpi_table(path: Path) -> dict[int, float]:
+    """Load CPI table with top-level index map: {year: value}."""
+    data = _load_yaml_file(path)
+    index = data.get("index")
+    if not isinstance(index, dict):
+        raise SemanticValidationError(
+            [f"CPI table '{path}' must contain top-level 'index' mapping."]
+        )
+    result: dict[int, float] = {}
+    for year_key, value in index.items():
+        try:
+            year = int(year_key)
+            result[year] = float(value)
+        except (TypeError, ValueError):
+            continue
+    if not result:
+        raise SemanticValidationError(
+            [f"CPI table '{path}' does not contain usable year/value entries."]
+        )
+    return result
+
+
+def _resolve_monetary_policy(model: dict) -> dict:
+    """Resolve model.monetary policy and load referenced conversion tables."""
+    raw = model.get("monetary") or {}
+    if not raw:
+        return {"enabled": False}
+
+    canonical = raw.get("canonical")
+    if not isinstance(canonical, str):
+        raise SemanticValidationError(
+            ["model.monetary.canonical is required when model.monetary is set."]
+        )
+
+    canon_scale, canon_currency, canon_year = _parse_monetary_token(
+        canonical,
+        field_path="model.monetary.canonical",
+    )
+
+    fx_rows: dict[int, dict[str, float]] = {}
+    fx_table = raw.get("fx_table")
+    if fx_table is not None:
+        fx_rows = _load_fx_table(Path(fx_table))
+
+    cpi_series: dict[str, dict[int, float]] = {}
+    for currency, path in (raw.get("cpi_tables") or {}).items():
+        if currency not in SUPPORTED_MONETARY_CURRENCIES:
+            allowed = ", ".join(sorted(SUPPORTED_MONETARY_CURRENCIES))
+            raise SemanticValidationError(
+                [
+                    f"model.monetary.cpi_tables uses unsupported currency "
+                    f"'{currency}'. Supported currencies: {allowed}."
+                ]
+            )
+        cpi_series[currency] = _load_cpi_table(Path(path))
+
+    return {
+        "enabled": True,
+        "canonical_token": canonical,
+        "canonical_scale": canon_scale,
+        "canonical_scale_factor": MONETARY_SCALE_FACTORS[canon_scale],
+        "canonical_currency": canon_currency,
+        "canonical_year": canon_year,
+        "fx_rates": fx_rows,
+        "cpi_series": cpi_series,
+    }
+
+
+def _fx_conversion_factor(
+    *,
+    src_currency: str,
+    dst_currency: str,
+    year: int,
+    fx_rates: dict[int, dict[str, float]],
+) -> float:
+    """Return multiplicative FX factor to convert src->dst for given year."""
+    if src_currency == dst_currency:
+        return 1.0
+    if year not in fx_rates:
+        raise SemanticValidationError(
+            [f"Missing FX data for year {year} for {src_currency}->{dst_currency}."]
+        )
+    row = fx_rates[year]
+    if src_currency == "USD" and dst_currency == "AUD":
+        return row["aud_per_usd"]
+    if src_currency == "AUD" and dst_currency == "USD":
+        return row["usd_per_aud"]
+    raise SemanticValidationError(
+        [
+            "Unsupported FX conversion pair "
+            f"{src_currency}->{dst_currency}. Only AUD<->USD is configured."
+        ]
+    )
+
+
+def _inflate_by_cpi(
+    *,
+    amount: float,
+    currency: str,
+    src_year: int,
+    dst_year: int,
+    cpi_series: dict[str, dict[int, float]],
+    field_path: str,
+) -> float:
+    """Inflate amount in same currency from src_year to dst_year using CPI index."""
+    if src_year == dst_year:
+        return amount
+    series = cpi_series.get(currency)
+    if not series:
+        raise SemanticValidationError(
+            [
+                f"{field_path} requires CPI for {currency} to convert "
+                f"{src_year}->{dst_year}, but model.monetary.cpi_tables.{currency} "
+                "is not configured."
+            ]
+        )
+    if src_year not in series or dst_year not in series:
+        raise SemanticValidationError(
+            [
+                f"{field_path} requires CPI entries for {currency} years "
+                f"{src_year} and {dst_year}."
+            ]
+        )
+    return amount * (series[dst_year] / series[src_year])
+
+
+def _parse_cost_rate_literal(
+    literal: str,
+    *,
+    field_path: str,
+    expected_denominator: str,
+    require_per_year: bool,
+) -> tuple[float, str, str, int]:
+    """Parse '<value> MUSD23/PJ' style literal and validate denominator semantics."""
+    match = COST_RATE_LITERAL_RE.match(literal)
+    if not match:
+        raise SemanticValidationError(
+            [
+                f"{field_path} must use '<value> <moneyYY>/<unit>' format "
+                f"(e.g., '15 MUSD23/PJ'), got '{literal}'."
+            ]
+        )
+
+    value_token, scale, currency, year_token, denominator, per_year = match.groups()
+    value = float(value_token)
+    if value < 0:
+        raise SemanticValidationError(
+            [f"{field_path} must be non-negative, got {value}."]
+        )
+    if currency not in SUPPORTED_MONETARY_CURRENCIES:
+        allowed = ", ".join(sorted(SUPPORTED_MONETARY_CURRENCIES))
+        raise SemanticValidationError(
+            [
+                f"{field_path} uses unsupported currency '{currency}'. "
+                f"Supported currencies: {allowed}."
+            ]
+        )
+    if denominator != expected_denominator:
+        raise SemanticValidationError(
+            [
+                f"{field_path} denominator must be '{expected_denominator}' "
+                f"to match process units, got '{denominator}'."
+            ]
+        )
+
+    has_per_year = per_year == "yr"
+    if require_per_year and not has_per_year:
+        raise SemanticValidationError(
+            [f"{field_path} must include '/yr' for fixed O&M cost basis."]
+        )
+    if (not require_per_year) and has_per_year:
+        raise SemanticValidationError(
+            [f"{field_path} must not include '/yr'."]
+        )
+
+    return value, scale, currency, _parse_money_year(year_token)
+
+
+def _normalize_rate_to_canonical(
+    *,
+    value: float,
+    scale: str,
+    currency: str,
+    year: int,
+    policy: dict,
+    field_path: str,
+) -> float:
+    """Normalize one monetary rate to model canonical currency-year-scale."""
+    amount = value * MONETARY_SCALE_FACTORS[scale]
+    amount = _inflate_by_cpi(
+        amount=amount,
+        currency=currency,
+        src_year=year,
+        dst_year=policy["canonical_year"],
+        cpi_series=policy["cpi_series"],
+        field_path=field_path,
+    )
+    fx = _fx_conversion_factor(
+        src_currency=currency,
+        dst_currency=policy["canonical_currency"],
+        year=policy["canonical_year"],
+        fx_rates=policy["fx_rates"],
+    )
+    canonical_amount = amount * fx
+    return canonical_amount / policy["canonical_scale_factor"]
+
+
+def _normalize_cost_value(
+    *,
+    raw_value,
+    field_path: str,
+    expected_denominator: str,
+    require_per_year: bool,
+    policy: dict,
+):
+    """Normalize scalar or time-varying cost values to canonical coefficients."""
+    if _is_time_varying(raw_value):
+        sparse = raw_value.get("values", {})
+        normalized_values: dict[str, float] = {}
+        for year, literal in sparse.items():
+            if not isinstance(literal, str):
+                raise SemanticValidationError(
+                    [
+                        f"{field_path}.values['{year}'] must be a string literal "
+                        "like '15 MUSD23/PJ'."
+                    ]
+                )
+            value, scale, currency, money_year = _parse_cost_rate_literal(
+                literal,
+                field_path=f"{field_path}.values['{year}']",
+                expected_denominator=expected_denominator,
+                require_per_year=require_per_year,
+            )
+            normalized_values[str(year)] = _normalize_rate_to_canonical(
+                value=value,
+                scale=scale,
+                currency=currency,
+                year=money_year,
+                policy=policy,
+                field_path=f"{field_path}.values['{year}']",
+            )
+        normalized = deepcopy(raw_value)
+        normalized["values"] = normalized_values
+        return normalized
+
+    if not isinstance(raw_value, str):
+        raise SemanticValidationError(
+            [
+                f"{field_path} must be explicit cost literal string "
+                "(e.g., '15 MUSD23/PJ')."
+            ]
+        )
+
+    value, scale, currency, money_year = _parse_cost_rate_literal(
+        raw_value,
+        field_path=field_path,
+        expected_denominator=expected_denominator,
+        require_per_year=require_per_year,
+    )
+    return _normalize_rate_to_canonical(
+        value=value,
+        scale=scale,
+        currency=currency,
+        year=money_year,
+        policy=policy,
+        field_path=field_path,
+    )
+
+
+def _model_output_currency(model: dict) -> str:
+    """Get output currency code for ~CURRENCIES and G_DRATE rows."""
+    policy = _resolve_monetary_policy(model)
+    if policy.get("enabled"):
+        return policy["canonical_currency"]
+    return "USD"
+
+
+def _normalize_new_syntax_monetary_costs(source: dict) -> tuple[dict, dict]:
+    """Normalize new-syntax process and case cost fields to canonical currency-year."""
+    normalized = deepcopy(source)
+    model = normalized.get("model", {})
+    policy = _resolve_monetary_policy(model)
+    if not policy.get("enabled"):
+        return normalized, policy
+
+    roles_by_id = {
+        r.get("id"): r for r in (normalized.get("process_roles") or []) if r.get("id")
+    }
+    variants = normalized.get("process_variants") or []
+    units_by_variant: dict[str, tuple[str, str]] = {}
+    for variant in variants:
+        variant_id = variant.get("id", "<variant>")
+        role_id = variant.get("role")
+        role = roles_by_id.get(role_id, {})
+        activity_unit = role.get("activity_unit")
+        capacity_unit = role.get("capacity_unit")
+        if not activity_unit or not capacity_unit:
+            raise SemanticValidationError(
+                [
+                    f"process_roles[{role_id}] must declare both activity_unit and "
+                    "capacity_unit when model.monetary is used."
+                ]
+            )
+        units_by_variant[variant_id] = (activity_unit, capacity_unit)
+
+        cost_specs = (
+            ("variable_om_cost", activity_unit, False),
+            ("investment_cost", capacity_unit, False),
+            ("fixed_om_cost", capacity_unit, True),
+        )
+        for field_name, denominator, require_per_year in cost_specs:
+            if field_name not in variant:
+                continue
+            variant[field_name] = _normalize_cost_value(
+                raw_value=variant[field_name],
+                field_path=f"process_variants[{variant_id}].{field_name}",
+                expected_denominator=denominator,
+                require_per_year=require_per_year,
+                policy=policy,
+            )
+
+    for case in model.get("cases", []) or []:
+        case_name = case.get("name", "<case>")
+        for idx, override in enumerate(case.get("variant_overrides", []) or []):
+            variant_id = override.get("variant")
+            if variant_id not in units_by_variant:
+                continue
+            activity_unit, capacity_unit = units_by_variant[variant_id]
+            cost_specs = (
+                ("variable_om_cost", activity_unit, False),
+                ("investment_cost", capacity_unit, False),
+                ("fixed_om_cost", capacity_unit, True),
+            )
+            for field_name, denominator, require_per_year in cost_specs:
+                if field_name not in override:
+                    continue
+                override[field_name] = _normalize_cost_value(
+                    raw_value=override[field_name],
+                    field_path=(
+                        "model.cases["
+                        f"{case_name}].variant_overrides[{idx}].{field_name}"
+                    ),
+                    expected_denominator=denominator,
+                    require_per_year=require_per_year,
+                    policy=policy,
+                )
+
+    return normalized, policy
+
+
 def _compute_cap2act(capacity_unit: str, activity_unit: str) -> float | None:
     """Compute PRC_CAPACT for a (capacity_unit, activity_unit) pair."""
     if capacity_unit not in POWER_UNIT_TO_GW:
@@ -858,47 +1287,109 @@ def _validate_process_unit_pair(
     warnings: list[str],
 ) -> None:
     """Validate process activity/capacity unit pair and conversion support."""
-    if activity_unit not in ENERGY_UNITS:
+    if activity_unit in ENERGY_UNITS:
+        if activity_unit not in policy["allowed_units"]["energy"]:
+            _record_unit_diagnostic(
+                errors,
+                warnings,
+                policy,
+                (
+                    f"{process_label} uses activity_unit "
+                    f"'{activity_unit}' which is not "
+                    "allowed by model.unit_policy.allowed_units.energy."
+                ),
+            )
+    elif activity_unit in SERVICE_UNITS:
+        if activity_unit not in policy["allowed_units"]["service"]:
+            _record_unit_diagnostic(
+                errors,
+                warnings,
+                policy,
+                (
+                    f"{process_label} uses activity_unit "
+                    f"'{activity_unit}' which is not "
+                    "allowed by model.unit_policy.allowed_units.service."
+                ),
+            )
+    elif activity_unit in MASS_UNITS:
+        if activity_unit not in policy["allowed_units"]["mass"]:
+            _record_unit_diagnostic(
+                errors,
+                warnings,
+                policy,
+                (
+                    f"{process_label} uses activity_unit "
+                    f"'{activity_unit}' which is not "
+                    "allowed by model.unit_policy.allowed_units.mass."
+                ),
+            )
+    else:
         _record_unit_diagnostic(
             errors,
             warnings,
             policy,
             (
-                f"{process_label} has activity_unit '{activity_unit}' which is not a "
-                f"recognized energy unit. Expected one of: "
-                f"{', '.join(sorted(ENERGY_UNITS))}"
-            ),
-        )
-    elif activity_unit not in policy["allowed_units"]["energy"]:
-        _record_unit_diagnostic(
-            errors,
-            warnings,
-            policy,
-            (
-                f"{process_label} uses activity_unit '{activity_unit}' which is not "
-                "allowed by model.unit_policy.allowed_units.energy."
+                f"{process_label} has unsupported activity_unit '{activity_unit}'. "
+                "Use an energy, service, or mass unit from schema."
             ),
         )
 
-    if capacity_unit not in POWER_UNITS:
+    if capacity_unit in POWER_UNITS:
+        if capacity_unit not in policy["allowed_units"]["power"]:
+            _record_unit_diagnostic(
+                errors,
+                warnings,
+                policy,
+                (
+                    f"{process_label} uses capacity_unit "
+                    f"'{capacity_unit}' which is not "
+                    "allowed by model.unit_policy.allowed_units.power."
+                ),
+            )
+    elif capacity_unit in ENERGY_UNITS:
+        if capacity_unit not in policy["allowed_units"]["energy"]:
+            _record_unit_diagnostic(
+                errors,
+                warnings,
+                policy,
+                (
+                    f"{process_label} uses capacity_unit "
+                    f"'{capacity_unit}' which is not "
+                    "allowed by model.unit_policy.allowed_units.energy."
+                ),
+            )
+    elif capacity_unit in SERVICE_UNITS:
+        if capacity_unit not in policy["allowed_units"]["service"]:
+            _record_unit_diagnostic(
+                errors,
+                warnings,
+                policy,
+                (
+                    f"{process_label} uses capacity_unit "
+                    f"'{capacity_unit}' which is not "
+                    "allowed by model.unit_policy.allowed_units.service."
+                ),
+            )
+    elif capacity_unit in MASS_UNITS:
+        if capacity_unit not in policy["allowed_units"]["mass"]:
+            _record_unit_diagnostic(
+                errors,
+                warnings,
+                policy,
+                (
+                    f"{process_label} uses capacity_unit "
+                    f"'{capacity_unit}' which is not "
+                    "allowed by model.unit_policy.allowed_units.mass."
+                ),
+            )
+    else:
         _record_unit_diagnostic(
             errors,
             warnings,
             policy,
             (
-                f"{process_label} has capacity_unit '{capacity_unit}' which is not a "
-                f"recognized power unit. Expected one of: "
-                f"{', '.join(sorted(POWER_UNITS))}"
-            ),
-        )
-    elif capacity_unit not in policy["allowed_units"]["power"]:
-        _record_unit_diagnostic(
-            errors,
-            warnings,
-            policy,
-            (
-                f"{process_label} uses capacity_unit '{capacity_unit}' which is not "
-                "allowed by model.unit_policy.allowed_units.power."
+                f"{process_label} has unsupported capacity_unit '{capacity_unit}'. "
+                "Use a power, service, or mass unit from schema."
             ),
         )
 
@@ -1823,6 +2314,14 @@ def validate_cross_references(
             variant_override_names.add(variant)
 
     if source:
+        role_units = {
+            role.get("id"): (
+                role.get("activity_unit", "PJ"),
+                role.get("capacity_unit", "GW"),
+            )
+            for role in source.get("process_roles", [])
+            if role.get("id")
+        }
         for variant in source.get("process_variants", []):
             variant_id = variant.get("id", "<variant>")
             for idx, inp in enumerate(variant.get("inputs") or []):
@@ -1866,8 +2365,8 @@ def validate_cross_references(
                         "be namespaced as emission:*."
                     )
 
-            activity_unit = variant.get("activity_unit", "PJ")
-            capacity_unit = variant.get("capacity_unit", "GW")
+            role_id = variant.get("role")
+            activity_unit, capacity_unit = role_units.get(role_id, ("PJ", "GW"))
             performance_metric = variant.get("performance_metric", "efficiency")
             _validate_process_unit_pair(
                 process_label=f"process_variants[{variant_id}]",
@@ -1989,10 +2488,16 @@ def _compile_new_syntax(
     Returns:
         TableIR dict
     """
+    source, monetary_policy = _normalize_new_syntax_monetary_costs(source)
     model = source["model"]
     regions = model.get("regions", ["REG1"])
     default_region = ",".join(regions)
     milestone_years = model.get("milestone_years", [2020])
+    output_currency = (
+        monetary_policy["canonical_currency"]
+        if monetary_policy.get("enabled")
+        else "USD"
+    )
 
     # Build normalized commodities dict
     commodities = _normalize_commodities_for_new_syntax(model.get("commodities", []))
@@ -2068,9 +2573,8 @@ def _compile_new_syntax(
     fi_process_rows = []
     for key, instance in sorted(instances.items()):
         prc_name = registry.get_process_symbol(key.variant_id, key.region, key.segment)
-        attrs = instance.attrs
-        activity_unit = attrs.get("activity_unit", "PJ")
-        capacity_unit = attrs.get("capacity_unit", "GW")
+        activity_unit = instance.role.activity_unit
+        capacity_unit = instance.role.capacity_unit
         row = {
             "region": key.region,
             "process": prc_name,
@@ -2090,8 +2594,8 @@ def _compile_new_syntax(
     for key, instance in sorted(instances.items()):
         prc_name = registry.get_process_symbol(key.variant_id, key.region, key.segment)
         attrs = instance.attrs
-        activity_unit = attrs.get("activity_unit", "PJ")
-        capacity_unit = attrs.get("capacity_unit", "GW")
+        activity_unit = instance.role.activity_unit
+        capacity_unit = instance.role.capacity_unit
         prc_capact = _compute_cap2act(capacity_unit, activity_unit)
 
         # Input commodities (from variant's explicit I/O)
@@ -2255,11 +2759,16 @@ def _compile_new_syntax(
     milestoneyears_rows += [
         {"type": "milestoneyear", "year": y} for y in milestone_years
     ]
-    currencies_rows = [{"currency": "USD"}]
+    currencies_rows = [{"currency": output_currency}]
 
     discount_rate = model.get("discount_rate", 0.05)
     gdrate_rows = [
-        {"region": r, "attribute": "G_DRATE", "currency": "USD", "value": discount_rate}
+        {
+            "region": r,
+            "attribute": "G_DRATE",
+            "currency": output_currency,
+            "value": discount_rate,
+        }
         for r in regions
     ]
 
@@ -3020,7 +3529,8 @@ def compile_vedalang_to_tableir(
     ]
 
     # ~CURRENCIES - default currency
-    currencies_rows = [{"currency": "USD"}]
+    output_currency = _model_output_currency(model)
+    currencies_rows = [{"currency": output_currency}]
 
     # G_DRATE - discount rate (required for TIMES to process costs)
     # Without G_DRATE, rdcur set is empty and all cost parameters are ignored
@@ -3030,7 +3540,7 @@ def compile_vedalang_to_tableir(
         {
             "region": r,
             "attribute": "G_DRATE",
-            "currency": "USD",
+            "currency": output_currency,
             "value": discount_rate,
         }
         for r in regions

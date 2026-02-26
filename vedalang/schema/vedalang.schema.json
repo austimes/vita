@@ -34,6 +34,10 @@
           "$ref": "#/$defs/unit_policy",
           "description": "Unit validation policy (strict/permissive, basis, and allowed unit sets)"
         },
+        "monetary": {
+          "$ref": "#/$defs/monetary_policy",
+          "description": "Canonical monetary unit + conversion tables for explicit cost normalization"
+        },
         "timeslices": {
           "$ref": "#/$defs/timeslices",
           "description": "Timeslice structure for intra-annual temporal resolution"
@@ -228,10 +232,92 @@
       },
       "additionalProperties": false
     },
+    "currency_code": {
+      "type": "string",
+      "enum": ["AUD", "USD"],
+      "description": "Supported ISO currency codes for monetary normalization"
+    },
+    "monetary_unit_token": {
+      "type": "string",
+      "pattern": "^[kMB]?[A-Z]{3}([0-9]{2}|[0-9]{4})$",
+      "description": "Monetary shorthand token (e.g., MAUD24, USD23, kUSD2014)"
+    },
+    "cost_rate_literal": {
+      "type": "string",
+      "pattern": "^[+-]?[0-9]+(?:\\.[0-9]+)?(?:[eE][+-]?[0-9]+)?\\s+[kMB]?[A-Z]{3}([0-9]{2}|[0-9]{4})/[A-Za-z][A-Za-z0-9]*(?:/yr)?$",
+      "description": "Explicit cost literal (e.g., '15 MUSD23/PJ', '20 MAUD24/Bvkm/yr')"
+    },
+    "time_varying_cost_rate": {
+      "type": "object",
+      "required": ["values"],
+      "properties": {
+        "values": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/cost_rate_literal" },
+          "propertyNames": { "pattern": "^[12][0-9]{3}$" }
+        },
+        "interpolation": {
+          "type": "string",
+          "enum": [
+            "none",
+            "interp_only",
+            "interp_extrap_eps",
+            "interp_extrap",
+            "interp_extrap_back",
+            "interp_extrap_forward"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "monetary_policy": {
+      "type": "object",
+      "required": ["canonical"],
+      "properties": {
+        "canonical": {
+          "$ref": "#/$defs/monetary_unit_token",
+          "description": "Canonical emitted monetary unit token (e.g., MAUD24)"
+        },
+        "fx_table": {
+          "type": "string",
+          "description": "Path to FX conversion table used for cross-currency normalization"
+        },
+        "cpi_tables": {
+          "type": "object",
+          "description": "Optional CPI index tables keyed by currency code for year normalization",
+          "propertyNames": { "$ref": "#/$defs/currency_code" },
+          "additionalProperties": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "process_activity_unit": {
+      "oneOf": [
+        { "$ref": "#/$defs/energy_unit" },
+        { "$ref": "#/$defs/service_unit" },
+        { "$ref": "#/$defs/mass_unit" }
+      ],
+      "description": "Process activity unit (energy, service, or mass basis)"
+    },
+    "process_capacity_unit": {
+      "oneOf": [
+        { "$ref": "#/$defs/power_unit" },
+        { "$ref": "#/$defs/energy_unit" },
+        { "$ref": "#/$defs/service_unit" },
+        { "$ref": "#/$defs/mass_unit" }
+      ],
+      "description": "Process capacity unit (power, energy, service, or mass basis)"
+    },
     "process_role": {
       "type": "object",
       "description": "Abstract process contract defining minimum required I/O that any implementing variant must satisfy.",
-      "required": ["id", "required_inputs", "required_outputs"],
+      "required": [
+        "id",
+        "activity_unit",
+        "capacity_unit",
+        "required_inputs",
+        "required_outputs"
+      ],
       "properties": {
         "id": {
           "type": "string",
@@ -246,6 +332,14 @@
           "type": "string",
           "enum": ["supply", "conversion", "distribution", "storage", "end_use", "sink"],
           "description": "Optional stage classification (descriptive, for layout/sankey)"
+        },
+        "activity_unit": {
+          "$ref": "#/$defs/process_activity_unit",
+          "description": "Activity unit shared by all variants implementing this role"
+        },
+        "capacity_unit": {
+          "$ref": "#/$defs/process_capacity_unit",
+          "description": "Capacity unit shared by all variants implementing this role"
         },
         "required_inputs": {
           "type": "array",
@@ -349,31 +443,29 @@
         "investment_cost": {
           "oneOf": [
             { "type": "number", "minimum": 0 },
-            { "$ref": "#/$defs/time_varying_value" }
+            { "$ref": "#/$defs/time_varying_value" },
+            { "$ref": "#/$defs/cost_rate_literal" },
+            { "$ref": "#/$defs/time_varying_cost_rate" }
           ],
           "description": "Capital cost per unit capacity"
         },
         "fixed_om_cost": {
           "oneOf": [
             { "type": "number", "minimum": 0 },
-            { "$ref": "#/$defs/time_varying_value" }
+            { "$ref": "#/$defs/time_varying_value" },
+            { "$ref": "#/$defs/cost_rate_literal" },
+            { "$ref": "#/$defs/time_varying_cost_rate" }
           ],
           "description": "Fixed O&M cost per unit capacity per year"
         },
         "variable_om_cost": {
           "oneOf": [
             { "type": "number", "minimum": 0 },
-            { "$ref": "#/$defs/time_varying_value" }
+            { "$ref": "#/$defs/time_varying_value" },
+            { "$ref": "#/$defs/cost_rate_literal" },
+            { "$ref": "#/$defs/time_varying_cost_rate" }
           ],
           "description": "Variable O&M cost per unit activity"
-        },
-        "activity_unit": {
-          "$ref": "#/$defs/energy_unit",
-          "description": "Activity unit for this variant (defaults to PJ)"
-        },
-        "capacity_unit": {
-          "$ref": "#/$defs/power_unit",
-          "description": "Capacity unit for this variant (defaults to GW)"
         },
         "emission_factors": {
           "type": "object",
@@ -945,19 +1037,25 @@
         "investment_cost": {
           "oneOf": [
             { "type": "number", "minimum": 0 },
-            { "$ref": "#/$defs/time_varying_value" }
+            { "$ref": "#/$defs/time_varying_value" },
+            { "$ref": "#/$defs/cost_rate_literal" },
+            { "$ref": "#/$defs/time_varying_cost_rate" }
           ]
         },
         "fixed_om_cost": {
           "oneOf": [
             { "type": "number", "minimum": 0 },
-            { "$ref": "#/$defs/time_varying_value" }
+            { "$ref": "#/$defs/time_varying_value" },
+            { "$ref": "#/$defs/cost_rate_literal" },
+            { "$ref": "#/$defs/time_varying_cost_rate" }
           ]
         },
         "variable_om_cost": {
           "oneOf": [
             { "type": "number", "minimum": 0 },
-            { "$ref": "#/$defs/time_varying_value" }
+            { "$ref": "#/$defs/time_varying_value" },
+            { "$ref": "#/$defs/cost_rate_literal" },
+            { "$ref": "#/$defs/time_varying_cost_rate" }
           ]
         },
         "lifetime": {

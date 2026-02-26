@@ -37,12 +37,34 @@ All VedaLang process attributes with their TIMES/VEDA mappings:
 
 ## Process Cost Attributes
 
+For P4 (`process_roles`/`process_variants`) models, unit ownership is role-level:
+
+- `process_roles[].activity_unit`
+- `process_roles[].capacity_unit`
+
+Variants inherit these units from their role; variant-level unit overrides are
+not supported.
+
 | VedaLang Attribute | TIMES Attribute | VEDA Column | Unit | Description |
 |-------------------|-----------------|-------------|------|-------------|
-| `investment_cost` | NCAP_COST | ncap_cost | $/GW | Capital cost per unit of new capacity |
-| `fixed_om_cost` | NCAP_FOM | ncap_fom | $/GW/yr | Fixed O&M cost per unit of capacity per year |
-| `variable_om_cost` | ACT_COST | act_cost | $/PJ | Variable cost per unit of activity |
-| `import_price` | IRE_PRICE | ire_price | $/PJ | Price for imported commodity (IMP/EXP only) |
+| `investment_cost` | NCAP_COST | ncap_cost | `<moneyYY>/<capacity_unit>` | Capital cost per unit of new capacity |
+| `fixed_om_cost` | NCAP_FOM | ncap_fom | `<moneyYY>/<capacity_unit>/yr` | Fixed O&M cost per unit of capacity per year |
+| `variable_om_cost` | ACT_COST | act_cost | `<moneyYY>/<activity_unit>` | Variable cost per unit of activity |
+| `import_price` | IRE_PRICE | ire_price | `<moneyYY>/<unit>` | Price for imported commodity (IMP/EXP only) |
+
+When `model.monetary` is set, cost fields must use explicit monetary literals, e.g.:
+
+```yaml
+model:
+  monetary:
+    canonical: MAUD24
+    fx_table: rules/monetary/fx_aud_usd_world_bank_pa_nus_fcrf.yaml
+
+process_variants:
+  - investment_cost: "120 MAUD24/GW"
+    fixed_om_cost: "4 MAUD24/GW/yr"
+    variable_om_cost: "6.944444 MUSD24/PJ"
+```
 
 ---
 

@@ -114,30 +114,40 @@ segments:
 process_roles:
   # Supply
   - id: import_gas
+    activity_unit: PJ
+    capacity_unit: GW
     stage: supply
     required_inputs: []
     required_outputs:
       - commodity: primary:natural_gas
 
   - id: import_oil
+    activity_unit: PJ
+    capacity_unit: GW
     stage: supply
     required_inputs: []
     required_outputs:
       - commodity: primary:crude_oil
 
   - id: import_hydrogen
+    activity_unit: PJ
+    capacity_unit: GW
     stage: supply
     required_inputs: []
     required_outputs:
       - commodity: secondary:hydrogen
 
   - id: supply_wind_resource
+    activity_unit: PJ
+    capacity_unit: GW
     stage: supply
     required_inputs: []
     required_outputs:
       - commodity: resource:wind_resource
 
   - id: supply_solar_resource
+    activity_unit: PJ
+    capacity_unit: GW
     stage: supply
     required_inputs: []
     required_outputs:
@@ -145,12 +155,16 @@ process_roles:
 
   # Conversion — single generation role with variant-level inputs
   - id: generate_electricity
+    activity_unit: PJ
+    capacity_unit: GW
     stage: conversion
     required_inputs: []
     required_outputs:
       - commodity: secondary:electricity
 
   - id: refine_oil
+    activity_unit: PJ
+    capacity_unit: GW
     stage: conversion
     required_inputs:
       - commodity: primary:crude_oil
@@ -158,6 +172,8 @@ process_roles:
       - commodity: primary:petrol
 
   - id: produce_hydrogen
+    activity_unit: PJ
+    capacity_unit: GW
     stage: conversion
     required_inputs:
       - commodity: secondary:electricity_grid
@@ -166,6 +182,8 @@ process_roles:
 
   # Distribution
   - id: transmit_electricity
+    activity_unit: PJ
+    capacity_unit: GW
     stage: conversion
     required_inputs:
       - commodity: secondary:electricity
@@ -173,6 +191,8 @@ process_roles:
       - commodity: secondary:electricity_grid
 
   - id: deliver_gas
+    activity_unit: PJ
+    capacity_unit: GW
     stage: distribution
     required_inputs:
       - commodity: primary:natural_gas
@@ -181,6 +201,8 @@ process_roles:
 
   # End-use: space heat (RES/COM/OTH)
   - id: provide_space_heat
+    activity_unit: PJ
+    capacity_unit: GW
     stage: end_use
     required_inputs: []
     required_outputs:
@@ -188,6 +210,8 @@ process_roles:
 
   # End-use: industrial heat (IND)
   - id: provide_industrial_heat
+    activity_unit: PJ
+    capacity_unit: GW
     stage: end_use
     required_inputs: []
     required_outputs:
@@ -195,6 +219,8 @@ process_roles:
 
   # End-use: transport (TRN)
   - id: provide_passenger_km
+    activity_unit: PJ
+    capacity_unit: GW
     stage: end_use
     required_inputs: []
     required_outputs:
@@ -202,6 +228,8 @@ process_roles:
 
   # End-use: agriculture (AGR)
   - id: provide_farm_work
+    activity_unit: PJ
+    capacity_unit: GW
     stage: end_use
     required_inputs: []
     required_outputs:

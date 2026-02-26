@@ -48,12 +48,16 @@ segments:
 
 process_roles:
   - id: supply_ag_inputs
+    activity_unit: PJ
+    capacity_unit: GW
     stage: supply
     required_inputs: []
     required_outputs:
       - commodity: material:ag_inputs
 
   - id: provide_ag_output
+    activity_unit: PJ
+    capacity_unit: GW
     stage: end_use
     required_inputs:
       - commodity: material:ag_inputs
@@ -61,6 +65,8 @@ process_roles:
       - commodity: service:agricultural_output
 
   - id: remove_co2
+    activity_unit: PJ
+    capacity_unit: GW
     stage: sink
     required_inputs: []
     required_outputs: []

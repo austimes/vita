@@ -177,7 +177,10 @@ def test_demand_projection_scenario():
         },
         "segments": {"sectors": ["RES"]},
         "process_roles": [
-            {"id": "deliver_residential", "stage": "end_use",
+            {"id": "deliver_residential",
+             "activity_unit": "PJ",
+             "capacity_unit": "GW",
+             "stage": "end_use",
              "required_inputs": [{"commodity": "electricity"}],
              "required_outputs": [{"commodity": "residential_demand"}]},
         ],
@@ -237,6 +240,157 @@ def test_demand_projection_scenario():
     assert values_by_year[2050] == 160.0
 
 
+def test_monetary_cost_literal_normalizes_to_canonical_currency():
+    """Explicit cost literals should normalize to model.monetary.canonical."""
+    source = {
+        "model": {
+            "name": "MonetaryNorm",
+            "regions": ["REG1"],
+            "monetary": {
+                "canonical": "MAUD24",
+                "fx_table": "rules/monetary/fx_aud_usd_world_bank_pa_nus_fcrf.yaml",
+            },
+            "commodities": [
+                {"id": "secondary:electricity", "type": "energy", "unit": "PJ"},
+            ],
+        },
+        "process_roles": [
+            {
+                "id": "supply_power",
+                "stage": "supply",
+                "activity_unit": "PJ",
+                "capacity_unit": "PJ",
+                "required_inputs": [],
+                "required_outputs": [{"commodity": "secondary:electricity"}],
+            }
+        ],
+        "process_variants": [
+            {
+                "id": "grid_import",
+                "role": "supply_power",
+                "inputs": [],
+                "outputs": [{"commodity": "secondary:electricity"}],
+                "efficiency": 1.0,
+                "variable_om_cost": "1 MUSD24/PJ",
+            }
+        ],
+        "availability": [{"variant": "grid_import", "regions": ["REG1"]}],
+    }
+
+    tableir = compile_vedalang_to_tableir(source)
+
+    fit_rows = []
+    currencies_rows = []
+    gdrate_rows = []
+    for file_obj in tableir["files"]:
+        for sheet in file_obj["sheets"]:
+            for table in sheet["tables"]:
+                if table["tag"] == "~FI_T":
+                    fit_rows.extend(table["rows"])
+                elif table["tag"] == "~CURRENCIES":
+                    currencies_rows.extend(table["rows"])
+                elif (
+                    table["tag"] == "~TFM_INS"
+                    and sheet["name"].lower() == "constants"
+                ):
+                    gdrate_rows.extend(
+                        [r for r in table["rows"] if r.get("attribute") == "G_DRATE"]
+                    )
+
+    cost_rows = [
+        r
+        for r in fit_rows
+        if r.get("process") == "grid_import_REG1" and "act_cost" in r
+    ]
+    assert len(cost_rows) == 1
+    assert cost_rows[0]["act_cost"] == pytest.approx(1.515358038556, rel=1e-9)
+    assert currencies_rows == [{"currency": "AUD"}]
+    assert len(gdrate_rows) == 1
+    assert gdrate_rows[0]["currency"] == "AUD"
+
+
+def test_monetary_cost_literal_denominator_mismatch_raises():
+    """Cost denominator must match field basis (activity/capacity)."""
+    source = {
+        "model": {
+            "name": "MonetaryMismatch",
+            "regions": ["REG1"],
+            "monetary": {
+                "canonical": "MAUD24",
+                "fx_table": "rules/monetary/fx_aud_usd_world_bank_pa_nus_fcrf.yaml",
+            },
+            "commodities": [
+                {"id": "secondary:electricity", "type": "energy", "unit": "PJ"},
+            ],
+        },
+        "process_roles": [
+            {
+                "id": "supply_power",
+                "activity_unit": "PJ",
+                "capacity_unit": "PJ",
+                "required_inputs": [],
+                "required_outputs": [{"commodity": "secondary:electricity"}],
+            }
+        ],
+        "process_variants": [
+            {
+                "id": "grid_import",
+                "role": "supply_power",
+                "inputs": [],
+                "outputs": [{"commodity": "secondary:electricity"}],
+                "efficiency": 1.0,
+                "variable_om_cost": "10 MAUD24/GW",
+            }
+        ],
+        "availability": [{"variant": "grid_import", "regions": ["REG1"]}],
+    }
+
+    with pytest.raises(SemanticValidationError) as exc_info:
+        compile_vedalang_to_tableir(source)
+    assert "denominator must be 'PJ'" in str(exc_info.value)
+
+
+def test_monetary_policy_rejects_unitless_cost_scalars():
+    """When model.monetary is enabled, cost scalars must be explicit literals."""
+    source = {
+        "model": {
+            "name": "MonetaryExplicit",
+            "regions": ["REG1"],
+            "monetary": {
+                "canonical": "MAUD24",
+                "fx_table": "rules/monetary/fx_aud_usd_world_bank_pa_nus_fcrf.yaml",
+            },
+            "commodities": [
+                {"id": "secondary:electricity", "type": "energy", "unit": "PJ"},
+            ],
+        },
+        "process_roles": [
+            {
+                "id": "supply_power",
+                "activity_unit": "PJ",
+                "capacity_unit": "PJ",
+                "required_inputs": [],
+                "required_outputs": [{"commodity": "secondary:electricity"}],
+            }
+        ],
+        "process_variants": [
+            {
+                "id": "grid_import",
+                "role": "supply_power",
+                "inputs": [],
+                "outputs": [{"commodity": "secondary:electricity"}],
+                "efficiency": 1.0,
+                "variable_om_cost": 10,
+            }
+        ],
+        "availability": [{"variant": "grid_import", "regions": ["REG1"]}],
+    }
+
+    with pytest.raises(SemanticValidationError) as exc_info:
+        compile_vedalang_to_tableir(source)
+    assert "explicit cost literal string" in str(exc_info.value)
+
+
 def test_demand_projection_creates_scenario_file():
     """demand_projection SHOULD create a separate scenario file.
 
@@ -258,6 +412,8 @@ def test_demand_projection_creates_scenario_file():
         "process_roles": [
             {
                 "id": "deliver_residential",
+                "activity_unit": "PJ",
+                "capacity_unit": "GW",
                 "stage": "end_use",
                 "required_inputs": [{"commodity": "electricity"}],
                 "required_outputs": [{"commodity": "residential_demand"}],
@@ -1743,7 +1899,7 @@ def test_unit_warning_for_unusual_activity_unit():
 
 
 def test_unit_warning_for_unusual_capacity_unit():
-    """Non-power capacity_unit should generate warning."""
+    """Unsupported capacity_unit should generate warning."""
     model = {
         "name": "CapUnitWarningTest",
         "regions": ["REG1"],
@@ -1753,7 +1909,7 @@ def test_unit_warning_for_unusual_capacity_unit():
                 "name": "PP_CCGT",
                 "sets": ["ELE"],
                 "primary_commodity_group": "NRGO",
-                "capacity_unit": "Mt",
+                "capacity_unit": "foo",
                 "outputs": [{"commodity": "C:ELC"}],
                 "efficiency": 0.55,
             },
@@ -1762,7 +1918,7 @@ def test_unit_warning_for_unusual_capacity_unit():
     errors, warnings = validate_cross_references(model)
     assert len(errors) == 0
     assert len(warnings) == 1
-    assert "Mt" in warnings[0]
+    assert "foo" in warnings[0]
     assert "capacity_unit" in warnings[0]
 
 
@@ -2438,6 +2594,8 @@ def test_default_commodity_units_demand():
         "process_roles": [
             {
                 "id": "deliver_residential",
+                "activity_unit": "PJ",
+                "capacity_unit": "GW",
                 "stage": "end_use",
                 "required_inputs": [{"commodity": "electricity"}],
                 "required_outputs": [{"commodity": "residential_demand"}],
@@ -2637,11 +2795,11 @@ def test_prc_capact_emitted_for_gw_pj_units():
     )
 
 
-def test_new_syntax_variant_units_emit_tact_tcap_and_prc_capact():
-    """P4 variants should emit authored tact/tcap and computed PRC_CAPACT."""
+def test_new_syntax_role_units_emit_tact_tcap_and_prc_capact():
+    """P4 role units should emit authored tact/tcap and computed PRC_CAPACT."""
     source = _base_new_syntax_source()
-    source["process_variants"][0]["activity_unit"] = "TWh"
-    source["process_variants"][0]["capacity_unit"] = "GW"
+    source["process_roles"][0]["activity_unit"] = "TWh"
+    source["process_roles"][0]["capacity_unit"] = "GW"
 
     tableir = compile_vedalang_to_tableir(source)
 
@@ -2890,6 +3048,8 @@ def _base_new_syntax_source() -> dict:
             {
                 "id": "provide_space_heat",
                 "stage": "end_use",
+                "activity_unit": "PJ",
+                "capacity_unit": "GW",
                 "required_inputs": [{"commodity": "electricity"}],
                 "required_outputs": [{"commodity": "space_heat"}],
             }
@@ -2938,6 +3098,8 @@ def _new_syntax_conversion_source() -> dict:
         "process_roles": [
             {
                 "id": "generate_electricity",
+                "activity_unit": "PJ",
+                "capacity_unit": "GW",
                 "stage": "conversion",
                 "required_inputs": [{"commodity": "primary:natural_gas"}],
                 "required_outputs": [{"commodity": "secondary:electricity"}],
@@ -3046,6 +3208,8 @@ def test_new_syntax_detects_duplicate_service_roles_with_merge_hint():
     source["process_roles"].append(
         {
             "id": "heat_from_gas",
+            "activity_unit": "PJ",
+            "capacity_unit": "GW",
             "stage": "end_use",
             "required_inputs": [{"commodity": "gas"}],
             "required_outputs": [{"commodity": "space_heat"}],
@@ -3083,6 +3247,8 @@ def test_new_syntax_w1_detects_identical_io_split_across_roles():
     source["process_roles"].append(
         {
             "id": "space_heat_with_alt_grid",
+            "activity_unit": "PJ",
+            "capacity_unit": "GW",
             "stage": "end_use",
             "required_inputs": [{"commodity": "electricity"}],
             "required_outputs": [{"commodity": "space_heat"}],
@@ -3114,6 +3280,8 @@ def test_new_syntax_false_positive_guard_different_service_outputs():
     source["process_roles"].append(
         {
             "id": "provide_water_heat",
+            "activity_unit": "PJ",
+            "capacity_unit": "GW",
             "stage": "end_use",
             "required_inputs": [{"commodity": "electricity"}],
             "required_outputs": [{"commodity": "water_heat"}],

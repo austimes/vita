@@ -37,12 +37,16 @@ class Role:
         required_inputs: Minimum required input commodity IDs
         required_outputs: Minimum required output commodity IDs
         stage: Optional stage classification (supply, conversion, end_use, etc.)
+        activity_unit: Activity unit for all variants implementing this role
+        capacity_unit: Capacity unit for all variants implementing this role
     """
 
     id: str
     required_inputs: list[str]
     required_outputs: list[str]
     stage: str | None = None
+    activity_unit: str = "PJ"
+    capacity_unit: str = "GW"
 
 
 @dataclass
@@ -158,6 +162,8 @@ def build_roles(
             required_inputs=required_inputs,
             required_outputs=required_outputs,
             stage=raw.get("stage"),
+            activity_unit=raw["activity_unit"],
+            capacity_unit=raw["capacity_unit"],
         )
 
     return roles
@@ -190,8 +196,6 @@ def build_variants(
 
     attr_keys = {
         "kind",
-        "activity_unit",
-        "capacity_unit",
         "efficiency",
         "performance_metric",
         "lifetime",

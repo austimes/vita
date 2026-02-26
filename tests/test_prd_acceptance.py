@@ -141,6 +141,8 @@ class TestA3_NoZeroInputEndUse:
             "process_roles": [
                 {
                     "id": "provide_space_heat",
+                    "activity_unit": "PJ",
+                    "capacity_unit": "GW",
                     "stage": "end_use",
                     "required_inputs": [],
                     "required_outputs": [{"commodity": "space_heat"}],
@@ -315,6 +317,8 @@ class TestA8_CompilerStructuralInvariants:
             "process_roles": [
                 {
                     "id": "provide_space_heat",
+                    "activity_unit": "PJ",
+                    "capacity_unit": "GW",
                     "stage": "end_use",
                     "required_inputs": [{"commodity": "electricity"}],
                     "required_outputs": [{"commodity": "space_heat"}],
@@ -372,7 +376,10 @@ class TestA8_CompilerStructuralInvariants:
         src = self._base_source()
         src["model"]["commodities"].append({"id": "gas", "type": "fuel"})
         src["process_roles"].append(
-            {"id": "heat_from_gas", "stage": "end_use",
+            {"id": "heat_from_gas",
+             "activity_unit": "PJ",
+             "capacity_unit": "GW",
+             "stage": "end_use",
              "required_inputs": [{"commodity": "gas"}],
              "required_outputs": [{"commodity": "space_heat"}]},
         )

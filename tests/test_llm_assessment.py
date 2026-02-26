@@ -36,6 +36,8 @@ MINIMAL_SOURCE = {
     "process_roles": [
         {
             "id": "provide_space_heat",
+            "activity_unit": "PJ",
+            "capacity_unit": "GW",
             "stage": "end_use",
             "required_inputs": [{"commodity": "electricity"}],
             "required_outputs": [{"commodity": "space_heat"}],

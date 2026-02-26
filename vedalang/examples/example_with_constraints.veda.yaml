@@ -62,24 +62,32 @@ segments:
 
 process_roles:
   - id: import_natural_gas
+    activity_unit: PJ
+    capacity_unit: GW
     stage: supply
     required_inputs: []
     required_outputs:
       - commodity: primary:natural_gas
 
   - id: supply_wind_resource
+    activity_unit: PJ
+    capacity_unit: GW
     stage: supply
     required_inputs: []
     required_outputs:
       - commodity: resource:wind_resource
 
   - id: supply_solar_resource
+    activity_unit: PJ
+    capacity_unit: GW
     stage: supply
     required_inputs: []
     required_outputs:
       - commodity: resource:solar_resource
 
   - id: provide_electricity
+    activity_unit: PJ
+    capacity_unit: GW
     stage: conversion
     required_inputs: []
     required_outputs:

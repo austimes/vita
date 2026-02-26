@@ -1,0 +1,548 @@
+{
+  "components": {
+    "electricity_import": {
+      "checked_at": "2026-02-26T02:50:32.030923+00:00",
+      "fingerprint": "sha256:d5c4dde5154fc5bd6bf4943ce51c7405f8c530fdec944d2293aafb76a490d312",
+      "models": [
+        "gpt-5.2",
+        "gpt-5"
+      ],
+      "quorum": "0/2",
+      "status": "needs_review",
+      "votes": [
+        {
+          "critical_count": 1,
+          "findings": [
+            {
+              "expected_commodity_units": {
+                "secondary:electricity": "PJ"
+              },
+              "expected_process_units": {
+                "activity_unit": "PJ",
+                "capacity_unit": "GW"
+              },
+              "field": null,
+              "message": "Role/process capacity_unit is set to an energy unit (PJ). This makes investment_cost and fixed_om_cost (if later added) be expressed per PJ of capacity, which is usually a power concept (e.g., MW/GW) for electricity supply/import capacity. Using PJ as capacity can be valid only if your model defines capacity as annual energy throughput rather than instantaneous power, but that choice must be consistent across all electricity supply processes and constraints.",
+              "model_expectation": "Electricity supply/import 'capacity' typically represents power (rate), not energy. If ToyTransport uses energy-throughput capacity everywhere, then PJ is acceptable but should be consistently applied.",
+              "observed_units": {
+                "commodity_units": {
+                  "secondary:electricity": "PJ"
+                },
+                "process_activity_unit": "PJ",
+                "process_capacity_unit": "PJ"
+              },
+              "severity": "warning",
+              "suggestion": "Decide and document the intended meaning of electricity supply 'capacity'. If it is physical interconnector capacity, change capacity_unit to a power unit (MW or GW) in the role (variants inherit). If it is an annual energy availability/throughput limit, keep PJ but ensure all comparable electricity supply/import processes also use energy-as-capacity and that any capacity constraints are formulated accordingly."
+            },
+            {
+              "expected_commodity_units": {
+                "secondary:electricity": "PJ"
+              },
+              "expected_process_units": {
+                "activity_unit": "PJ",
+                "capacity_unit": "PJ"
+              },
+              "field": null,
+              "message": "variable_om_cost is given as 6.944444 MUSD24/PJ. Given canonical monetary policy MAUD24, this is allowed syntactically, but it implies either (a) cross-currency handling via fx_table at runtime, or (b) an unintended currency mismatch. Also, the numeric value looks like a unit-conversion artifact: 6.944444 = 25/3.6, which is exactly a MWh\u2194GJ conversion factor, suggesting the cost may have been converted from a $/MWh value without confirming the intended magnitude.",
+              "model_expectation": "variable_om_cost denominator must match activity_unit (PJ). Monetary unit token may differ from canonical but should reflect correct currency and magnitude (USD vs MUSD).",
+              "observed_units": {
+                "process_activity_unit": "PJ",
+                "variable_om_cost": "6.944444 MUSD24/PJ"
+              },
+              "severity": "warning",
+              "suggestion": "Confirm the source tariff and currency. If the intended price is ~25 AUD/MWh, then the consistent expression in MAUD24/PJ would be 6.944444 MAUD24/GJ \u00d7 1000 GJ/PJ = 6944.444 MAUD24/PJ, not 6.944444 per PJ. Alternatively, if the intended price is ~25 USD/MWh, then use 6944.444 MUSD24/PJ only if you truly mean million-USD per PJ (very large). More plausibly, you want 6.944444 USD24/GJ (not MUSD) or 6944.444 USD24/PJ. Choose one and encode with the correct monetary magnitude token."
+            },
+            {
+              "expected_commodity_units": {
+                "secondary:electricity": "PJ"
+              },
+              "expected_process_units": {
+                "activity_unit": "PJ",
+                "capacity_unit": "PJ"
+              },
+              "field": null,
+              "message": "variable_om_cost magnitude is almost certainly off by a factor of 1e6 (MUSD vs USD) and/or 1e3 (GJ vs PJ). If interpreted literally, 6.944444 MUSD24/PJ = 6.944444 million USD per PJ = 6.944444 USD/GJ = 25 USD/MWh. That is a plausible electricity import price ONLY if you intended USD (not million USD). As written, it encodes the right $/MWh price but with an unconventional and error-prone scaling (MUSD per PJ). This is a classic inversion/factor mistake risk.",
+              "model_expectation": "Costs should be expressed with correct monetary magnitude (USD vs kUSD vs MUSD) and correct energy scaling (PJ vs GJ vs MWh). Avoid relying on accidental cancellation of 'million' with 'per PJ'.",
+              "observed_units": {
+                "variable_om_cost": "6.944444 MUSD24/PJ"
+              },
+              "severity": "critical",
+              "suggestion": "Encode the tariff in a non-million currency token unless you explicitly want 'million currency units'. Recommended fix: use either (a) \"6.944444 USD24/GJ\" if your schema allowed GJ denominators (it does in unit_symbol but the cost denominator pattern is free-form; however your activity_unit is PJ, so better is (b) \"6944.444 USD24/PJ\". If you want canonical currency, convert to AUD and use \"6944.444 MAUD24/PJ\" only if MAUD24 denotes 1 AUD (not million AUD); if MAUD24 is intended as 'million AUD', then instead use \"6.944444 AUD24/GJ\" equivalent form. Given your patterns, keep denominator as PJ: \"6944.444 AUD24/PJ\" or \"6944.444 MAUD24/PJ\" depending on whether MAUD24 represents AUD or million-AUD in your monetary convention."
+            },
+            {
+              "expected_commodity_units": null,
+              "expected_process_units": null,
+              "field": null,
+              "message": "efficiency = 1.0 with no inputs and one electricity output is internally consistent for an exogenous import/supply process (it is effectively a source). No HHV/LHV basis issues are implicated for electricity itself.",
+              "model_expectation": null,
+              "observed_units": null,
+              "severity": "suggestion",
+              "suggestion": "No change needed unless you later add an input commodity (e.g., primary energy) in which case efficiency should reflect the conversion basis (and HHV/LHV alignment) of that fuel."
+            }
+          ],
+          "model": "gpt-5.2",
+          "status": "needs_review"
+        },
+        {
+          "critical_count": 0,
+          "findings": [
+            {
+              "expected_commodity_units": {
+                "secondary:electricity": "PJ"
+              },
+              "expected_process_units": "PJ/PJ",
+              "field": null,
+              "message": "variable_om_cost uses a non-canonical monetary token (MUSD24) while the model policy sets canonical = MAUD24. Units and denominator are otherwise correct.",
+              "model_expectation": "variable_om_cost must be expressed as <moneyYY>/<activity_unit> in the model\u2019s canonical monetary token (MAUD24). Denominator must equal the process activity_unit (PJ).",
+              "observed_units": {
+                "activity_unit": "PJ",
+                "capacity_unit": "PJ",
+                "secondary:electricity": "PJ",
+                "variable_om_cost": "MUSD24/PJ"
+              },
+              "severity": "warning",
+              "suggestion": "Convert the variable_om_cost to the canonical currency per policy using the configured FX table. Replace 6.944444 MUSD24/PJ with the FX-converted value in MAUD24: `<converted_value> MAUD24/PJ`."
+            },
+            {
+              "expected_commodity_units": null,
+              "expected_process_units": null,
+              "field": null,
+              "message": "Capacity_unit is set to an energy unit (PJ). If capacity is intended to represent instantaneous import capacity (power), consider using MW for capacity_unit and keeping activity in energy units, or document that capacity in PJ represents an annual energy cap.",
+              "model_expectation": null,
+              "observed_units": null,
+              "severity": "suggestion",
+              "suggestion": null
+            },
+            {
+              "expected_commodity_units": null,
+              "expected_process_units": null,
+              "field": null,
+              "message": "Efficiency = 1.0 on a supply process with no inputs is redundant. Confirm the engine either ignores it or keep it at 1.0 for clarity; consider omitting if supported.",
+              "model_expectation": null,
+              "observed_units": null,
+              "severity": "suggestion",
+              "suggestion": null
+            }
+          ],
+          "model": "gpt-5",
+          "status": "needs_review"
+        }
+      ]
+    },
+    "ev_car": {
+      "checked_at": "2026-02-26T02:55:31.704178+00:00",
+      "fingerprint": "sha256:38840b211e6916023573c72734747f65945d60002b7822967ea77284e4d5e320",
+      "models": [
+        "gpt-5.2",
+        "gpt-5"
+      ],
+      "quorum": "0/2",
+      "status": "needs_review",
+      "votes": [
+        {
+          "critical_count": 1,
+          "findings": [
+            {
+              "expected_commodity_units": {
+                "secondary:electricity": "PJ",
+                "service:passenger_km": "Bvkm"
+              },
+              "expected_process_units": {
+                "activity_unit": "Bvkm",
+                "capacity_unit": "Bvkm"
+              },
+              "field": null,
+              "message": "Efficiency is dimensionally inconsistent: process activity is in service units (Bvkm) while the input commodity is energy (PJ). With efficiency=1.0, the model implies 1 Bvkm output requires 1 PJ electricity input (or produces 1 Bvkm per 1 PJ), which is physically impossible and indicates a missing energy-intensity conversion (kWh/vkm) represented via efficiency/coefficient.",
+              "model_expectation": "When activity is Bvkm and there is an energy input in PJ, the model requires a conversion factor linking PJ to Bvkm (energy intensity or its inverse). A unitless efficiency of 1.0 cannot represent PJ\u2194Bvkm without embedding an implicit conversion, which would be wrong by many orders of magnitude.",
+              "observed_units": {
+                "efficiency": "1.0 (unitless scalar applied across PJ<->Bvkm)",
+                "input_commodity_unit": "PJ",
+                "output_commodity_unit": "Bvkm",
+                "process_activity_unit": "Bvkm",
+                "process_capacity_unit": "Bvkm"
+              },
+              "severity": "critical",
+              "suggestion": "Replace the single scalar efficiency with an energy-intensity mapping between electricity (PJ) and passenger travel (Bvkm). In many energy-system DSLs this is represented as an input coefficient (PJ per Bvkm) or, if only 'efficiency' is available, redefine activity unit to an energy basis (e.g., PJ of travel energy) and model passenger-km via a separate conversion. If this DSL uses 'efficiency' as output/input, then set efficiency to (Bvkm per PJ) consistent with an assumed kWh/km and occupancy, or introduce an explicit coefficient: electricity_input = X PJ per Bvkm. Example order-of-magnitude: ~0.18 kWh/km and 1.5 passengers/vehicle => ~0.12 kWh/passenger-km => 0.12 TWh/Bvkm => 0.432 PJ/Bvkm (since 1 TWh = 3.6 PJ)."
+            },
+            {
+              "expected_commodity_units": {
+                "service:passenger_km": "Bvkm"
+              },
+              "expected_process_units": {
+                "activity_unit": "Bvkm",
+                "capacity_unit": "Bvkm"
+              },
+              "field": null,
+              "message": "Capacity_unit is set to Bvkm, which is uncommon for an end-use transport technology: capacity is typically a rate (e.g., Bvkm/yr) or a stock proxy (e.g., vehicles) while activity is Bvkm. Using Bvkm for both capacity and activity can be valid only if the wider model interprets 'capacity' as annual service output, but then investment_cost units should be per (Bvkm/yr) not per Bvkm.",
+              "model_expectation": "Investment_cost must be currency per capacity_unit. If capacity is intended as an annualized service rate but unit is encoded as Bvkm, the numeric value must reflect that implicit '/yr' to avoid a basis mismatch.",
+              "observed_units": {
+                "capacity_unit": "Bvkm",
+                "investment_cost": "100 MAUD24/Bvkm"
+              },
+              "severity": "warning",
+              "suggestion": "Confirm the DSL semantics: if capacity represents an annual service capability, change capacity_unit to a rate-like unit if available (not in enum) or document that 'Bvkm capacity' means 'Bvkm/yr'. If the framework truly treats capacity in the same unit as activity, ensure that investment_cost is calibrated accordingly (capex per unit of annual service) and not per unit of one-time passenger-km."
+            },
+            {
+              "expected_commodity_units": {
+                "secondary:electricity": "PJ",
+                "service:passenger_km": "Bvkm"
+              },
+              "expected_process_units": {
+                "activity_unit": "Bvkm",
+                "capacity_unit": "Bvkm"
+              },
+              "field": null,
+              "message": "variable_om_cost is specified as 20 MAUD24/Bvkm while electricity is an explicit input commodity. This risks double-counting energy costs (if electricity also has a price) or, conversely, missing variable costs if 20 MAUD24/Bvkm was meant to represent electricity purchase cost rather than non-energy O&M.",
+              "model_expectation": "variable_om_cost is currency per activity_unit (Bvkm). Energy commodity costs should normally be accounted via the commodity price multiplied by the energy input coefficient; otherwise costs may be inconsistent.",
+              "observed_units": {
+                "input_present": "secondary:electricity",
+                "variable_om_cost": "20 MAUD24/Bvkm"
+              },
+              "severity": "warning",
+              "suggestion": "Clarify what variable_om_cost represents. If electricity is priced elsewhere, set variable_om_cost to non-energy O&M only (typically small per km) and keep electricity consumption via the corrected input coefficient. If electricity is not priced, then either (a) keep variable_om_cost as a bundled electricity+O&M cost per Bvkm and remove/zero the electricity input, or (b) keep electricity input and set variable_om_cost to non-energy only."
+            },
+            {
+              "expected_commodity_units": null,
+              "expected_process_units": null,
+              "field": null,
+              "message": "No HHV/LHV basis issue is explicitly identifiable because the only energy carrier is electricity (typically no HHV/LHV distinction). After adding an electricity intensity coefficient, ensure it is on a final electricity basis (delivered electricity) consistent with the 'secondary:electricity' commodity definition.",
+              "model_expectation": null,
+              "observed_units": null,
+              "severity": "suggestion",
+              "suggestion": null
+            }
+          ],
+          "model": "gpt-5.2",
+          "status": "fail"
+        },
+        {
+          "critical_count": 1,
+          "findings": [
+            {
+              "expected_commodity_units": {
+                "secondary:electricity": "PJ",
+                "service:passenger_km": "Bvkm"
+              },
+              "expected_process_units": "activity_unit: Bvkm, capacity_unit: Bvkm",
+              "field": null,
+              "message": "Missing electricity input intensity (inputs[0].coefficient). Without an explicit coefficient, the model may assume an implicit default (often 1 PJ/Bvkm), which is ambiguous and likely not intended.",
+              "model_expectation": "For energy inputs, coefficients must be explicit and expressed as commodity_unit per activity_unit (here: PJ/Bvkm). This avoids hidden defaults and ensures physically plausible intensities.",
+              "observed_units": "No inputs[0].coefficient provided (implicit default ~ PJ/Bvkm if applied); activity_unit=Bvkm, capacity_unit=Bvkm; electricity unit=PJ; service unit=Bvkm.",
+              "severity": "critical",
+              "suggestion": "Add an explicit energy-per-service coefficient on the electricity input. Example (typical EV ~0.15\u20130.2 kWh/km): set component.inputs[0].coefficient to 0.54 PJ/Bvkm (for 0.15 kWh/km) or calibrate as needed (e.g., 0.6\u20130.7 PJ/Bvkm)."
+            },
+            {
+              "expected_commodity_units": {
+                "secondary:electricity": "PJ",
+                "service:passenger_km": "Bvkm"
+              },
+              "expected_process_units": "activity_unit: Bvkm, capacity_unit: Bvkm",
+              "field": null,
+              "message": "efficiency: 1.0 is ambiguous for a service-providing process (electricity to passenger-km). Efficiency is intended for energy-to-energy conversions; here it can conflict with or obscure the required input intensity.",
+              "model_expectation": "Service processes should specify input intensities (commodity_unit per activity_unit). Use efficiency only when both input and output share a compatible physical basis.",
+              "observed_units": "efficiency is dimensionless (1.0); no outputs[0].coefficient specified (defaults to 1 per activity).",
+              "severity": "warning",
+              "suggestion": "Remove the efficiency field and control energy use solely via inputs[0].coefficient (PJ/Bvkm). If you need an explicit output mapping, set outputs[0].coefficient: 1.0 instead."
+            },
+            {
+              "expected_commodity_units": null,
+              "expected_process_units": null,
+              "field": null,
+              "message": "Consider adding fixed_om_cost if applicable to represent standing costs tied to Bvkm capacity.",
+              "model_expectation": null,
+              "observed_units": null,
+              "severity": "suggestion",
+              "suggestion": "Example: \"fixed_om_cost\": \"5 MAUD24/Bvkm/yr\" (denominator must be /capacity_unit/yr)."
+            }
+          ],
+          "model": "gpt-5",
+          "status": "fail"
+        }
+      ]
+    },
+    "ice_car": {
+      "checked_at": "2026-02-26T02:53:08.978916+00:00",
+      "fingerprint": "sha256:b2c41f710566a1b3a4942af22c72f7233515db3a51e969bb3d961ee85dce303b",
+      "models": [
+        "gpt-5.2",
+        "gpt-5"
+      ],
+      "quorum": "0/2",
+      "status": "needs_review",
+      "votes": [
+        {
+          "critical_count": 1,
+          "findings": [
+            {
+              "expected_commodity_units": {
+                "primary:petrol": "PJ",
+                "service:passenger_km": "Bvkm"
+              },
+              "expected_process_units": {
+                "activity_unit": "Bvkm",
+                "capacity_unit": "Bvkm"
+              },
+              "field": null,
+              "message": "Energy-to-service conversion is undefined/incorrect: the process has activity_unit=Bvkm (service output basis) but the only physical input is primary:petrol in PJ, and efficiency=1.0 cannot be dimensionless/plausible across mismatched units (PJ vs Bvkm). As written, the model cannot infer petrol consumption per passenger-km (or vehicle-km), and may implicitly treat 1 Bvkm activity as requiring 1 PJ input (or even 0 input), which is a major inversion/factor risk.",
+              "model_expectation": "With activity on service (Bvkm), all non-service inputs must be linked via explicit coefficients with units of (input_unit/activity_unit), here PJ/Bvkm. A dimensionless efficiency cannot resolve PJ\u2194Bvkm.",
+              "observed_units": {
+                "efficiency": 1.0,
+                "input_commodities": {
+                  "primary:petrol": "PJ"
+                },
+                "output_commodities": {
+                  "service:passenger_km": "Bvkm"
+                },
+                "process_activity_unit": "Bvkm",
+                "process_capacity_unit": "Bvkm"
+              },
+              "severity": "critical",
+              "suggestion": "Define an explicit fuel intensity coefficient on the petrol input (preferred with activity_unit=Bvkm), e.g., set an input coefficient with units PJ/Bvkm (or TJ/Bvkm) representing petrol required per unit travel service. Typical order-of-magnitude for cars is ~1\u20134 PJ/Bvkm depending on whether Bvkm means billion passenger-km vs billion vehicle-km and assumptions on occupancy/efficiency. Alternatively, if your DSL only supports dimensionless efficiency, change the process activity_unit to an energy unit (PJ) and represent service output via an output coefficient in Bvkm/PJ; do NOT use efficiency=1.0 to bridge different physical dimensions."
+            },
+            {
+              "expected_commodity_units": {
+                "service:passenger_km": "Bvkm"
+              },
+              "expected_process_units": {
+                "activity_unit": "Bvkm",
+                "capacity_unit": "Bvkm"
+              },
+              "field": null,
+              "message": "Service name/unit mismatch risk: output commodity is named service:passenger_km but its unit is Bvkm (billion vehicle-km). If Bvkm is truly vehicle-km, then the commodity name/description implies passenger-km and will cause systematic scaling/occupancy errors (e.g., emissions per passenger-km vs per vehicle-km).",
+              "model_expectation": "Service commodity names should match their unit semantics to avoid implicit occupancy or billion-scaling mistakes.",
+              "observed_units": {
+                "service:passenger_km": "Bvkm"
+              },
+              "severity": "warning",
+              "suggestion": "Either (a) rename the service commodity to service:vehicle_km (and update descriptions/role names) if Bvkm means vehicle-km, OR (b) if you intend passenger-km, keep the name but document that Bvkm represents billion passenger-km and ensure all intensity coefficients (PJ/Bvkm, emissions/Bvkm) are calibrated on a passenger-km basis (including occupancy)."
+            },
+            {
+              "expected_commodity_units": {
+                "primary:petrol": "PJ",
+                "service:passenger_km": "Bvkm"
+              },
+              "expected_process_units": {
+                "activity_unit": "Bvkm",
+                "capacity_unit": "Bvkm"
+              },
+              "field": null,
+              "message": "Emission factor lacks explicit unit basis and could be off by 10^3\u201310^6 if the DSL interprets it per activity (Bvkm) vs per fuel energy (PJ). The value 0.067 is numerically consistent with ~67 ktCO2/PJ (=67 kg/GJ) for petrol combustion, but only if your emission factor convention is mass-per-energy-input with mass unit Mt and energy unit PJ.",
+              "model_expectation": "Emission factors must have an unambiguous denominator (per input energy unit PJ of petrol, or per activity unit Bvkm). Values should be calibrated on LHV vs HHV consistently with the petrol commodity energy basis.",
+              "observed_units": {
+                "emission:co2_factor_value": 0.067
+              },
+              "severity": "warning",
+              "suggestion": "Confirm and enforce the emission factor basis. If emission factors are per unit of fuel input energy, encode/interpret 0.067 as 0.067 MtCO2/PJ of petrol (\u224867 kgCO2/GJ, LHV). If emission factors are per unit activity (Bvkm), then 0.067 MtCO2/Bvkm implies 67 kt per billion km (=67 g/km if Bvkm is vehicle-km; or 67 g/pkm if Bvkm is passenger-km), which may or may not be intended\u2014calibrate accordingly. Add/confirm emissions commodity units in the model so this cannot be misinterpreted."
+            },
+            {
+              "expected_commodity_units": null,
+              "expected_process_units": null,
+              "field": null,
+              "message": "Capacity_unit=Bvkm is unusual for a vehicle technology because capacity typically represents a rate (e.g., Bvkm/yr) or a stock proxy; with the current schema lacking '/yr' in capacity units, be explicit in documentation whether capacity is interpreted as annual service capability, peak service, or a normalized capacity proxy. This affects investment_cost and fixed_om_cost denominators if later added.",
+              "model_expectation": null,
+              "observed_units": null,
+              "severity": "suggestion",
+              "suggestion": null
+            }
+          ],
+          "model": "gpt-5.2",
+          "status": "fail"
+        },
+        {
+          "critical_count": 2,
+          "findings": [
+            {
+              "expected_commodity_units": {
+                "primary:petrol": "PJ",
+                "service:passenger_km": "Bvkm"
+              },
+              "expected_process_units": {
+                "activity_unit": "Bvkm",
+                "capacity_unit": "Bvkm"
+              },
+              "field": null,
+              "message": "Dimensional inconsistency: fuel input is in PJ and service output/activity are in Bvkm, but the component uses a scalar efficiency=1.0 instead of an explicit input coefficient in PJ/Bvkm. This will under-specify fuel consumption and implicitly assumes 1 Bvkm per 1 (dimensionless) unit of input.",
+              "model_expectation": "When the process activity/output are service units (Bvkm) and an input commodity is an energy fuel (PJ), the input must be provided as a coefficient with units [commodity_unit]/[activity_unit] (e.g., PJ/Bvkm). The generic scalar 'efficiency' should only be used when inputs and outputs share a compatible basis (e.g., energy-in/energy-out).",
+              "observed_units": {
+                "efficiency": "dimensionless 1.0",
+                "emission_factors": "unqualified scalar 0.067",
+                "inputs": {
+                  "primary:petrol": "PJ"
+                },
+                "outputs": {
+                  "service:passenger_km": "Bvkm"
+                },
+                "process_activity_unit": "Bvkm",
+                "process_capacity_unit": "Bvkm",
+                "variable_om_cost": "MAUD24/Bvkm"
+              },
+              "severity": "critical",
+              "suggestion": "Remove the efficiency field and add an explicit fuel input coefficient with units PJ/Bvkm on primary:petrol. For a typical ICE car (~7 L/100 km gasoline, ~34.2 MJ/L LHV), a reasonable starting coefficient is about 2.4 PJ/Bvkm. Example: inputs: [{ commodity: \"primary:petrol\", coefficient: \"2.4 PJ/Bvkm\" }]. Calibrate to your dataset and document whether the basis is LHV/HHV."
+            },
+            {
+              "expected_commodity_units": {
+                "emission:co2": "Mt",
+                "primary:petrol": "PJ",
+                "service:passenger_km": "Bvkm"
+              },
+              "expected_process_units": {
+                "activity_unit": "Bvkm",
+                "capacity_unit": "Bvkm"
+              },
+              "field": null,
+              "message": "Emission factor is unitless and ambiguous. For fossil fuels, emission factors must be expressed as mass per unit energy input (e.g., kt/PJ or Mt/PJ) and should state the heating-value basis (LHV/HHV).",
+              "model_expectation": "Emission factors are coefficients with units [mass_unit]/[input_commodity_unit] applied to emitting flows. For petrol: mass per PJ of primary:petrol, with the heating-value basis explicitly stated and consistent with any energy-intensity coefficients.",
+              "observed_units": {
+                "emission_factors": "0.067 (no unit)",
+                "inputs": {
+                  "primary:petrol": "PJ"
+                },
+                "outputs": {
+                  "service:passenger_km": "Bvkm"
+                },
+                "process_activity_unit": "Bvkm",
+                "process_capacity_unit": "Bvkm"
+              },
+              "severity": "critical",
+              "suggestion": "Specify an explicit unit. For petrol/gasoline on an LHV basis, use approximately 0.069 Mt/PJ (i.e., 69 kt/PJ per IPCC defaults). If you intend to keep the current magnitude, encode it as \"0.067 Mt/PJ\" and document the basis. Example: emission_factors: { \"emission:co2\": \"0.069 Mt/PJ\" } and, if supported, add a basis tag like emission_factor_basis: { \"emission:co2\": \"LHV\" }."
+            },
+            {
+              "expected_commodity_units": {
+                "primary:petrol": "PJ",
+                "service:vehicle_km": "Bvkm"
+              },
+              "expected_process_units": {
+                "activity_unit": "Bvkm",
+                "capacity_unit": "Bvkm"
+              },
+              "field": null,
+              "message": "Service commodity is named 'passenger_km' but the declared unit is Bvkm (vehicle-km). This semantic/unit mismatch can lead to double-counting or wrong intensity if occupancy is applied elsewhere.",
+              "model_expectation": "Commodity semantics should align with declared units. If units are Bvkm, the service is vehicle-km. If representing passenger-km, occupancy mapping must be explicit and consistently applied across coefficients and demands.",
+              "observed_units": {
+                "outputs": {
+                  "service:passenger_km": "Bvkm"
+                }
+              },
+              "severity": "warning",
+              "suggestion": "Either (a) rename the commodity to 'service:vehicle_km' and the role to 'provide_vehicle_km' to align with Bvkm; or (b) if you truly intend passenger-km, incorporate occupancy explicitly and ensure all intensities and costs are per passenger-km. Given the allowed service_unit set only includes Bvkm, option (a) is recommended to avoid off-schema units. Update any demand mapping accordingly."
+            },
+            {
+              "expected_commodity_units": null,
+              "expected_process_units": null,
+              "field": null,
+              "message": "Document LHV vs HHV basis for the fuel intensity coefficient and ensure consistency with the chosen emission factor basis.",
+              "model_expectation": null,
+              "observed_units": null,
+              "severity": "suggestion",
+              "suggestion": "Add a note/field indicating that the petrol energy intensity (PJ/Bvkm) and CO2 factor (Mt/PJ) are both on an LHV (NCV) basis, or update both to HHV consistently."
+            },
+            {
+              "expected_commodity_units": null,
+              "expected_process_units": null,
+              "field": null,
+              "message": "Variable O&M cost unit is correct and matches activity_unit. Quick plausibility check: 50 MAUD24/Bvkm \u2248 0.05 AUD/vkm.",
+              "model_expectation": null,
+              "observed_units": null,
+              "severity": "suggestion",
+              "suggestion": "No change required, but document whether this cost excludes fuel (recommended) and what components it covers (tires, maintenance, tolls, etc.)."
+            }
+          ],
+          "model": "gpt-5",
+          "status": "fail"
+        }
+      ]
+    },
+    "petrol_import": {
+      "checked_at": "2026-02-26T02:48:54.588533+00:00",
+      "fingerprint": "sha256:dfd7a848e00ba71d129795ba88450d7912b1419ff6be19e84e1213e1b5031652",
+      "models": [
+        "gpt-5.2",
+        "gpt-5"
+      ],
+      "quorum": "2/2",
+      "status": "certified",
+      "votes": [
+        {
+          "critical_count": 0,
+          "findings": [
+            {
+              "expected_commodity_units": {
+                "primary:petrol": "PJ"
+              },
+              "expected_process_units": "PJ/PJ",
+              "field": null,
+              "message": "Check that the petrol energy basis is consistent across the model (LHV vs HHV). This component is an import/supply process with efficiency=1.0, so any HHV/LHV mismatch will propagate directly into downstream efficiencies and costs.",
+              "model_expectation": "Supply/import process should map activity (PJ) to output fuel (PJ) at ~1.0 efficiency under a consistent energy basis; variable_om_cost denominator must equal activity_unit (PJ).",
+              "observed_units": {
+                "commodity_units": {
+                  "primary:petrol": "PJ"
+                },
+                "efficiency": 1.0,
+                "process_activity_unit": "PJ",
+                "process_capacity_unit": "PJ",
+                "variable_om_cost": "15 MAUD24/PJ"
+              },
+              "severity": "suggestion",
+              "suggestion": "If the model\u2019s fuel commodities are on an LHV basis (common in energy systems models), explicitly document primary:petrol as LHV. If other liquid fuels are HHV, either (a) convert petrol commodity unit-energy to the same basis, or (b) introduce a basis-conversion process (HHV<->LHV) with efficiency equal to HHV/LHV ratio for petrol."
+            },
+            {
+              "expected_commodity_units": {
+                "primary:petrol": "PJ"
+              },
+              "expected_process_units": "PJ/PJ",
+              "field": null,
+              "message": "Capacity_unit is PJ (energy capacity), which is internally consistent but may be semantically ambiguous for an import supply process (capacity often interpreted as flow power, e.g., PJ/yr or MW). This is not a schema/unit error, but it can cause interpretation errors when comparing investment/fixed O&M across processes.",
+              "model_expectation": "variable_om_cost is correctly expressed per activity_unit; if adding capex/fo&m later, their denominators must be per capacity_unit (currently PJ) and per capacity_unit/yr.",
+              "observed_units": {
+                "process_activity_unit": "PJ",
+                "process_capacity_unit": "PJ"
+              },
+              "severity": "suggestion",
+              "suggestion": "If you later add investment_cost/fixed_om_cost for imports, consider switching capacity_unit to a power-like unit (e.g., MW/GW) to represent import terminal throughput, or keep PJ but ensure all supply processes use the same convention. If keeping PJ, interpret capacity as annual energy throughput and document it."
+            }
+          ],
+          "model": "gpt-5.2",
+          "status": "pass"
+        },
+        {
+          "critical_count": 0,
+          "findings": [
+            {
+              "expected_commodity_units": null,
+              "expected_process_units": null,
+              "field": null,
+              "message": "All units are internally consistent: activity_unit=PJ, capacity_unit=PJ, commodity unit=PJ, and variable_om_cost denominator=PJ. The monetary literal '15 MAUD24/PJ' matches the model\u2019s canonical currency and the expected variable O&M denominator (/activity_unit).",
+              "model_expectation": null,
+              "observed_units": null,
+              "severity": "suggestion",
+              "suggestion": null
+            },
+            {
+              "expected_commodity_units": null,
+              "expected_process_units": null,
+              "field": null,
+              "message": "Confirm and document the energy basis for petrol (HHV vs LHV) consistently across the model. Import/supply processes commonly use LHV. If your commodity unit PJ is HHV but prices or other parameters are on an LHV basis (or vice versa), adjust coefficients by the HHV/LHV ratio (~1.05\u20131.08 for petrol) to avoid 5\u20138% systematic bias.",
+              "model_expectation": null,
+              "observed_units": null,
+              "severity": "suggestion",
+              "suggestion": "State the basis in the commodity definition (e.g., description: 'Petrol (LHV basis)'). If converting prices set on LHV to an HHV PJ basis, multiply the MAUD24/PJ value by (LHV/HHV); for HHV->LHV, multiply by (HHV/LHV)."
+            },
+            {
+              "expected_commodity_units": null,
+              "expected_process_units": null,
+              "field": null,
+              "message": "Sanity-check the magnitude of variable_om_cost relative to your intent (commodity price vs import handling). Note that 15 MAUD24/PJ equals 15 AUD24/GJ. If you intended a full commodity price closer to X AUD/GJ, set variable_om_cost to X MAUD24/PJ; if it represents only port/handling margin, retain a lower value.",
+              "model_expectation": null,
+              "observed_units": null,
+              "severity": "suggestion",
+              "suggestion": "Conversion identity: 1 MAUD24/PJ = 1 AUD24/GJ (since 1 PJ = 1,000,000 GJ). Choose your target price in AUD/GJ and set variable_om_cost to the same numeric value in MAUD24/PJ."
+            }
+          ],
+          "model": "gpt-5",
+          "status": "pass"
+        }
+      ]
+    }
+  },
+  "version": 1
+}

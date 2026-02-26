@@ -130,6 +130,8 @@ class TestBuildRoles:
             "process_roles": [
                 {
                     "id": "generate_electricity",
+                    "activity_unit": "PJ",
+                    "capacity_unit": "GW",
                     "stage": "conversion",
                     "required_inputs": [],
                     "required_outputs": [{"commodity": "electricity"}],
@@ -152,6 +154,8 @@ class TestBuildRoles:
             "process_roles": [
                 {
                     "id": "deliver_lighting",
+                    "activity_unit": "PJ",
+                    "capacity_unit": "GW",
                     "required_inputs": [{"commodity": "electricity"}],
                     "required_outputs": [{"commodity": "lighting"}],
                 }
@@ -171,8 +175,20 @@ class TestBuildRoles:
         """Duplicate role id raises IRError."""
         model = {
             "process_roles": [
-                {"id": "dup_role", "required_outputs": [{"commodity": "elec"}]},
-                {"id": "dup_role", "required_outputs": [{"commodity": "elec"}]},
+                {
+                    "id": "dup_role",
+                    "activity_unit": "PJ",
+                    "capacity_unit": "GW",
+                    "required_inputs": [],
+                    "required_outputs": [{"commodity": "elec"}],
+                },
+                {
+                    "id": "dup_role",
+                    "activity_unit": "PJ",
+                    "capacity_unit": "GW",
+                    "required_inputs": [],
+                    "required_outputs": [{"commodity": "elec"}],
+                },
             ]
         }
         commodities = {"elec": {"id": "elec", "kind": "carrier"}}
@@ -185,6 +201,8 @@ class TestBuildRoles:
             "process_roles": [
                 {
                     "id": "test_role",
+                    "activity_unit": "PJ",
+                    "capacity_unit": "GW",
                     "required_inputs": [{"commodity": "unknown"}],
                     "required_outputs": [],
                 }
@@ -199,6 +217,8 @@ class TestBuildRoles:
             "process_roles": [
                 {
                     "id": "test_role",
+                    "activity_unit": "PJ",
+                    "capacity_unit": "GW",
                     "required_inputs": [],
                     "required_outputs": [{"commodity": "unknown"}],
                 }

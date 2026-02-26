@@ -19,12 +19,16 @@ def _make_model_with_emissions():
         "process_roles": [
             {
                 "id": "generate_elc",
+                "activity_unit": "PJ",
+                "capacity_unit": "GW",
                 "stage": "conversion",
                 "required_inputs": [{"commodity": "gas"}],
                 "required_outputs": [{"commodity": "elc"}, {"commodity": "co2"}],
             },
             {
                 "id": "generate_elc_renewable",
+                "activity_unit": "PJ",
+                "capacity_unit": "GW",
                 "stage": "conversion",
                 "required_inputs": [],
                 "required_outputs": [{"commodity": "elc"}],

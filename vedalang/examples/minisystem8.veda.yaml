@@ -115,24 +115,32 @@ segments:
 process_roles:
   # === SUPPLY ===
   - id: import_gas
+    activity_unit: PJ
+    capacity_unit: GW
     stage: supply
     required_inputs: []
     required_outputs:
       - commodity: primary:gas
 
   - id: import_coal
+    activity_unit: PJ
+    capacity_unit: GW
     stage: supply
     required_inputs: []
     required_outputs:
       - commodity: primary:coal
 
   - id: supply_solar_irradiance
+    activity_unit: PJ
+    capacity_unit: GW
     stage: supply
     required_inputs: []
     required_outputs:
       - commodity: resource:solar_irradiance
 
   - id: supply_wind_resource
+    activity_unit: PJ
+    capacity_unit: GW
     stage: supply
     required_inputs: []
     required_outputs:
@@ -140,6 +148,8 @@ process_roles:
 
   # === ELECTRICITY GENERATION ===
   - id: generate_electricity
+    activity_unit: PJ
+    capacity_unit: GW
     stage: conversion
     required_inputs: []
     required_outputs:
@@ -147,6 +157,8 @@ process_roles:
 
   # === HYDROGEN PRODUCTION ===
   - id: produce_hydrogen
+    activity_unit: PJ
+    capacity_unit: GW
     stage: conversion
     required_inputs: []
     required_outputs:
@@ -154,24 +166,32 @@ process_roles:
 
   # === END USE ===
   - id: provide_residential_demand
+    activity_unit: PJ
+    capacity_unit: GW
     stage: end_use
     required_inputs: []
     required_outputs:
       - commodity: service:residential_demand
 
   - id: provide_commercial_demand
+    activity_unit: PJ
+    capacity_unit: GW
     stage: end_use
     required_inputs: []
     required_outputs:
       - commodity: service:commercial_demand
 
   - id: provide_industrial_demand
+    activity_unit: PJ
+    capacity_unit: GW
     stage: end_use
     required_inputs: []
     required_outputs:
       - commodity: service:industrial_demand
 
   - id: provide_transport_demand
+    activity_unit: PJ
+    capacity_unit: GW
     stage: end_use
     required_inputs: []
     required_outputs:

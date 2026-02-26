@@ -32,12 +32,16 @@ segments:
 
 process_roles:
   - id: import_gas
+    activity_unit: PJ
+    capacity_unit: GW
     stage: supply
     required_inputs: []
     required_outputs:
       - commodity: primary:natural_gas
 
   - id: generate_electricity
+    activity_unit: PJ
+    capacity_unit: GW
     stage: conversion
     required_inputs:
       - commodity: primary:natural_gas
@@ -45,6 +49,8 @@ process_roles:
       - commodity: secondary:electricity
 
   - id: provide_residential_electric_service
+    activity_unit: PJ
+    capacity_unit: GW
     stage: end_use
     required_inputs:
       - commodity: secondary:electricity

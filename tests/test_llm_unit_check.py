@@ -20,6 +20,8 @@ SOURCE = {
     "process_roles": [
         {
             "id": "generate_electricity",
+            "activity_unit": "PJ",
+            "capacity_unit": "GW",
             "required_inputs": [{"commodity": "primary:natural_gas"}],
             "required_outputs": [{"commodity": "secondary:electricity"}],
         }
@@ -31,6 +33,38 @@ SOURCE = {
             "inputs": [{"commodity": "primary:natural_gas", "coefficient": 6.4}],
             "outputs": [{"commodity": "secondary:electricity", "coefficient": 1.0}],
             "efficiency": 0.55,
+        }
+    ],
+}
+
+SOURCE_WITH_MONETARY = {
+    "model": {
+        "name": "UnitCheckMonetary",
+        "regions": ["R1"],
+        "monetary": {
+            "canonical": "MAUD24",
+            "fx_table": "rules/monetary/fx_aud_usd_world_bank_pa_nus_fcrf.yaml",
+        },
+        "commodities": [
+            {"id": "secondary:electricity", "type": "energy", "unit": "PJ"},
+        ],
+    },
+    "process_roles": [
+        {
+            "id": "supply_power",
+            "activity_unit": "PJ",
+            "capacity_unit": "PJ",
+            "required_inputs": [],
+            "required_outputs": [{"commodity": "secondary:electricity"}],
+        }
+    ],
+    "process_variants": [
+        {
+            "id": "grid_import",
+            "role": "supply_power",
+            "inputs": [],
+            "outputs": [{"commodity": "secondary:electricity"}],
+            "variable_om_cost": "6.944444 MUSD24/PJ",
         }
     ],
 }
@@ -139,6 +173,20 @@ def test_assemble_unit_prompt_includes_unit_enums_and_policy():
     assert "Allowed unit enums from schema" in user_prompt
     assert "Model unit policy" in user_prompt
     assert "energy_unit" in user_prompt
+
+
+def test_assemble_unit_prompt_includes_monetary_literal_guidance():
+    system_prompt, user_prompt = llm_unit_check.assemble_unit_prompt(
+        SOURCE_WITH_MONETARY,
+        "grid_import",
+    )
+    assert "currency-year tokens" in system_prompt
+    assert "Monetary literal syntax and policy" in user_prompt
+    assert "MAUD24" in user_prompt
+    assert "cost_rate_literal_pattern" in user_prompt
+    assert "Model monetary policy" in user_prompt
+    assert '"canonical": "MAUD24"' in user_prompt
+    assert '"activity_unit": "PJ"' in user_prompt
 
 
 def test_run_component_unit_check_needs_review_on_split_votes():

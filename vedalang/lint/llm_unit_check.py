@@ -40,13 +40,45 @@ def _schema_unit_reference() -> dict[str, list[str]]:
             return []
         return [str(v) for v in enum]
 
+    def read_union_units(key: str) -> list[str]:
+        value = defs.get(key, {})
+        units: list[str] = []
+        seen: set[str] = set()
+        for option in value.get("oneOf", []):
+            if not isinstance(option, dict):
+                continue
+            ref = option.get("$ref")
+            if not isinstance(ref, str):
+                continue
+            if not ref.startswith("#/$defs/"):
+                continue
+            ref_key = ref.split("/")[-1]
+            for unit in read_enum(ref_key):
+                if unit in seen:
+                    continue
+                seen.add(unit)
+                units.append(unit)
+        return units
+
+    monetary_token = defs.get("monetary_unit_token", {})
+    cost_rate_literal = defs.get("cost_rate_literal", {})
+
     return {
         "unit_symbol": read_enum("unit_symbol"),
         "energy_unit": read_enum("energy_unit"),
         "power_unit": read_enum("power_unit"),
         "mass_unit": read_enum("mass_unit"),
         "currency_unit": read_enum("currency_unit"),
+        "currency_code": read_enum("currency_code"),
         "service_unit": read_enum("service_unit"),
+        "process_activity_unit": read_union_units("process_activity_unit"),
+        "process_capacity_unit": read_union_units("process_capacity_unit"),
+        "monetary_unit_token_pattern": [
+            str(monetary_token.get("pattern", ""))
+        ],
+        "cost_rate_literal_pattern": [
+            str(cost_rate_literal.get("pattern", ""))
+        ],
     }
 
 
@@ -126,9 +158,16 @@ def _component_payload(source: dict, component: str) -> dict[str, Any]:
     commodities = {
         (c.get("id") or c.get("name")): c for c in model.get("commodities", [])
     }
+    roles = {r.get("id"): r for r in source.get("process_roles", []) if "id" in r}
     payload: dict[str, Any] = {
         "model": model.get("name"),
         "unit_policy": model.get("unit_policy", {}),
+        "monetary_policy": model.get("monetary", {}),
+        "cost_basis": {
+            "investment_cost": "currency per capacity_unit",
+            "fixed_om_cost": "currency per capacity_unit per year",
+            "variable_om_cost": "currency per activity_unit",
+        },
     }
 
     for variant in source.get("process_variants", []):
@@ -141,6 +180,13 @@ def _component_payload(source: dict, component: str) -> dict[str, Any]:
             f["commodity"] for f in (variant.get("outputs") or []) if "commodity" in f
         )
         payload["component"] = variant
+        role = roles.get(variant.get("role"))
+        if role is not None:
+            payload["role"] = role
+            payload["process_units"] = {
+                "activity_unit": role.get("activity_unit"),
+                "capacity_unit": role.get("capacity_unit"),
+            }
         payload["commodities"] = {
             cid: commodities[cid]
             for cid in sorted(set(comm_refs))
@@ -268,6 +314,7 @@ def assemble_unit_prompt(source: dict, component: str) -> tuple[str, str]:
     payload = _component_payload(source, component)
     model = source.get("model", {})
     unit_policy = model.get("unit_policy", {})
+    monetary_policy = model.get("monetary", {})
     unit_reference = _schema_unit_reference()
     system_prompt = (
         "You are a strict unit/coefficient reviewer for energy system DSL models. "
@@ -279,7 +326,13 @@ def assemble_unit_prompt(source: dict, component: str) -> tuple[str, str]:
         "'expected_process_units' (activity_unit/capacity_unit), "
         "'expected_commodity_units' (commodity->unit), "
         "'observed_units', and 'model_expectation'. "
-        "Be explicit and actionable; do not be vague."
+        "Be explicit and actionable; do not be vague. "
+        "Important: process activity/capacity units are defined on process_roles, "
+        "and variants inherit them. "
+        "Important: when model.monetary is present, cost fields are explicit literals "
+        "like '<value> MAUD24/PJ' or '<value> MUSD23/Bvkm/yr'. Do not treat "
+        "currency-year tokens (e.g., MAUD24, USD23) as invalid just because legacy "
+        "currency_unit enums list only USD/kUSD/MUSD/BUSD."
     )
     user_prompt = (
         "Assess unit/coefficient consistency for this component. "
@@ -289,8 +342,18 @@ def assemble_unit_prompt(source: dict, component: str) -> tuple[str, str]:
         "process/commodity names, role intent, and model context.\n\n"
         "Allowed unit enums from schema:\n"
         f"{json.dumps(unit_reference, indent=2)}\n\n"
+        "Monetary literal syntax and policy:\n"
+        "- monetary_unit_token examples: MAUD24, MUSD23, USD2014\n"
+        "- cost_rate_literal format: "
+        "'<value> <moneyYY>/<denominator>' with optional '/yr'\n"
+        "- cost denominator expectations:\n"
+        "  * variable_om_cost -> /activity_unit\n"
+        "  * investment_cost -> /capacity_unit\n"
+        "  * fixed_om_cost -> /capacity_unit/yr\n\n"
         "Model unit policy:\n"
         f"{json.dumps(unit_policy, indent=2)}\n\n"
+        "Model monetary policy:\n"
+        f"{json.dumps(monetary_policy, indent=2)}\n\n"
         f"Component ID: {component}\n"
         "Payload JSON:\n"
         f"{json.dumps(payload, indent=2)}"
