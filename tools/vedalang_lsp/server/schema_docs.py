@@ -790,7 +790,12 @@ VedaLang makes it explicit to avoid surprises.
 
 Unit for **process activity**, i.e., the denominator for `ACT_EFF`, `ACT_COST`, and emission factors.
 
-Common choices: `PJ`, `MWh`, service-specific units.
+Must be an **extensive (non-rate)** unit.
+Supported families:
+
+- Energy: `PJ`, `TJ`, `GJ`, `MWh`, `GWh`, `TWh`, `MTOE`, `KTOE`
+- Service: `Bvkm`
+- Mass: `Mt`, `kt`, `t`, `Gt`
 
 **Example**:
 ```yaml
@@ -808,7 +813,16 @@ processes:
 
 Unit for **process capacity**, used in capacity-related TIMES attributes like `NCAP_COST`, `NCAP_FOM`, `NCAP_TLIFE`.
 
-Examples: `GW`, `MW`, `kt/yr`.
+Must be either:
+
+- Power unit: `GW`, `MW`, `kW`, `TW`
+- Explicit annual rate: `<unit>/yr` (e.g., `PJ/yr`, `Bvkm/yr`, `Mt/yr`)
+
+For non-power capacities, include explicit `/yr`.
+Ambiguous forms like `capacity_unit: PJ` are invalid.
+
+Cap-to-activity linkage is derived as:
+`PRC_CAPACT = convert(1 * capacity_unit * 1 yr -> activity_unit)`
 
 **Example**:
 ```yaml

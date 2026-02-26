@@ -265,6 +265,35 @@ process_variants:
 
 If physical CO2 transport/storage is needed, use `material:co2` as a flow.
 
+### 9) Explicit Process Units (No Ambiguity)
+
+Treat process units as first-class modeling semantics:
+
+- `activity_unit` must be an extensive quantity unit (energy/service/mass), not a
+  rate. Examples: `PJ`, `GWh`, `Bvkm`, `Mt`.
+- `capacity_unit` must be either:
+  - power (`GW`, `MW`, `kW`, `TW`), or
+  - explicit annual rate (`<unit>/yr`, e.g., `PJ/yr`, `Bvkm/yr`, `Mt/yr`).
+- Avoid ambiguous non-power capacity declarations such as
+  `activity_unit: PJ` + `capacity_unit: PJ`.
+
+Capacity-to-activity linkage should always be explainable from units:
+
+- `PRC_CAPACT = convert(1 * capacity_unit * 1 yr -> activity_unit)`
+- `GW -> PJ` gives `31.536`
+- `PJ/yr -> PJ` gives `1.0`
+
+Supported explicit activity base units:
+
+- Energy: `PJ`, `TJ`, `GJ`, `MWh`, `GWh`, `TWh`, `MTOE`, `KTOE`
+- Service: `Bvkm`
+- Mass: `Mt`, `kt`, `t`, `Gt`
+
+Supported explicit capacity units:
+
+- Power: `GW`, `MW`, `kW`, `TW`
+- Annual rates: each supported activity base unit with `/yr`
+
 ## Conventions vs Current Enforcement
 
 The following are enforced today by schema/compiler behavior:
@@ -278,6 +307,8 @@ The following are enforced today by schema/compiler behavior:
 - diagnostics export contract is solve-independent
   (`diagnostics_are_solve_independent`)
 - `emission:*` must not appear in inputs/outputs (L1)
+- `activity_unit` must be extensive; `capacity_unit` must be power or `<unit>/yr`
+- ambiguous non-power capacity/activity pairs are rejected
 - `emission_factors` keys must be `emission:*` namespaced (L2)
 - Bare `co2`/`ch4`/`n2o` trigger migration warnings (L5)
 

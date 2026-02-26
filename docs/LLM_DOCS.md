@@ -24,6 +24,7 @@ repo so conventions updates do not require hunting across duplicate docs.
 | `skills/vedalang-design-exploration/SKILL.md` (+ `references/`) | VedaLang Design Agent | Structured experimentation protocol for primitive exploration | **Keep** as canonical design-exploration skill |
 | `docs/vedalang-design-agent/exploration_prompt.md` | VedaLang Design Agent | Compatibility pointer to exploration skill | **Keep** as pointer shim only |
 | `vedalang/lint/llm_assessment.py` prompt template | LLM lint runtime | System/user prompt assembly for structural assessment | **Keep** as executable prompt logic; pull enums from schema-derived helpers |
+| `vedalang/lint/llm_unit_check.py` prompt template | LLM unit-check runtime | System/user prompt assembly for unit and coefficient checks | **Keep** as executable prompt logic aligned to schema unit rules |
 | `vedalang/lint/prompts/res-assessment/v1/*` | LLM lint runtime | Versioned prompt text and response schema for reproducible evaluation | **Keep** as canonical prompt text artifacts |
 
 ## Placement Rules

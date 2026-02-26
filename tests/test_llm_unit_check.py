@@ -170,7 +170,9 @@ def test_parse_unit_check_response_preserves_fix_guidance_fields():
 def test_assemble_unit_prompt_includes_unit_enums_and_policy():
     system_prompt, user_prompt = llm_unit_check.assemble_unit_prompt(SOURCE, "ccgt")
     assert "status" in system_prompt
+    assert "activity_unit must be an extensive (non-rate) unit" in system_prompt
     assert "Allowed unit enums from schema" in user_prompt
+    assert "capacity_unit must be power or '<unit>/yr'" in user_prompt
     assert "Model unit policy" in user_prompt
     assert "energy_unit" in user_prompt
 

@@ -92,6 +92,27 @@ uv run vedalang compile model.veda.yaml --out output/
 uv run vedalang-dev pipeline model.veda.yaml --no-solver
 ```
 
+### Explicit Unit Semantics
+
+VedaLang uses explicit, explainable process unit rules:
+
+- `activity_unit` must be an **extensive annual quantity** unit:
+  `PJ`, `TJ`, `GJ`, `MWh`, `GWh`, `TWh`, `MTOE`, `KTOE`, `Bvkm`, `Mt`, `kt`, `t`, `Gt`
+- `capacity_unit` must be either:
+  - a **power** unit: `GW`, `MW`, `kW`, `TW`
+  - an explicit **annual throughput rate**: `<activity-like unit>/yr`
+    (for example: `PJ/yr`, `GWh/yr`, `Bvkm/yr`, `Mt/yr`)
+- Ambiguous non-power capacity units like `capacity_unit: PJ` are rejected.
+
+Capacity-to-activity conversion is explicit and deterministic:
+
+- `PRC_CAPACT = convert(1 * capacity_unit * 1 yr -> activity_unit)`
+- Example: `GW -> PJ` gives `31.536`
+- Example: `PJ/yr -> PJ` gives `1.0`
+
+See [docs/vedalang-user/attribute_mapping.md](docs/vedalang-user/attribute_mapping.md)
+for the complete unit mapping and cost denominator expectations.
+
 ### Minimal Example
 
 ```yaml
