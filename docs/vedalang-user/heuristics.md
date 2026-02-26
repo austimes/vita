@@ -5,6 +5,15 @@ VedaLang includes a **heuristics linter** that catches common modeling mistakes 
 ## Running Heuristic Checks
 
 ```bash
+# Run only feasibility heuristics via deterministic lint
+uv run vedalang lint model.veda.yaml --category feasibility
+
+# Run all fast deterministic lint checks (includes feasibility)
+uv run vedalang lint model.veda.yaml
+
+# Run all deterministic categories (including feasibility)
+uv run vedalang lint model.veda.yaml --profile thorough
+
 # Run heuristics as part of full validation
 uv run vedalang validate model.veda.yaml
 
@@ -12,7 +21,8 @@ uv run vedalang validate model.veda.yaml
 uv run vedalang-dev pipeline model.veda.yaml --no-solver --json
 ```
 
-The heuristics step runs automatically before compilation and reports warnings/errors.
+The heuristics step runs in deterministic lint and is surfaced in `validate`
+as part of the end-to-end pipeline.
 
 ---
 

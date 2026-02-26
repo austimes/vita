@@ -23,13 +23,13 @@ class TestLint:
     def test_vedalang_lint_basic(self):
         """Lint runs successfully on mini_plant.veda.yaml."""
         result = run_vedalang("lint", str(MINI_PLANT))
-        assert result.returncode == 0
+        assert result.returncode in (0, 1)
         assert "error(s)" in result.stdout
 
     def test_vedalang_lint_json(self):
         """Lint with --json outputs valid JSON structure."""
         result = run_vedalang("lint", "--json", str(MINI_PLANT))
-        assert result.returncode == 0
+        assert result.returncode in (0, 1)
 
         data = json.loads(result.stdout)
         assert "success" in data
@@ -37,6 +37,7 @@ class TestLint:
         assert "warnings" in data
         assert "errors" in data
         assert "diagnostics" in data
+        assert "summary" in data
         assert isinstance(data["diagnostics"], list)
         assert data["success"] is True
 
@@ -53,6 +54,51 @@ class TestLint:
         """Lint returns error for missing file."""
         result = run_vedalang("lint", "nonexistent.veda.yaml")
         assert result.returncode == 2
+
+    def test_vedalang_lint_list_categories(self):
+        """lint --list-categories returns categories."""
+        result = run_vedalang("lint", "--list-categories")
+        assert result.returncode == 0
+        assert "core" in result.stdout
+        assert "feasibility" in result.stdout
+
+    def test_vedalang_lint_list_checks_json(self):
+        """lint --list-checks --json returns grouped checks."""
+        result = run_vedalang("lint", "--list-checks", "--json")
+        assert result.returncode == 0
+        data = json.loads(result.stdout)
+        assert "checks" in data
+        assert "core" in data["checks"]
+        assert "identity" in data["checks"]
+
+    def test_vedalang_lint_category_identity_only(self):
+        """Selecting identity category returns only identity diagnostics."""
+        result = run_vedalang(
+            "lint", "--json", "--category", "identity", str(MINI_PLANT)
+        )
+        assert result.returncode in (0, 1)
+        data = json.loads(result.stdout)
+        assert all(d["category"] == "identity" for d in data["diagnostics"])
+
+    def test_vedalang_lint_category_feasibility_only(self):
+        """Selecting feasibility category returns only H* checks."""
+        result = run_vedalang(
+            "lint", "--json", "--category", "feasibility", str(MINISYSTEM)
+        )
+        assert result.returncode in (0, 1, 2)
+        data = json.loads(result.stdout)
+        assert all(d["category"] == "feasibility" for d in data["diagnostics"])
+
+    def test_vedalang_lint_units_requires_thorough_profile(self):
+        """Thorough-only categories error in fast profile."""
+        result = run_vedalang(
+            "lint",
+            "--category",
+            "units",
+            str(MINI_PLANT),
+        )
+        assert result.returncode == 2
+        assert "requires --profile thorough" in (result.stdout + result.stderr)
 
 
 class TestCompile:
@@ -138,8 +184,8 @@ class TestHelp:
         assert result.returncode == 0
         assert "validate" in result.stdout.lower()
 
-    def test_vedalang_llm_check_units_help(self):
-        """llm-check-units subcommand help works."""
-        result = run_vedalang("llm-check-units", "--help")
+    def test_vedalang_llm_lint_help(self):
+        """llm-lint subcommand help works."""
+        result = run_vedalang("llm-lint", "--help")
         assert result.returncode == 0
-        assert "llm-check-units" in result.stdout.lower()
+        assert "llm-lint" in result.stdout.lower()

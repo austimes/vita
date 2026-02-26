@@ -1,4 +1,4 @@
-"""Optional LLM-based structural RES assessment for the lint pipeline.
+"""LLM-based structural RES assessment used by `vedalang llm-lint`.
 
 Provides Layer 2 of the three-layer convention framework:
   Layer 1 — Skill guidance (advisory)
@@ -10,7 +10,7 @@ When enabled, this module:
 2. Sends it to an LLM for structural assessment
 3. Parses the structured JSON response into LintFindings
 
-This is off by default — requires explicit opt-in via --llm-assess flag.
+This runs when `vedalang llm-lint --category structure` is selected.
 """
 
 from __future__ import annotations

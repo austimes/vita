@@ -296,15 +296,15 @@ class TestRunLLMAssessment:
 
 
 # ---------------------------------------------------------------------------
-# CLI integration (cmd_lint with --llm-assess)
+# CLI integration (cmd_lint default behavior)
 # ---------------------------------------------------------------------------
 
 
 class TestCLIIntegration:
     """Tests for CLI flag integration."""
 
-    def test_lint_without_llm_assess_is_offline(self, tmp_path):
-        """Default lint (no --llm-assess) never calls LLM."""
+    def test_lint_default_is_offline(self, tmp_path):
+        """Default deterministic lint never calls LLM."""
         from vedalang.cli import cmd_lint
 
         model_file = tmp_path / "test.veda.yaml"
@@ -316,8 +316,6 @@ class TestCLIIntegration:
             json=True,
             res_json=None,
             res_mermaid=None,
-            llm_assess=False,
-            strict=False,
         )
         exit_code = cmd_lint(args)
         # Should succeed without needing any API key

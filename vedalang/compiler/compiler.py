@@ -363,12 +363,12 @@ def _normalize_commodities_for_new_syntax(
     return normalized
 
 
-def _validate_new_syntax_structural_invariants(
+def _collect_new_syntax_structural_invariants(
     source: dict,
     roles: dict,
     commodities: dict[str, dict],
-) -> list[dict[str, str]]:
-    """Validate compiler-enforced structural invariants for new syntax."""
+) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
+    """Collect compiler-enforced structural invariant diagnostics for new syntax."""
     errors: list[dict[str, str]] = []
     warnings: list[dict[str, str]] = []
     unit_policy = _resolve_unit_policy(source.get("model", {}))
@@ -778,12 +778,49 @@ def _validate_new_syntax_structural_invariants(
                 }
             )
 
+    return (
+        sorted(
+            errors,
+            key=lambda err: (err["code"], err["location"], err["message"]),
+        ),
+        sorted(
+            warnings,
+            key=lambda warn: (warn["code"], warn["location"], warn["message"]),
+        ),
+    )
+
+
+def _validate_new_syntax_structural_invariants(
+    source: dict,
+    roles: dict,
+    commodities: dict[str, dict],
+) -> list[dict[str, str]]:
+    """Validate compiler-enforced structural invariants for new syntax."""
+    errors, warnings = _collect_new_syntax_structural_invariants(
+        source,
+        roles,
+        commodities,
+    )
     if errors:
         raise VedaLangError(_format_structural_errors(errors))
+    return warnings
 
-    return sorted(
-        warnings,
-        key=lambda warn: (warn["code"], warn["location"], warn["message"]),
+
+def collect_new_syntax_structural_diagnostics(
+    source: dict,
+) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
+    """Return structured structural/unit/emission diagnostics for new syntax models."""
+    if not source.get("process_roles"):
+        return [], []
+
+    normalized_source, _ = _normalize_new_syntax_monetary_costs(source)
+    model = normalized_source["model"]
+    commodities = _normalize_commodities_for_new_syntax(model.get("commodities", []))
+    roles = build_roles(normalized_source, commodities)
+    return _collect_new_syntax_structural_invariants(
+        normalized_source,
+        roles,
+        commodities,
     )
 
 

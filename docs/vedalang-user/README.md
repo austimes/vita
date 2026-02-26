@@ -50,9 +50,48 @@ uv run vedalang validate your_model.veda.yaml --case baseline --case policy
 # Compile only selected case(s)
 uv run vedalang compile your_model.veda.yaml --out out/ --case policy
 
-# Lint only (fast, checks heuristics)
+# Lint only (fast profile)
 uv run vedalang lint your_model.veda.yaml
+
+# Deterministic lint categories (repeat --category as needed)
+uv run vedalang lint your_model.veda.yaml --category feasibility
+uv run vedalang lint your_model.veda.yaml --category core --category identity
+
+# Thorough deterministic lint (adds structure/units/emissions)
+uv run vedalang lint your_model.veda.yaml --profile thorough
+
+# LLM lint (advisory checks; critical findings fail by default)
+uv run vedalang llm-lint your_model.veda.yaml --category structure
+uv run vedalang llm-lint your_model.veda.yaml --category units
 ```
+
+## Lint Taxonomy
+
+VedaLang linting uses one shared category taxonomy across deterministic and LLM
+engines:
+
+- `core` — parse/schema/cross-reference integrity
+- `identity` — naming/ID convention checks
+- `structure` — RES architecture and stage/role/variant consistency
+- `units` — units, basis, coefficients, and denominator plausibility
+- `emissions` — emission namespace/type/factor checks
+- `feasibility` — pre-solve heuristic risk checks
+
+Deterministic `lint` profiles:
+
+- `fast` (default): `core`, `identity`, `feasibility`
+- `thorough`: all categories
+
+Use `uv run vedalang lint --list-categories` and
+`uv run vedalang lint --list-checks` to inspect available coverage.
+
+LLM lint behavior:
+
+- `llm-lint` uses the same categories
+- currently implemented: `structure`, `units`
+- currently unsupported (reported as skipped): `core`, `identity`, `emissions`, `feasibility`
+- default exit behavior: critical findings return exit code `2`
+- use `--advisory` to avoid critical findings causing exit code `2`
 
 ## What This Documentation Does NOT Cover
 

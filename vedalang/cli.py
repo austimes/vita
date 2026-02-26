@@ -11,7 +11,6 @@ import json
 import sys
 import tempfile
 from pathlib import Path
-from time import perf_counter
 
 import jsonschema
 
@@ -19,10 +18,26 @@ from vedalang.compiler.compiler import (
     SemanticValidationError,
     compile_vedalang_to_tableir,
     load_vedalang,
-    validate_cross_references,
     validate_vedalang,
 )
-from vedalang.heuristics.linter import run_heuristics
+from vedalang.lint.code_categories import (
+    CATEGORY_RUNNERS as CODE_CATEGORY_RUNNERS,
+)
+from vedalang.lint.code_categories import (
+    collect_structural_by_category,
+)
+from vedalang.lint.diagnostics import build_summary, severity_counts, with_meta
+from vedalang.lint.llm_categories import CATEGORY_RUNNERS as LLM_CATEGORY_RUNNERS
+from vedalang.lint.registry import (
+    CATEGORY_DESCRIPTIONS,
+    CATEGORY_ORDER,
+    CODE_CHECKS,
+    PROFILE_FAST,
+    PROFILE_THOROUGH,
+    categories_for_profile,
+    checks_for_engine,
+    normalize_categories,
+)
 
 
 def main():
@@ -33,7 +48,7 @@ def main():
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     _add_lint_parser(subparsers)
-    _add_llm_units_parser(subparsers)
+    _add_llm_lint_parser(subparsers)
     _add_compile_parser(subparsers)
     _add_validate_parser(subparsers)
     _add_viz_parser(subparsers)
@@ -42,8 +57,8 @@ def main():
 
     if args.command == "lint":
         sys.exit(cmd_lint(args))
-    elif args.command == "llm-check-units":
-        sys.exit(cmd_llm_check_units(args))
+    elif args.command == "llm-lint":
+        sys.exit(cmd_llm_lint(args))
     elif args.command == "compile":
         sys.exit(cmd_compile(args))
     elif args.command == "validate":
@@ -56,9 +71,38 @@ def _add_lint_parser(subparsers):
     p = subparsers.add_parser(
         "lint",
         help="Lint a VedaLang source file",
-        description="Validate schema, check cross-references, and run heuristics.",
+        description="Run deterministic lint checks with category/profile selection.",
     )
-    p.add_argument("file", type=Path, help="Path to VedaLang source (.veda.yaml)")
+    p.add_argument(
+        "file",
+        type=Path,
+        nargs="?",
+        help="Path to VedaLang source (.veda.yaml)",
+    )
+    p.add_argument(
+        "--category",
+        action="append",
+        help=(
+            "Lint category to run (repeatable): "
+            "core, identity, structure, units, emissions, feasibility"
+        ),
+    )
+    p.add_argument(
+        "--profile",
+        choices=[PROFILE_FAST, PROFILE_THOROUGH],
+        default=PROFILE_FAST,
+        help="Lint profile: fast (default) or thorough",
+    )
+    p.add_argument(
+        "--list-categories",
+        action="store_true",
+        help="List available lint categories and profile support",
+    )
+    p.add_argument(
+        "--list-checks",
+        action="store_true",
+        help="List deterministic checks grouped by category",
+    )
     p.add_argument("--json", action="store_true", help="Output JSON format")
     p.add_argument(
         "--res-json",
@@ -72,16 +116,57 @@ def _add_lint_parser(subparsers):
         metavar="PATH",
         help="Export RES graph as Mermaid diagram to the given path",
     )
+
+
+def _add_llm_lint_parser(subparsers):
+    p = subparsers.add_parser(
+        "llm-lint",
+        help="Run advisory LLM lint checks by category",
+        description=(
+            "Run LLM-backed lint checks using the shared lint taxonomy. "
+            "Unsupported categories are reported as skipped."
+        ),
+    )
+    p.add_argument("file", type=Path, help="Path to VedaLang source (.veda.yaml)")
     p.add_argument(
-        "--llm-assess",
-        action="store_true",
-        help="Enable optional LLM-based structural RES assessment",
+        "--category",
+        action="append",
+        help=(
+            "Lint category to run (repeatable): "
+            "core, identity, structure, units, emissions, feasibility"
+        ),
     )
     p.add_argument(
-        "--strict",
-        action="store_true",
-        help="Fail with exit code 2 on critical LLM assessment findings",
+        "--component",
+        action="append",
+        help="Specific component to check for component-scoped categories",
     )
+    p.add_argument(
+        "--model",
+        action="append",
+        help="LLM model for quorum vote (repeatable, default is two models).",
+    )
+    p.add_argument(
+        "--store",
+        type=Path,
+        help="Path to sidecar certification store (default: <source>.unit_checks.json)",
+    )
+    p.add_argument(
+        "--all",
+        action="store_true",
+        help="For units category: check all components, not only pending/current",
+    )
+    p.add_argument(
+        "--force",
+        action="store_true",
+        help="For units category: re-check even certified components",
+    )
+    p.add_argument(
+        "--advisory",
+        action="store_true",
+        help="Do not fail with exit code 2 when critical findings are present",
+    )
+    p.add_argument("--json", action="store_true", help="Output JSON format")
 
 
 def _add_compile_parser(subparsers):
@@ -99,44 +184,6 @@ def _add_compile_parser(subparsers):
         help="Compile only the specified case (repeatable)",
     )
     p.add_argument("--no-lint", action="store_true", help="Skip linting before compile")
-    p.add_argument("--json", action="store_true", help="Output JSON format")
-
-
-def _add_llm_units_parser(subparsers):
-    p = subparsers.add_parser(
-        "llm-check-units",
-        help="Advisory LLM unit/coefficient certification",
-        description=(
-            "Run optional LLM unit/coefficient checks on model components with "
-            "fingerprint-based certification metadata."
-        ),
-    )
-    p.add_argument("file", type=Path, help="Path to VedaLang source (.veda.yaml)")
-    p.add_argument(
-        "--component",
-        action="append",
-        help="Specific component to check (repeatable). Defaults to all pending.",
-    )
-    p.add_argument(
-        "--all",
-        action="store_true",
-        help="Check all components that are not already certified/current.",
-    )
-    p.add_argument(
-        "--force",
-        action="store_true",
-        help="Re-check even certified components.",
-    )
-    p.add_argument(
-        "--model",
-        action="append",
-        help="LLM model for quorum vote (repeatable, default is two models).",
-    )
-    p.add_argument(
-        "--store",
-        type=Path,
-        help="Path to sidecar certification store (default: <source>.unit_checks.json)",
-    )
     p.add_argument("--json", action="store_true", help="Output JSON format")
 
 
@@ -181,77 +228,210 @@ def _add_viz_parser(subparsers):
     )
 
 
+def _print_lint_categories(output_json: bool) -> None:
+    data = [
+        {
+            "category": cat,
+            "description": CATEGORY_DESCRIPTIONS[cat],
+            "profiles": (
+                [PROFILE_FAST, PROFILE_THOROUGH]
+                if cat in categories_for_profile(PROFILE_FAST)
+                else [PROFILE_THOROUGH]
+            ),
+        }
+        for cat in CATEGORY_ORDER
+    ]
+    if output_json:
+        print(json.dumps({"categories": data}, indent=2))
+        return
+    print("Lint categories:")
+    for item in data:
+        profiles = ", ".join(item["profiles"])
+        print(f"  - {item['category']}: {item['description']} (profiles: {profiles})")
+
+
+def _print_lint_checks(output_json: bool) -> None:
+    grouped: dict[str, list[dict]] = {cat: [] for cat in CATEGORY_ORDER}
+    for check in CODE_CHECKS:
+        grouped[check.category].append(
+            {
+                "check_id": check.check_id,
+                "profile": check.profile,
+                "scope": check.scope,
+            }
+        )
+    if output_json:
+        print(json.dumps({"checks": grouped}, indent=2))
+        return
+    print("Deterministic lint checks:")
+    for category in CATEGORY_ORDER:
+        checks = grouped.get(category, [])
+        if not checks:
+            continue
+        print(f"  {category}:")
+        for c in checks:
+            print(
+                f"    - {c['check_id']} "
+                f"(profile={c['profile']}, scope={c['scope']})"
+            )
+
+
 def cmd_lint(args) -> int:
-    """Run lint command: schema + cross-refs + heuristics + optional LLM assessment."""
-    file_path: Path = args.file
+    """Run deterministic lint checks with category/profile support."""
     output_json: bool = args.json
+    profile: str = getattr(args, "profile", PROFILE_FAST)
+    requested_categories = getattr(args, "category", None)
+    list_categories: bool = getattr(args, "list_categories", False)
+    list_checks: bool = getattr(args, "list_checks", False)
     res_json_path: Path | None = getattr(args, "res_json", None)
     res_mermaid_path: Path | None = getattr(args, "res_mermaid", None)
-    llm_assess: bool = getattr(args, "llm_assess", False)
-    strict_mode: bool = getattr(args, "strict", False)
 
+    if list_categories:
+        _print_lint_categories(output_json)
+        return 0
+    if list_checks:
+        _print_lint_checks(output_json)
+        return 0
+
+    file_path: Path | None = getattr(args, "file", None)
+    if file_path is None:
+        _error("Missing required argument: file", output_json, "<none>")
+        return 2
     if not file_path.exists():
         _error(f"File not found: {file_path}", output_json, str(file_path))
         return 2
 
+    if requested_categories:
+        try:
+            selected_categories = normalize_categories(requested_categories)
+        except ValueError as e:
+            _error(str(e), output_json, str(file_path))
+            return 2
+    else:
+        selected_categories = []
+
+    allowed_categories = categories_for_profile(profile)
+    invalid_for_profile = [
+        c for c in selected_categories if c not in allowed_categories
+    ]
+    if invalid_for_profile:
+        _error(
+            "Selected category requires --profile thorough: "
+            + ", ".join(invalid_for_profile),
+            output_json,
+            str(file_path),
+        )
+        return 2
+
+    run_categories = (
+        selected_categories
+        if requested_categories
+        else [c for c in CATEGORY_ORDER if c in allowed_categories]
+    )
+    run_category_set = set(run_categories)
+    checks_run = [
+        c.check_id
+        for c in checks_for_engine("code")
+        if (
+            c.category in run_category_set
+            and c.profile in {PROFILE_FAST, PROFILE_THOROUGH}
+        )
+    ]
+
     diagnostics: list[dict] = []
-    errors = 0
-    warnings = 0
+    skipped_categories: list[str] = []
 
     try:
         source = load_vedalang(file_path)
     except Exception as e:
-        diagnostics.append({
-            "code": "PARSE_ERROR",
-            "severity": "error",
-            "message": f"Failed to parse YAML: {e}",
-        })
-        errors += 1
+        diagnostics.append(
+            with_meta(
+                {
+                    "code": "PARSE_ERROR",
+                    "severity": "error",
+                    "message": f"Failed to parse YAML: {e}",
+                },
+                category="core",
+                engine="code",
+                check_id="code.core.schema_xref",
+            )
+        )
+        errors, warnings, _ = severity_counts(diagnostics)
+        summary = build_summary(
+            diagnostics,
+            checks_run=checks_run,
+            skipped_categories=skipped_categories,
+        )
         return _output_lint_result(
-            file_path, diagnostics, errors, warnings, output_json
+            file_path,
+            diagnostics,
+            errors,
+            warnings,
+            output_json,
+            summary=summary,
         )
 
     try:
         validate_vedalang(source)
     except jsonschema.ValidationError as e:
-        if e.absolute_path:
-            path_str = " -> ".join(str(p) for p in e.absolute_path)
-        else:
-            path_str = "root"
-        diagnostics.append({
-            "code": "SCHEMA_ERROR",
-            "severity": "error",
-            "message": f"{e.message} (at {path_str})",
-        })
-        errors += 1
+        path_str = (
+            " -> ".join(str(p) for p in e.absolute_path)
+            if e.absolute_path
+            else "root"
+        )
+        diagnostics.append(
+            with_meta(
+                {
+                    "code": "SCHEMA_ERROR",
+                    "severity": "error",
+                    "message": f"{e.message} (at {path_str})",
+                },
+                category="core",
+                engine="code",
+                check_id="code.core.schema_xref",
+            )
+        )
+        errors, warnings, _ = severity_counts(diagnostics)
+        summary = build_summary(
+            diagnostics,
+            checks_run=checks_run,
+            skipped_categories=skipped_categories,
+        )
         return _output_lint_result(
-            file_path, diagnostics, errors, warnings, output_json
+            file_path,
+            diagnostics,
+            errors,
+            warnings,
+            output_json,
+            summary=summary,
         )
 
-    model = source.get("model", source)
-    xref_errors, xref_warnings = validate_cross_references(model, source=source)
-    for msg in xref_errors:
-        diagnostics.append({
-            "code": "XREF_ERROR",
-            "severity": "error",
-            "message": msg,
-        })
-        errors += 1
-    for msg in xref_warnings:
-        diagnostics.append({
-            "code": "XREF_WARNING",
-            "severity": "warning",
-            "message": msg,
-        })
-        warnings += 1
+    structural_cache: dict[str, list[dict]] | None = None
+    if run_category_set.intersection({"structure", "units", "emissions"}):
+        try:
+            structural_cache = collect_structural_by_category(source)
+        except Exception as e:
+            diagnostics.append(
+                with_meta(
+                    {
+                        "code": "SEMANTIC_CHECK_ERROR",
+                        "severity": "error",
+                        "message": f"Failed to run compiler semantic checks: {e}",
+                    },
+                    category="structure",
+                    engine="code",
+                    check_id="code.structure.compiler_semantics",
+                )
+            )
 
-    issues = run_heuristics(source)
-    for issue in issues:
-        diagnostics.append(issue.to_dict())
-        if issue.severity == "error":
-            errors += 1
+    for category in run_categories:
+        runner = CODE_CATEGORY_RUNNERS.get(category)
+        if runner is None:
+            continue
+        if category in {"structure", "units", "emissions"}:
+            diagnostics.extend(runner(source, structural_cache=structural_cache))
         else:
-            warnings += 1
+            diagnostics.extend(runner(source))
 
     # Export RES graph artifacts if requested
     if res_json_path or res_mermaid_path:
@@ -276,58 +456,46 @@ def cmd_lint(args) -> int:
             if not output_json:
                 print(f"RES Mermaid diagram: {res_mermaid_path}")
 
-    # Optional LLM-based structural assessment
-    llm_result = None
-    llm_model = None
-    if llm_assess:
-        from vedalang.lint.llm_assessment import _MODEL, run_llm_assessment
-
-        if not output_json:
-            print(
-                f"Sending model to LLM review agent"
-                f" ({_MODEL}, reasoning effort=medium)..."
-            )
-            sys.stdout.flush()
-
-        try:
-            llm_result = run_llm_assessment(source)
-            llm_model = llm_result.model
-            for finding in llm_result.findings:
-                diagnostics.append(finding.to_dict())
-                if finding.severity == "critical":
-                    if strict_mode:
-                        errors += 1
-                    else:
-                        warnings += 1
-                elif finding.severity == "warning":
-                    warnings += 1
-                # suggestions don't affect counts
-        except Exception as e:
-            diagnostics.append({
-                "code": "LLM_ASSESS_ERROR",
-                "severity": "warning",
-                "message": f"LLM assessment failed: {e}",
-            })
-            warnings += 1
-
+    errors, warnings, _ = severity_counts(diagnostics)
+    summary = build_summary(
+        diagnostics,
+        checks_run=checks_run,
+        skipped_categories=skipped_categories,
+    )
     return _output_lint_result(
-        file_path, diagnostics, errors, warnings, output_json,
-        llm_model=llm_model,
+        file_path,
+        diagnostics,
+        errors,
+        warnings,
+        output_json,
+        summary=summary,
     )
 
 
-def cmd_llm_check_units(args) -> int:
-    """Run optional LLM unit/coefficient certification workflow."""
+def cmd_llm_lint(args) -> int:
+    """Run LLM lint checks using the shared lint taxonomy."""
     file_path: Path = args.file
     output_json: bool = args.json
-    selected_components: list[str] | None = args.component
-    run_all: bool = args.all
-    force: bool = args.force
-    models: list[str] | None = args.model
+    requested_categories = getattr(args, "category", None)
+    advisory: bool = getattr(args, "advisory", False)
 
     if not file_path.exists():
         _error(f"File not found: {file_path}", output_json, str(file_path))
         return 2
+
+    try:
+        selected_categories = normalize_categories(requested_categories)
+    except ValueError as e:
+        _error(str(e), output_json, str(file_path))
+        return 2
+
+    diagnostics: list[dict] = []
+    skipped_categories: list[str] = []
+    checks_run: list[str] = []
+    runtime_errors = False
+    unit_store_path: Path | None = None
+    unit_results: list[dict] = []
+    unit_skipped_components: list[str] = []
 
     try:
         source = load_vedalang(file_path)
@@ -336,151 +504,82 @@ def cmd_llm_check_units(args) -> int:
         _error(f"Failed to load/validate source: {e}", output_json, str(file_path))
         return 2
 
-    from vedalang.lint.llm_unit_check import (
-        DEFAULT_MODELS,
-        default_store_path,
-        load_store,
-        run_component_unit_check,
-        save_store,
-        select_components,
-        update_store_with_result,
+    for category in selected_categories:
+        check = next(
+            (c for c in checks_for_engine("llm") if c.category == category),
+            None,
+        )
+        if check is None:
+            skipped_categories.append(category)
+            continue
+        runner = LLM_CATEGORY_RUNNERS[category]
+        result = runner(
+            source=source,
+            file_path=file_path,
+            component=getattr(args, "component", None),
+            run_all=getattr(args, "all", False),
+            force=getattr(args, "force", False),
+            models=getattr(args, "model", None),
+            store_path=getattr(args, "store", None),
+        )
+        if not result.supported:
+            skipped_categories.append(category)
+            continue
+        checks_run.append(check.check_id)
+        runtime_errors = runtime_errors or result.runtime_error
+        diagnostics.extend(result.diagnostics)
+        if "store_path" in result.extras and result.extras["store_path"] is not None:
+            unit_store_path = result.extras["store_path"]
+        unit_results.extend(result.extras.get("unit_results", []))
+        unit_skipped_components.extend(
+            result.extras.get("unit_skipped_components", [])
+        )
+
+    errors, warnings, critical = severity_counts(diagnostics)
+    summary = build_summary(
+        diagnostics,
+        checks_run=checks_run,
+        skipped_categories=skipped_categories,
     )
 
-    store_path = args.store or default_store_path(file_path)
-    store = load_store(store_path)
+    display_errors = errors + (critical if not advisory else 0)
+    display_warnings = warnings + (critical if advisory else 0)
 
-    try:
-        to_check, skipped = select_components(
-            source=source,
-            store=store,
-            selected=selected_components,
-            run_all=run_all,
-            force=force,
-        )
-    except Exception as e:
-        _error(str(e), output_json, str(file_path))
-        return 2
-
-    results = []
-    run_errors = []
-    total_components = len(to_check)
-    total_models = len(models) if models else len(DEFAULT_MODELS)
-    for component_index, component in enumerate(to_check, start=1):
-        component_start = perf_counter()
-
-        def progress_callback(event: dict) -> None:
-            if output_json:
-                return
-            if event.get("event") == "model_start":
-                print(
-                    "    "
-                    f"[{event.get('index')}/{event.get('total_models')}] "
-                    f"{event.get('model')} ..."
-                )
-            elif event.get("event") == "model_done":
-                print(
-                    "      -> "
-                    f"{event.get('status')} "
-                    f"({event.get('findings_count')} findings)"
-                )
-
-        if not output_json:
-            print(
-                f"[{component_index}/{total_components}] "
-                f"Checking {component} ({total_models} model votes)"
-            )
-        try:
-            result = run_component_unit_check(
-                source=source,
-                component=component,
-                models=models,
-                progress_callback=progress_callback,
-            )
-            update_store_with_result(store, result)
-            results.append(result)
-            if not output_json:
-                elapsed = perf_counter() - component_start
-                print(
-                    "    "
-                    f"done in {elapsed:.1f}s -> {result.status} "
-                    f"(quorum {result.quorum})"
-                )
-        except Exception as e:
-            run_errors.append({"component": component, "error": str(e)})
-            if not output_json:
-                elapsed = perf_counter() - component_start
-                print(f"    error after {elapsed:.1f}s: {e}")
-
-    save_store(store_path, store)
-
-    reviewed = len(results)
-    certified = sum(1 for r in results if r.status == "certified")
-    needs_review = reviewed - certified
-
-    def summarize_vote(vote):
-        critical = sum(1 for f in vote.findings if f.get("severity") == "critical")
-        warning = sum(1 for f in vote.findings if f.get("severity") == "warning")
-        suggestion = sum(1 for f in vote.findings if f.get("severity") == "suggestion")
-        top_findings = []
-        top_suggestions = []
-        for item in vote.findings[:3]:
-            msg = str(item.get("message", "")).strip()
-            if msg:
-                top_findings.append(msg)
-            fix = str(item.get("suggestion", "")).strip()
-            if fix:
-                top_suggestions.append(fix)
-        return {
-            "model": vote.model,
-            "status": vote.status,
-            "critical": critical,
-            "warning": warning,
-            "suggestion": suggestion,
-            "top_findings": top_findings,
-            "top_suggestions": top_suggestions,
-            "findings": vote.findings,
-        }
+    if runtime_errors or errors > 0:
+        exit_code = 2
+    elif critical > 0 and not advisory:
+        exit_code = 2
+    elif warnings > 0 or critical > 0:
+        exit_code = 1
+    else:
+        exit_code = 0
 
     if output_json:
         payload = {
-            "success": len(run_errors) == 0 and needs_review == 0,
+            "success": exit_code == 0,
             "source": str(file_path),
-            "store": str(store_path),
-            "checked": reviewed,
-            "certified": certified,
-            "needs_review": needs_review,
-            "skipped_certified": skipped,
-            "results": [
-                {
-                    "component": r.component,
-                    "status": r.status,
-                    "fingerprint": r.fingerprint,
-                    "quorum": r.quorum,
-                    "models": [v.model for v in r.votes],
-                    "votes": [summarize_vote(v) for v in r.votes],
-                }
-                for r in results
-            ],
-            "errors": run_errors,
+            "warnings": display_warnings,
+            "errors": display_errors,
+            "critical": critical,
+            "diagnostics": diagnostics,
+            "summary": summary,
+            "store": str(unit_store_path) if unit_store_path else None,
+            "unit_results": unit_results,
+            "skipped_certified_components": unit_skipped_components,
+            "advisory": advisory,
         }
         print(json.dumps(payload, indent=2))
     else:
-        _output_llm_unit_check_result(
-            file_path=file_path,
-            store_path=store_path,
-            results=results,
-            skipped=skipped,
-            run_errors=run_errors,
-            certified=certified,
-            needs_review=needs_review,
-            summarize_vote=summarize_vote,
+        _output_lint_result(
+            file_path,
+            diagnostics,
+            display_errors,
+            display_warnings,
+            output_json=False,
+            summary=summary,
         )
 
-    if run_errors:
-        return 2
-    if needs_review > 0:
-        return 1
-    return 0
+    return exit_code
 
 
 def _split_fenced_code_blocks(text: str) -> list[dict]:
@@ -510,229 +609,6 @@ def _split_fenced_code_blocks(text: str) -> list[dict]:
         out.append({"kind": "text", "text": tail.strip("\n")})
 
     return out
-
-
-def _output_llm_unit_check_result(
-    *,
-    file_path: Path,
-    store_path: Path,
-    results: list,
-    skipped: list[str],
-    run_errors: list[dict],
-    certified: int,
-    needs_review: int,
-    summarize_vote,
-) -> None:
-    """Render llm-check-units output in the same style as lint --llm-assess."""
-
-    diagnostics: list[dict] = []
-    for result in results:
-        for vote in result.votes:
-            vote_summary = summarize_vote(vote)
-            if not vote.findings and vote.status != "pass":
-                diagnostics.append(
-                    {
-                        "code": "LLM_UNIT_CHECK",
-                        "severity": "warning",
-                        "category": "unit_coefficient",
-                        "location": f"{result.component} [{vote.model}]",
-                        "message": (
-                            "LLM returned non-pass status but provided no findings."
-                        ),
-                    }
-                )
-                continue
-
-            for finding in vote.findings:
-                message = (
-                    str(finding.get("message", "")).strip()
-                    or "No message provided."
-                )
-                context_parts: list[str] = []
-
-                expected_process_units = finding.get("expected_process_units")
-                if expected_process_units:
-                    context_parts.append(
-                        "Expected process units: "
-                        f"{json.dumps(expected_process_units, sort_keys=True)}"
-                    )
-
-                expected_commodity_units = finding.get("expected_commodity_units")
-                if expected_commodity_units:
-                    context_parts.append(
-                        "Expected commodity units: "
-                        f"{json.dumps(expected_commodity_units, sort_keys=True)}"
-                    )
-
-                observed_units = finding.get("observed_units")
-                if observed_units:
-                    context_parts.append(
-                        f"Observed units: {json.dumps(observed_units, sort_keys=True)}"
-                    )
-
-                model_expectation = finding.get("model_expectation")
-                if model_expectation:
-                    context_parts.append(
-                        f"Model expectation: {str(model_expectation).strip()}"
-                    )
-
-                if context_parts:
-                    message = message + "\n\n" + "\n".join(context_parts)
-
-                field = finding.get("field")
-                location = f"{result.component} [{vote.model}]"
-                if field:
-                    location = f"{location} :: {field}"
-
-                diagnostics.append(
-                    {
-                        "code": "LLM_UNIT_CHECK",
-                        "severity": finding.get("severity", "warning"),
-                        "category": "unit_coefficient",
-                        "location": location,
-                        "message": message,
-                        "suggestion": finding.get("suggestion"),
-                    }
-                )
-
-            if vote_summary["status"] != "pass" and not vote_summary["top_findings"]:
-                diagnostics.append(
-                    {
-                        "code": "LLM_UNIT_CHECK",
-                        "severity": "warning",
-                        "category": "unit_coefficient",
-                        "location": f"{result.component} [{vote.model}]",
-                        "message": (
-                            "Needs review but no actionable findings were "
-                            "returned."
-                        ),
-                    }
-                )
-
-    for err in run_errors:
-        diagnostics.append(
-            {
-                "code": "LLM_UNIT_CHECK_ERROR",
-                "severity": "error",
-                "category": "unit_coefficient",
-                "location": err.get("component", ""),
-                "message": str(err.get("error", "Unknown error")),
-            }
-        )
-
-    try:
-        from rich import box
-        from rich.console import Console
-        from rich.panel import Panel
-        from rich.table import Table
-        from rich.text import Text
-
-        console = Console()
-
-        header_tbl = Table.grid(expand=True)
-        header_tbl.add_column("left", ratio=1)
-        header_tbl.add_column("right", justify="right")
-        header_tbl.add_row(
-            Text("VedaLang LLM Unit Check", style="bold"),
-            Text(str(file_path), style="dim"),
-        )
-        header_tbl.add_row(
-            Text("Store", style="dim"),
-            Text(str(store_path), style="dim"),
-        )
-        if skipped:
-            header_tbl.add_row(
-                Text("Skipped certified/current", style="dim"),
-                Text(", ".join(skipped), style="dim"),
-            )
-
-        console.print(
-            Panel(
-                header_tbl,
-                box=box.ROUNDED,
-                border_style="blue",
-                padding=(1, 1),
-            )
-        )
-
-        status_tbl = Table(show_header=True, header_style="bold")
-        status_tbl.add_column("Component")
-        status_tbl.add_column("Status")
-        status_tbl.add_column("Quorum")
-        status_tbl.add_column("Models")
-        for result in results:
-            status_style = "green" if result.status == "certified" else "yellow"
-            status_tbl.add_row(
-                result.component,
-                f"[{status_style}]{result.status}[/{status_style}]",
-                result.quorum,
-                ",".join(v.model for v in result.votes),
-            )
-        if results:
-            console.print(
-                Panel(status_tbl, box=box.ROUNDED, border_style="cyan", padding=(0, 1))
-            )
-
-        if diagnostics:
-            total = len(diagnostics)
-            for i, d in enumerate(diagnostics, start=1):
-                console.print(_format_finding_rich(d, i, total))
-                console.print()
-
-        summary = Table.grid(expand=True)
-        summary.add_column("left", ratio=1)
-        summary.add_column("right", justify="right")
-        left = Text.assemble(
-            ("Summary: ", "bold"),
-            (f"{certified} certified", "bold green" if certified else "dim"),
-            ("  ", ""),
-            (f"{needs_review} needs_review", "bold yellow" if needs_review else "dim"),
-            ("  ", ""),
-            (
-                f"{len(run_errors)} errors",
-                "bold red" if run_errors else "dim",
-            ),
-        )
-        right = (
-            Text("✓ OK", style="bold green")
-            if not run_errors and needs_review == 0
-            else Text("✗ Needs attention", style="bold red")
-        )
-        summary.add_row(left, right)
-        console.print(
-            Panel(
-                summary,
-                box=box.ROUNDED,
-                border_style="green" if not run_errors and needs_review == 0 else "red",
-                padding=(1, 1),
-            )
-        )
-    except ImportError:
-        print(f"LLM unit check: {file_path}")
-        print(f"Store: {store_path}")
-        if skipped:
-            print(f"Skipped certified/current: {', '.join(skipped)}")
-        for result in results:
-            print(
-                f"  - {result.component}: {result.status} "
-                "(quorum "
-                f"{result.quorum}, models={','.join(v.model for v in result.votes)})"
-            )
-        for d in diagnostics:
-            severity = str(d.get("severity", "warning")).upper()
-            code = d.get("code", "LLM_UNIT_CHECK")
-            location = d.get("location", "")
-            location_str = f" ({location})" if location else ""
-            print(f"{severity} [{code}]{location_str}: {d.get('message', '')}")
-            suggestion = d.get("suggestion")
-            if suggestion:
-                print(f"  ↳ Fix: {suggestion}")
-        print()
-        print(
-            "Summary: "
-            f"{certified} certified, {needs_review} needs_review, "
-            f"{len(run_errors)} errors"
-        )
 
 
 def _format_finding_rich(finding: dict, index: int, total: int):
@@ -831,6 +707,7 @@ def _output_lint_result(
     output_json: bool,
     *,
     llm_model: str | None = None,
+    summary: dict | None = None,
 ) -> int:
     """Output lint results and return exit code."""
     success = errors == 0
@@ -845,6 +722,8 @@ def _output_lint_result(
         }
         if llm_model:
             result["llm_model"] = llm_model
+        if summary is not None:
+            result["summary"] = summary
         print(json.dumps(result, indent=2))
     else:
         try:
@@ -884,9 +763,9 @@ def _output_lint_result(
                     console.print()
 
             # Summary bar
-            summary = Table.grid(expand=True)
-            summary.add_column("left", ratio=1)
-            summary.add_column("right", justify="right")
+            summary_tbl = Table.grid(expand=True)
+            summary_tbl.add_column("left", ratio=1)
+            summary_tbl.add_column("right", justify="right")
 
             left = Text.assemble(
                 ("Summary: ", "bold"),
@@ -923,14 +802,19 @@ def _output_lint_result(
                 if success
                 else Text("✗ Issues found", style="bold red")
             )
-            summary.add_row(left, right)
+            summary_tbl.add_row(left, right)
 
             console.print(Panel(
-                summary,
+                summary_tbl,
                 box=box.ROUNDED,
                 border_style="green" if success else "red",
                 padding=(1, 1),
             ))
+
+            if summary is not None:
+                skipped = summary.get("skipped_categories", [])
+                if skipped:
+                    console.print(f"Skipped categories: {', '.join(skipped)}")
 
         except ImportError:
             # Plain-text fallback
@@ -948,6 +832,11 @@ def _output_lint_result(
                 print()
 
             print(f"Lint: {errors} error(s), {warnings} warning(s)")
+            if summary is not None and summary.get("skipped_categories"):
+                print(
+                    "Skipped categories: "
+                    + ", ".join(summary.get("skipped_categories", []))
+                )
             if llm_model:
                 print(f"LLM model: {llm_model}")
             if success:

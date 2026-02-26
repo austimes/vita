@@ -244,7 +244,7 @@ def test_update_store_with_result_persists_component_record():
     assert rec["fingerprint"].startswith("sha256:")
 
 
-def test_cmd_llm_check_units_json_success(tmp_path, monkeypatch, capsys):
+def test_cmd_llm_lint_units_json_success(tmp_path, monkeypatch, capsys):
     model_file = tmp_path / "test.veda.yaml"
     model_file.write_text(yaml.safe_dump(SOURCE), encoding="utf-8")
     store_file = tmp_path / "checks.json"
@@ -294,17 +294,20 @@ def test_cmd_llm_check_units_json_success(tmp_path, monkeypatch, capsys):
         model=None,
         store=store_file,
     )
-    exit_code = cli.cmd_llm_check_units(args)
+    args.category = ["units"]
+    args.advisory = False
+    exit_code = cli.cmd_llm_lint(args)
     out = json.loads(capsys.readouterr().out)
 
     assert exit_code == 0
     assert out["success"] is True
-    assert out["certified"] == 1
-    assert out["needs_review"] == 0
+    assert "llm.units.component_quorum" in out["summary"]["checks_run"]
+    assert len(out["unit_results"]) == 1
+    assert out["unit_results"][0]["status"] == "certified"
     assert store_file.exists()
 
 
-def test_cmd_llm_check_units_needs_review_exit_code(tmp_path, monkeypatch, capsys):
+def test_cmd_llm_lint_units_needs_review_exit_code(tmp_path, monkeypatch, capsys):
     model_file = tmp_path / "test.veda.yaml"
     model_file.write_text(yaml.safe_dump(SOURCE), encoding="utf-8")
 
@@ -365,14 +368,17 @@ def test_cmd_llm_check_units_needs_review_exit_code(tmp_path, monkeypatch, capsy
         model=None,
         store=None,
     )
-    exit_code = cli.cmd_llm_check_units(args)
+    args.category = ["units"]
+    args.advisory = False
+    exit_code = cli.cmd_llm_lint(args)
     out = json.loads(capsys.readouterr().out)
 
-    assert exit_code == 1
-    assert out["needs_review"] == 1
+    assert exit_code == 2
+    assert out["success"] is False
+    assert out["critical"] >= 1
 
 
-def test_cmd_llm_check_units_unknown_component_returns_error(tmp_path, capsys):
+def test_cmd_llm_lint_units_unknown_component_returns_error(tmp_path, capsys):
     model_file = tmp_path / "test.veda.yaml"
     model_file.write_text(yaml.safe_dump(SOURCE), encoding="utf-8")
 
@@ -385,15 +391,18 @@ def test_cmd_llm_check_units_unknown_component_returns_error(tmp_path, capsys):
         model=None,
         store=None,
     )
-    exit_code = cli.cmd_llm_check_units(args)
+    args.category = ["units"]
+    args.advisory = False
+    exit_code = cli.cmd_llm_lint(args)
     out = json.loads(capsys.readouterr().out)
 
     assert exit_code == 2
     assert out["success"] is False
-    assert "Unknown component" in out["error"]
+    messages = [d["message"] for d in out["diagnostics"]]
+    assert any("Unknown component" in m for m in messages)
 
 
-def test_cmd_llm_check_units_text_prints_fix_suggestions(
+def test_cmd_llm_lint_units_text_prints_fix_suggestions(
     tmp_path, monkeypatch, capsys
 ):
     model_file = tmp_path / "test.veda.yaml"
@@ -467,10 +476,11 @@ def test_cmd_llm_check_units_text_prints_fix_suggestions(
         model=None,
         store=None,
     )
-    exit_code = cli.cmd_llm_check_units(args)
+    args.category = ["units"]
+    args.advisory = False
+    exit_code = cli.cmd_llm_lint(args)
     out = capsys.readouterr().out
 
-    assert exit_code == 1
-    assert "[1/1] Checking ccgt" in out
+    assert exit_code == 2
     assert "Set activity_unit=PJ and recompute coefficients." in out
     assert "Summary:" in out

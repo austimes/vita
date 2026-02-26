@@ -177,7 +177,7 @@ All 10 energy system primitives explored and implemented:
 | PRC_CAPACT (unit conversion) | ✅ |
 | Strict unit policy (`model.unit_policy`) | ✅ |
 | Coefficient anchor magnitude checks (`coefficient`) | ✅ |
-| Advisory LLM unit certification (`llm-check-units`) | ✅ |
+| Advisory LLM unit certification (`llm-lint --category units`) | ✅ |
 | Primary commodity group (explicit + inferred) | ✅ |
 
 ### Not Yet Implemented
