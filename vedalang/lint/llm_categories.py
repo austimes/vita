@@ -74,13 +74,17 @@ def run_structure(
 
     for version in versions:
         try:
-            result = run_llm_assessment(
-                source,
-                model=model,
-                reasoning_effort=runtime_config.reasoning_effort,
-                prompt_version=version,
-                timeout_sec=runtime_config.timeout_sec,
-            )
+            structure_kwargs: dict[str, Any] = {
+                "model": model,
+                "reasoning_effort": runtime_config.reasoning_effort,
+                "prompt_version": version,
+                "timeout_sec": runtime_config.timeout_sec,
+            }
+            if runtime_config.max_output_tokens is not None:
+                structure_kwargs["max_output_tokens"] = (
+                    runtime_config.max_output_tokens
+                )
+            result = run_llm_assessment(source, **structure_kwargs)
             llm_runs.append(
                 {
                     "check_id": CHECK_ID,
@@ -223,14 +227,17 @@ def run_units(
 
         for component_id in to_check:
             try:
-                result = run_component_unit_check(
-                    source=source,
-                    component=component_id,
-                    models=models,
-                    reasoning_effort=runtime_config.reasoning_effort,
-                    prompt_version=prompt_version,
-                    timeout_sec=runtime_config.timeout_sec,
-                )
+                unit_kwargs: dict[str, Any] = {
+                    "source": source,
+                    "component": component_id,
+                    "models": models,
+                    "reasoning_effort": runtime_config.reasoning_effort,
+                    "prompt_version": prompt_version,
+                    "timeout_sec": runtime_config.timeout_sec,
+                }
+                if runtime_config.max_output_tokens is not None:
+                    unit_kwargs["max_output_tokens"] = runtime_config.max_output_tokens
+                result = run_component_unit_check(**unit_kwargs)
                 update_store_with_result(
                     store,
                     result,

@@ -191,6 +191,51 @@ def test_parse_unit_check_response_reads_classification_fields():
     assert findings[0]["difficulty"] == "easy"
 
 
+def test_parse_unit_check_response_filters_speculative_unit_other():
+    raw = json.dumps(
+        {
+            "status": "needs_review",
+            "findings": [
+                {
+                    "severity": "warning",
+                    "error_code": "UNIT_OTHER",
+                    "error_family": "other",
+                    "difficulty": "medium",
+                    "message": "Possible HHV/LHV issue; consider sanity-checking.",
+                }
+            ],
+        }
+    )
+    status, findings = llm_unit_check.parse_unit_check_response(raw)
+    assert status == "needs_review"
+    assert findings == []
+
+
+def test_parse_unit_check_response_keeps_concrete_unit_other():
+    raw = json.dumps(
+        {
+            "status": "needs_review",
+            "findings": [
+                {
+                    "severity": "critical",
+                    "error_code": "UNIT_OTHER",
+                    "error_family": "other",
+                    "difficulty": "hard",
+                    "message": (
+                        "Missing explicit coefficient linking electricity PJ "
+                        "input to mobility Bvkm activity."
+                    ),
+                    "suggestion": "Add input coefficient in PJ/Bvkm on the variant.",
+                }
+            ],
+        }
+    )
+    status, findings = llm_unit_check.parse_unit_check_response(raw)
+    assert status == "needs_review"
+    assert len(findings) == 1
+    assert findings[0]["error_code"] == "UNIT_OTHER"
+
+
 def test_assemble_unit_prompt_includes_unit_enums_and_policy():
     system_prompt, user_prompt = llm_unit_check.assemble_unit_prompt(SOURCE, "ccgt")
     assert "status" in system_prompt
@@ -258,6 +303,38 @@ def test_run_component_unit_check_emits_progress_events():
         "model_start",
         "model_done",
     ]
+
+
+def test_run_component_unit_check_applies_default_max_output_tokens(monkeypatch):
+    captured: dict = {}
+
+    class FakeTelemetry:
+        latency_sec = 0.1
+        input_tokens = 1
+        output_tokens = 1
+        reasoning_tokens = 1
+        reasoning_effort = "low"
+
+    class FakeCall:
+        output_text = json.dumps({"status": "pass", "findings": []})
+        telemetry = FakeTelemetry()
+
+    def fake_call_openai_json(**kwargs):
+        captured.update(kwargs)
+        return FakeCall()
+
+    monkeypatch.setattr(llm_unit_check, "call_openai_json", fake_call_openai_json)
+
+    result = llm_unit_check.run_component_unit_check(
+        source=SOURCE,
+        component="ccgt",
+        models=["gpt-5-mini"],
+        reasoning_effort="low",
+    )
+    assert result.status == "certified"
+    assert (
+        captured["max_output_tokens"] == llm_unit_check.DEFAULT_MAX_OUTPUT_TOKENS
+    )
 
 
 def test_update_store_with_result_persists_component_record():

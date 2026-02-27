@@ -13,7 +13,11 @@ from tools.veda_dev.evals.config import (
 from tools.veda_dev.evals.dataset import cases_for_profile, load_dataset
 from tools.veda_dev.evals.judge import parse_judge_response
 from tools.veda_dev.evals.runner import compare_runs, run_eval
-from tools.veda_dev.evals.scoring import deterministic_breakdown, label_metrics
+from tools.veda_dev.evals.scoring import (
+    deterministic_breakdown,
+    label_metrics,
+    parity_score,
+)
 
 
 def test_candidate_matrix_has_9_entries():
@@ -109,7 +113,7 @@ def test_run_eval_marks_skips_without_crashing(monkeypatch, tmp_path):
         "tools.veda_dev.evals.runner.validate_vedalang", lambda _s: None
     )
     monkeypatch.setattr(
-        "tools.veda_dev.evals.runner._deterministic_reference", lambda _s, _c: []
+        "tools.veda_dev.evals.runner._deterministic_reference", lambda _s, _c, **_k: []
     )
 
     run = run_eval(
@@ -174,7 +178,7 @@ def test_run_eval_emits_progress_events(monkeypatch, tmp_path):
         "tools.veda_dev.evals.runner.validate_vedalang", lambda _s: None
     )
     monkeypatch.setattr(
-        "tools.veda_dev.evals.runner._deterministic_reference", lambda _s, _c: []
+        "tools.veda_dev.evals.runner._deterministic_reference", lambda _s, _c, **_k: []
     )
     monkeypatch.setattr(
         "tools.veda_dev.evals.runner.build_candidate_matrix",
@@ -237,7 +241,7 @@ def test_run_eval_pre_skips_known_unsupported_combos(monkeypatch, tmp_path):
         "tools.veda_dev.evals.runner.validate_vedalang", lambda _s: None
     )
     monkeypatch.setattr(
-        "tools.veda_dev.evals.runner._deterministic_reference", lambda _s, _c: []
+        "tools.veda_dev.evals.runner._deterministic_reference", lambda _s, _c, **_k: []
     )
     monkeypatch.setattr(
         "tools.veda_dev.evals.runner.build_candidate_matrix",
@@ -400,6 +404,22 @@ def test_deterministic_breakdown_is_bounded_to_100():
     assert breakdown["score"] <= 100.0
 
 
+def test_parity_score_is_neutral_when_reference_missing():
+    assert parity_score([{"code": "LLM_UNIT_CHECK"}], None) == 100.0
+
+    breakdown = deterministic_breakdown(
+        diagnostics=[{"code": "LLM_UNIT_CHECK"}],
+        expected_category="units",
+        expected_engine="llm",
+        expected_check_id="llm.units.component_quorum",
+        expected={},
+        required_code_substrings=[],
+        forbidden_code_substrings=[],
+        deterministic_diagnostics=None,
+    )
+    assert breakdown["parity_score"] == 100.0
+
+
 def test_run_eval_parallelizes_rows(monkeypatch, tmp_path):
     active = 0
     max_active = 0
@@ -427,7 +447,7 @@ def test_run_eval_parallelizes_rows(monkeypatch, tmp_path):
         "tools.veda_dev.evals.runner.validate_vedalang", lambda _s: None
     )
     monkeypatch.setattr(
-        "tools.veda_dev.evals.runner._deterministic_reference", lambda _s, _c: []
+        "tools.veda_dev.evals.runner._deterministic_reference", lambda _s, _c, **_k: []
     )
     monkeypatch.setattr(
         "tools.veda_dev.evals.runner.build_candidate_matrix",
@@ -520,7 +540,7 @@ def test_run_eval_orders_results_by_case_effort_model(monkeypatch, tmp_path):
         "tools.veda_dev.evals.runner.validate_vedalang", lambda _s: None
     )
     monkeypatch.setattr(
-        "tools.veda_dev.evals.runner._deterministic_reference", lambda _s, _c: []
+        "tools.veda_dev.evals.runner._deterministic_reference", lambda _s, _c, **_k: []
     )
     monkeypatch.setattr(
         "tools.veda_dev.evals.runner.build_candidate_matrix",
@@ -593,7 +613,7 @@ def test_run_eval_cache_reuses_judge_results(monkeypatch, tmp_path):
         "tools.veda_dev.evals.runner.validate_vedalang", lambda _s: None
     )
     monkeypatch.setattr(
-        "tools.veda_dev.evals.runner._deterministic_reference", lambda _s, _c: []
+        "tools.veda_dev.evals.runner._deterministic_reference", lambda _s, _c, **_k: []
     )
     monkeypatch.setattr(
         "tools.veda_dev.evals.runner.build_candidate_matrix",

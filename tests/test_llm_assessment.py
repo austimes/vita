@@ -290,6 +290,14 @@ class TestRunLLMAssessment:
         assert len(result.findings) == 3
         assert result.has_critical
 
+    def test_missing_findings_key_treated_as_clean_result(self):
+        def mock_llm(system, user):
+            return '{"status":"pass"}'
+
+        result = run_llm_assessment(MINIMAL_SOURCE, llm_callable=mock_llm)
+        assert len(result.findings) == 0
+        assert not result.has_critical
+
     def test_mock_receives_prompt_content(self):
         captured = {}
 

@@ -239,7 +239,17 @@ def _normalize_units_diagnostics(
     return diagnostics
 
 
-def _deterministic_reference(source: dict, category: str) -> list[dict[str, Any]]:
+def _deterministic_reference(
+    source: dict,
+    category: str,
+    *,
+    check_id: str | None = None,
+    component: str | None = None,
+) -> list[dict[str, Any]] | None:
+    if check_id == UNITS_CHECK_ID and component:
+        # Component-scoped unit eval cases should not be compared against
+        # whole-source deterministic presence parity.
+        return None
     if category not in {"structure", "units"}:
         return []
     try:
@@ -431,7 +441,7 @@ def _evaluate_row(
     expanded_case: ExpandedCase,
     expanded_case_index: int,
     case_source: dict[str, Any],
-    det_reference: list[dict[str, Any]],
+    det_reference: list[dict[str, Any]] | None,
     timeout_sec: int,
     cache: dict[str, Any],
     use_cache: bool,
@@ -865,7 +875,7 @@ def _summarize_candidate_rows(
 def run_eval(
     *,
     profile: str,
-    prompt_version: str,
+    prompt_version: str | None,
     dataset_path: Path | None,
     cache_path: Path,
     use_cache: bool,
@@ -900,7 +910,7 @@ def run_eval(
     )
 
     case_sources: dict[str, dict[str, Any]] = {}
-    case_det_refs: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    case_det_refs: dict[tuple[str, str], list[dict[str, Any]] | None] = {}
     for case_index, case in enumerate(base_cases, start=1):
         source = load_vedalang(Path(case.source))
         validate_vedalang(source)
@@ -908,6 +918,8 @@ def run_eval(
         case_det_refs[(case.case_id, case.category)] = _deterministic_reference(
             source,
             case.category,
+            check_id=case.check_id,
+            component=case.component,
         )
         _emit_progress(
             progress_callback,
@@ -1173,7 +1185,7 @@ def run_eval(
         "run_id": run_id,
         "created_at": datetime.now(UTC).isoformat(),
         "profile": profile,
-        "prompt_version": prompt_version,
+        "prompt_version": prompt_version or "latest",
         "dataset_version": dataset.version,
         "weights": {
             "deterministic_weight": weights.deterministic_weight,

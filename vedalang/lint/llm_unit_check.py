@@ -23,8 +23,45 @@ from vedalang.lint.llm_runtime import (
 from vedalang.lint.prompt_registry import load_prompt_template
 
 CHECK_ID = "llm.units.component_quorum"
-DEFAULT_PROMPT_VERSION = "v2"
+DEFAULT_PROMPT_VERSION = "v3"
 DEFAULT_MODELS = ("gpt-5.2", "gpt-5-mini")
+DEFAULT_MAX_OUTPUT_TOKENS = 2200
+
+_CONTROLLED_ERROR_CODES = {
+    "UNIT_BASIS_MISSING",
+    "UNIT_VARIABLE_COST_DENOM_MISMATCH",
+    "UNIT_INVESTMENT_COST_DENOM_MISMATCH",
+    "UNIT_CAPACITY_DENOM_MISMATCH",
+    "UNIT_OTHER",
+}
+_DEFAULT_ERROR_FAMILY_BY_CODE = {
+    "UNIT_BASIS_MISSING": "basis",
+    "UNIT_VARIABLE_COST_DENOM_MISMATCH": "cost_denominator",
+    "UNIT_INVESTMENT_COST_DENOM_MISMATCH": "cost_denominator",
+    "UNIT_CAPACITY_DENOM_MISMATCH": "capacity_alignment",
+    "UNIT_OTHER": "other",
+}
+_SPECULATIVE_MARKERS = (
+    "if intended",
+    "consider",
+    "confirm",
+    "possible",
+    "potential",
+    "plausible",
+    "might",
+    "may ",
+    "sanity-check",
+)
+_CONCRETE_UNIT_OTHER_MARKERS = (
+    "mismatch",
+    "incompatible",
+    "missing",
+    "undefined",
+    "cannot",
+    "not match",
+    "no explicit",
+    "no unit-consistent",
+)
 
 
 def _schema_unit_reference() -> dict[str, list[str]]:
@@ -321,41 +358,71 @@ def parse_unit_check_response(raw: str) -> tuple[str, list[dict[str, Any]]]:
         classification = item.get("classification")
         if not isinstance(classification, dict):
             classification = {}
-        error_code = (
+        error_code_raw = (
             item.get("error_code")
             or classification.get("error_code")
             or item.get("classification_code")
         )
+        error_code: str | None = None
+        if isinstance(error_code_raw, str) and str(error_code_raw).strip():
+            error_code = str(error_code_raw).strip().upper()
+            if error_code not in _CONTROLLED_ERROR_CODES:
+                error_code = "UNIT_OTHER"
         error_family = item.get("error_family") or classification.get("error_family")
         difficulty = item.get("difficulty") or classification.get("difficulty")
+        message = str(item.get("message", "")).strip()
+        suggestion = item.get("suggestion")
+        if (
+            error_code == "UNIT_OTHER"
+            and not _is_concrete_unit_other(
+                severity=sev,
+                message=message,
+                suggestion=suggestion,
+            )
+        ):
+            # Drop speculative/advisory UNIT_OTHER findings to keep eval signals tight.
+            continue
         normalized.append(
             {
                 "severity": sev,
-                "message": str(item.get("message", "")),
+                "message": message,
                 "field": item.get("field"),
-                "suggestion": item.get("suggestion"),
+                "suggestion": suggestion,
                 "expected_process_units": item.get("expected_process_units"),
                 "expected_commodity_units": item.get("expected_commodity_units"),
                 "observed_units": item.get("observed_units"),
                 "model_expectation": item.get("model_expectation"),
-                "error_code": (
-                    str(error_code).strip()
-                    if isinstance(error_code, str) and str(error_code).strip()
-                    else None
-                ),
+                "error_code": error_code,
                 "error_family": (
                     str(error_family).strip()
                     if isinstance(error_family, str) and str(error_family).strip()
-                    else None
+                    else _DEFAULT_ERROR_FAMILY_BY_CODE.get(error_code or "", "other")
                 ),
                 "difficulty": (
                     str(difficulty).strip()
                     if isinstance(difficulty, str) and str(difficulty).strip()
-                    else None
+                    else "medium"
                 ),
             }
         )
     return status, normalized
+
+
+def _is_concrete_unit_other(
+    *,
+    severity: str,
+    message: str,
+    suggestion: Any,
+) -> bool:
+    """Accept only concrete UNIT_OTHER findings; reject speculative advice."""
+    if not message:
+        return False
+    lowered = f"{message}\n{suggestion or ''}".lower()
+    if severity == "suggestion":
+        return False
+    if any(marker in lowered for marker in _SPECULATIVE_MARKERS):
+        return False
+    return any(marker in lowered for marker in _CONCRETE_UNIT_OTHER_MARKERS)
 
 
 def assemble_unit_prompt(
@@ -395,6 +462,7 @@ def run_component_unit_check(
     reasoning_effort: ReasoningEffort = "medium",
     prompt_version: str = DEFAULT_PROMPT_VERSION,
     timeout_sec: int | None = None,
+    max_output_tokens: int | None = DEFAULT_MAX_OUTPUT_TOKENS,
 ) -> ComponentUnitCheckResult:
     """Run quorum LLM checks for a component."""
     system_prompt, user_prompt = assemble_unit_prompt(
@@ -425,6 +493,7 @@ def run_component_unit_check(
                 model=model,
                 reasoning_effort=reasoning_effort,
                 timeout_sec=timeout_sec,
+                max_output_tokens=max_output_tokens,
             )
             raw = call.output_text
             telemetry = {

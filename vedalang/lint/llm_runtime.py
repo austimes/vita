@@ -17,8 +17,9 @@ class LLMRuntimeConfig:
     model: str | None = None
     models: list[str] | None = None
     reasoning_effort: ReasoningEffort = "medium"
-    prompt_version: str = "v2"
+    prompt_version: str | None = None
     timeout_sec: int | None = None
+    max_output_tokens: int | None = None
 
 
 @dataclass
@@ -96,6 +97,7 @@ def call_openai_json(
     model: str,
     reasoning_effort: ReasoningEffort = "medium",
     timeout_sec: int | None = None,
+    max_output_tokens: int | None = None,
 ) -> LLMCallResult:
     """Call OpenAI Responses API and request JSON object output."""
     api_key = os.environ.get("OPENAI_API_KEY")
@@ -124,6 +126,8 @@ def call_openai_json(
     }
     if timeout_sec is not None:
         call_kwargs["timeout"] = timeout_sec
+    if max_output_tokens is not None:
+        call_kwargs["max_output_tokens"] = int(max_output_tokens)
 
     start = perf_counter()
     try:

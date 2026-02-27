@@ -365,8 +365,11 @@ def main():
     )
     eval_run.add_argument(
         "--prompt-version",
-        default="v2",
-        help="Prompt version to evaluate (or 'all', default: v2)",
+        default=None,
+        help=(
+            "Prompt version to evaluate (or 'all'). "
+            "Default: latest available version per check."
+        ),
     )
     eval_run.add_argument(
         "--dataset",

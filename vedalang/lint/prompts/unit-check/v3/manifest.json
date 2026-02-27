@@ -1,0 +1,13 @@
+{
+  "check_id": "llm.units.component_quorum",
+  "version": "v3",
+  "created_at": "2026-02-27",
+  "content_sha256": "22bb082234bd07bd177b2c0ede6ca919d8b6dabb409cc10bfb3c6d3457330bc8",
+  "files": [
+    "CHANGELOG.md",
+    "response_schema.json",
+    "system.txt",
+    "user_prefix.txt"
+  ],
+  "notes": "Append-only prompt version. Create new version directory for prompt changes."
+}

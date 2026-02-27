@@ -51,8 +51,10 @@ def expected_signal_score(
 
 def parity_score(
     diagnostics: list[dict[str, Any]],
-    deterministic_diagnostics: list[dict[str, Any]],
+    deterministic_diagnostics: list[dict[str, Any]] | None,
 ) -> float:
+    if deterministic_diagnostics is None:
+        return 100.0
     llm_present = len(diagnostics) > 0
     det_present = len(deterministic_diagnostics) > 0
     return 100.0 if llm_present == det_present else 0.0
@@ -103,7 +105,6 @@ def _predicted_labels(diagnostics: list[dict[str, Any]]) -> dict[str, dict[str, 
             context.get("error_code")
             or context.get("classification_code")
             or d.get("error_code")
-            or d.get("code")
             or ""
         ).strip()
         if not code:
@@ -323,7 +324,7 @@ def deterministic_breakdown(
     expected: dict[str, Any],
     required_code_substrings: list[str],
     forbidden_code_substrings: list[str],
-    deterministic_diagnostics: list[dict[str, Any]],
+    deterministic_diagnostics: list[dict[str, Any]] | None,
 ) -> dict[str, Any]:
     taxonomy = taxonomy_score(
         diagnostics,

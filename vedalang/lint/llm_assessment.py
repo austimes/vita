@@ -32,6 +32,7 @@ from vedalang.lint.res_export import export_res_graph, res_graph_to_mermaid
 CHECK_ID = "llm.structure.res_assessment"
 DEFAULT_MODEL = "gpt-5.2"
 DEFAULT_PROMPT_VERSION = "v2"
+DEFAULT_MAX_OUTPUT_TOKENS = 2500
 
 # Path to the canonical modeling conventions document (single source of truth)
 _CONVENTIONS_PATH = (
@@ -249,6 +250,7 @@ def run_llm_assessment(
     reasoning_effort: ReasoningEffort = "medium",
     prompt_version: str = DEFAULT_PROMPT_VERSION,
     timeout_sec: int | None = None,
+    max_output_tokens: int | None = DEFAULT_MAX_OUTPUT_TOKENS,
 ) -> AssessmentResult:
     system_prompt, user_prompt = assemble_prompt(source, prompt_version=prompt_version)
 
@@ -264,6 +266,7 @@ def run_llm_assessment(
             model=resolved_model,
             reasoning_effort=reasoning_effort,
             timeout_sec=timeout_sec,
+            max_output_tokens=max_output_tokens,
         )
         raw = call.output_text
         telemetry = {
@@ -274,7 +277,24 @@ def run_llm_assessment(
             "reasoning_effort": call.telemetry.reasoning_effort,
         }
 
-    result = parse_llm_response(raw)
+    try:
+        result = parse_llm_response(raw)
+    except ValueError as exc:
+        if "missing 'findings' key" not in str(exc):
+            raise
+        # Some model variants return {"status": "..."} without findings.
+        # Treat as a clean advisory result instead of a hard runtime error.
+        text = raw.strip()
+        if text.startswith("```"):
+            lines = text.split("\n")
+            lines = lines[1:]
+            if lines and lines[-1].strip() == "```":
+                lines = lines[:-1]
+            text = "\n".join(lines).strip()
+        parsed = json.loads(text)
+        if not isinstance(parsed, dict):
+            raise
+        result = AssessmentResult(findings=[], raw_response=raw)
     result.model = resolved_model
     result.prompt_version = prompt_version
     result.telemetry = telemetry

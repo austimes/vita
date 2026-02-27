@@ -155,8 +155,11 @@ def _add_llm_lint_parser(subparsers):
     )
     p.add_argument(
         "--prompt-version",
-        default="v2",
-        help="Prompt version to use for supported checks (or 'all', default: v2).",
+        default=None,
+        help=(
+            "Prompt version to use for supported checks (or 'all'). "
+            "Default: latest available version per check."
+        ),
     )
     p.add_argument(
         "--request-timeout-sec",
@@ -521,7 +524,7 @@ def cmd_llm_lint(args) -> int:
         model=raw_models[0] if raw_models else None,
         models=raw_models or None,
         reasoning_effort=getattr(args, "reasoning_effort", "medium"),
-        prompt_version=getattr(args, "prompt_version", "v1"),
+        prompt_version=getattr(args, "prompt_version", None),
         timeout_sec=getattr(args, "request_timeout_sec", 120),
     )
 
@@ -600,7 +603,7 @@ def cmd_llm_lint(args) -> int:
                 "model": runtime_config.model,
                 "models": runtime_config.models,
                 "reasoning_effort": runtime_config.reasoning_effort,
-                "prompt_version": runtime_config.prompt_version,
+                "prompt_version": runtime_config.prompt_version or "latest",
                 "request_timeout_sec": runtime_config.timeout_sec,
             },
             "llm_runs": llm_runs,

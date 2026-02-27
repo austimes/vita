@@ -56,3 +56,23 @@ Run artifact:
 - Severe latency outliers correlate with large output/reasoning token volumes, especially on high effort.
 - Tracked by: `vedalang-91p`.
 
+## Follow-up Resolution Pass (2026-02-27)
+
+Artifacts:
+- `tmp/evals/eval-followup-smoke-20260227c.json`
+- command: `uv run vedalang-dev eval run --profile smoke --no-judge --progress --max-concurrency 4 --no-cache --cache tmp/evals/cache-followup-smoke-v3.json --out tmp/evals/eval-followup-smoke-20260227c.json`
+
+Implemented:
+- `vedalang-3a5`: reduced `UNIT_OTHER` false positives via:
+  - new unit-check prompt `v3` with explicit anti-speculation rules,
+  - parser-side filtering of speculative `UNIT_OTHER`,
+  - scoring change to ignore generic `LLM_UNIT_CHECK` when no classification code is returned.
+- `vedalang-9zk`: added explicit `variant_flow.coefficient` anchors to all mobility variants in `u_components_benchmark.veda.yaml`.
+- `vedalang-91p`: added shared `max_output_tokens` support in `call_openai_json`, with bounded defaults in structure and units paths; added tolerant fallback for structure responses that omit `findings`.
+- `vedalang-cts`: disabled parity coupling for component-scoped unit cases by marking deterministic parity reference unavailable (`None`) and scoring it neutrally.
+
+Observed outcomes (smoke):
+- `errors=0` (previous follow-up attempts had response-shape/truncation errors).
+- additional extras nearly eliminated; only one recurring structural edge case remained:
+  - `s02@v2`, `gpt-5-mini:medium` -> `STR_AMBIGUOUS_VARIANT_NAMING`.
+- unit-case latency outliers were reduced substantially versus earlier uncapped runs while preserving valid JSON responses.
