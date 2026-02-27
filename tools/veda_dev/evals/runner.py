@@ -485,6 +485,7 @@ def _evaluate_row(
         label_match_hits: int | None = None
         label_match_total: int | None = None
         label_match: str | None = None
+        control_match: str | None = None
         additional_issues_count: int | None = None
         additional_issue_codes: list[str] = []
 
@@ -511,7 +512,10 @@ def _evaluate_row(
                 if isinstance(hits, int) and isinstance(total, int):
                     label_match_hits = hits
                     label_match_total = total
-                    label_match = f"[{hits}/{total}]" if total > 0 else None
+                    label_match = f"[{hits}/{total}]"
+                control_match_val = label_metrics.get("control_match")
+                if isinstance(control_match_val, str):
+                    control_match = control_match_val
                 extra_count = label_metrics.get("additional_issue_count")
                 if isinstance(extra_count, int):
                     additional_issues_count = extra_count
@@ -604,6 +608,7 @@ def _evaluate_row(
             "label_match_hits": label_match_hits,
             "label_match_total": label_match_total,
             "label_match": label_match,
+            "control_match": control_match,
             "additional_issues_count": additional_issues_count,
             "additional_issue_codes": additional_issue_codes,
         }
@@ -635,6 +640,7 @@ def _evaluate_row(
             "label_match_hits": None,
             "label_match_total": None,
             "label_match": None,
+            "control_match": None,
             "additional_issues_count": None,
             "additional_issue_codes": [],
         }
@@ -680,6 +686,7 @@ def _summarize_candidate_rows(
             "label_match_hits": 0,
             "label_match_total": 0,
             "label_match": "n/a",
+            "control_match": "n/a",
             "additional_issues_count": 0,
             "label_precision": None,
             "label_recall": None,
@@ -717,11 +724,16 @@ def _summarize_candidate_rows(
         if isinstance(hits, int) and isinstance(total, int):
             label_match_hits_sum += hits
             label_match_total_sum += total
-    label_match = (
-        f"[{label_match_hits_sum}/{label_match_total_sum}]"
-        if label_match_total_sum > 0
-        else "n/a"
-    )
+    label_match = f"[{label_match_hits_sum}/{label_match_total_sum}]"
+    control_hits_sum = 0
+    control_total_sum = 0
+    for m in label_metric_rows:
+        hits = m.get("control_hits")
+        total = m.get("control_total")
+        if isinstance(hits, int) and isinstance(total, int):
+            control_hits_sum += hits
+            control_total_sum += total
+    control_match = f"[{control_hits_sum}/{control_total_sum}]"
     additional_issues_total = 0
     for m in label_metric_rows:
         extra_count = m.get("additional_issue_count")
@@ -832,6 +844,7 @@ def _summarize_candidate_rows(
         "label_match_hits": label_match_hits_sum,
         "label_match_total": label_match_total_sum,
         "label_match": label_match,
+        "control_match": control_match,
         "additional_issues_count": additional_issues_total,
         "label_precision": label_precision,
         "label_recall": label_recall,
@@ -1045,6 +1058,7 @@ def run_eval(
                         cached=row.get("cached", False),
                         deterministic_score=row["deterministic_score"],
                         label_match=row["label_match"],
+                        control_match=row["control_match"],
                         additional_issues_count=row["additional_issues_count"],
                         label_f1=(
                             row.get("deterministic_breakdown", {})
@@ -1092,6 +1106,7 @@ def run_eval(
                                 "deterministic_score"
                             ],
                             label_match=candidate_summary["label_match"],
+                            control_match=candidate_summary["control_match"],
                             additional_issues_count=candidate_summary[
                                 "additional_issues_count"
                             ],
@@ -1259,6 +1274,7 @@ def render_report(run: dict[str, Any]) -> str:
             f"rank={row['rank_score']:.2f} quality={row['quality_score']:.2f} "
             f"det={row['deterministic_score']:.2f} "
             f"label_match={row.get('label_match', 'n/a')} "
+            f"control_match={row.get('control_match', 'n/a')} "
             f"extra={row.get('additional_issues_count', 0)} "
             f"label_f1={label_f1_text} "
             f"latency_p50={row['p50_latency_sec']:.2f}s "

@@ -154,6 +154,9 @@ def label_metrics(
             "intentional_hits": None,
             "intentional_total": None,
             "intentional_match": None,
+            "control_hits": None,
+            "control_total": None,
+            "control_match": None,
             "known_false_positive_count": None,
             "additional_issue_count": None,
             "additional_issue_codes": [],
@@ -192,16 +195,16 @@ def label_metrics(
         if label.error_code in predicted_codes:
             intentional_hits += 1
             presence_hits += 1
+    control_hits = 0
     for label in expected_absent:
         if label.error_code not in predicted_codes:
+            control_hits += 1
             presence_hits += 1
     presence_accuracy = _safe_ratio(presence_hits, len(expected_labels))
     intentional_total = len(expected_present)
-    intentional_match = (
-        f"[{intentional_hits}/{intentional_total}]"
-        if intentional_total > 0
-        else None
-    )
+    intentional_match = f"[{intentional_hits}/{intentional_total}]"
+    control_total = len(expected_absent)
+    control_match = f"[{control_hits}/{control_total}]"
     known_false_positive_count = len(predicted_codes & expected_absent_codes)
     additional_issue_codes = sorted(predicted_codes - expected_all_codes)
     additional_issue_count = len(additional_issue_codes)
@@ -293,6 +296,9 @@ def label_metrics(
         "intentional_hits": intentional_hits,
         "intentional_total": intentional_total,
         "intentional_match": intentional_match,
+        "control_hits": control_hits,
+        "control_total": control_total,
+        "control_match": control_match,
         "known_false_positive_count": known_false_positive_count,
         "additional_issue_count": additional_issue_count,
         "additional_issue_codes": additional_issue_codes,
