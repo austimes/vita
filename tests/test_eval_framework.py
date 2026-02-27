@@ -16,38 +16,37 @@ from tools.veda_dev.evals.runner import compare_runs, run_eval
 from tools.veda_dev.evals.scoring import label_metrics
 
 
-def test_candidate_matrix_has_13_entries():
+def test_candidate_matrix_has_9_entries():
     candidates = build_candidate_matrix()
-    assert len(candidates) == 13
+    assert len(candidates) == 9
 
 
 def test_candidate_matrix_orders_fast_to_slow():
     candidate_ids = [c.candidate_id for c in build_candidate_matrix()]
-    assert candidate_ids[:4] == [
+    assert candidate_ids[:3] == [
         "gpt-5-nano:low",
         "gpt-5-nano:medium",
         "gpt-5-nano:high",
-        "gpt-5-nano:xhigh",
     ]
-    assert candidate_ids[4:8] == [
+    assert candidate_ids[3:6] == [
         "gpt-5-mini:low",
         "gpt-5-mini:medium",
         "gpt-5-mini:high",
-        "gpt-5-mini:xhigh",
     ]
-    assert candidate_ids[8:] == [
-        "gpt-5.2:none",
+    assert candidate_ids[6:] == [
         "gpt-5.2:low",
         "gpt-5.2:medium",
         "gpt-5.2:high",
-        "gpt-5.2:xhigh",
     ]
 
 
 def test_model_reasoning_support_matrix():
-    assert model_supports_reasoning_effort("gpt-5.2", "none")
+    assert not model_supports_reasoning_effort("gpt-5.2", "none")
+    assert not model_supports_reasoning_effort("gpt-5.2", "xhigh")
     assert not model_supports_reasoning_effort("gpt-5-mini", "none")
+    assert not model_supports_reasoning_effort("gpt-5-mini", "xhigh")
     assert not model_supports_reasoning_effort("gpt-5-nano", "none")
+    assert not model_supports_reasoning_effort("gpt-5-nano", "xhigh")
     assert model_supports_reasoning_effort("gpt-5-mini", "low")
     assert model_supports_reasoning_effort("gpt-5-nano", "medium")
 
@@ -71,7 +70,7 @@ def test_judge_parser_requires_json_object():
 def test_run_eval_marks_skips_without_crashing(monkeypatch, tmp_path):
     def fake_evaluate_one(**kwargs):
         effort = kwargs["effort"]
-        if effort == "xhigh":
+        if effort == "high":
             return {
                 "status": "skipped",
                 "diagnostics": [],
@@ -126,8 +125,8 @@ def test_run_eval_marks_skips_without_crashing(monkeypatch, tmp_path):
     )
 
     assert run["run_id"].startswith("eval-")
-    assert len(run["candidates"]) == 13
-    assert len(run["results"]) == 13 * 5  # profile smoke expands to 5 cases at v1
+    assert len(run["candidates"]) == 9
+    assert len(run["results"]) == 9 * 5  # profile smoke expands to 5 cases at v1
     assert any(r["status"] == "skipped" for r in run["results"])
     assert all("telemetry" in r for r in run["results"])
     assert all("row_elapsed_sec" in r for r in run["results"])
@@ -179,7 +178,7 @@ def test_run_eval_emits_progress_events(monkeypatch, tmp_path):
     )
     monkeypatch.setattr(
         "tools.veda_dev.evals.runner.build_candidate_matrix",
-        lambda: [CandidateSpec(model="gpt-5.2", reasoning_effort="none")],
+        lambda: [CandidateSpec(model="gpt-5.2", reasoning_effort="low")],
     )
 
     run_eval(
@@ -236,7 +235,11 @@ def test_run_eval_pre_skips_known_unsupported_combos(monkeypatch, tmp_path):
     )
     monkeypatch.setattr(
         "tools.veda_dev.evals.runner.build_candidate_matrix",
-        lambda: [CandidateSpec(model="gpt-5-mini", reasoning_effort="none")],
+        lambda: [CandidateSpec(model="gpt-5-mini", reasoning_effort="high")],
+    )
+    monkeypatch.setattr(
+        "tools.veda_dev.evals.runner.model_supports_reasoning_effort",
+        lambda _model, _effort: False,
     )
 
     run = run_eval(
@@ -392,7 +395,7 @@ def test_run_eval_survives_deterministic_reference_errors(monkeypatch, tmp_path)
     assert run["timing"]["completed_runs"] == 5
 
 
-def test_run_eval_orders_results_by_effort_case_model(monkeypatch, tmp_path):
+def test_run_eval_orders_results_by_case_effort_model(monkeypatch, tmp_path):
     def fake_evaluate_one(**_kwargs):
         return {
             "status": "ok",
@@ -441,8 +444,10 @@ def test_run_eval_orders_results_by_effort_case_model(monkeypatch, tmp_path):
     ]
     assert all(r["case_id"] == "s01@v1" for r in first_group)
     assert all(r["reasoning_effort"] == "low" for r in first_group)
-    assert run["results"][15]["candidate_id"] == "gpt-5.2:medium"
-    assert run["results"][15]["case_id"] == "s01@v1"
+    assert run["results"][3]["candidate_id"] == "gpt-5.2:medium"
+    assert run["results"][3]["case_id"] == "s01@v1"
+    assert run["results"][4]["candidate_id"] == "gpt-5-nano:low"
+    assert run["results"][4]["case_id"] == "s02@v1"
 
 
 def test_run_eval_cache_reuses_judge_results(monkeypatch, tmp_path):

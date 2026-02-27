@@ -886,10 +886,8 @@ def run_eval(
     )
 
     try:
-        for effort_index, effort in enumerate(effort_order, start=1):
-            for expanded_case_index, expanded_case in enumerate(
-                expanded_cases, start=1
-            ):
+        for expanded_case_index, expanded_case in enumerate(expanded_cases, start=1):
+            for effort_index, effort in enumerate(effort_order, start=1):
                 specs: list[dict[str, Any]] = []
                 for model_index, model in enumerate(model_order, start=1):
                     candidate = candidate_lookup.get((effort, model))
@@ -1064,8 +1062,8 @@ def run_eval(
 
     row_results.sort(
         key=lambda r: (
-            int(r.get("_effort_index", 0)),
             int(r["_case_index"]),
+            int(r.get("_effort_index", 0)),
             int(r.get("_model_order", 0)),
         )
     )
