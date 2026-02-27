@@ -204,6 +204,7 @@ def test_run_eval_emits_progress_events(monkeypatch, tmp_path):
     first_row = row_events[0]
     assert "deterministic_score" in first_row
     assert "label_match" in first_row
+    assert "additional_issues_count" in first_row
     assert "label_f1" in first_row
     assert "judge_score" in first_row
     assert "quality_score" in first_row
@@ -213,6 +214,7 @@ def test_run_eval_emits_progress_events(monkeypatch, tmp_path):
     assert candidate_done_events
     assert "rank_score" in candidate_done_events[0]
     assert "label_match" in candidate_done_events[0]
+    assert "additional_issues_count" in candidate_done_events[0]
     assert "label_f1" in candidate_done_events[0]
     assert "avg_row_elapsed_sec" in candidate_done_events[0]
     assert "candidate_elapsed_sec" in candidate_done_events[0]
@@ -288,10 +290,72 @@ def test_label_metrics_reads_classification_fields():
     metrics = label_metrics(diagnostics, expected=expected)
     assert metrics["enabled"] is True
     assert metrics["presence_hits"] == 1
+    assert metrics["intentional_hits"] == 1
+    assert metrics["intentional_total"] == 1
+    assert metrics["intentional_match"] == "[1/1]"
+    assert metrics["additional_issue_count"] == 0
     assert metrics["f1"] == 100.0
     assert metrics["presence_accuracy"] == 100.0
     assert metrics["difficulty_accuracy"] == 100.0
     assert metrics["family_accuracy"] == 100.0
+
+
+def test_label_metrics_counts_additional_unknown_issue_codes():
+    diagnostics = [
+        {
+            "code": "LLM_UNIT_CHECK",
+            "context": {
+                "error_code": "UNIT_VARIABLE_COST_DENOM_MISMATCH",
+                "error_family": "cost_denominator",
+                "difficulty": "easy",
+            },
+        },
+        {
+            "code": "LLM_UNIT_CHECK",
+            "context": {
+                "error_code": "UNIT_UNKNOWN_NEW",
+                "error_family": "other",
+                "difficulty": "hard",
+            },
+        },
+    ]
+    expected = {
+        "labels": [
+            {
+                "error_code": "UNIT_VARIABLE_COST_DENOM_MISMATCH",
+                "error_family": "cost_denominator",
+                "difficulty": "easy",
+                "expected_presence": "present",
+            }
+        ]
+    }
+    metrics = label_metrics(diagnostics, expected=expected)
+    assert metrics["intentional_match"] == "[1/1]"
+    assert metrics["additional_issue_count"] == 1
+    assert metrics["additional_issue_codes"] == ["UNIT_UNKNOWN_NEW"]
+
+
+def test_label_metrics_intentional_match_ignores_absent_controls():
+    diagnostics = []
+    expected = {
+        "labels": [
+            {
+                "error_code": "STR_ZERO_INPUT_DEVICE",
+                "error_family": "structural_topology",
+                "difficulty": "easy",
+                "expected_presence": "absent",
+            },
+            {
+                "error_code": "STR_STAGE_MISMATCH",
+                "error_family": "stage_semantics",
+                "difficulty": "medium",
+                "expected_presence": "absent",
+            },
+        ]
+    }
+    metrics = label_metrics(diagnostics, expected=expected)
+    assert metrics["intentional_total"] == 0
+    assert metrics["intentional_match"] is None
 
 
 def test_deterministic_breakdown_is_bounded_to_100():

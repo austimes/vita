@@ -151,6 +151,12 @@ def label_metrics(
             "difficulty_accuracy": None,
             "family_accuracy": None,
             "presence_hits": None,
+            "intentional_hits": None,
+            "intentional_total": None,
+            "intentional_match": None,
+            "known_false_positive_count": None,
+            "additional_issue_count": None,
+            "additional_issue_codes": [],
             "tp": None,
             "fp": None,
             "fn": None,
@@ -165,6 +171,8 @@ def label_metrics(
     expected_absent = [x for x in expected_labels if x.expected_presence == "absent"]
 
     expected_present_codes = {x.error_code for x in expected_present}
+    expected_all_codes = {x.error_code for x in expected_labels}
+    expected_absent_codes = {x.error_code for x in expected_absent}
     predicted_codes = set(predicted.keys())
 
     tp = len(expected_present_codes & predicted_codes)
@@ -179,13 +187,24 @@ def label_metrics(
         f1 = (2.0 * precision * recall) / (precision + recall)
 
     presence_hits = 0
+    intentional_hits = 0
     for label in expected_present:
         if label.error_code in predicted_codes:
+            intentional_hits += 1
             presence_hits += 1
     for label in expected_absent:
         if label.error_code not in predicted_codes:
             presence_hits += 1
     presence_accuracy = _safe_ratio(presence_hits, len(expected_labels))
+    intentional_total = len(expected_present)
+    intentional_match = (
+        f"[{intentional_hits}/{intentional_total}]"
+        if intentional_total > 0
+        else None
+    )
+    known_false_positive_count = len(predicted_codes & expected_absent_codes)
+    additional_issue_codes = sorted(predicted_codes - expected_all_codes)
+    additional_issue_count = len(additional_issue_codes)
 
     difficulty_checks = 0
     difficulty_hits = 0
@@ -271,6 +290,12 @@ def label_metrics(
         "f1": f1,
         "presence_accuracy": presence_accuracy,
         "presence_hits": presence_hits,
+        "intentional_hits": intentional_hits,
+        "intentional_total": intentional_total,
+        "intentional_match": intentional_match,
+        "known_false_positive_count": known_false_positive_count,
+        "additional_issue_count": additional_issue_count,
+        "additional_issue_codes": additional_issue_codes,
         "difficulty_accuracy": difficulty_accuracy,
         "family_accuracy": family_accuracy,
         "tp": tp,
