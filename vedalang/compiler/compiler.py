@@ -298,6 +298,85 @@ def _warn_ambiguous_commodity_ref(
     )
 
 
+def _combustion_metadata_issues(comm_id: str, comm: dict) -> list[str]:
+    """Return deterministic commodity combustibility metadata issues."""
+    issues: list[str] = []
+    comm_type = comm.get("type", "energy")
+    unit = comm.get("unit") or _get_default_unit(comm_type)
+    dimension = UNIT_DIMENSIONS.get(unit)
+    combustible = comm.get("combustible")
+    has_lhv = "lhv_mj_per_unit" in comm
+    has_hhv = "hhv_mj_per_unit" in comm
+
+    # For now we require explicit combustibility on all energy-domain carriers.
+    requires_combustible_flag = (
+        comm_type in {"fuel", "energy"} and dimension == "energy"
+    )
+    if requires_combustible_flag and combustible is None:
+        issues.append(
+            f"Commodity '{comm_id}' (type '{comm_type}', unit '{unit}') must set "
+            "'combustible: true|false' explicitly."
+        )
+        return issues
+
+    if combustible is None:
+        if has_lhv or has_hhv:
+            issues.append(
+                f"Commodity '{comm_id}' defines heating values but is missing "
+                "'combustible: true|false'."
+            )
+        return issues
+
+    if combustible:
+        if dimension != "energy":
+            issues.append(
+                f"Commodity '{comm_id}' is marked combustible but unit '{unit}' is not "
+                "an energy-domain unit."
+            )
+        if not has_lhv or not has_hhv:
+            issues.append(
+                f"Commodity '{comm_id}' with combustible=true must include both "
+                "'lhv_mj_per_unit' and 'hhv_mj_per_unit'."
+            )
+            return issues
+        lhv = comm.get("lhv_mj_per_unit")
+        hhv = comm.get("hhv_mj_per_unit")
+        if not isinstance(lhv, (int, float)) or float(lhv) <= 0:
+            issues.append(
+                f"Commodity '{comm_id}' has invalid lhv_mj_per_unit '{lhv}'. "
+                "Expected a positive number."
+            )
+        if not isinstance(hhv, (int, float)) or float(hhv) <= 0:
+            issues.append(
+                f"Commodity '{comm_id}' has invalid hhv_mj_per_unit '{hhv}'. "
+                "Expected a positive number."
+            )
+        if (
+            isinstance(lhv, (int, float))
+            and isinstance(hhv, (int, float))
+            and hhv < lhv
+        ):
+            issues.append(
+                f"Commodity '{comm_id}' has hhv_mj_per_unit ({hhv}) lower than "
+                f"lhv_mj_per_unit ({lhv}); expected HHV >= LHV."
+            )
+    else:
+        if has_lhv or has_hhv:
+            issues.append(
+                f"Commodity '{comm_id}' has combustible=false but defines heating "
+                "values. "
+                "Remove lhv_mj_per_unit/hhv_mj_per_unit or set combustible=true."
+            )
+        basis = comm.get("basis")
+        if basis in ENERGY_BASES:
+            issues.append(
+                f"Commodity '{comm_id}' has combustible=false but basis='{basis}'. "
+                "Remove basis or mark commodity combustible."
+            )
+
+    return issues
+
+
 def _format_structural_errors(errors: list[dict[str, str]]) -> str:
     """Format structural invariant errors as deterministic diagnostics."""
     ordered = sorted(
@@ -354,6 +433,9 @@ def _normalize_commodities_for_new_syntax(
             norm["unit"] = _get_default_unit(comm_type)
         if "basis" in raw:
             norm["basis"] = raw["basis"]
+        for field in ("combustible", "lhv_mj_per_unit", "hhv_mj_per_unit"):
+            if field in raw:
+                norm[field] = raw[field]
 
         normalized[norm["id"]] = norm
 
@@ -428,6 +510,15 @@ def _collect_new_syntax_structural_invariants(
                 error_code="E_BASIS_ENUM",
                 warning_code="W_BASIS_ENUM",
             )
+        if _is_strict_unit_mode(unit_policy):
+            for issue in _combustion_metadata_issues(comm_id, comm):
+                errors.append(
+                    {
+                        "code": "E_COMBUSTIBLE_METADATA",
+                        "location": f"model.commodities[{comm_id}]",
+                        "message": issue,
+                    }
+                )
 
     for role_id, role in sorted(roles.items()):
         if role.stage not in VALID_PROCESS_STAGES:
@@ -2019,6 +2110,9 @@ def validate_cross_references(
                         "Expected one of: HHV, LHV."
                     ),
                 )
+            if _is_strict_unit_mode(unit_policy):
+                for issue in _combustion_metadata_issues(comm_id, c):
+                    errors.append(issue)
             commodities[comm_id] = c
     commodity_names = set(commodities.keys())
     processes = set()

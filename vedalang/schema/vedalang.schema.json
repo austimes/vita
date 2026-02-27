@@ -921,6 +921,20 @@
           "$ref": "#/$defs/unit_symbol",
           "description": "Unit of measurement (e.g., PJ, Mt)"
         },
+        "combustible": {
+          "type": "boolean",
+          "description": "Whether this commodity is combustible. Required for strict heating-basis checks on energy carriers."
+        },
+        "lhv_mj_per_unit": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Lower heating value reference in MJ per commodity unit (required when combustible=true)."
+        },
+        "hhv_mj_per_unit": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Higher heating value reference in MJ per commodity unit (required when combustible=true)."
+        },
         "basis": {
           "$ref": "#/$defs/energy_basis",
           "description": "Energy basis used for this commodity when relevant to energy/mass consistency"
@@ -945,6 +959,31 @@
           "description": "Peak demand fraction for capacity adequacy"
         }
       },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "combustible": { "const": true } },
+            "required": ["combustible"]
+          },
+          "then": {
+            "required": ["lhv_mj_per_unit", "hhv_mj_per_unit"]
+          }
+        },
+        {
+          "if": {
+            "properties": { "combustible": { "const": false } },
+            "required": ["combustible"]
+          },
+          "then": {
+            "not": {
+              "anyOf": [
+                { "required": ["lhv_mj_per_unit"] },
+                { "required": ["hhv_mj_per_unit"] }
+              ]
+            }
+          }
+        }
+      ],
       "additionalProperties": false
     },
     "case_demand_override": {

@@ -1931,7 +1931,9 @@ def test_strict_unit_policy_rejects_unrecognized_activity_unit():
         "name": "StrictUnitPolicy",
         "regions": ["REG1"],
         "unit_policy": {"mode": "strict"},
-        "commodities": [{"name": "C:ELC", "type": "energy"}],
+        "commodities": [
+            {"name": "C:ELC", "type": "energy", "combustible": False}
+        ],
         "processes": [
             {
                 "name": "PP_CCGT",
@@ -1959,7 +1961,9 @@ def test_strict_unit_policy_rejects_fake_unit_transform_process():
             "mode": "strict",
             "forbid_unit_transform_processes": True,
         },
-        "commodities": [{"name": "C:ELC", "type": "energy"}],
+        "commodities": [
+            {"name": "C:ELC", "type": "energy", "combustible": False}
+        ],
         "processes": [
             {
                 "name": "fake_twh_to_pj",
@@ -1981,7 +1985,14 @@ def test_strict_unit_policy_requires_basis_for_energy_mass_process():
         "regions": ["REG1"],
         "unit_policy": {"mode": "strict", "energy_basis": "HHV"},
         "commodities": [
-            {"name": "C:GAS", "type": "fuel", "unit": "PJ"},
+            {
+                "name": "C:GAS",
+                "type": "fuel",
+                "unit": "PJ",
+                "combustible": True,
+                "lhv_mj_per_unit": 48.0,
+                "hhv_mj_per_unit": 53.5,
+            },
             {"name": "C:H2", "type": "material", "unit": "Mt"},
         ],
         "processes": [
@@ -1997,6 +2008,46 @@ def test_strict_unit_policy_requires_basis_for_energy_mass_process():
     }
     errors, _ = validate_cross_references(model)
     assert any("has no basis" in e for e in errors)
+
+
+def test_strict_unit_policy_requires_combustible_flag_for_energy_carriers():
+    """Strict mode should require combustible metadata on energy carriers."""
+    model = {
+        "name": "CombustibleFlagRequired",
+        "regions": ["REG1"],
+        "unit_policy": {"mode": "strict"},
+        "commodities": [
+            {"name": "C:GAS", "type": "fuel", "unit": "PJ"},
+            {"name": "C:ELC", "type": "energy", "unit": "PJ", "combustible": False},
+        ],
+        "processes": [],
+    }
+    errors, _ = validate_cross_references(model)
+    assert any("must set 'combustible: true|false'" in e for e in errors)
+
+
+def test_strict_unit_policy_combustible_true_requires_hhv_lhv_values():
+    """Strict mode should reject combustible=true without both HHV/LHV values."""
+    model = {
+        "name": "CombustibleValuesRequired",
+        "regions": ["REG1"],
+        "unit_policy": {"mode": "strict"},
+        "commodities": [
+            {
+                "name": "C:GAS",
+                "type": "fuel",
+                "unit": "PJ",
+                "combustible": True,
+                "lhv_mj_per_unit": 48.0,
+            }
+        ],
+        "processes": [],
+    }
+    errors, _ = validate_cross_references(model)
+    assert any(
+        "must include both 'lhv_mj_per_unit' and 'hhv_mj_per_unit'" in e
+        for e in errors
+    )
 
 
 def test_efficiency_gt_one_requires_cop_metric_in_permissive_mode():
@@ -2082,8 +2133,20 @@ def test_coefficient_anchor_mismatch_errors_in_strict_mode():
         "regions": ["REG1"],
         "unit_policy": {"mode": "strict"},
         "commodities": [
-            {"name": "C:GAS", "type": "fuel", "unit": "PJ"},
-            {"name": "C:ELC", "type": "energy", "unit": "TWh"},
+            {
+                "name": "C:GAS",
+                "type": "fuel",
+                "unit": "PJ",
+                "combustible": True,
+                "lhv_mj_per_unit": 48.0,
+                "hhv_mj_per_unit": 53.5,
+            },
+            {
+                "name": "C:ELC",
+                "type": "energy",
+                "unit": "TWh",
+                "combustible": False,
+            },
         ],
         "processes": [
             {
@@ -2859,7 +2922,12 @@ def test_incompatible_activity_capacity_pair_is_rejected():
             "regions": ["R1"],
             "unit_policy": {"mode": "strict"},
             "commodities": [
-                {"id": "secondary:electricity", "type": "energy", "unit": "PJ"},
+                {
+                    "id": "secondary:electricity",
+                    "type": "energy",
+                    "unit": "PJ",
+                    "combustible": False,
+                },
                 {"id": "service:passenger_km", "type": "service", "unit": "Bvkm"},
             ],
         },
@@ -3185,8 +3253,20 @@ def _new_syntax_conversion_source() -> dict:
             "regions": ["REG1"],
             "milestone_years": [2020],
             "commodities": [
-                {"id": "primary:natural_gas", "type": "fuel", "unit": "PJ"},
-                {"id": "secondary:electricity", "type": "energy", "unit": "TWh"},
+                {
+                    "id": "primary:natural_gas",
+                    "type": "fuel",
+                    "unit": "PJ",
+                    "combustible": True,
+                    "lhv_mj_per_unit": 48.0,
+                    "hhv_mj_per_unit": 53.5,
+                },
+                {
+                    "id": "secondary:electricity",
+                    "type": "energy",
+                    "unit": "TWh",
+                    "combustible": False,
+                },
             ],
         },
         "segments": {"sectors": ["RES"]},

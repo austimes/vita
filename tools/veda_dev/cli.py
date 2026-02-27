@@ -858,7 +858,8 @@ def run_eval_command(args):
                 f"det={_fmt_score(event.get('deterministic_score'))} "
                 f"judge={_fmt_score(event.get('judge_score'))} "
                 f"quality={_fmt_score(event.get('quality_score'))} "
-                f"cost=${_fmt_score(event.get('estimated_cost_usd'), 4)}"
+                f"cost=${_fmt_score(event.get('estimated_cost_usd'), 4)} "
+                f"elapsed={_fmt_score(event.get('row_elapsed_sec'))}s"
             )
         if etype == "candidate_complete":
             return (
@@ -870,13 +871,17 @@ def run_eval_command(args):
                 f"det={_fmt_score(event.get('deterministic_score'))} "
                 f"judge={_fmt_score(event.get('judge_score'))} "
                 f"quality={_fmt_score(event.get('quality_score'))} "
-                f"rank={_fmt_score(event.get('rank_score'))}"
+                f"rank={_fmt_score(event.get('rank_score'))} "
+                f"avg_row_elapsed={_fmt_score(event.get('avg_row_elapsed_sec'))}s "
+                f"total_elapsed={_fmt_score(event.get('total_row_elapsed_sec'))}s "
+                f"candidate_elapsed={_fmt_score(event.get('candidate_elapsed_sec'))}s"
             )
         if etype == "complete":
             return (
                 "[eval] complete "
                 f"run_id={event.get('run_id')} "
-                f"top={event.get('leaderboard_top')}"
+                f"top={event.get('leaderboard_top')} "
+                f"elapsed={_fmt_score(event.get('run_elapsed_sec'))}s"
             )
         return f"[eval] {etype}"
 

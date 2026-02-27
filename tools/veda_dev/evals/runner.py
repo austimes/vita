@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from statistics import mean
+from time import perf_counter
 from typing import Any
 
 from vedalang.compiler.compiler import load_vedalang, validate_vedalang
@@ -281,6 +282,26 @@ def _evaluate_one(
 def _summarize_candidate_rows(
     rows: list[dict[str, Any]], weights: EvalWeights
 ) -> dict[str, Any]:
+    row_elapsed_values = sorted(
+        [
+            float(r.get("row_elapsed_sec", 0.0) or 0.0)
+            for r in rows
+            if r.get("row_elapsed_sec") is not None
+        ]
+    )
+    if row_elapsed_values:
+        p50_row_elapsed = row_elapsed_values[len(row_elapsed_values) // 2]
+        p95_row_elapsed = row_elapsed_values[
+            min(len(row_elapsed_values) - 1, int(len(row_elapsed_values) * 0.95))
+        ]
+        avg_row_elapsed = mean(row_elapsed_values)
+        total_row_elapsed = sum(row_elapsed_values)
+    else:
+        p50_row_elapsed = 0.0
+        p95_row_elapsed = 0.0
+        avg_row_elapsed = 0.0
+        total_row_elapsed = 0.0
+
     valid_rows = [r for r in rows if r["status"] == "ok"]
     if not valid_rows:
         return {
@@ -292,6 +313,10 @@ def _summarize_candidate_rows(
             "p50_latency_sec": 0.0,
             "p95_latency_sec": 0.0,
             "avg_cost_usd": 0.0,
+            "avg_row_elapsed_sec": avg_row_elapsed,
+            "p50_row_elapsed_sec": p50_row_elapsed,
+            "p95_row_elapsed_sec": p95_row_elapsed,
+            "total_row_elapsed_sec": total_row_elapsed,
             "ok_cases": 0,
             "skipped_cases": len([r for r in rows if r["status"] == "skipped"]),
             "error_cases": len([r for r in rows if r["status"] == "error"]),
@@ -345,6 +370,10 @@ def _summarize_candidate_rows(
         "p50_latency_sec": p50,
         "p95_latency_sec": p95,
         "avg_cost_usd": avg_cost,
+        "avg_row_elapsed_sec": avg_row_elapsed,
+        "p50_row_elapsed_sec": p50_row_elapsed,
+        "p95_row_elapsed_sec": p95_row_elapsed,
+        "total_row_elapsed_sec": total_row_elapsed,
         "ok_cases": len(valid_rows),
         "skipped_cases": len([r for r in rows if r["status"] == "skipped"]),
         "error_cases": len([r for r in rows if r["status"] == "error"]),
@@ -364,6 +393,7 @@ def run_eval(
     judge_effort: str,
     progress_callback: ProgressCallback | None = None,
 ) -> dict[str, Any]:
+    run_started = perf_counter()
     dataset = load_dataset(dataset_path)
     base_cases = cases_for_profile(dataset, profile)
 
@@ -411,6 +441,7 @@ def run_eval(
     completed_runs = 0
 
     for candidate_index, candidate in enumerate(candidates, start=1):
+        candidate_started = perf_counter()
         _emit_progress(
             progress_callback,
             "candidate_start",
@@ -420,6 +451,7 @@ def run_eval(
         )
 
         for expanded_case_index, expanded_case in enumerate(expanded_cases, start=1):
+            row_started = perf_counter()
             case = expanded_case.case
             if not model_supports_reasoning_effort(
                 candidate.model, candidate.reasoning_effort
@@ -536,6 +568,7 @@ def run_eval(
                 "known_issues": case.expected.get("known_issues", []),
                 "judge": evaluated.get("judge"),
             }
+            row["row_elapsed_sec"] = perf_counter() - row_started
             row_results.append(row)
 
             completed_runs += 1
@@ -556,6 +589,7 @@ def run_eval(
                 judge_score=row["judge_score"],
                 quality_score=row["quality_score"],
                 estimated_cost_usd=row["estimated_cost_usd"],
+                row_elapsed_sec=row["row_elapsed_sec"],
             )
 
         candidate_rows = [
@@ -577,6 +611,9 @@ def run_eval(
             judge_score=candidate_summary["judge_score"],
             quality_score=candidate_summary["quality_score"],
             rank_score=candidate_summary["rank_score"],
+            avg_row_elapsed_sec=candidate_summary["avg_row_elapsed_sec"],
+            total_row_elapsed_sec=candidate_summary["total_row_elapsed_sec"],
+            candidate_elapsed_sec=perf_counter() - candidate_started,
         )
 
     _save_cache(cache_path, cache)
@@ -646,6 +683,17 @@ def run_eval(
         "results": row_results,
         "leaderboard": leaderboard,
         "cache_path": str(cache_path),
+        "timing": {
+            "run_elapsed_sec": perf_counter() - run_started,
+            "total_runs": total_runs,
+            "completed_runs": completed_runs,
+            "ok_runs": len([r for r in row_results if r["status"] == "ok"]),
+            "skipped_runs": len([r for r in row_results if r["status"] == "skipped"]),
+            "error_runs": len([r for r in row_results if r["status"] == "error"]),
+            "total_row_elapsed_sec": sum(
+                float(r.get("row_elapsed_sec", 0.0) or 0.0) for r in row_results
+            ),
+        },
     }
 
     _emit_progress(
@@ -655,6 +703,7 @@ def run_eval(
         leaderboard_top=(
             run["leaderboard"][0]["candidate_id"] if run["leaderboard"] else None
         ),
+        run_elapsed_sec=run["timing"]["run_elapsed_sec"],
     )
     return run
 
@@ -665,6 +714,15 @@ def render_report(run: dict[str, Any]) -> str:
     lines.append(f"Created: {run.get('created_at')}")
     lines.append(f"Profile: {run.get('profile')}")
     lines.append(f"Prompt version: {run.get('prompt_version')}")
+    timing = run.get("timing", {})
+    if timing:
+        lines.append(
+            "Timing: "
+            f"run_elapsed={timing.get('run_elapsed_sec', 0.0):.2f}s "
+            f"ok={timing.get('ok_runs')} "
+            f"skipped={timing.get('skipped_runs')} "
+            f"errors={timing.get('error_runs')}"
+        )
     judge = run.get("judge", {})
     lines.append(
         f"Judge: {'enabled' if judge.get('enabled') else 'disabled'} "
@@ -678,6 +736,7 @@ def render_report(run: dict[str, Any]) -> str:
             f"rank={row['rank_score']:.2f} quality={row['quality_score']:.2f} "
             f"det={row['deterministic_score']:.2f} "
             f"latency_p50={row['p50_latency_sec']:.2f}s "
+            f"row_p50={row.get('p50_row_elapsed_sec', 0.0):.2f}s "
             f"cost_avg=${row['avg_cost_usd']:.4f}"
         )
     return "\n".join(lines)

@@ -139,6 +139,72 @@ def test_invalid_commodity_unit_enum_rejected():
         jsonschema.validate(data, schema)
 
 
+def test_combustible_commodity_requires_lhv_and_hhv():
+    """combustible=true commodities must provide both HHV and LHV references."""
+    schema = load_schema()
+    data = {
+        "model": {
+            "name": "CombustionMetaMissing",
+            "regions": ["R1"],
+            "commodities": [
+                {
+                    "id": "primary:natural_gas",
+                    "type": "fuel",
+                    "unit": "PJ",
+                    "combustible": True,
+                    "lhv_mj_per_unit": 48.0,
+                }
+            ],
+        }
+    }
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(data, schema)
+
+
+def test_non_combustible_commodity_rejects_heating_values():
+    """combustible=false commodities must not carry HHV/LHV values."""
+    schema = load_schema()
+    data = {
+        "model": {
+            "name": "NonCombustibleWithHeatingValues",
+            "regions": ["R1"],
+            "commodities": [
+                {
+                    "id": "secondary:electricity",
+                    "type": "energy",
+                    "unit": "PJ",
+                    "combustible": False,
+                    "lhv_mj_per_unit": 3.6,
+                }
+            ],
+        }
+    }
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(data, schema)
+
+
+def test_combustible_commodity_with_lhv_hhv_validates():
+    """Schema accepts combustible commodity metadata when fully specified."""
+    schema = load_schema()
+    data = {
+        "model": {
+            "name": "CombustionMetaValid",
+            "regions": ["R1"],
+            "commodities": [
+                {
+                    "id": "primary:natural_gas",
+                    "type": "fuel",
+                    "unit": "PJ",
+                    "combustible": True,
+                    "lhv_mj_per_unit": 48.0,
+                    "hhv_mj_per_unit": 53.5,
+                }
+            ],
+        }
+    }
+    jsonschema.validate(data, schema)
+
+
 def test_efficiency_allows_cop_style_values():
     """Schema allows efficiency > 1 (validated semantically via performance_metric)."""
     schema = load_schema()

@@ -128,6 +128,9 @@ def test_run_eval_marks_skips_without_crashing(monkeypatch, tmp_path):
     assert len(run["results"]) == 15 * 5  # profile smoke expands to 5 cases at v1
     assert any(r["status"] == "skipped" for r in run["results"])
     assert all("telemetry" in r for r in run["results"])
+    assert all("row_elapsed_sec" in r for r in run["results"])
+    assert "timing" in run
+    assert run["timing"]["completed_runs"] == len(run["results"])
 
 
 def test_compare_runs_returns_deltas():
@@ -200,10 +203,14 @@ def test_run_eval_emits_progress_events(monkeypatch, tmp_path):
     assert "judge_score" in first_row
     assert "quality_score" in first_row
     assert "estimated_cost_usd" in first_row
+    assert "row_elapsed_sec" in first_row
     candidate_done_events = [e for e in events if e["event"] == "candidate_complete"]
     assert candidate_done_events
     assert "rank_score" in candidate_done_events[0]
+    assert "avg_row_elapsed_sec" in candidate_done_events[0]
+    assert "candidate_elapsed_sec" in candidate_done_events[0]
     assert events[-1]["event"] == "complete"
+    assert "run_elapsed_sec" in events[-1]
 
 
 def test_run_eval_pre_skips_known_unsupported_combos(monkeypatch, tmp_path):
