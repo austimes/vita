@@ -28,6 +28,7 @@ from vedalang.lint.code_categories import (
 )
 from vedalang.lint.diagnostics import build_summary, severity_counts, with_meta
 from vedalang.lint.llm_categories import CATEGORY_RUNNERS as LLM_CATEGORY_RUNNERS
+from vedalang.lint.llm_runtime import LLMRuntimeConfig, canonical_model_name
 from vedalang.lint.registry import (
     CATEGORY_DESCRIPTIONS,
     CATEGORY_ORDER,
@@ -145,6 +146,23 @@ def _add_llm_lint_parser(subparsers):
         "--model",
         action="append",
         help="LLM model for quorum vote (repeatable, default is two models).",
+    )
+    p.add_argument(
+        "--reasoning-effort",
+        choices=["none", "low", "medium", "high", "xhigh"],
+        default="medium",
+        help="Reasoning effort for LLM calls (default: medium).",
+    )
+    p.add_argument(
+        "--prompt-version",
+        default="v1",
+        help="Prompt version to use for supported checks (or 'all').",
+    )
+    p.add_argument(
+        "--request-timeout-sec",
+        type=int,
+        default=120,
+        help="Request timeout in seconds for each LLM call (default: 120).",
     )
     p.add_argument(
         "--store",
@@ -496,6 +514,16 @@ def cmd_llm_lint(args) -> int:
     unit_store_path: Path | None = None
     unit_results: list[dict] = []
     unit_skipped_components: list[str] = []
+    llm_runs: list[dict] = []
+
+    raw_models = [canonical_model_name(m) for m in (getattr(args, "model", None) or [])]
+    runtime_config = LLMRuntimeConfig(
+        model=raw_models[0] if raw_models else None,
+        models=raw_models or None,
+        reasoning_effort=getattr(args, "reasoning_effort", "medium"),
+        prompt_version=getattr(args, "prompt_version", "v1"),
+        timeout_sec=getattr(args, "request_timeout_sec", 120),
+    )
 
     try:
         source = load_vedalang(file_path)
@@ -519,8 +547,8 @@ def cmd_llm_lint(args) -> int:
             component=getattr(args, "component", None),
             run_all=getattr(args, "all", False),
             force=getattr(args, "force", False),
-            models=getattr(args, "model", None),
             store_path=getattr(args, "store", None),
+            runtime_config=runtime_config,
         )
         if not result.supported:
             skipped_categories.append(category)
@@ -534,6 +562,7 @@ def cmd_llm_lint(args) -> int:
         unit_skipped_components.extend(
             result.extras.get("unit_skipped_components", [])
         )
+        llm_runs.extend(result.extras.get("llm_runs", []))
 
     errors, warnings, critical = severity_counts(diagnostics)
     summary = build_summary(
@@ -567,6 +596,14 @@ def cmd_llm_lint(args) -> int:
             "unit_results": unit_results,
             "skipped_certified_components": unit_skipped_components,
             "advisory": advisory,
+            "runtime": {
+                "model": runtime_config.model,
+                "models": runtime_config.models,
+                "reasoning_effort": runtime_config.reasoning_effort,
+                "prompt_version": runtime_config.prompt_version,
+                "request_timeout_sec": runtime_config.timeout_sec,
+            },
+            "llm_runs": llm_runs,
         }
         print(json.dumps(payload, indent=2))
     else:

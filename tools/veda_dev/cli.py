@@ -338,6 +338,96 @@ def main():
         help="Output as JSON",
     )
 
+    # eval subcommand
+    eval_parser = subparsers.add_parser(
+        "eval",
+        help="Run and inspect llm-lint model/effort evals",
+    )
+    eval_subparsers = eval_parser.add_subparsers(dest="eval_command")
+
+    eval_catalog = eval_subparsers.add_parser(
+        "catalog",
+        help="Show eval candidate matrix and dataset profiles",
+    )
+    eval_catalog.add_argument(
+        "--dataset",
+        type=Path,
+        help="Optional dataset YAML path",
+    )
+    eval_catalog.add_argument("--json", action="store_true", dest="json_output")
+
+    eval_run = eval_subparsers.add_parser("run", help="Run eval benchmark")
+    eval_run.add_argument(
+        "--profile",
+        choices=["smoke", "ci", "deep"],
+        default="ci",
+        help="Eval profile (default: ci)",
+    )
+    eval_run.add_argument(
+        "--prompt-version",
+        default="v1",
+        help="Prompt version to evaluate (or 'all')",
+    )
+    eval_run.add_argument(
+        "--dataset",
+        type=Path,
+        help="Optional dataset YAML path",
+    )
+    eval_run.add_argument(
+        "--cache",
+        type=Path,
+        default=Path("tmp/evals/cache.json"),
+        help="Cache path (default: tmp/evals/cache.json)",
+    )
+    eval_run.add_argument(
+        "--no-cache",
+        action="store_true",
+        help="Disable result cache reuse",
+    )
+    eval_run.add_argument(
+        "--timeout-sec",
+        type=int,
+        default=120,
+        help="Per-request timeout in seconds (default: 120)",
+    )
+    eval_run.add_argument(
+        "--no-judge",
+        action="store_true",
+        help="Disable LLM-as-judge scoring",
+    )
+    eval_run.add_argument(
+        "--judge-model",
+        default="gpt-5.2",
+        help="Judge model (default: gpt-5.2)",
+    )
+    eval_run.add_argument(
+        "--judge-effort",
+        choices=["none", "low", "medium", "high", "xhigh"],
+        default="xhigh",
+        help="Judge reasoning effort (default: xhigh)",
+    )
+    eval_run.add_argument(
+        "--out",
+        type=Path,
+        help="Optional output JSON path (default: tmp/evals/<run_id>.json)",
+    )
+    eval_run.add_argument("--json", action="store_true", dest="json_output")
+
+    eval_compare = eval_subparsers.add_parser(
+        "compare",
+        help="Compare two eval run JSON artifacts",
+    )
+    eval_compare.add_argument("old_run", type=Path, help="Path to old run JSON")
+    eval_compare.add_argument("new_run", type=Path, help="Path to new run JSON")
+    eval_compare.add_argument("--json", action="store_true", dest="json_output")
+
+    eval_report = eval_subparsers.add_parser(
+        "report",
+        help="Render human-readable report from eval run JSON",
+    )
+    eval_report.add_argument("run", type=Path, help="Path to eval run JSON")
+    eval_report.add_argument("--json", action="store_true", dest="json_output")
+
     args = parser.parse_args()
 
     if args.command == "pipeline":
@@ -356,6 +446,8 @@ def main():
         run_sankey_command(args)
     elif args.command == "check-pcg":
         run_check_pcg_command(args)
+    elif args.command == "eval":
+        run_eval_command(args)
 
 
 def run_pipeline_command(args):
@@ -700,6 +792,111 @@ def run_check_pcg_command(args):
         print(format_pcg_result(result))
 
     sys.exit(0)
+
+
+def run_eval_command(args):
+    """Run eval command family."""
+    from tools.veda_dev.evals import (
+        build_candidate_matrix,
+        compare_runs,
+        load_dataset,
+        render_report,
+        run_eval,
+    )
+
+    if args.eval_command == "catalog":
+        dataset = load_dataset(args.dataset)
+        payload = {
+            "profiles": {
+                name: {
+                    "count": len(case_ids),
+                    "cases": case_ids,
+                }
+                for name, case_ids in dataset.profiles.items()
+            },
+            "candidates": [
+                {
+                    "candidate_id": c.candidate_id,
+                    "model": c.model,
+                    "reasoning_effort": c.reasoning_effort,
+                }
+                for c in build_candidate_matrix()
+            ],
+            "checks_supported": [
+                "llm.structure.res_assessment",
+                "llm.units.component_quorum",
+            ],
+        }
+        if args.json_output:
+            print(json.dumps(payload, indent=2))
+        else:
+            print("Profiles:")
+            for name, info in payload["profiles"].items():
+                print(f"  - {name}: {info['count']} cases")
+            print()
+            print("Candidates:")
+            for c in payload["candidates"]:
+                print(f"  - {c['candidate_id']}")
+        sys.exit(0)
+
+    if args.eval_command == "run":
+        run = run_eval(
+            profile=args.profile,
+            prompt_version=args.prompt_version,
+            dataset_path=args.dataset,
+            cache_path=args.cache,
+            use_cache=not args.no_cache,
+            timeout_sec=args.timeout_sec,
+            no_judge=args.no_judge,
+            judge_model=args.judge_model,
+            judge_effort=args.judge_effort,
+        )
+
+        out_path = args.out
+        if out_path is None:
+            out_path = Path("tmp/evals") / f"{run['run_id']}.json"
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(json.dumps(run, indent=2) + "\n", encoding="utf-8")
+
+        if args.json_output:
+            print(json.dumps({"run_path": str(out_path), "run": run}, indent=2))
+        else:
+            print(render_report(run))
+            print()
+            print(f"Saved run artifact: {out_path}")
+        sys.exit(0)
+
+    if args.eval_command == "compare":
+        if not args.old_run.exists() or not args.new_run.exists():
+            print("Error: compare inputs must exist", file=sys.stderr)
+            sys.exit(2)
+        old = json.loads(args.old_run.read_text(encoding="utf-8"))
+        new = json.loads(args.new_run.read_text(encoding="utf-8"))
+        diff = compare_runs(old, new)
+        if args.json_output:
+            print(json.dumps(diff, indent=2))
+        else:
+            print(f"Compare: {diff['old_run_id']} -> {diff['new_run_id']}")
+            for row in diff["deltas"][:20]:
+                print(
+                    f"  - {row['candidate_id']}: "
+                    f"delta_rank={row['delta_rank_score']}"
+                )
+        sys.exit(0)
+
+    if args.eval_command == "report":
+        if not args.run.exists():
+            print(f"Error: file not found: {args.run}", file=sys.stderr)
+            sys.exit(2)
+        run = json.loads(args.run.read_text(encoding="utf-8"))
+        if args.json_output:
+            print(json.dumps(run, indent=2))
+        else:
+            print(render_report(run))
+        sys.exit(0)
+
+    print("Usage: vedalang-dev eval {catalog|run|compare|report} ...")
+    sys.exit(2)
 
 
 if __name__ == "__main__":

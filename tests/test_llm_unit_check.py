@@ -136,29 +136,31 @@ def test_parse_unit_check_response_handles_fenced_json():
 
 
 def test_parse_unit_check_response_preserves_fix_guidance_fields():
-    raw = json.dumps({
-        "status": "needs_review",
-        "findings": [
-            {
-                "severity": "critical",
-                "message": "Input coefficient appears off by 3.6x",
-                "suggestion": "Use PJ for process activity and convert from TWh.",
-                "expected_process_units": {
-                    "activity_unit": "PJ",
-                    "capacity_unit": "GW",
-                },
-                "expected_commodity_units": {
-                    "primary:natural_gas": "PJ",
-                    "secondary:electricity": "TWh",
-                },
-                "observed_units": {
-                    "activity_unit": "TWh",
-                    "capacity_unit": "GW",
-                },
-                "model_expectation": "Thermal generator should use PJ activity.",
-            }
-        ],
-    })
+    raw = json.dumps(
+        {
+            "status": "needs_review",
+            "findings": [
+                {
+                    "severity": "critical",
+                    "message": "Input coefficient appears off by 3.6x",
+                    "suggestion": "Use PJ for process activity and convert from TWh.",
+                    "expected_process_units": {
+                        "activity_unit": "PJ",
+                        "capacity_unit": "GW",
+                    },
+                    "expected_commodity_units": {
+                        "primary:natural_gas": "PJ",
+                        "secondary:electricity": "TWh",
+                    },
+                    "observed_units": {
+                        "activity_unit": "TWh",
+                        "capacity_unit": "GW",
+                    },
+                    "model_expectation": "Thermal generator should use PJ activity.",
+                }
+            ],
+        }
+    )
     status, findings = llm_unit_check.parse_unit_check_response(raw)
     assert status == "needs_review"
     assert len(findings) == 1
@@ -196,10 +198,12 @@ def test_run_component_unit_check_needs_review_on_split_votes():
         del system, user
         if model == "m1":
             return json.dumps({"status": "pass", "findings": []})
-        return json.dumps({
-            "status": "fail",
-            "findings": [{"severity": "critical", "message": "bad conversion"}],
-        })
+        return json.dumps(
+            {
+                "status": "fail",
+                "findings": [{"severity": "critical", "message": "bad conversion"}],
+            }
+        )
 
     result = llm_unit_check.run_component_unit_check(
         source=SOURCE,
@@ -254,8 +258,11 @@ def test_cmd_llm_lint_units_json_success(tmp_path, monkeypatch, capsys):
         component: str,
         models=None,
         progress_callback=None,
+        reasoning_effort="medium",
+        prompt_version="v1",
+        timeout_sec=None,
     ):
-        del models
+        del models, reasoning_effort, prompt_version, timeout_sec
         if progress_callback:
             progress_callback(
                 {
@@ -316,8 +323,11 @@ def test_cmd_llm_lint_units_needs_review_exit_code(tmp_path, monkeypatch, capsys
         component: str,
         models=None,
         progress_callback=None,
+        reasoning_effort="medium",
+        prompt_version="v1",
+        timeout_sec=None,
     ):
-        del models
+        del models, reasoning_effort, prompt_version, timeout_sec
         if progress_callback:
             progress_callback(
                 {
@@ -402,9 +412,7 @@ def test_cmd_llm_lint_units_unknown_component_returns_error(tmp_path, capsys):
     assert any("Unknown component" in m for m in messages)
 
 
-def test_cmd_llm_lint_units_text_prints_fix_suggestions(
-    tmp_path, monkeypatch, capsys
-):
+def test_cmd_llm_lint_units_text_prints_fix_suggestions(tmp_path, monkeypatch, capsys):
     model_file = tmp_path / "test.veda.yaml"
     model_file.write_text(yaml.safe_dump(SOURCE), encoding="utf-8")
 
@@ -413,8 +421,11 @@ def test_cmd_llm_lint_units_text_prints_fix_suggestions(
         component: str,
         models=None,
         progress_callback=None,
+        reasoning_effort="medium",
+        prompt_version="v1",
+        timeout_sec=None,
     ):
-        del models
+        del models, reasoning_effort, prompt_version, timeout_sec
         if progress_callback:
             progress_callback(
                 {
@@ -444,8 +455,7 @@ def test_cmd_llm_lint_units_text_prints_fix_suggestions(
                     {
                         "severity": "critical",
                         "message": (
-                            "Mismatch between process activity and "
-                            "commodity units."
+                            "Mismatch between process activity and commodity units."
                         ),
                         "suggestion": (
                             "Set activity_unit=PJ and recompute coefficients."
@@ -484,3 +494,59 @@ def test_cmd_llm_lint_units_text_prints_fix_suggestions(
     assert exit_code == 2
     assert "Set activity_unit=PJ and recompute coefficients." in out
     assert "Summary:" in out
+
+
+def test_cmd_llm_lint_units_propagates_runtime_flags(tmp_path, monkeypatch, capsys):
+    model_file = tmp_path / "test.veda.yaml"
+    model_file.write_text(yaml.safe_dump(SOURCE), encoding="utf-8")
+
+    captured: dict = {}
+
+    def fake_run_component_unit_check(
+        source: dict,
+        component: str,
+        models=None,
+        progress_callback=None,
+        reasoning_effort="medium",
+        prompt_version="v1",
+        timeout_sec=None,
+    ):
+        del progress_callback
+        captured["component"] = component
+        captured["models"] = models
+        captured["reasoning_effort"] = reasoning_effort
+        captured["prompt_version"] = prompt_version
+        captured["timeout_sec"] = timeout_sec
+        return _certified_result(source, component)
+
+    monkeypatch.setattr(
+        llm_unit_check,
+        "run_component_unit_check",
+        fake_run_component_unit_check,
+    )
+
+    args = argparse.Namespace(
+        file=model_file,
+        json=True,
+        component=["ccgt"],
+        all=False,
+        force=False,
+        model=["gpt-5-mini"],
+        store=None,
+        reasoning_effort="low",
+        prompt_version="v1",
+        request_timeout_sec=33,
+    )
+    args.category = ["units"]
+    args.advisory = False
+    exit_code = cli.cmd_llm_lint(args)
+    out = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert out["runtime"]["reasoning_effort"] == "low"
+    assert out["runtime"]["prompt_version"] == "v1"
+    assert out["runtime"]["request_timeout_sec"] == 33
+    assert captured["models"] == ["gpt-5-mini"]
+    assert captured["reasoning_effort"] == "low"
+    assert captured["prompt_version"] == "v1"
+    assert captured["timeout_sec"] == 33

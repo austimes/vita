@@ -63,6 +63,16 @@ uv run vedalang lint your_model.veda.yaml --profile thorough
 # LLM lint (advisory checks; critical findings fail by default)
 uv run vedalang llm-lint your_model.veda.yaml --category structure
 uv run vedalang llm-lint your_model.veda.yaml --category units
+
+# LLM lint runtime controls
+uv run vedalang llm-lint your_model.veda.yaml --category structure --model gpt-5-mini --reasoning-effort low --prompt-version v1
+uv run vedalang llm-lint your_model.veda.yaml --category units --model gpt-5.2 --model gpt-5-mini --reasoning-effort medium --request-timeout-sec 180
+
+# Eval harness (model/effort leaderboard)
+uv run vedalang-dev eval catalog
+uv run vedalang-dev eval run --profile ci --prompt-version all
+uv run vedalang-dev eval compare tmp/evals/run_a.json tmp/evals/run_b.json
+uv run vedalang-dev eval report tmp/evals/run_b.json
 ```
 
 ## Lint Taxonomy
@@ -92,6 +102,10 @@ LLM lint behavior:
 - currently unsupported (reported as skipped): `core`, `identity`, `emissions`, `feasibility`
 - default exit behavior: critical findings return exit code `2`
 - use `--advisory` to avoid critical findings causing exit code `2`
+- runtime controls:
+  - `--reasoning-effort none|low|medium|high|xhigh`
+  - `--prompt-version <version|all>`
+  - `--request-timeout-sec <seconds>`
 
 ## What This Documentation Does NOT Cover
 

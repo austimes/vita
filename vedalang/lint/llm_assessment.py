@@ -1,14 +1,9 @@
 """LLM-based structural RES assessment used by `vedalang llm-lint`.
 
 Provides Layer 2 of the three-layer convention framework:
-  Layer 1 — Skill guidance (advisory)
-  Layer 2 — Lint + LLM structural assessment (testing)
-  Layer 3 — Compiler hard enforcement (guarantee)
-
-When enabled, this module:
-1. Assembles a prompt from the modeling conventions doc + RES graph artifacts
-2. Sends it to an LLM for structural assessment
-3. Parses the structured JSON response into LintFindings
+  Layer 1 - Skill guidance (advisory)
+  Layer 2 - Lint + LLM structural assessment (testing)
+  Layer 3 - Compiler hard enforcement (guarantee)
 
 This runs when `vedalang llm-lint --category structure` is selected.
 """
@@ -16,7 +11,6 @@ This runs when `vedalang llm-lint --category structure` is selected.
 from __future__ import annotations
 
 import json
-import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal
@@ -27,7 +21,17 @@ from vedalang.conventions import (
     format_enum_csv,
     process_stage_enum,
 )
+from vedalang.lint.llm_runtime import (
+    ReasoningEffort,
+    call_openai_json,
+    canonical_model_name,
+)
+from vedalang.lint.prompt_registry import load_prompt_template
 from vedalang.lint.res_export import export_res_graph, res_graph_to_mermaid
+
+CHECK_ID = "llm.structure.res_assessment"
+DEFAULT_MODEL = "gpt-5.2"
+DEFAULT_PROMPT_VERSION = "v1"
 
 # Path to the canonical modeling conventions document (single source of truth)
 _CONVENTIONS_PATH = (
@@ -36,19 +40,8 @@ _CONVENTIONS_PATH = (
     / "vedalang-user"
     / "modeling-conventions.md"
 )
-_PROMPT_VERSION = "v1"
-_PROMPT_DIR = (
-    Path(__file__).resolve().parent
-    / "prompts"
-    / "res-assessment"
-    / _PROMPT_VERSION
-)
-_SYSTEM_PROMPT_PATH = _PROMPT_DIR / "system.txt"
-_USER_PROMPT_PATH = _PROMPT_DIR / "user_prefix.txt"
 
-# Severity levels for LLM assessment findings
 Severity = Literal["critical", "warning", "suggestion"]
-
 VALID_SEVERITIES: set[str] = {"critical", "warning", "suggestion"}
 
 
@@ -64,7 +57,6 @@ class LLMFinding:
     context: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        """Convert to JSON-serializable dict."""
         d: dict[str, Any] = {
             "code": f"LLM_{self.category.upper()}",
             "severity": self.severity,
@@ -87,6 +79,8 @@ class AssessmentResult:
     findings: list[LLMFinding]
     raw_response: str | None = None
     model: str | None = None
+    prompt_version: str | None = None
+    telemetry: dict[str, Any] | None = None
 
     @property
     def critical_count(self) -> int:
@@ -105,8 +99,7 @@ class AssessmentResult:
         return self.critical_count > 0
 
     def to_dict(self) -> dict[str, Any]:
-        """Convert to JSON-serializable dict."""
-        return {
+        payload = {
             "findings": [f.to_dict() for f in self.findings],
             "summary": {
                 "critical": self.critical_count,
@@ -115,33 +108,26 @@ class AssessmentResult:
                 "total": len(self.findings),
             },
         }
+        if self.model:
+            payload["model"] = self.model
+        if self.prompt_version:
+            payload["prompt_version"] = self.prompt_version
+        if self.telemetry is not None:
+            payload["telemetry"] = self.telemetry
+        return payload
 
 
 def load_conventions() -> str:
-    """Load the modeling conventions document.
-
-    Returns:
-        Contents of the modeling conventions document, or a fallback message.
-    """
     if _CONVENTIONS_PATH.exists():
-        return _CONVENTIONS_PATH.read_text()
+        return _CONVENTIONS_PATH.read_text(encoding="utf-8")
     return (
         "Modeling conventions document not found. "
         "Assess based on general energy system modeling best practices."
     )
 
 
-def _load_prompt_template(path: Path) -> str:
-    if not path.exists():
-        raise RuntimeError(
-            f"Prompt template not found: {path}. "
-            "Run with a complete source tree that includes vedalang/lint/prompts."
-        )
-    return path.read_text(encoding="utf-8")
-
-
-def _build_system_prompt() -> str:
-    system_template = _load_prompt_template(_SYSTEM_PROMPT_PATH)
+def _build_system_prompt(prompt_version: str = DEFAULT_PROMPT_VERSION) -> str:
+    system_template = load_prompt_template(CHECK_ID, prompt_version, "system.txt")
     canonical_enum_lines = (
         f"- **Stage** = one of: {format_enum_csv(process_stage_enum())}.\n"
         f"- **Commodity type** = one of: {format_enum_csv(commodity_type_enum())}.\n"
@@ -151,62 +137,52 @@ def _build_system_prompt() -> str:
     return system_template.replace("__CANONICAL_ENUMS__", canonical_enum_lines)
 
 
-def _build_user_prompt(conventions: str, graph: dict, mermaid: str) -> str:
-    user_template = _load_prompt_template(_USER_PROMPT_PATH)
+def _build_user_prompt(
+    conventions: str,
+    graph: dict,
+    mermaid: str,
+    *,
+    prompt_version: str = DEFAULT_PROMPT_VERSION,
+) -> str:
+    user_template = load_prompt_template(CHECK_ID, prompt_version, "user_prefix.txt")
     return (
-        user_template
-        .replace("__MODELING_CONVENTIONS__", conventions)
+        user_template.replace("__MODELING_CONVENTIONS__", conventions)
         .replace("__RES_GRAPH_JSON__", json.dumps(graph, indent=2))
         .replace("__RES_GRAPH_MERMAID__", mermaid)
     )
 
 
-def assemble_prompt(source: dict) -> tuple[str, str]:
-    """Assemble the system and user prompts for LLM assessment.
-
-    Args:
-        source: Parsed VedaLang source dict.
-
-    Returns:
-        Tuple of (system_prompt, user_prompt).
-    """
+def assemble_prompt(
+    source: dict,
+    *,
+    prompt_version: str = DEFAULT_PROMPT_VERSION,
+) -> tuple[str, str]:
     conventions = load_conventions()
     graph = export_res_graph(source)
     mermaid = res_graph_to_mermaid(graph)
-    user_prompt = _build_user_prompt(conventions, graph, mermaid)
-    return _build_system_prompt(), user_prompt
+    user_prompt = _build_user_prompt(
+        conventions,
+        graph,
+        mermaid,
+        prompt_version=prompt_version,
+    )
+    return _build_system_prompt(prompt_version=prompt_version), user_prompt
 
 
 def parse_llm_response(raw: str) -> AssessmentResult:
-    """Parse a raw LLM response into an AssessmentResult.
-
-    Handles both clean JSON and markdown-fenced JSON responses.
-
-    Args:
-        raw: Raw text response from the LLM.
-
-    Returns:
-        Parsed AssessmentResult.
-
-    Raises:
-        ValueError: If the response cannot be parsed.
-    """
     text = raw.strip()
 
-    # Strip markdown code fences if present
     if text.startswith("```"):
         lines = text.split("\n")
-        # Remove first line (```json or ```)
         lines = lines[1:]
-        # Remove last line (```)
         if lines and lines[-1].strip() == "```":
             lines = lines[:-1]
         text = "\n".join(lines).strip()
 
     try:
         data = json.loads(text)
-    except json.JSONDecodeError as e:
-        raise ValueError(f"LLM response is not valid JSON: {e}") from e
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"LLM response is not valid JSON: {exc}") from exc
 
     if not isinstance(data, dict):
         raise ValueError(
@@ -246,70 +222,41 @@ def parse_llm_response(raw: str) -> AssessmentResult:
     return AssessmentResult(findings=findings, raw_response=raw)
 
 
-_MODEL = "gpt-5.2"
-
-
-def _call_openai(
-    system_prompt: str, user_prompt: str, model: str = _MODEL
-) -> tuple[str, str]:
-    """Call OpenAI Responses API for structural assessment.
-
-    Uses OPENAI_API_KEY from environment. Raises RuntimeError if unavailable.
-
-    Returns:
-        Tuple of (response_text, model_name).
-    """
-    api_key = os.environ.get("OPENAI_API_KEY")
-    if not api_key:
-        raise RuntimeError(
-            "OPENAI_API_KEY not set. "
-            "Set it in your environment or .env file to use LLM assessment."
-        )
-
-    try:
-        import openai
-    except ImportError:
-        raise RuntimeError(
-            "openai package not installed. "
-            "Install with: uv add openai"
-        )
-
-    client = openai.OpenAI(api_key=api_key)
-
-    response = client.responses.create(
-        model=model,
-        instructions=system_prompt,
-        input=user_prompt,
-        text={"format": {"type": "json_object"}},
-        reasoning={"effort": "medium"},
-    )
-
-    return response.output_text or "{}", model
-
-
 def run_llm_assessment(
     source: dict,
     *,
     llm_callable: Any | None = None,
+    model: str = DEFAULT_MODEL,
+    reasoning_effort: ReasoningEffort = "medium",
+    prompt_version: str = DEFAULT_PROMPT_VERSION,
+    timeout_sec: int | None = None,
 ) -> AssessmentResult:
-    """Run LLM-based structural assessment on a VedaLang source.
+    system_prompt, user_prompt = assemble_prompt(source, prompt_version=prompt_version)
 
-    Args:
-        source: Parsed VedaLang source dict (from load_vedalang).
-        llm_callable: Optional callable(system_prompt, user_prompt) -> str.
-            If not provided, uses OpenAI API via OPENAI_API_KEY.
+    resolved_model = canonical_model_name(model)
+    telemetry: dict[str, Any] | None = None
 
-    Returns:
-        AssessmentResult with findings.
-    """
-    system_prompt, user_prompt = assemble_prompt(source)
-
-    model: str | None = None
     if llm_callable is not None:
         raw = llm_callable(system_prompt, user_prompt)
     else:
-        raw, model = _call_openai(system_prompt, user_prompt)
+        call = call_openai_json(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            model=resolved_model,
+            reasoning_effort=reasoning_effort,
+            timeout_sec=timeout_sec,
+        )
+        raw = call.output_text
+        telemetry = {
+            "latency_sec": call.telemetry.latency_sec,
+            "input_tokens": call.telemetry.input_tokens,
+            "output_tokens": call.telemetry.output_tokens,
+            "reasoning_tokens": call.telemetry.reasoning_tokens,
+            "reasoning_effort": call.telemetry.reasoning_effort,
+        }
 
     result = parse_llm_response(raw)
-    result.model = model
+    result.model = resolved_model
+    result.prompt_version = prompt_version
+    result.telemetry = telemetry
     return result

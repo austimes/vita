@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import Any
 
 from vedalang.lint.diagnostics import with_meta
+from vedalang.lint.llm_runtime import LLMRuntimeConfig, canonical_model_name
+from vedalang.lint.prompt_registry import resolve_prompt_versions
 
 
 @dataclass
@@ -37,44 +39,97 @@ def run_feasibility(*, source: dict, **_: Any) -> LLMCategoryResult:
     return LLMCategoryResult(diagnostics=[], supported=False)
 
 
-def run_structure(*, source: dict, **_: Any) -> LLMCategoryResult:
-    from vedalang.lint.llm_assessment import run_llm_assessment
+def run_structure(
+    *,
+    source: dict,
+    runtime_config: LLMRuntimeConfig,
+    **_: Any,
+) -> LLMCategoryResult:
+    from vedalang.lint.llm_assessment import CHECK_ID, DEFAULT_MODEL, run_llm_assessment
 
     diagnostics: list[dict] = []
+    llm_runs: list[dict[str, Any]] = []
+
+    model = runtime_config.model
+    if not model and runtime_config.models:
+        model = runtime_config.models[0]
+    model = canonical_model_name(model or DEFAULT_MODEL)
+
     try:
-        result = run_llm_assessment(source)
-        for finding in result.findings:
-            data = finding.to_dict()
-            llm_subcategory = data.get("category")
-            if llm_subcategory:
-                context = data.get("context") or {}
-                context["llm_subcategory"] = llm_subcategory
-                data["context"] = context
-            data["category"] = "structure"
-            diagnostics.append(
-                with_meta(
-                    data,
-                    category="structure",
-                    engine="llm",
-                    check_id="llm.structure.res_assessment",
-                )
-            )
+        versions = resolve_prompt_versions(CHECK_ID, runtime_config.prompt_version)
     except Exception as e:
         diagnostics.append(
             with_meta(
                 {
                     "code": "LLM_STRUCTURE_ERROR",
                     "severity": "error",
-                    "message": f"LLM structure assessment failed: {e}",
+                    "message": f"Failed to resolve prompt version: {e}",
                 },
                 category="structure",
                 engine="llm",
-                check_id="llm.structure.res_assessment",
+                check_id=CHECK_ID,
             )
         )
         return LLMCategoryResult(diagnostics=diagnostics, runtime_error=True)
 
-    return LLMCategoryResult(diagnostics=diagnostics)
+    for version in versions:
+        try:
+            result = run_llm_assessment(
+                source,
+                model=model,
+                reasoning_effort=runtime_config.reasoning_effort,
+                prompt_version=version,
+                timeout_sec=runtime_config.timeout_sec,
+            )
+            llm_runs.append(
+                {
+                    "check_id": CHECK_ID,
+                    "prompt_version": version,
+                    "model": result.model,
+                    "telemetry": result.telemetry,
+                }
+            )
+            for finding in result.findings:
+                data = finding.to_dict()
+                llm_subcategory = data.get("category")
+                context = data.get("context") or {}
+                if llm_subcategory:
+                    context["llm_subcategory"] = llm_subcategory
+                context["prompt_version"] = version
+                context["llm_model"] = result.model
+                data["context"] = context
+                data["category"] = "structure"
+                diagnostics.append(
+                    with_meta(
+                        data,
+                        category="structure",
+                        engine="llm",
+                        check_id=CHECK_ID,
+                    )
+                )
+        except Exception as e:
+            diagnostics.append(
+                with_meta(
+                    {
+                        "code": "LLM_STRUCTURE_ERROR",
+                        "severity": "error",
+                        "message": (
+                            f"LLM structure assessment failed for "
+                            f"prompt_version={version}: {e}"
+                        ),
+                    },
+                    category="structure",
+                    engine="llm",
+                    check_id=CHECK_ID,
+                )
+            )
+            return LLMCategoryResult(
+                diagnostics=diagnostics,
+                runtime_error=True,
+                extras={"llm_runs": llm_runs},
+            )
+
+    return LLMCategoryResult(diagnostics=diagnostics, extras={"llm_runs": llm_runs})
 
 
 def run_units(
@@ -84,11 +139,12 @@ def run_units(
     component: list[str] | None,
     run_all: bool,
     force: bool,
-    models: list[str] | None,
     store_path: Path | None,
+    runtime_config: LLMRuntimeConfig,
     **_: Any,
 ) -> LLMCategoryResult:
     from vedalang.lint.llm_unit_check import (
+        CHECK_ID,
         default_store_path,
         load_store,
         run_component_unit_check,
@@ -102,6 +158,7 @@ def run_units(
         "store_path": None,
         "unit_results": [],
         "unit_skipped_components": [],
+        "llm_runs": [],
     }
     runtime_error = False
 
@@ -110,25 +167,18 @@ def run_units(
     store = load_store(resolved_store)
 
     try:
-        to_check, skipped_components = select_components(
-            source=source,
-            store=store,
-            selected=component,
-            run_all=run_all,
-            force=force,
-        )
-        result_extras["unit_skipped_components"] = skipped_components
+        versions = resolve_prompt_versions(CHECK_ID, runtime_config.prompt_version)
     except Exception as e:
         diagnostics.append(
             with_meta(
                 {
                     "code": "LLM_UNIT_SELECTION_ERROR",
                     "severity": "error",
-                    "message": str(e),
+                    "message": f"Failed to resolve prompt version: {e}",
                 },
                 category="units",
                 engine="llm",
-                check_id="llm.units.component_quorum",
+                check_id=CHECK_ID,
             )
         )
         return LLMCategoryResult(
@@ -137,90 +187,146 @@ def run_units(
             extras=result_extras,
         )
 
-    for component_id in to_check:
+    models = runtime_config.models
+    if not models and runtime_config.model:
+        models = [runtime_config.model]
+
+    for prompt_version in versions:
         try:
-            result = run_component_unit_check(
+            to_check, skipped_components = select_components(
                 source=source,
-                component=component_id,
-                models=models,
+                store=store,
+                selected=component,
+                run_all=run_all,
+                force=force,
+                prompt_version=prompt_version,
             )
-            update_store_with_result(store, result)
-            result_extras["unit_results"].append(
-                {
-                    "component": result.component,
-                    "status": result.status,
-                    "fingerprint": result.fingerprint,
-                    "quorum": result.quorum,
-                    "models": [v.model for v in result.votes],
-                }
-            )
-            for vote in result.votes:
-                if not vote.findings and vote.status != "pass":
-                    diagnostics.append(
-                        with_meta(
-                            {
-                                "code": "LLM_UNIT_CHECK",
-                                "severity": "warning",
-                                "location": f"{result.component} [{vote.model}]",
-                                "message": (
-                                    "LLM returned non-pass status but provided "
-                                    "no findings."
-                                ),
-                            },
-                            category="units",
-                            engine="llm",
-                            check_id="llm.units.component_quorum",
-                        )
-                    )
-                    continue
-                for finding in vote.findings:
-                    location = f"{result.component} [{vote.model}]"
-                    field = finding.get("field")
-                    if field:
-                        location = f"{location} :: {field}"
-                    diagnostics.append(
-                        with_meta(
-                            {
-                                "code": "LLM_UNIT_CHECK",
-                                "severity": finding.get("severity", "warning"),
-                                "location": location,
-                                "message": str(
-                                    finding.get("message", "No message provided.")
-                                ),
-                                "suggestion": finding.get("suggestion"),
-                                "context": {
-                                    "expected_process_units": finding.get(
-                                        "expected_process_units"
-                                    ),
-                                    "expected_commodity_units": finding.get(
-                                        "expected_commodity_units"
-                                    ),
-                                    "observed_units": finding.get("observed_units"),
-                                    "model_expectation": finding.get(
-                                        "model_expectation"
-                                    ),
-                                },
-                            },
-                            category="units",
-                            engine="llm",
-                            check_id="llm.units.component_quorum",
-                        )
-                    )
+            result_extras["unit_skipped_components"].extend(skipped_components)
         except Exception as e:
-            runtime_error = True
             diagnostics.append(
                 with_meta(
                     {
-                        "code": "LLM_UNIT_CHECK_ERROR",
+                        "code": "LLM_UNIT_SELECTION_ERROR",
                         "severity": "error",
-                        "location": component_id,
                         "message": str(e),
                     },
                     category="units",
                     engine="llm",
-                    check_id="llm.units.component_quorum",
+                    check_id=CHECK_ID,
                 )
             )
+            return LLMCategoryResult(
+                diagnostics=diagnostics,
+                runtime_error=True,
+                extras=result_extras,
+            )
+
+        for component_id in to_check:
+            try:
+                result = run_component_unit_check(
+                    source=source,
+                    component=component_id,
+                    models=models,
+                    reasoning_effort=runtime_config.reasoning_effort,
+                    prompt_version=prompt_version,
+                    timeout_sec=runtime_config.timeout_sec,
+                )
+                update_store_with_result(
+                    store,
+                    result,
+                    prompt_version=prompt_version,
+                )
+                result_extras["unit_results"].append(
+                    {
+                        "component": result.component,
+                        "status": result.status,
+                        "fingerprint": result.fingerprint,
+                        "quorum": result.quorum,
+                        "models": [v.model for v in result.votes],
+                        "prompt_version": prompt_version,
+                    }
+                )
+                for vote in result.votes:
+                    result_extras["llm_runs"].append(
+                        {
+                            "check_id": CHECK_ID,
+                            "prompt_version": prompt_version,
+                            "component": result.component,
+                            "model": vote.model,
+                            "telemetry": vote.telemetry,
+                        }
+                    )
+                    if not vote.findings and vote.status != "pass":
+                        diagnostics.append(
+                            with_meta(
+                                {
+                                    "code": "LLM_UNIT_CHECK",
+                                    "severity": "warning",
+                                    "location": f"{result.component} [{vote.model}]",
+                                    "message": (
+                                        "LLM returned non-pass status but provided "
+                                        "no findings."
+                                    ),
+                                    "context": {"prompt_version": prompt_version},
+                                },
+                                category="units",
+                                engine="llm",
+                                check_id=CHECK_ID,
+                            )
+                        )
+                        continue
+                    for finding in vote.findings:
+                        location = f"{result.component} [{vote.model}]"
+                        field = finding.get("field")
+                        if field:
+                            location = f"{location} :: {field}"
+                        diagnostics.append(
+                            with_meta(
+                                {
+                                    "code": "LLM_UNIT_CHECK",
+                                    "severity": finding.get("severity", "warning"),
+                                    "location": location,
+                                    "message": str(
+                                        finding.get("message", "No message provided.")
+                                    ),
+                                    "suggestion": finding.get("suggestion"),
+                                    "context": {
+                                        "expected_process_units": finding.get(
+                                            "expected_process_units"
+                                        ),
+                                        "expected_commodity_units": finding.get(
+                                            "expected_commodity_units"
+                                        ),
+                                        "observed_units": finding.get("observed_units"),
+                                        "model_expectation": finding.get(
+                                            "model_expectation"
+                                        ),
+                                        "prompt_version": prompt_version,
+                                    },
+                                },
+                                category="units",
+                                engine="llm",
+                                check_id=CHECK_ID,
+                            )
+                        )
+            except Exception as e:
+                runtime_error = True
+                diagnostics.append(
+                    with_meta(
+                        {
+                            "code": "LLM_UNIT_CHECK_ERROR",
+                            "severity": "error",
+                            "location": component_id,
+                            "message": (
+                                "Unit check failed for "
+                                f"prompt_version={prompt_version}: {e}"
+                            ),
+                        },
+                        category="units",
+                        engine="llm",
+                        check_id=CHECK_ID,
+                    )
+                )
 
     save_store(resolved_store, store)
     return LLMCategoryResult(

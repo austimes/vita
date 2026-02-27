@@ -1,0 +1,282 @@
+version: 1
+profiles:
+  smoke:
+    - s01
+    - s02
+    - u01
+    - u02
+    - u03
+  ci:
+    - s01
+    - s02
+    - s03
+    - s04
+    - u01
+    - u02
+    - u03
+    - u04
+    - u05
+    - u06
+  deep:
+    - s01
+    - s02
+    - s03
+    - s04
+    - s05
+    - s06
+    - s07
+    - s08
+    - s09
+    - s10
+    - u01
+    - u02
+    - u03
+    - u04
+    - u05
+    - u06
+    - u07
+    - u08
+    - u09
+    - u10
+    - u11
+    - u12
+    - u13
+    - u14
+    - u15
+    - u16
+    - u17
+    - u18
+    - u19
+    - u20
+cases:
+  s01:
+    check_id: llm.structure.res_assessment
+    category: structure
+    engine: llm
+    source: vedalang/examples/mini_plant.veda.yaml
+    expected:
+      required_code_substrings: []
+      forbidden_code_substrings: []
+      known_issues: []
+  s02:
+    check_id: llm.structure.res_assessment
+    category: structure
+    engine: llm
+    source: vedalang/examples/toy_buildings.veda.yaml
+    expected:
+      required_code_substrings: []
+      forbidden_code_substrings: []
+      known_issues: [vedalang-y4d]
+  s03:
+    check_id: llm.structure.res_assessment
+    category: structure
+    engine: llm
+    source: vedalang/examples/toy_transport.veda.yaml
+    expected:
+      required_code_substrings: []
+      forbidden_code_substrings: []
+      known_issues: []
+  s04:
+    check_id: llm.structure.res_assessment
+    category: structure
+    engine: llm
+    source: vedalang/examples/toy_industry.veda.yaml
+    expected:
+      required_code_substrings: []
+      forbidden_code_substrings: []
+      known_issues: []
+  s05:
+    check_id: llm.structure.res_assessment
+    category: structure
+    engine: llm
+    source: vedalang/examples/toy_resources.veda.yaml
+    expected:
+      required_code_substrings: []
+      forbidden_code_substrings: []
+      known_issues: []
+  s06:
+    check_id: llm.structure.res_assessment
+    category: structure
+    engine: llm
+    source: vedalang/examples/toy_electricity_2ts.veda.yaml
+    expected:
+      required_code_substrings: []
+      forbidden_code_substrings: []
+      known_issues: []
+  s07:
+    check_id: llm.structure.res_assessment
+    category: structure
+    engine: llm
+    source: vedalang/examples/toy_electricity_4ts.veda.yaml
+    expected:
+      required_code_substrings: []
+      forbidden_code_substrings: []
+      known_issues: []
+  s08:
+    check_id: llm.structure.res_assessment
+    category: structure
+    engine: llm
+    source: vedalang/examples/toy_integrated_6sector.veda.yaml
+    expected:
+      required_code_substrings: []
+      forbidden_code_substrings: []
+      known_issues: []
+  s09:
+    check_id: llm.structure.res_assessment
+    category: structure
+    engine: llm
+    source: vedalang/examples/minisystem8.veda.yaml
+    expected:
+      required_code_substrings: []
+      forbidden_code_substrings: []
+      known_issues: []
+  s10:
+    check_id: llm.structure.res_assessment
+    category: structure
+    engine: llm
+    source: vedalang/examples/dc5_two_regions.veda.yaml
+    expected:
+      required_code_substrings: []
+      forbidden_code_substrings: []
+      known_issues: []
+
+  u01:
+    check_id: llm.units.component_quorum
+    category: units
+    engine: llm
+    source: vedalang/examples/mini_plant.veda.yaml
+    component: ccgt
+    expected: { required_code_substrings: [], forbidden_code_substrings: [], known_issues: [] }
+  u02:
+    check_id: llm.units.component_quorum
+    category: units
+    engine: llm
+    source: vedalang/examples/toy_buildings.veda.yaml
+    component: gas_heater
+    expected: { required_code_substrings: [], forbidden_code_substrings: [], known_issues: [] }
+  u03:
+    check_id: llm.units.component_quorum
+    category: units
+    engine: llm
+    source: vedalang/examples/toy_buildings.veda.yaml
+    component: heat_pump
+    expected: { required_code_substrings: [], forbidden_code_substrings: [], known_issues: [] }
+  u04:
+    check_id: llm.units.component_quorum
+    category: units
+    engine: llm
+    source: vedalang/examples/toy_transport.veda.yaml
+    component: ice_car
+    expected: { required_code_substrings: [], forbidden_code_substrings: [], known_issues: [] }
+  u05:
+    check_id: llm.units.component_quorum
+    category: units
+    engine: llm
+    source: vedalang/examples/toy_transport.veda.yaml
+    component: ev_car
+    expected: { required_code_substrings: [], forbidden_code_substrings: [], known_issues: [] }
+  u06:
+    check_id: llm.units.component_quorum
+    category: units
+    engine: llm
+    source: vedalang/examples/toy_industry.veda.yaml
+    component: gas_boiler
+    expected: { required_code_substrings: [], forbidden_code_substrings: [], known_issues: [] }
+  u07:
+    check_id: llm.units.component_quorum
+    category: units
+    engine: llm
+    source: vedalang/examples/toy_industry.veda.yaml
+    component: electric_heater
+    expected: { required_code_substrings: [], forbidden_code_substrings: [], known_issues: [] }
+  u08:
+    check_id: llm.units.component_quorum
+    category: units
+    engine: llm
+    source: vedalang/examples/toy_resources.veda.yaml
+    component: diesel_haul
+    expected: { required_code_substrings: [], forbidden_code_substrings: [], known_issues: [] }
+  u09:
+    check_id: llm.units.component_quorum
+    category: units
+    engine: llm
+    source: vedalang/examples/toy_resources.veda.yaml
+    component: electric_haul
+    expected: { required_code_substrings: [], forbidden_code_substrings: [], known_issues: [] }
+  u10:
+    check_id: llm.units.component_quorum
+    category: units
+    engine: llm
+    source: vedalang/examples/toy_electricity_2ts.veda.yaml
+    component: ccgt
+    expected: { required_code_substrings: [], forbidden_code_substrings: [], known_issues: [] }
+  u11:
+    check_id: llm.units.component_quorum
+    category: units
+    engine: llm
+    source: vedalang/examples/toy_electricity_2ts.veda.yaml
+    component: battery
+    expected: { required_code_substrings: [], forbidden_code_substrings: [], known_issues: [] }
+  u12:
+    check_id: llm.units.component_quorum
+    category: units
+    engine: llm
+    source: vedalang/examples/toy_electricity_4ts.veda.yaml
+    component: ccgt
+    expected: { required_code_substrings: [], forbidden_code_substrings: [], known_issues: [] }
+  u13:
+    check_id: llm.units.component_quorum
+    category: units
+    engine: llm
+    source: vedalang/examples/toy_electricity_4ts.veda.yaml
+    component: battery
+    expected: { required_code_substrings: [], forbidden_code_substrings: [], known_issues: [] }
+  u14:
+    check_id: llm.units.component_quorum
+    category: units
+    engine: llm
+    source: vedalang/examples/toy_integrated_6sector.veda.yaml
+    component: ccgt
+    expected: { required_code_substrings: [], forbidden_code_substrings: [], known_issues: [] }
+  u15:
+    check_id: llm.units.component_quorum
+    category: units
+    engine: llm
+    source: vedalang/examples/toy_integrated_6sector.veda.yaml
+    component: ev_car
+    expected: { required_code_substrings: [], forbidden_code_substrings: [], known_issues: [] }
+  u16:
+    check_id: llm.units.component_quorum
+    category: units
+    engine: llm
+    source: vedalang/examples/minisystem8.veda.yaml
+    component: coal_plant
+    expected: { required_code_substrings: [], forbidden_code_substrings: [], known_issues: [] }
+  u17:
+    check_id: llm.units.component_quorum
+    category: units
+    engine: llm
+    source: vedalang/examples/minisystem8.veda.yaml
+    component: transport_elec_device
+    expected: { required_code_substrings: [], forbidden_code_substrings: [], known_issues: [] }
+  u18:
+    check_id: llm.units.component_quorum
+    category: units
+    engine: llm
+    source: vedalang/examples/minisystem8.veda.yaml
+    component: residential_electric_device
+    expected: { required_code_substrings: [], forbidden_code_substrings: [], known_issues: [] }
+  u19:
+    check_id: llm.units.component_quorum
+    category: units
+    engine: llm
+    source: vedalang/examples/dc3_with_emissions.veda.yaml
+    component: ccgt
+    expected: { required_code_substrings: [], forbidden_code_substrings: [], known_issues: [] }
+  u20:
+    check_id: llm.units.component_quorum
+    category: units
+    engine: llm
+    source: vedalang/examples/dc4_co2_price_scenario.veda.yaml
+    component: ccgt
+    expected: { required_code_substrings: [], forbidden_code_substrings: [], known_issues: [] }

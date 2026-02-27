@@ -26,6 +26,9 @@ repo so conventions updates do not require hunting across duplicate docs.
 | `vedalang/lint/llm_assessment.py` prompt template | LLM lint runtime | System/user prompt assembly for structural assessment | **Keep** as executable prompt logic; pull enums from schema-derived helpers |
 | `vedalang/lint/llm_unit_check.py` prompt template | LLM unit-check runtime | System/user prompt assembly for unit and coefficient checks | **Keep** as executable prompt logic aligned to schema unit rules |
 | `vedalang/lint/prompts/res-assessment/v1/*` | LLM lint runtime | Versioned prompt text and response schema for reproducible evaluation | **Keep** as canonical prompt text artifacts |
+| `vedalang/lint/prompts/unit-check/v1/*` | LLM lint runtime | Versioned unit-check prompt text and response schema for reproducible evaluation | **Keep** as canonical prompt text artifacts |
+| `vedalang/lint/prompt_registry.py` | LLM lint runtime | Prompt version registry + immutable hash verification | **Keep** as the guardrail for append-only prompt evolution |
+| `tools/veda_dev/evals/` | Design-agent eval runtime | Model/effort benchmark runner + scoring + reporting | **Keep** as the canonical eval scaffold for prompt/model selection |
 
 ## Placement Rules
 
