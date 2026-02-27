@@ -1,0 +1,13 @@
+{
+  "check_id": "llm.structure.res_assessment",
+  "version": "v2",
+  "created_at": "2026-02-27",
+  "content_sha256": "72dd4b77c04955fbd6b4f9009c3fa792717f31f6dbd64e886b83612891538915",
+  "files": [
+    "CHANGELOG.md",
+    "response_schema.json",
+    "system.txt",
+    "user_prefix.txt"
+  ],
+  "notes": "Append-only prompt version. Create new version directory for prompt changes."
+}

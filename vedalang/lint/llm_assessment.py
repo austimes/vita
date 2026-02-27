@@ -31,7 +31,7 @@ from vedalang.lint.res_export import export_res_graph, res_graph_to_mermaid
 
 CHECK_ID = "llm.structure.res_assessment"
 DEFAULT_MODEL = "gpt-5.2"
-DEFAULT_PROMPT_VERSION = "v1"
+DEFAULT_PROMPT_VERSION = "v2"
 
 # Path to the canonical modeling conventions document (single source of truth)
 _CONVENTIONS_PATH = (
@@ -209,6 +209,24 @@ def parse_llm_response(raw: str) -> AssessmentResult:
         if severity not in VALID_SEVERITIES:
             severity = "suggestion"
 
+        classification = item.get("classification")
+        if not isinstance(classification, dict):
+            classification = {}
+        context: dict[str, Any] = {}
+        error_code = (
+            item.get("error_code")
+            or classification.get("error_code")
+            or item.get("classification_code")
+        )
+        if isinstance(error_code, str) and error_code.strip():
+            context["error_code"] = error_code.strip()
+        error_family = item.get("error_family") or classification.get("error_family")
+        if isinstance(error_family, str) and error_family.strip():
+            context["error_family"] = error_family.strip()
+        difficulty = item.get("difficulty") or classification.get("difficulty")
+        if isinstance(difficulty, str) and difficulty.strip():
+            context["difficulty"] = difficulty.strip()
+
         findings.append(
             LLMFinding(
                 severity=severity,
@@ -216,6 +234,7 @@ def parse_llm_response(raw: str) -> AssessmentResult:
                 message=item.get("message", "No description provided"),
                 location=item.get("location"),
                 suggestion=item.get("suggestion"),
+                context=context,
             )
         )
 

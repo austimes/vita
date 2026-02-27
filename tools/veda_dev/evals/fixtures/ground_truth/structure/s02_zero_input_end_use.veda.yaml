@@ -1,0 +1,26 @@
+model:
+  name: EvalStructureZeroInput
+  regions: [R1]
+  milestone_years: [2020, 2030]
+  commodities:
+    - id: service:heat
+      type: service
+      unit: PJ
+      combustible: false
+
+process_roles:
+  - id: provide_heat
+    stage: end_use
+    activity_unit: PJ
+    capacity_unit: GW
+    required_inputs: []
+    required_outputs:
+      - commodity: service:heat
+
+process_variants:
+  - id: phantom_heater
+    role: provide_heat
+    inputs: []
+    outputs:
+      - commodity: service:heat
+    efficiency: 1.0

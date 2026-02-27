@@ -301,6 +301,9 @@ def run_units(
                                         "model_expectation": finding.get(
                                             "model_expectation"
                                         ),
+                                        "error_code": finding.get("error_code"),
+                                        "error_family": finding.get("error_family"),
+                                        "difficulty": finding.get("difficulty"),
                                         "prompt_version": prompt_version,
                                     },
                                 },

@@ -1,0 +1,285 @@
+model:
+  name: EvalUnitsBenchmark
+  monetary:
+    canonical: MAUD24
+  regions: [R1]
+  milestone_years: [2020, 2030]
+  commodities:
+    - id: service:heat
+      type: service
+      unit: PJ
+      combustible: false
+    - id: service:mobility
+      type: service
+      unit: Bvkm
+      combustible: false
+    - id: secondary:electricity
+      type: energy
+      unit: PJ
+      combustible: false
+    - id: primary:natural_gas
+      type: fuel
+      unit: PJ
+      combustible: true
+      lhv_mj_per_unit: 50.0
+      hhv_mj_per_unit: 55.0
+    - id: material:steam
+      type: other
+      unit: Mt
+      combustible: false
+
+process_roles:
+  - id: supply_electricity
+    stage: supply
+    activity_unit: PJ
+    capacity_unit: GW
+    required_inputs: []
+    required_outputs:
+      - commodity: secondary:electricity
+  - id: supply_gas
+    stage: supply
+    activity_unit: PJ
+    capacity_unit: GW
+    required_inputs: []
+    required_outputs:
+      - commodity: primary:natural_gas
+  - id: provide_heat
+    stage: end_use
+    activity_unit: PJ
+    capacity_unit: GW
+    required_inputs: []
+    required_outputs:
+      - commodity: service:heat
+  - id: provide_mobility
+    stage: end_use
+    activity_unit: Bvkm
+    capacity_unit: Bvkm/yr
+    required_inputs: []
+    required_outputs:
+      - commodity: service:mobility
+  - id: make_steam
+    stage: conversion
+    activity_unit: Mt
+    capacity_unit: Mt/yr
+    required_inputs: []
+    required_outputs:
+      - commodity: material:steam
+
+process_variants:
+  - id: electricity_import
+    role: supply_electricity
+    inputs: []
+    outputs:
+      - commodity: secondary:electricity
+    efficiency: 1.0
+  - id: gas_import
+    role: supply_gas
+    inputs: []
+    outputs:
+      - commodity: primary:natural_gas
+        basis: HHV
+    efficiency: 1.0
+
+  - id: heat_clean_1
+    role: provide_heat
+    inputs:
+      - commodity: secondary:electricity
+    outputs:
+      - commodity: service:heat
+    efficiency: 1.0
+    variable_om_cost: "10 MAUD24/PJ"
+    investment_cost: "120 MAUD24/GW"
+
+  - id: heat_missing_basis_1
+    role: provide_heat
+    inputs:
+      - commodity: primary:natural_gas
+    outputs:
+      - commodity: service:heat
+    efficiency: 0.9
+    variable_om_cost: "12 MAUD24/PJ"
+    investment_cost: "90 MAUD24/GW"
+
+  - id: heat_bad_variable_cost_1
+    role: provide_heat
+    inputs:
+      - commodity: primary:natural_gas
+        basis: HHV
+    outputs:
+      - commodity: service:heat
+    efficiency: 0.9
+    variable_om_cost: "12 MAUD24/GW"
+    investment_cost: "95 MAUD24/GW"
+
+  - id: heat_bad_investment_cost_1
+    role: provide_heat
+    inputs:
+      - commodity: primary:natural_gas
+        basis: HHV
+    outputs:
+      - commodity: service:heat
+    efficiency: 0.9
+    variable_om_cost: "10 MAUD24/PJ"
+    investment_cost: "60 MAUD24/PJ"
+
+  - id: heat_bad_capacity_denom_1
+    role: provide_heat
+    inputs:
+      - commodity: secondary:electricity
+    outputs:
+      - commodity: service:heat
+    efficiency: 1.0
+    variable_om_cost: "9 MAUD24/PJ"
+    investment_cost: "40 MAUD24/Bvkm/yr"
+
+  - id: mobility_clean_1
+    role: provide_mobility
+    inputs:
+      - commodity: secondary:electricity
+    outputs:
+      - commodity: service:mobility
+    efficiency: 1.0
+    variable_om_cost: "20 MAUD24/Bvkm"
+    investment_cost: "70 MAUD24/Bvkm/yr"
+
+  - id: mobility_bad_variable_cost_1
+    role: provide_mobility
+    inputs:
+      - commodity: secondary:electricity
+    outputs:
+      - commodity: service:mobility
+    efficiency: 1.0
+    variable_om_cost: "20 MAUD24/PJ"
+    investment_cost: "70 MAUD24/Bvkm/yr"
+
+  - id: mobility_bad_investment_cost_1
+    role: provide_mobility
+    inputs:
+      - commodity: secondary:electricity
+    outputs:
+      - commodity: service:mobility
+    efficiency: 1.0
+    variable_om_cost: "20 MAUD24/Bvkm"
+    investment_cost: "80 MAUD24/GW"
+
+  - id: mobility_gas_missing_basis_1
+    role: provide_mobility
+    inputs:
+      - commodity: primary:natural_gas
+    outputs:
+      - commodity: service:mobility
+    efficiency: 1.0
+    variable_om_cost: "28 MAUD24/Bvkm"
+    investment_cost: "75 MAUD24/Bvkm/yr"
+
+  - id: mobility_bad_model_expectation_1
+    role: provide_mobility
+    inputs:
+      - commodity: secondary:electricity
+    outputs:
+      - commodity: service:mobility
+    efficiency: 1.0
+    variable_om_cost: "5 MAUD24/Mt"
+    investment_cost: "82 MAUD24/Bvkm/yr"
+
+  - id: steam_clean_1
+    role: make_steam
+    inputs:
+      - commodity: secondary:electricity
+    outputs:
+      - commodity: material:steam
+    efficiency: 1.0
+    variable_om_cost: "6 MAUD24/Mt"
+    investment_cost: "35 MAUD24/Mt/yr"
+
+  - id: steam_gas_missing_basis_1
+    role: make_steam
+    inputs:
+      - commodity: primary:natural_gas
+    outputs:
+      - commodity: material:steam
+    efficiency: 0.8
+    variable_om_cost: "7 MAUD24/Mt"
+    investment_cost: "38 MAUD24/Mt/yr"
+
+  - id: steam_bad_variable_cost_1
+    role: make_steam
+    inputs:
+      - commodity: secondary:electricity
+    outputs:
+      - commodity: material:steam
+    efficiency: 1.0
+    variable_om_cost: "7 MAUD24/Bvkm"
+    investment_cost: "40 MAUD24/Mt/yr"
+
+  - id: steam_bad_investment_cost_1
+    role: make_steam
+    inputs:
+      - commodity: secondary:electricity
+    outputs:
+      - commodity: material:steam
+    efficiency: 1.0
+    variable_om_cost: "6 MAUD24/Mt"
+    investment_cost: "35 MAUD24/PJ"
+
+  - id: steam_bad_capacity_denom_1
+    role: make_steam
+    inputs:
+      - commodity: secondary:electricity
+    outputs:
+      - commodity: material:steam
+    efficiency: 1.0
+    variable_om_cost: "6 MAUD24/Mt"
+    investment_cost: "35 MAUD24/GW"
+
+  - id: heat_clean_2
+    role: provide_heat
+    inputs:
+      - commodity: primary:natural_gas
+        basis: HHV
+    outputs:
+      - commodity: service:heat
+    efficiency: 0.92
+    variable_om_cost: "11 MAUD24/PJ"
+    investment_cost: "100 MAUD24/GW"
+
+  - id: heat_bad_variable_cost_2
+    role: provide_heat
+    inputs:
+      - commodity: primary:natural_gas
+        basis: HHV
+    outputs:
+      - commodity: service:heat
+    efficiency: 0.9
+    variable_om_cost: "11 MAUD24/Bvkm"
+    investment_cost: "100 MAUD24/GW"
+
+  - id: mobility_clean_2
+    role: provide_mobility
+    inputs:
+      - commodity: secondary:electricity
+    outputs:
+      - commodity: service:mobility
+    efficiency: 1.0
+    variable_om_cost: "19 MAUD24/Bvkm"
+    investment_cost: "72 MAUD24/Bvkm/yr"
+
+  - id: mobility_bad_variable_cost_2
+    role: provide_mobility
+    inputs:
+      - commodity: secondary:electricity
+    outputs:
+      - commodity: service:mobility
+    efficiency: 1.0
+    variable_om_cost: "18 MAUD24/Mt"
+    investment_cost: "72 MAUD24/Bvkm/yr"
+
+  - id: heat_missing_basis_2
+    role: provide_heat
+    inputs:
+      - commodity: primary:natural_gas
+    outputs:
+      - commodity: service:heat
+    efficiency: 0.9
+    variable_om_cost: "13 MAUD24/PJ"
+    investment_cost: "110 MAUD24/GW"

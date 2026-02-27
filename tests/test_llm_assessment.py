@@ -145,6 +145,27 @@ class TestParseLLMResponse:
         result = parse_llm_response(raw)
         assert result.findings[0].severity == "suggestion"
 
+    def test_classification_fields_flow_into_context(self):
+        raw = json.dumps(
+            {
+                "findings": [
+                    {
+                        "severity": "warning",
+                        "category": "stage_mismatch",
+                        "message": "role stage does not match topology",
+                        "error_code": "STR_STAGE_MISMATCH",
+                        "error_family": "stage_semantics",
+                        "difficulty": "medium",
+                    }
+                ]
+            }
+        )
+        result = parse_llm_response(raw)
+        finding = result.findings[0]
+        assert finding.context["error_code"] == "STR_STAGE_MISMATCH"
+        assert finding.context["error_family"] == "stage_semantics"
+        assert finding.context["difficulty"] == "medium"
+
     def test_raw_response_preserved(self):
         result = parse_llm_response(CLEAN_RESPONSE)
         assert result.raw_response == CLEAN_RESPONSE

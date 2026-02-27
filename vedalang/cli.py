@@ -155,8 +155,8 @@ def _add_llm_lint_parser(subparsers):
     )
     p.add_argument(
         "--prompt-version",
-        default="v1",
-        help="Prompt version to use for supported checks (or 'all').",
+        default="v2",
+        help="Prompt version to use for supported checks (or 'all', default: v2).",
     )
     p.add_argument(
         "--request-timeout-sec",

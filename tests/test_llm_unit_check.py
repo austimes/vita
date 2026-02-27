@@ -169,6 +169,28 @@ def test_parse_unit_check_response_preserves_fix_guidance_fields():
     assert findings[0]["expected_commodity_units"]["secondary:electricity"] == "TWh"
 
 
+def test_parse_unit_check_response_reads_classification_fields():
+    raw = json.dumps(
+        {
+            "status": "needs_review",
+            "findings": [
+                {
+                    "severity": "warning",
+                    "message": "Variable O&M denominator should match activity unit.",
+                    "error_code": "UNIT_VARIABLE_COST_DENOM_MISMATCH",
+                    "error_family": "cost_denominator",
+                    "difficulty": "easy",
+                }
+            ],
+        }
+    )
+    status, findings = llm_unit_check.parse_unit_check_response(raw)
+    assert status == "needs_review"
+    assert findings[0]["error_code"] == "UNIT_VARIABLE_COST_DENOM_MISMATCH"
+    assert findings[0]["error_family"] == "cost_denominator"
+    assert findings[0]["difficulty"] == "easy"
+
+
 def test_assemble_unit_prompt_includes_unit_enums_and_policy():
     system_prompt, user_prompt = llm_unit_check.assemble_unit_prompt(SOURCE, "ccgt")
     assert "status" in system_prompt

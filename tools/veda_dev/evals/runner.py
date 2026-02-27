@@ -36,7 +36,7 @@ from .judge import run_judge
 from .scoring import (
     aggregate_quality_score,
     aggregate_rank_score,
-    deterministic_score,
+    deterministic_breakdown,
     efficiency_score,
     estimate_cost_usd,
 )
@@ -224,6 +224,9 @@ def _normalize_units_diagnostics(
                             ),
                             "observed_units": finding.get("observed_units"),
                             "model_expectation": finding.get("model_expectation"),
+                            "error_code": finding.get("error_code"),
+                            "error_family": finding.get("error_family"),
+                            "difficulty": finding.get("difficulty"),
                             "prompt_version": prompt_version,
                         },
                     },
@@ -438,15 +441,17 @@ def _evaluate_row(
         est_cost = None
 
         if evaluated["status"] == "ok":
-            det_score = deterministic_score(
+            det_breakdown = deterministic_breakdown(
                 diagnostics=evaluated["diagnostics"],
                 expected_category=case.category,
                 expected_engine=case.engine,
                 expected_check_id=case.check_id,
+                expected=case.expected,
                 required_code_substrings=required,
                 forbidden_code_substrings=forbidden,
                 deterministic_diagnostics=det_reference,
             )
+            det_score = float(det_breakdown["score"])
 
             telemetry = evaluated.get("telemetry") or []
             if telemetry:
@@ -523,6 +528,9 @@ def _evaluate_row(
             "telemetry": evaluated.get("telemetry", []),
             "estimated_cost_usd": est_cost,
             "deterministic_score": det_score,
+            "deterministic_breakdown": (
+                det_breakdown if evaluated["status"] == "ok" else None
+            ),
             "judge_score": judge_score,
             "quality_score": quality_score,
             "known_issues": case.expected.get("known_issues", []),
@@ -548,6 +556,7 @@ def _evaluate_row(
             "telemetry": [],
             "estimated_cost_usd": None,
             "deterministic_score": 0.0,
+            "deterministic_breakdown": None,
             "judge_score": None,
             "quality_score": 0.0,
             "known_issues": case.expected.get("known_issues", []),
@@ -592,6 +601,12 @@ def _summarize_candidate_rows(
             "p50_latency_sec": 0.0,
             "p95_latency_sec": 0.0,
             "avg_cost_usd": 0.0,
+            "label_precision": None,
+            "label_recall": None,
+            "label_f1": None,
+            "label_presence_accuracy": None,
+            "label_difficulty_accuracy": None,
+            "label_family_accuracy": None,
             "avg_row_elapsed_sec": avg_row_elapsed,
             "p50_row_elapsed_sec": p50_row_elapsed,
             "p95_row_elapsed_sec": p95_row_elapsed,
@@ -602,6 +617,73 @@ def _summarize_candidate_rows(
         }
 
     deterministic_avg = mean(r["deterministic_score"] for r in valid_rows)
+    label_metric_rows = [
+        r.get("deterministic_breakdown", {}).get("label_metrics", {})
+        for r in valid_rows
+        if isinstance(r.get("deterministic_breakdown"), dict)
+        and isinstance(
+            r.get("deterministic_breakdown", {}).get("label_metrics"),
+            dict,
+        )
+        and r.get("deterministic_breakdown", {})
+        .get("label_metrics", {})
+        .get("enabled")
+    ]
+
+    label_precision = (
+        mean(
+            float(m.get("precision", 0.0))
+            for m in label_metric_rows
+            if m.get("precision") is not None
+        )
+        if label_metric_rows
+        else None
+    )
+    label_recall = (
+        mean(
+            float(m.get("recall", 0.0))
+            for m in label_metric_rows
+            if m.get("recall") is not None
+        )
+        if label_metric_rows
+        else None
+    )
+    label_f1 = (
+        mean(
+            float(m.get("f1", 0.0))
+            for m in label_metric_rows
+            if m.get("f1") is not None
+        )
+        if label_metric_rows
+        else None
+    )
+    label_presence_accuracy = (
+        mean(
+            float(m.get("presence_accuracy", 0.0))
+            for m in label_metric_rows
+            if m.get("presence_accuracy") is not None
+        )
+        if label_metric_rows
+        else None
+    )
+    label_difficulty_accuracy = (
+        mean(
+            float(m.get("difficulty_accuracy", 0.0))
+            for m in label_metric_rows
+            if m.get("difficulty_accuracy") is not None
+        )
+        if label_metric_rows
+        else None
+    )
+    label_family_accuracy = (
+        mean(
+            float(m.get("family_accuracy", 0.0))
+            for m in label_metric_rows
+            if m.get("family_accuracy") is not None
+        )
+        if label_metric_rows
+        else None
+    )
     judge_values = [
         r["judge_score"] for r in valid_rows if r["judge_score"] is not None
     ]
@@ -649,6 +731,12 @@ def _summarize_candidate_rows(
         "p50_latency_sec": p50,
         "p95_latency_sec": p95,
         "avg_cost_usd": avg_cost,
+        "label_precision": label_precision,
+        "label_recall": label_recall,
+        "label_f1": label_f1,
+        "label_presence_accuracy": label_presence_accuracy,
+        "label_difficulty_accuracy": label_difficulty_accuracy,
+        "label_family_accuracy": label_family_accuracy,
         "avg_row_elapsed_sec": avg_row_elapsed,
         "p50_row_elapsed_sec": p50_row_elapsed,
         "p95_row_elapsed_sec": p95_row_elapsed,
@@ -856,6 +944,13 @@ def run_eval(
                         status=row["status"],
                         cached=row.get("cached", False),
                         deterministic_score=row["deterministic_score"],
+                        label_f1=(
+                            row.get("deterministic_breakdown", {})
+                            .get("label_metrics", {})
+                            .get("f1")
+                            if isinstance(row.get("deterministic_breakdown"), dict)
+                            else None
+                        ),
                         judge_score=row["judge_score"],
                         quality_score=row["quality_score"],
                         estimated_cost_usd=row["estimated_cost_usd"],
@@ -893,6 +988,16 @@ def run_eval(
                             ),
                             deterministic_score=candidate_summary[
                                 "deterministic_score"
+                            ],
+                            label_f1=candidate_summary["label_f1"],
+                            label_presence_accuracy=candidate_summary[
+                                "label_presence_accuracy"
+                            ],
+                            label_difficulty_accuracy=candidate_summary[
+                                "label_difficulty_accuracy"
+                            ],
+                            label_family_accuracy=candidate_summary[
+                                "label_family_accuracy"
                             ],
                             judge_score=candidate_summary["judge_score"],
                             quality_score=candidate_summary["quality_score"],
@@ -1041,10 +1146,13 @@ def render_report(run: dict[str, Any]) -> str:
     lines.append("")
     lines.append("Top candidates:")
     for idx, row in enumerate(run.get("leaderboard", [])[:10], start=1):
+        label_f1 = row.get("label_f1")
+        label_f1_text = "n/a" if label_f1 is None else f"{label_f1:.2f}"
         lines.append(
             f"{idx:>2}. {row['candidate_id']} "
             f"rank={row['rank_score']:.2f} quality={row['quality_score']:.2f} "
             f"det={row['deterministic_score']:.2f} "
+            f"label_f1={label_f1_text} "
             f"latency_p50={row['p50_latency_sec']:.2f}s "
             f"row_p50={row.get('p50_row_elapsed_sec', 0.0):.2f}s "
             f"cost_avg=${row['avg_cost_usd']:.4f}"

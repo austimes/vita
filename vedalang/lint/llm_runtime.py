@@ -17,7 +17,7 @@ class LLMRuntimeConfig:
     model: str | None = None
     models: list[str] | None = None
     reasoning_effort: ReasoningEffort = "medium"
-    prompt_version: str = "v1"
+    prompt_version: str = "v2"
     timeout_sec: int | None = None
 
 

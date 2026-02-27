@@ -1,0 +1,17 @@
+## Modeling Conventions
+
+__MODELING_CONVENTIONS__
+
+## RES Graph (JSON)
+
+```json
+__RES_GRAPH_JSON__
+```
+
+## RES Graph (Mermaid)
+
+```mermaid
+__RES_GRAPH_MERMAID__
+```
+
+Assess this RES for structural issues.

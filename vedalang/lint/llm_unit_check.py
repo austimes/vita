@@ -23,7 +23,7 @@ from vedalang.lint.llm_runtime import (
 from vedalang.lint.prompt_registry import load_prompt_template
 
 CHECK_ID = "llm.units.component_quorum"
-DEFAULT_PROMPT_VERSION = "v1"
+DEFAULT_PROMPT_VERSION = "v2"
 DEFAULT_MODELS = ("gpt-5.2", "gpt-5-mini")
 
 
@@ -318,6 +318,16 @@ def parse_unit_check_response(raw: str) -> tuple[str, list[dict[str, Any]]]:
         sev = str(item.get("severity", "warning")).lower()
         if sev not in {"critical", "warning", "suggestion"}:
             sev = "warning"
+        classification = item.get("classification")
+        if not isinstance(classification, dict):
+            classification = {}
+        error_code = (
+            item.get("error_code")
+            or classification.get("error_code")
+            or item.get("classification_code")
+        )
+        error_family = item.get("error_family") or classification.get("error_family")
+        difficulty = item.get("difficulty") or classification.get("difficulty")
         normalized.append(
             {
                 "severity": sev,
@@ -328,6 +338,21 @@ def parse_unit_check_response(raw: str) -> tuple[str, list[dict[str, Any]]]:
                 "expected_commodity_units": item.get("expected_commodity_units"),
                 "observed_units": item.get("observed_units"),
                 "model_expectation": item.get("model_expectation"),
+                "error_code": (
+                    str(error_code).strip()
+                    if isinstance(error_code, str) and str(error_code).strip()
+                    else None
+                ),
+                "error_family": (
+                    str(error_family).strip()
+                    if isinstance(error_family, str) and str(error_family).strip()
+                    else None
+                ),
+                "difficulty": (
+                    str(difficulty).strip()
+                    if isinstance(difficulty, str) and str(difficulty).strip()
+                    else None
+                ),
             }
         )
     return status, normalized

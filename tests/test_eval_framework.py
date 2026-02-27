@@ -13,6 +13,7 @@ from tools.veda_dev.evals.config import (
 from tools.veda_dev.evals.dataset import cases_for_profile, load_dataset
 from tools.veda_dev.evals.judge import parse_judge_response
 from tools.veda_dev.evals.runner import compare_runs, run_eval
+from tools.veda_dev.evals.scoring import label_metrics
 
 
 def test_candidate_matrix_has_13_entries():
@@ -130,6 +131,7 @@ def test_run_eval_marks_skips_without_crashing(monkeypatch, tmp_path):
     assert any(r["status"] == "skipped" for r in run["results"])
     assert all("telemetry" in r for r in run["results"])
     assert all("row_elapsed_sec" in r for r in run["results"])
+    assert all("deterministic_breakdown" in r for r in run["results"])
     assert "timing" in run
     assert run["timing"]["completed_runs"] == len(run["results"])
 
@@ -202,6 +204,7 @@ def test_run_eval_emits_progress_events(monkeypatch, tmp_path):
     assert row_events
     first_row = row_events[0]
     assert "deterministic_score" in first_row
+    assert "label_f1" in first_row
     assert "judge_score" in first_row
     assert "quality_score" in first_row
     assert "estimated_cost_usd" in first_row
@@ -209,6 +212,7 @@ def test_run_eval_emits_progress_events(monkeypatch, tmp_path):
     candidate_done_events = [e for e in events if e["event"] == "candidate_complete"]
     assert candidate_done_events
     assert "rank_score" in candidate_done_events[0]
+    assert "label_f1" in candidate_done_events[0]
     assert "avg_row_elapsed_sec" in candidate_done_events[0]
     assert "candidate_elapsed_sec" in candidate_done_events[0]
     assert events[-1]["event"] == "complete"
@@ -253,6 +257,35 @@ def test_run_eval_pre_skips_known_unsupported_combos(monkeypatch, tmp_path):
         "Unsupported model/effort combination" in str(r.get("error"))
         for r in run["results"]
     )
+
+
+def test_label_metrics_reads_classification_fields():
+    diagnostics = [
+        {
+            "code": "LLM_UNIT_CHECK",
+            "context": {
+                "error_code": "UNIT_VARIABLE_COST_DENOM_MISMATCH",
+                "error_family": "cost_denominator",
+                "difficulty": "easy",
+            },
+        }
+    ]
+    expected = {
+        "labels": [
+            {
+                "error_code": "UNIT_VARIABLE_COST_DENOM_MISMATCH",
+                "error_family": "cost_denominator",
+                "difficulty": "easy",
+                "expected_presence": "present",
+            }
+        ]
+    }
+    metrics = label_metrics(diagnostics, expected=expected)
+    assert metrics["enabled"] is True
+    assert metrics["f1"] == 100.0
+    assert metrics["presence_accuracy"] == 100.0
+    assert metrics["difficulty_accuracy"] == 100.0
+    assert metrics["family_accuracy"] == 100.0
 
 
 def test_run_eval_parallelizes_rows(monkeypatch, tmp_path):

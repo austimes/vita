@@ -1,0 +1,35 @@
+model:
+  name: EvalStructureFuelPathwayRole
+  regions: [R1]
+  milestone_years: [2020, 2030]
+  commodities:
+    - id: service:heat
+      type: service
+      unit: PJ
+      combustible: false
+    - id: primary:natural_gas
+      type: fuel
+      unit: PJ
+      combustible: true
+      lhv_mj_per_unit: 50.0
+      hhv_mj_per_unit: 55.0
+
+process_roles:
+  - id: provide_heat_from_gas
+    stage: end_use
+    activity_unit: PJ
+    capacity_unit: GW
+    required_inputs:
+      - commodity: primary:natural_gas
+    required_outputs:
+      - commodity: service:heat
+
+process_variants:
+  - id: gas_boiler
+    role: provide_heat_from_gas
+    inputs:
+      - commodity: primary:natural_gas
+        basis: HHV
+    outputs:
+      - commodity: service:heat
+    efficiency: 0.9

@@ -1,0 +1,30 @@
+Assess unit/coefficient consistency for this component.
+Focus on unit conversions, efficiency-vs-coefficient plausibility,
+basis mismatches (HHV/LHV), and likely inversion/factor mistakes.
+When raising a concern, propose a fix and expected units based on
+process/commodity names, role intent, and model context.
+
+Allowed unit enums from schema:
+__UNIT_REFERENCE__
+
+Monetary literal syntax and policy:
+- monetary_unit_token examples: MAUD24, MUSD23, USD2014
+- cost_rate_literal format: '<value> <moneyYY>/<denominator>' with optional '/yr'
+- process unit semantics:
+  * activity_unit must be extensive (no '/yr')
+  * capacity_unit must be power or '<unit>/yr'
+  * derive cap2act using: convert(1 * capacity_unit * 1 yr -> activity_unit)
+- cost denominator expectations:
+  * variable_om_cost -> /activity_unit
+  * investment_cost -> /capacity_unit
+  * fixed_om_cost -> /capacity_unit/yr
+
+Model unit policy:
+__UNIT_POLICY__
+
+Model monetary policy:
+__MONETARY_POLICY__
+
+Component ID: __COMPONENT_ID__
+Payload JSON:
+__PAYLOAD_JSON__

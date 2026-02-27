@@ -365,8 +365,8 @@ def main():
     )
     eval_run.add_argument(
         "--prompt-version",
-        default="v1",
-        help="Prompt version to evaluate (or 'all')",
+        default="v2",
+        help="Prompt version to evaluate (or 'all', default: v2)",
     )
     eval_run.add_argument(
         "--dataset",
@@ -874,6 +874,7 @@ def run_eval_command(args):
                 f"status={event.get('status')} "
                 f"cached={event.get('cached')} "
                 f"det={_fmt_score(event.get('deterministic_score'))} "
+                f"label_f1={_fmt_score(event.get('label_f1'))} "
                 f"judge={_fmt_score(event.get('judge_score'))} "
                 f"quality={_fmt_score(event.get('quality_score'))} "
                 f"cost=${_fmt_score(event.get('estimated_cost_usd'), 4)} "
@@ -887,6 +888,11 @@ def run_eval_command(args):
                 f"skipped={event.get('skipped_cases')} "
                 f"errors={event.get('error_cases')} "
                 f"det={_fmt_score(event.get('deterministic_score'))} "
+                f"label_f1={_fmt_score(event.get('label_f1'))} "
+                f"label_presence={_fmt_score(event.get('label_presence_accuracy'))} "
+                "label_difficulty="
+                f"{_fmt_score(event.get('label_difficulty_accuracy'))} "
+                f"label_family={_fmt_score(event.get('label_family_accuracy'))} "
                 f"judge={_fmt_score(event.get('judge_score'))} "
                 f"quality={_fmt_score(event.get('quality_score'))} "
                 f"rank={_fmt_score(event.get('rank_score'))} "

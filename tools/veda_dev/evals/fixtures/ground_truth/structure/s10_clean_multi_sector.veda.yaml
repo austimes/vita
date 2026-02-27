@@ -1,0 +1,63 @@
+model:
+  name: EvalStructureClean10
+  regions: [R1]
+  milestone_years: [2020, 2030]
+  commodities:
+    - id: service:mobility
+      type: service
+      unit: Bvkm
+      combustible: false
+    - id: service:heat
+      type: service
+      unit: PJ
+      combustible: false
+    - id: secondary:electricity
+      type: energy
+      unit: PJ
+      combustible: false
+    - id: primary:natural_gas
+      type: fuel
+      unit: PJ
+      combustible: true
+      lhv_mj_per_unit: 50.0
+      hhv_mj_per_unit: 55.0
+
+process_roles:
+  - id: provide_mobility
+    stage: end_use
+    activity_unit: Bvkm
+    capacity_unit: Bvkm/yr
+    required_inputs: []
+    required_outputs:
+      - commodity: service:mobility
+  - id: provide_heat
+    stage: end_use
+    activity_unit: PJ
+    capacity_unit: GW
+    required_inputs: []
+    required_outputs:
+      - commodity: service:heat
+
+process_variants:
+  - id: ev_car
+    role: provide_mobility
+    inputs:
+      - commodity: secondary:electricity
+    outputs:
+      - commodity: service:mobility
+    efficiency: 1.0
+  - id: heat_pump
+    role: provide_heat
+    inputs:
+      - commodity: secondary:electricity
+    outputs:
+      - commodity: service:heat
+    efficiency: 1.0
+  - id: gas_boiler
+    role: provide_heat
+    inputs:
+      - commodity: primary:natural_gas
+        basis: HHV
+    outputs:
+      - commodity: service:heat
+    efficiency: 0.9

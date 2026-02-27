@@ -1,4 +1,4 @@
-version: 1
+version: 2
 profiles:
   smoke:
     - s01
@@ -48,235 +48,490 @@ profiles:
     - u18
     - u19
     - u20
+
 cases:
   s01:
     check_id: llm.structure.res_assessment
     category: structure
     engine: llm
-    source: vedalang/examples/mini_plant.veda.yaml
+    source: tools/veda_dev/evals/fixtures/ground_truth/structure/s01_clean_service_role.veda.yaml
     expected:
       required_code_substrings: []
       forbidden_code_substrings: []
-      known_issues: []
+      expected_deterministic_codes: []
+      labels:
+        - error_code: STR_ZERO_INPUT_DEVICE
+          error_family: structural_topology
+          difficulty: easy
+          expected_presence: absent
+        - error_code: STR_COMMODITY_TYPE_MISMATCH
+          error_family: commodity_semantics
+          difficulty: medium
+          expected_presence: absent
+
   s02:
     check_id: llm.structure.res_assessment
     category: structure
     engine: llm
-    source: vedalang/examples/toy_buildings.veda.yaml
+    source: tools/veda_dev/evals/fixtures/ground_truth/structure/s02_zero_input_end_use.veda.yaml
     expected:
       required_code_substrings: []
       forbidden_code_substrings: []
-      known_issues: [vedalang-y4d]
+      expected_deterministic_codes: [E_END_USE_PHYSICAL_INPUT]
+      labels:
+        - error_code: STR_ZERO_INPUT_DEVICE
+          error_family: structural_topology
+          difficulty: easy
+          expected_presence: present
+
   s03:
     check_id: llm.structure.res_assessment
     category: structure
     engine: llm
-    source: vedalang/examples/toy_transport.veda.yaml
+    source: tools/veda_dev/evals/fixtures/ground_truth/structure/s03_fragmented_heat_roles.veda.yaml
     expected:
       required_code_substrings: []
       forbidden_code_substrings: []
-      known_issues: []
+      expected_deterministic_codes: [E_SERVICE_ROLE_DUPLICATION]
+      labels:
+        - error_code: STR_OVER_FRAGMENTED_ROLES
+          error_family: role_design
+          difficulty: medium
+          expected_presence: present
+
   s04:
     check_id: llm.structure.res_assessment
     category: structure
     engine: llm
-    source: vedalang/examples/toy_industry.veda.yaml
+    source: tools/veda_dev/evals/fixtures/ground_truth/structure/s04_commodity_type_mismatch.veda.yaml
     expected:
       required_code_substrings: []
       forbidden_code_substrings: []
-      known_issues: []
+      expected_deterministic_codes: []
+      labels:
+        - error_code: STR_COMMODITY_TYPE_MISMATCH
+          error_family: commodity_semantics
+          difficulty: medium
+          expected_presence: present
+
   s05:
     check_id: llm.structure.res_assessment
     category: structure
     engine: llm
-    source: vedalang/examples/toy_resources.veda.yaml
+    source: tools/veda_dev/evals/fixtures/ground_truth/structure/s05_ambiguous_variant_naming.veda.yaml
     expected:
       required_code_substrings: []
       forbidden_code_substrings: []
-      known_issues: []
+      expected_deterministic_codes: []
+      labels:
+        - error_code: STR_AMBIGUOUS_VARIANT_NAMING
+          error_family: variant_design
+          difficulty: easy
+          expected_presence: present
+
   s06:
     check_id: llm.structure.res_assessment
     category: structure
     engine: llm
-    source: vedalang/examples/toy_electricity_2ts.veda.yaml
+    source: tools/veda_dev/evals/fixtures/ground_truth/structure/s06_stage_mismatch.veda.yaml
     expected:
       required_code_substrings: []
       forbidden_code_substrings: []
-      known_issues: []
+      expected_deterministic_codes: []
+      labels:
+        - error_code: STR_STAGE_MISMATCH
+          error_family: stage_semantics
+          difficulty: medium
+          expected_presence: present
+
   s07:
     check_id: llm.structure.res_assessment
     category: structure
     engine: llm
-    source: vedalang/examples/toy_electricity_4ts.veda.yaml
+    source: tools/veda_dev/evals/fixtures/ground_truth/structure/s07_sink_ledger_clean.veda.yaml
     expected:
       required_code_substrings: []
       forbidden_code_substrings: []
-      known_issues: []
+      expected_deterministic_codes: []
+      labels:
+        - error_code: STR_ZERO_INPUT_DEVICE
+          error_family: structural_topology
+          difficulty: hard
+          expected_presence: absent
+
   s08:
     check_id: llm.structure.res_assessment
     category: structure
     engine: llm
-    source: vedalang/examples/toy_integrated_6sector.veda.yaml
+    source: tools/veda_dev/evals/fixtures/ground_truth/structure/s08_fuel_pathway_role.veda.yaml
     expected:
       required_code_substrings: []
       forbidden_code_substrings: []
-      known_issues: []
+      expected_deterministic_codes: []
+      labels:
+        - error_code: STR_FUEL_PATHWAY_ROLE
+          error_family: role_design
+          difficulty: hard
+          expected_presence: present
+
   s09:
     check_id: llm.structure.res_assessment
     category: structure
     engine: llm
-    source: vedalang/examples/minisystem8.veda.yaml
+    source: tools/veda_dev/evals/fixtures/ground_truth/structure/s09_multi_error_combo.veda.yaml
     expected:
       required_code_substrings: []
       forbidden_code_substrings: []
-      known_issues: []
+      expected_deterministic_codes: [E_END_USE_PHYSICAL_INPUT]
+      labels:
+        - error_code: STR_ZERO_INPUT_DEVICE
+          error_family: structural_topology
+          difficulty: easy
+          expected_presence: present
+        - error_code: STR_COMMODITY_TYPE_MISMATCH
+          error_family: commodity_semantics
+          difficulty: medium
+          expected_presence: present
+        - error_code: STR_AMBIGUOUS_VARIANT_NAMING
+          error_family: variant_design
+          difficulty: hard
+          expected_presence: present
+
   s10:
     check_id: llm.structure.res_assessment
     category: structure
     engine: llm
-    source: vedalang/examples/dc5_two_regions.veda.yaml
+    source: tools/veda_dev/evals/fixtures/ground_truth/structure/s10_clean_multi_sector.veda.yaml
     expected:
       required_code_substrings: []
       forbidden_code_substrings: []
-      known_issues: []
+      expected_deterministic_codes: []
+      labels:
+        - error_code: STR_OVER_FRAGMENTED_ROLES
+          error_family: role_design
+          difficulty: medium
+          expected_presence: absent
+        - error_code: STR_FUEL_PATHWAY_ROLE
+          error_family: role_design
+          difficulty: hard
+          expected_presence: absent
 
   u01:
     check_id: llm.units.component_quorum
     category: units
     engine: llm
-    source: vedalang/examples/mini_plant.veda.yaml
-    component: ccgt
-    expected: { required_code_substrings: [], forbidden_code_substrings: [], known_issues: [] }
+    source: tools/veda_dev/evals/fixtures/ground_truth/units/u_components_benchmark.veda.yaml
+    component: heat_clean_1
+    expected:
+      required_code_substrings: []
+      forbidden_code_substrings: []
+      expected_deterministic_codes: []
+      labels:
+        - error_code: UNIT_VARIABLE_COST_DENOM_MISMATCH
+          error_family: cost_denominator
+          difficulty: easy
+          expected_presence: absent
+
   u02:
     check_id: llm.units.component_quorum
     category: units
     engine: llm
-    source: vedalang/examples/toy_buildings.veda.yaml
-    component: gas_heater
-    expected: { required_code_substrings: [], forbidden_code_substrings: [], known_issues: [] }
+    source: tools/veda_dev/evals/fixtures/ground_truth/units/u_components_benchmark.veda.yaml
+    component: heat_missing_basis_1
+    expected:
+      required_code_substrings: []
+      forbidden_code_substrings: []
+      expected_deterministic_codes: [W_ENERGY_MASS_BASIS_REQUIRED]
+      labels:
+        - error_code: UNIT_BASIS_MISSING
+          error_family: basis
+          difficulty: easy
+          expected_presence: present
+
   u03:
     check_id: llm.units.component_quorum
     category: units
     engine: llm
-    source: vedalang/examples/toy_buildings.veda.yaml
-    component: heat_pump
-    expected: { required_code_substrings: [], forbidden_code_substrings: [], known_issues: [] }
+    source: tools/veda_dev/evals/fixtures/ground_truth/units/u_components_benchmark.veda.yaml
+    component: heat_bad_variable_cost_1
+    expected:
+      required_code_substrings: []
+      forbidden_code_substrings: []
+      expected_deterministic_codes: []
+      labels:
+        - error_code: UNIT_VARIABLE_COST_DENOM_MISMATCH
+          error_family: cost_denominator
+          difficulty: easy
+          expected_presence: present
+
   u04:
     check_id: llm.units.component_quorum
     category: units
     engine: llm
-    source: vedalang/examples/toy_transport.veda.yaml
-    component: ice_car
-    expected: { required_code_substrings: [], forbidden_code_substrings: [], known_issues: [] }
+    source: tools/veda_dev/evals/fixtures/ground_truth/units/u_components_benchmark.veda.yaml
+    component: heat_bad_investment_cost_1
+    expected:
+      required_code_substrings: []
+      forbidden_code_substrings: []
+      expected_deterministic_codes: []
+      labels:
+        - error_code: UNIT_INVESTMENT_COST_DENOM_MISMATCH
+          error_family: cost_denominator
+          difficulty: medium
+          expected_presence: present
+
   u05:
     check_id: llm.units.component_quorum
     category: units
     engine: llm
-    source: vedalang/examples/toy_transport.veda.yaml
-    component: ev_car
-    expected: { required_code_substrings: [], forbidden_code_substrings: [], known_issues: [] }
+    source: tools/veda_dev/evals/fixtures/ground_truth/units/u_components_benchmark.veda.yaml
+    component: heat_bad_capacity_denom_1
+    expected:
+      required_code_substrings: []
+      forbidden_code_substrings: []
+      expected_deterministic_codes: []
+      labels:
+        - error_code: UNIT_CAPACITY_DENOM_MISMATCH
+          error_family: capacity_alignment
+          difficulty: hard
+          expected_presence: present
+
   u06:
     check_id: llm.units.component_quorum
     category: units
     engine: llm
-    source: vedalang/examples/toy_industry.veda.yaml
-    component: gas_boiler
-    expected: { required_code_substrings: [], forbidden_code_substrings: [], known_issues: [] }
+    source: tools/veda_dev/evals/fixtures/ground_truth/units/u_components_benchmark.veda.yaml
+    component: mobility_clean_1
+    expected:
+      required_code_substrings: []
+      forbidden_code_substrings: []
+      expected_deterministic_codes: []
+      labels:
+        - error_code: UNIT_VARIABLE_COST_DENOM_MISMATCH
+          error_family: cost_denominator
+          difficulty: easy
+          expected_presence: absent
+
   u07:
     check_id: llm.units.component_quorum
     category: units
     engine: llm
-    source: vedalang/examples/toy_industry.veda.yaml
-    component: electric_heater
-    expected: { required_code_substrings: [], forbidden_code_substrings: [], known_issues: [] }
+    source: tools/veda_dev/evals/fixtures/ground_truth/units/u_components_benchmark.veda.yaml
+    component: mobility_bad_variable_cost_1
+    expected:
+      required_code_substrings: []
+      forbidden_code_substrings: []
+      expected_deterministic_codes: []
+      labels:
+        - error_code: UNIT_VARIABLE_COST_DENOM_MISMATCH
+          error_family: cost_denominator
+          difficulty: easy
+          expected_presence: present
+
   u08:
     check_id: llm.units.component_quorum
     category: units
     engine: llm
-    source: vedalang/examples/toy_resources.veda.yaml
-    component: diesel_haul
-    expected: { required_code_substrings: [], forbidden_code_substrings: [], known_issues: [] }
+    source: tools/veda_dev/evals/fixtures/ground_truth/units/u_components_benchmark.veda.yaml
+    component: mobility_bad_investment_cost_1
+    expected:
+      required_code_substrings: []
+      forbidden_code_substrings: []
+      expected_deterministic_codes: []
+      labels:
+        - error_code: UNIT_INVESTMENT_COST_DENOM_MISMATCH
+          error_family: cost_denominator
+          difficulty: medium
+          expected_presence: present
+
   u09:
     check_id: llm.units.component_quorum
     category: units
     engine: llm
-    source: vedalang/examples/toy_resources.veda.yaml
-    component: electric_haul
-    expected: { required_code_substrings: [], forbidden_code_substrings: [], known_issues: [] }
+    source: tools/veda_dev/evals/fixtures/ground_truth/units/u_components_benchmark.veda.yaml
+    component: mobility_gas_missing_basis_1
+    expected:
+      required_code_substrings: []
+      forbidden_code_substrings: []
+      expected_deterministic_codes: []
+      labels:
+        - error_code: UNIT_BASIS_MISSING
+          error_family: basis
+          difficulty: medium
+          expected_presence: present
+
   u10:
     check_id: llm.units.component_quorum
     category: units
     engine: llm
-    source: vedalang/examples/toy_electricity_2ts.veda.yaml
-    component: ccgt
-    expected: { required_code_substrings: [], forbidden_code_substrings: [], known_issues: [] }
+    source: tools/veda_dev/evals/fixtures/ground_truth/units/u_components_benchmark.veda.yaml
+    component: mobility_bad_model_expectation_1
+    expected:
+      required_code_substrings: []
+      forbidden_code_substrings: []
+      expected_deterministic_codes: []
+      labels:
+        - error_code: UNIT_VARIABLE_COST_DENOM_MISMATCH
+          error_family: cost_denominator
+          difficulty: hard
+          expected_presence: present
+
   u11:
     check_id: llm.units.component_quorum
     category: units
     engine: llm
-    source: vedalang/examples/toy_electricity_2ts.veda.yaml
-    component: battery
-    expected: { required_code_substrings: [], forbidden_code_substrings: [], known_issues: [] }
+    source: tools/veda_dev/evals/fixtures/ground_truth/units/u_components_benchmark.veda.yaml
+    component: steam_clean_1
+    expected:
+      required_code_substrings: []
+      forbidden_code_substrings: []
+      expected_deterministic_codes: []
+      labels:
+        - error_code: UNIT_VARIABLE_COST_DENOM_MISMATCH
+          error_family: cost_denominator
+          difficulty: easy
+          expected_presence: absent
+
   u12:
     check_id: llm.units.component_quorum
     category: units
     engine: llm
-    source: vedalang/examples/toy_electricity_4ts.veda.yaml
-    component: ccgt
-    expected: { required_code_substrings: [], forbidden_code_substrings: [], known_issues: [] }
+    source: tools/veda_dev/evals/fixtures/ground_truth/units/u_components_benchmark.veda.yaml
+    component: steam_gas_missing_basis_1
+    expected:
+      required_code_substrings: []
+      forbidden_code_substrings: []
+      expected_deterministic_codes: [W_ENERGY_MASS_BASIS_REQUIRED]
+      labels:
+        - error_code: UNIT_BASIS_MISSING
+          error_family: basis
+          difficulty: medium
+          expected_presence: present
+
   u13:
     check_id: llm.units.component_quorum
     category: units
     engine: llm
-    source: vedalang/examples/toy_electricity_4ts.veda.yaml
-    component: battery
-    expected: { required_code_substrings: [], forbidden_code_substrings: [], known_issues: [] }
+    source: tools/veda_dev/evals/fixtures/ground_truth/units/u_components_benchmark.veda.yaml
+    component: steam_bad_variable_cost_1
+    expected:
+      required_code_substrings: []
+      forbidden_code_substrings: []
+      expected_deterministic_codes: []
+      labels:
+        - error_code: UNIT_VARIABLE_COST_DENOM_MISMATCH
+          error_family: cost_denominator
+          difficulty: medium
+          expected_presence: present
+
   u14:
     check_id: llm.units.component_quorum
     category: units
     engine: llm
-    source: vedalang/examples/toy_integrated_6sector.veda.yaml
-    component: ccgt
-    expected: { required_code_substrings: [], forbidden_code_substrings: [], known_issues: [] }
+    source: tools/veda_dev/evals/fixtures/ground_truth/units/u_components_benchmark.veda.yaml
+    component: steam_bad_investment_cost_1
+    expected:
+      required_code_substrings: []
+      forbidden_code_substrings: []
+      expected_deterministic_codes: []
+      labels:
+        - error_code: UNIT_INVESTMENT_COST_DENOM_MISMATCH
+          error_family: cost_denominator
+          difficulty: medium
+          expected_presence: present
+
   u15:
     check_id: llm.units.component_quorum
     category: units
     engine: llm
-    source: vedalang/examples/toy_integrated_6sector.veda.yaml
-    component: ev_car
-    expected: { required_code_substrings: [], forbidden_code_substrings: [], known_issues: [] }
+    source: tools/veda_dev/evals/fixtures/ground_truth/units/u_components_benchmark.veda.yaml
+    component: steam_bad_capacity_denom_1
+    expected:
+      required_code_substrings: []
+      forbidden_code_substrings: []
+      expected_deterministic_codes: []
+      labels:
+        - error_code: UNIT_CAPACITY_DENOM_MISMATCH
+          error_family: capacity_alignment
+          difficulty: hard
+          expected_presence: present
+
   u16:
     check_id: llm.units.component_quorum
     category: units
     engine: llm
-    source: vedalang/examples/minisystem8.veda.yaml
-    component: coal_plant
-    expected: { required_code_substrings: [], forbidden_code_substrings: [], known_issues: [] }
+    source: tools/veda_dev/evals/fixtures/ground_truth/units/u_components_benchmark.veda.yaml
+    component: heat_clean_2
+    expected:
+      required_code_substrings: []
+      forbidden_code_substrings: []
+      expected_deterministic_codes: []
+      labels:
+        - error_code: UNIT_BASIS_MISSING
+          error_family: basis
+          difficulty: easy
+          expected_presence: absent
+
   u17:
     check_id: llm.units.component_quorum
     category: units
     engine: llm
-    source: vedalang/examples/minisystem8.veda.yaml
-    component: transport_elec_device
-    expected: { required_code_substrings: [], forbidden_code_substrings: [], known_issues: [] }
+    source: tools/veda_dev/evals/fixtures/ground_truth/units/u_components_benchmark.veda.yaml
+    component: heat_bad_variable_cost_2
+    expected:
+      required_code_substrings: []
+      forbidden_code_substrings: []
+      expected_deterministic_codes: []
+      labels:
+        - error_code: UNIT_VARIABLE_COST_DENOM_MISMATCH
+          error_family: cost_denominator
+          difficulty: hard
+          expected_presence: present
+
   u18:
     check_id: llm.units.component_quorum
     category: units
     engine: llm
-    source: vedalang/examples/minisystem8.veda.yaml
-    component: residential_electric_device
-    expected: { required_code_substrings: [], forbidden_code_substrings: [], known_issues: [] }
+    source: tools/veda_dev/evals/fixtures/ground_truth/units/u_components_benchmark.veda.yaml
+    component: mobility_clean_2
+    expected:
+      required_code_substrings: []
+      forbidden_code_substrings: []
+      expected_deterministic_codes: []
+      labels:
+        - error_code: UNIT_VARIABLE_COST_DENOM_MISMATCH
+          error_family: cost_denominator
+          difficulty: easy
+          expected_presence: absent
+
   u19:
     check_id: llm.units.component_quorum
     category: units
     engine: llm
-    source: vedalang/examples/dc3_with_emissions.veda.yaml
-    component: ccgt
-    expected: { required_code_substrings: [], forbidden_code_substrings: [], known_issues: [] }
+    source: tools/veda_dev/evals/fixtures/ground_truth/units/u_components_benchmark.veda.yaml
+    component: mobility_bad_variable_cost_2
+    expected:
+      required_code_substrings: []
+      forbidden_code_substrings: []
+      expected_deterministic_codes: []
+      labels:
+        - error_code: UNIT_VARIABLE_COST_DENOM_MISMATCH
+          error_family: cost_denominator
+          difficulty: hard
+          expected_presence: present
+
   u20:
     check_id: llm.units.component_quorum
     category: units
     engine: llm
-    source: vedalang/examples/dc4_co2_price_scenario.veda.yaml
-    component: ccgt
-    expected: { required_code_substrings: [], forbidden_code_substrings: [], known_issues: [] }
+    source: tools/veda_dev/evals/fixtures/ground_truth/units/u_components_benchmark.veda.yaml
+    component: heat_missing_basis_2
+    expected:
+      required_code_substrings: []
+      forbidden_code_substrings: []
+      expected_deterministic_codes: []
+      labels:
+        - error_code: UNIT_BASIS_MISSING
+          error_family: basis
+          difficulty: easy
+          expected_presence: present

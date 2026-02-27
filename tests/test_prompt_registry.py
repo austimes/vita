@@ -30,9 +30,24 @@ def test_units_prompt_manifest_validates():
     assert manifest["content_sha256"] == digest
 
 
+def test_structure_v2_prompt_manifest_validates():
+    bundle = get_prompt_bundle("llm.structure.res_assessment", "v2")
+    digest = compute_prompt_bundle_hash(bundle)
+    manifest = json.loads(bundle.manifest_path.read_text(encoding="utf-8"))
+    assert manifest["content_sha256"] == digest
+
+
+def test_units_v2_prompt_manifest_validates():
+    bundle = get_prompt_bundle("llm.units.component_quorum", "v2")
+    digest = compute_prompt_bundle_hash(bundle)
+    manifest = json.loads(bundle.manifest_path.read_text(encoding="utf-8"))
+    assert manifest["content_sha256"] == digest
+
+
 def test_prompt_version_all_resolves_sorted_versions():
     versions = resolve_prompt_versions("llm.structure.res_assessment", "all")
     assert "v1" in versions
+    assert "v2" in versions
 
 
 def test_manifest_mismatch_raises(tmp_path):

@@ -1,0 +1,42 @@
+model:
+  name: EvalStructureAmbiguousVariantNaming
+  regions: [R1]
+  milestone_years: [2020, 2030]
+  commodities:
+    - id: service:ag_output
+      type: service
+      unit: PJ
+      combustible: false
+    - id: primary:biomass
+      type: fuel
+      unit: PJ
+      combustible: true
+      lhv_mj_per_unit: 16.0
+      hhv_mj_per_unit: 18.0
+
+process_roles:
+  - id: provide_ag_output
+    stage: end_use
+    activity_unit: PJ
+    capacity_unit: GW
+    required_inputs: []
+    required_outputs:
+      - commodity: service:ag_output
+
+process_variants:
+  - id: traditional_baseline
+    role: provide_ag_output
+    inputs:
+      - commodity: primary:biomass
+        basis: HHV
+    outputs:
+      - commodity: service:ag_output
+    efficiency: 0.5
+  - id: feed_additives
+    role: provide_ag_output
+    inputs:
+      - commodity: primary:biomass
+        basis: HHV
+    outputs:
+      - commodity: service:ag_output
+    efficiency: 0.6
