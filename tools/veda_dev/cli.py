@@ -377,12 +377,15 @@ def main():
         "--cache",
         type=Path,
         default=Path("tmp/evals/cache.json"),
-        help="Cache path (default: tmp/evals/cache.json)",
+        help=(
+            "Cache path for LLM lint and judge responses "
+            "(default: tmp/evals/cache.json)"
+        ),
     )
     eval_run.add_argument(
         "--no-cache",
         action="store_true",
-        help="Disable result cache reuse",
+        help="Disable cache reuse for LLM lint and judge responses",
     )
     eval_run.add_argument(
         "--timeout-sec",
@@ -430,7 +433,15 @@ def main():
         help="Disable live eval progress output",
     )
     eval_run.set_defaults(progress=None)
-    eval_run.add_argument("--json", action="store_true", dest="json_output")
+    eval_run.add_argument(
+        "--json",
+        action="store_true",
+        dest="json_output",
+        help=(
+            "Print run payload JSON to stdout. A JSON artifact file is always "
+            "written to --out (or default tmp/evals/<run_id>.json)."
+        ),
+    )
 
     eval_compare = eval_subparsers.add_parser(
         "compare",

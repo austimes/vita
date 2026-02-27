@@ -286,7 +286,11 @@ def test_run_eval_parallelizes_rows(monkeypatch, tmp_path):
     )
     monkeypatch.setattr(
         "tools.veda_dev.evals.runner.build_candidate_matrix",
-        lambda: [CandidateSpec(model="gpt-5.2", reasoning_effort="low")],
+        lambda: [
+            CandidateSpec(model="gpt-5-nano", reasoning_effort="low"),
+            CandidateSpec(model="gpt-5-mini", reasoning_effort="low"),
+            CandidateSpec(model="gpt-5.2", reasoning_effort="low"),
+        ],
     )
 
     run = run_eval(
@@ -302,6 +306,131 @@ def test_run_eval_parallelizes_rows(monkeypatch, tmp_path):
         judge_effort="xhigh",
     )
 
-    assert len(run["results"]) == 5
+    assert len(run["results"]) == 15
     assert run["timing"]["max_concurrency"] == 4
     assert max_active >= 2
+
+
+def test_run_eval_orders_results_by_effort_case_model(monkeypatch, tmp_path):
+    def fake_evaluate_one(**_kwargs):
+        return {
+            "status": "ok",
+            "diagnostics": [],
+            "telemetry": [],
+            "error": None,
+            "cached": False,
+        }
+
+    monkeypatch.setattr("tools.veda_dev.evals.runner._evaluate_one", fake_evaluate_one)
+    monkeypatch.setattr("tools.veda_dev.evals.runner.load_vedalang", lambda _p: {})
+    monkeypatch.setattr(
+        "tools.veda_dev.evals.runner.validate_vedalang", lambda _s: None
+    )
+    monkeypatch.setattr(
+        "tools.veda_dev.evals.runner._deterministic_reference", lambda _s, _c: []
+    )
+    monkeypatch.setattr(
+        "tools.veda_dev.evals.runner.build_candidate_matrix",
+        lambda: [
+            CandidateSpec(model="gpt-5-mini", reasoning_effort="low"),
+            CandidateSpec(model="gpt-5-nano", reasoning_effort="low"),
+            CandidateSpec(model="gpt-5.2", reasoning_effort="low"),
+            CandidateSpec(model="gpt-5.2", reasoning_effort="medium"),
+        ],
+    )
+
+    run = run_eval(
+        profile="smoke",
+        prompt_version="v1",
+        dataset_path=None,
+        cache_path=tmp_path / "cache.json",
+        use_cache=False,
+        timeout_sec=10,
+        no_judge=True,
+        judge_model="gpt-5.2",
+        judge_effort="xhigh",
+        max_concurrency=1,
+    )
+
+    first_group = run["results"][:3]
+    assert [r["candidate_id"] for r in first_group] == [
+        "gpt-5-nano:low",
+        "gpt-5-mini:low",
+        "gpt-5.2:low",
+    ]
+    assert all(r["case_id"] == "s01@v1" for r in first_group)
+    assert all(r["reasoning_effort"] == "low" for r in first_group)
+    assert run["results"][15]["candidate_id"] == "gpt-5.2:medium"
+    assert run["results"][15]["case_id"] == "s01@v1"
+
+
+def test_run_eval_cache_reuses_judge_results(monkeypatch, tmp_path):
+    judge_calls = 0
+
+    def fake_evaluate_one(**_kwargs):
+        return {
+            "status": "ok",
+            "diagnostics": [{"code": "LLM_UNIT_CHECK"}],
+            "telemetry": [],
+            "error": None,
+            "cached": False,
+        }
+
+    def fake_run_judge(**_kwargs):
+        nonlocal judge_calls
+        judge_calls += 1
+
+        class FakeJudge:
+            score_0_to_100 = 70.0
+            actionability_score = 80.0
+            hallucination_flag = False
+            major_errors = []
+            rationale_short = "ok"
+            error = None
+            telemetry = {"latency_sec": 0.1}
+
+        return FakeJudge()
+
+    monkeypatch.setattr("tools.veda_dev.evals.runner._evaluate_one", fake_evaluate_one)
+    monkeypatch.setattr("tools.veda_dev.evals.runner.run_judge", fake_run_judge)
+    monkeypatch.setattr("tools.veda_dev.evals.runner.load_vedalang", lambda _p: {})
+    monkeypatch.setattr(
+        "tools.veda_dev.evals.runner.validate_vedalang", lambda _s: None
+    )
+    monkeypatch.setattr(
+        "tools.veda_dev.evals.runner._deterministic_reference", lambda _s, _c: []
+    )
+    monkeypatch.setattr(
+        "tools.veda_dev.evals.runner.build_candidate_matrix",
+        lambda: [CandidateSpec(model="gpt-5.2", reasoning_effort="low")],
+    )
+
+    cache_path = tmp_path / "cache.json"
+    run_eval(
+        profile="smoke",
+        prompt_version="v1",
+        dataset_path=None,
+        cache_path=cache_path,
+        use_cache=True,
+        timeout_sec=10,
+        no_judge=False,
+        judge_model="gpt-5.2",
+        judge_effort="xhigh",
+        max_concurrency=1,
+    )
+    first_calls = judge_calls
+    assert first_calls == 5
+
+    run_eval(
+        profile="smoke",
+        prompt_version="v1",
+        dataset_path=None,
+        cache_path=cache_path,
+        use_cache=True,
+        timeout_sec=10,
+        no_judge=False,
+        judge_model="gpt-5.2",
+        judge_effort="xhigh",
+        max_concurrency=1,
+    )
+    assert judge_calls == first_calls
