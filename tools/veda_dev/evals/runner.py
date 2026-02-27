@@ -482,6 +482,9 @@ def _evaluate_row(
         judge_score = None
         quality_score = 0.0
         est_cost = None
+        label_match_hits: int | None = None
+        label_match_total: int | None = None
+        label_match: str | None = None
 
         if evaluated["status"] == "ok":
             det_breakdown = deterministic_breakdown(
@@ -495,6 +498,18 @@ def _evaluate_row(
                 deterministic_diagnostics=det_reference,
             )
             det_score = float(det_breakdown["score"])
+            label_metrics = (
+                det_breakdown.get("label_metrics", {})
+                if isinstance(det_breakdown, dict)
+                else {}
+            )
+            if isinstance(label_metrics, dict) and label_metrics.get("enabled"):
+                hits = label_metrics.get("presence_hits")
+                total = label_metrics.get("expected_count")
+                if isinstance(hits, int) and isinstance(total, int):
+                    label_match_hits = hits
+                    label_match_total = total
+                    label_match = f"[{hits}/{total}]"
 
             telemetry = evaluated.get("telemetry") or []
             if telemetry:
@@ -578,6 +593,9 @@ def _evaluate_row(
             "quality_score": quality_score,
             "known_issues": case.expected.get("known_issues", []),
             "judge": evaluated.get("judge"),
+            "label_match_hits": label_match_hits,
+            "label_match_total": label_match_total,
+            "label_match": label_match,
         }
     except Exception as e:
         row = {
@@ -604,6 +622,9 @@ def _evaluate_row(
             "quality_score": 0.0,
             "known_issues": case.expected.get("known_issues", []),
             "judge": None,
+            "label_match_hits": None,
+            "label_match_total": None,
+            "label_match": None,
         }
 
     row["row_elapsed_sec"] = perf_counter() - row_started
@@ -644,6 +665,9 @@ def _summarize_candidate_rows(
             "p50_latency_sec": 0.0,
             "p95_latency_sec": 0.0,
             "avg_cost_usd": 0.0,
+            "label_match_hits": 0,
+            "label_match_total": 0,
+            "label_match": "n/a",
             "label_precision": None,
             "label_recall": None,
             "label_f1": None,
@@ -672,6 +696,19 @@ def _summarize_candidate_rows(
         .get("label_metrics", {})
         .get("enabled")
     ]
+    label_match_hits_sum = 0
+    label_match_total_sum = 0
+    for m in label_metric_rows:
+        hits = m.get("presence_hits")
+        total = m.get("expected_count")
+        if isinstance(hits, int) and isinstance(total, int):
+            label_match_hits_sum += hits
+            label_match_total_sum += total
+    label_match = (
+        f"[{label_match_hits_sum}/{label_match_total_sum}]"
+        if label_match_total_sum > 0
+        else "n/a"
+    )
 
     label_precision = (
         mean(
@@ -774,6 +811,9 @@ def _summarize_candidate_rows(
         "p50_latency_sec": p50,
         "p95_latency_sec": p95,
         "avg_cost_usd": avg_cost,
+        "label_match_hits": label_match_hits_sum,
+        "label_match_total": label_match_total_sum,
+        "label_match": label_match,
         "label_precision": label_precision,
         "label_recall": label_recall,
         "label_f1": label_f1,
@@ -985,6 +1025,7 @@ def run_eval(
                         status=row["status"],
                         cached=row.get("cached", False),
                         deterministic_score=row["deterministic_score"],
+                        label_match=row["label_match"],
                         label_f1=(
                             row.get("deterministic_breakdown", {})
                             .get("label_metrics", {})
@@ -1030,6 +1071,7 @@ def run_eval(
                             deterministic_score=candidate_summary[
                                 "deterministic_score"
                             ],
+                            label_match=candidate_summary["label_match"],
                             label_f1=candidate_summary["label_f1"],
                             label_presence_accuracy=candidate_summary[
                                 "label_presence_accuracy"
@@ -1193,6 +1235,7 @@ def render_report(run: dict[str, Any]) -> str:
             f"{idx:>2}. {row['candidate_id']} "
             f"rank={row['rank_score']:.2f} quality={row['quality_score']:.2f} "
             f"det={row['deterministic_score']:.2f} "
+            f"label_match={row.get('label_match', 'n/a')} "
             f"label_f1={label_f1_text} "
             f"latency_p50={row['p50_latency_sec']:.2f}s "
             f"row_p50={row.get('p50_row_elapsed_sec', 0.0):.2f}s "

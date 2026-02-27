@@ -13,7 +13,7 @@ from tools.veda_dev.evals.config import (
 from tools.veda_dev.evals.dataset import cases_for_profile, load_dataset
 from tools.veda_dev.evals.judge import parse_judge_response
 from tools.veda_dev.evals.runner import compare_runs, run_eval
-from tools.veda_dev.evals.scoring import label_metrics
+from tools.veda_dev.evals.scoring import deterministic_breakdown, label_metrics
 
 
 def test_candidate_matrix_has_9_entries():
@@ -203,6 +203,7 @@ def test_run_eval_emits_progress_events(monkeypatch, tmp_path):
     assert row_events
     first_row = row_events[0]
     assert "deterministic_score" in first_row
+    assert "label_match" in first_row
     assert "label_f1" in first_row
     assert "judge_score" in first_row
     assert "quality_score" in first_row
@@ -211,6 +212,7 @@ def test_run_eval_emits_progress_events(monkeypatch, tmp_path):
     candidate_done_events = [e for e in events if e["event"] == "candidate_complete"]
     assert candidate_done_events
     assert "rank_score" in candidate_done_events[0]
+    assert "label_match" in candidate_done_events[0]
     assert "label_f1" in candidate_done_events[0]
     assert "avg_row_elapsed_sec" in candidate_done_events[0]
     assert "candidate_elapsed_sec" in candidate_done_events[0]
@@ -285,10 +287,48 @@ def test_label_metrics_reads_classification_fields():
     }
     metrics = label_metrics(diagnostics, expected=expected)
     assert metrics["enabled"] is True
+    assert metrics["presence_hits"] == 1
     assert metrics["f1"] == 100.0
     assert metrics["presence_accuracy"] == 100.0
     assert metrics["difficulty_accuracy"] == 100.0
     assert metrics["family_accuracy"] == 100.0
+
+
+def test_deterministic_breakdown_is_bounded_to_100():
+    diagnostics = [
+        {
+            "code": "LLM_UNIT_CHECK",
+            "category": "units",
+            "engine": "llm",
+            "check_id": "llm.units.component_quorum",
+            "context": {
+                "error_code": "UNIT_VARIABLE_COST_DENOM_MISMATCH",
+                "error_family": "cost_denominator",
+                "difficulty": "easy",
+            },
+        }
+    ]
+    expected = {
+        "labels": [
+            {
+                "error_code": "UNIT_VARIABLE_COST_DENOM_MISMATCH",
+                "error_family": "cost_denominator",
+                "difficulty": "easy",
+                "expected_presence": "present",
+            }
+        ]
+    }
+    breakdown = deterministic_breakdown(
+        diagnostics=diagnostics,
+        expected_category="units",
+        expected_engine="llm",
+        expected_check_id="llm.units.component_quorum",
+        expected=expected,
+        required_code_substrings=[],
+        forbidden_code_substrings=[],
+        deterministic_diagnostics=[],
+    )
+    assert breakdown["score"] <= 100.0
 
 
 def test_run_eval_parallelizes_rows(monkeypatch, tmp_path):

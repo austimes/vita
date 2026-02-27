@@ -150,6 +150,7 @@ def label_metrics(
             "presence_accuracy": None,
             "difficulty_accuracy": None,
             "family_accuracy": None,
+            "presence_hits": None,
             "tp": None,
             "fp": None,
             "fn": None,
@@ -269,6 +270,7 @@ def label_metrics(
         "recall": recall,
         "f1": f1,
         "presence_accuracy": presence_accuracy,
+        "presence_hits": presence_hits,
         "difficulty_accuracy": difficulty_accuracy,
         "family_accuracy": family_accuracy,
         "tp": tp,
@@ -307,19 +309,19 @@ def deterministic_breakdown(
     labels = label_metrics(diagnostics, expected=expected)
 
     if labels["enabled"]:
-        label_components = [
-            labels["f1"] or 0.0,
-            labels["presence_accuracy"] or 0.0,
-            labels["difficulty_accuracy"] or 0.0,
-            labels["family_accuracy"] or 0.0,
-        ]
+        label_quality = (
+            (labels["f1"] or 0.0)
+            + (labels["presence_accuracy"] or 0.0)
+            + (labels["difficulty_accuracy"] or 0.0)
+            + (labels["family_accuracy"] or 0.0)
+        ) / 4.0
         score = (
             100.0  # schema validity
             + taxonomy
-            + (0.5 * signal)
-            + (0.5 * parity)
-            + sum(label_components)
-        ) / 6.0
+            + signal
+            + parity
+            + label_quality
+        ) / 5.0
     else:
         score = (100.0 + taxonomy + signal + parity) / 4.0
 
