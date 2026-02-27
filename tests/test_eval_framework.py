@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
-from tools.veda_dev.evals.config import CandidateSpec, build_candidate_matrix
+from tools.veda_dev.evals.config import (
+    CandidateSpec,
+    build_candidate_matrix,
+    model_supports_reasoning_effort,
+)
 from tools.veda_dev.evals.dataset import cases_for_profile, load_dataset
 from tools.veda_dev.evals.judge import parse_judge_response
 from tools.veda_dev.evals.runner import compare_runs, run_eval
@@ -36,6 +40,14 @@ def test_candidate_matrix_orders_fast_to_slow():
         "gpt-5.2:high",
         "gpt-5.2:xhigh",
     ]
+
+
+def test_model_reasoning_support_matrix():
+    assert model_supports_reasoning_effort("gpt-5.2", "none")
+    assert not model_supports_reasoning_effort("gpt-5-mini", "none")
+    assert not model_supports_reasoning_effort("gpt-5-nano", "none")
+    assert model_supports_reasoning_effort("gpt-5-mini", "low")
+    assert model_supports_reasoning_effort("gpt-5-nano", "medium")
 
 
 def test_dataset_profile_counts():
@@ -192,3 +204,43 @@ def test_run_eval_emits_progress_events(monkeypatch, tmp_path):
     assert candidate_done_events
     assert "rank_score" in candidate_done_events[0]
     assert events[-1]["event"] == "complete"
+
+
+def test_run_eval_pre_skips_known_unsupported_combos(monkeypatch, tmp_path):
+    def should_not_be_called(**_kwargs):
+        raise AssertionError("_evaluate_one should not run for unsupported combos")
+
+    monkeypatch.setattr(
+        "tools.veda_dev.evals.runner._evaluate_one",
+        should_not_be_called,
+    )
+    monkeypatch.setattr("tools.veda_dev.evals.runner.load_vedalang", lambda _p: {})
+    monkeypatch.setattr(
+        "tools.veda_dev.evals.runner.validate_vedalang", lambda _s: None
+    )
+    monkeypatch.setattr(
+        "tools.veda_dev.evals.runner._deterministic_reference", lambda _s, _c: []
+    )
+    monkeypatch.setattr(
+        "tools.veda_dev.evals.runner.build_candidate_matrix",
+        lambda: [CandidateSpec(model="gpt-5-mini", reasoning_effort="none")],
+    )
+
+    run = run_eval(
+        profile="smoke",
+        prompt_version="v1",
+        dataset_path=None,
+        cache_path=tmp_path / "cache.json",
+        use_cache=False,
+        timeout_sec=10,
+        no_judge=True,
+        judge_model="gpt-5.2",
+        judge_effort="xhigh",
+    )
+
+    assert len(run["results"]) == 5
+    assert all(r["status"] == "skipped" for r in run["results"])
+    assert all(
+        "Unsupported model/effort combination" in str(r.get("error"))
+        for r in run["results"]
+    )

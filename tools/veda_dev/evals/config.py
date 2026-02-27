@@ -8,6 +8,11 @@ from vedalang.lint.llm_runtime import canonical_model_name
 
 MODEL_FAMILIES = ["gpt-5-nano", "gpt-5-mini", "gpt-5.2"]
 REASONING_LEVELS = ["none", "low", "medium", "high", "xhigh"]
+MODEL_REASONING_SUPPORT = {
+    "gpt-5.2": set(REASONING_LEVELS),
+    "gpt-5-mini": {"low", "medium", "high", "xhigh"},
+    "gpt-5-nano": {"low", "medium", "high", "xhigh"},
+}
 
 # Rough estimates used only for relative leaderboard dimensions.
 MODEL_PRICING_PER_1M = {
@@ -49,3 +54,9 @@ def build_candidate_matrix() -> list[CandidateSpec]:
                 )
             )
     return candidates
+
+
+def model_supports_reasoning_effort(model: str, reasoning_effort: str) -> bool:
+    canonical_model = canonical_model_name(model)
+    supported = MODEL_REASONING_SUPPORT.get(canonical_model, set(REASONING_LEVELS))
+    return reasoning_effort in supported

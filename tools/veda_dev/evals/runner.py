@@ -20,7 +20,7 @@ from vedalang.lint.llm_unit_check import CHECK_ID as UNITS_CHECK_ID
 from vedalang.lint.llm_unit_check import run_component_unit_check
 from vedalang.lint.prompt_registry import resolve_prompt_versions
 
-from .config import EvalWeights, build_candidate_matrix
+from .config import EvalWeights, build_candidate_matrix, model_supports_reasoning_effort
 from .dataset import EvalCase, cases_for_profile, load_dataset
 from .judge import run_judge
 from .scoring import (
@@ -421,15 +421,29 @@ def run_eval(
 
         for expanded_case_index, expanded_case in enumerate(expanded_cases, start=1):
             case = expanded_case.case
-            evaluated = _evaluate_one(
-                expanded_case=expanded_case,
-                source=case_sources[case.case_id],
-                model=candidate.model,
-                effort=candidate.reasoning_effort,
-                timeout_sec=timeout_sec,
-                cache=cache,
-                use_cache=use_cache,
-            )
+            if not model_supports_reasoning_effort(
+                candidate.model, candidate.reasoning_effort
+            ):
+                evaluated = {
+                    "status": "skipped",
+                    "diagnostics": [],
+                    "telemetry": [],
+                    "error": (
+                        "Unsupported model/effort combination: "
+                        f"{candidate.model}:{candidate.reasoning_effort}"
+                    ),
+                    "cached": False,
+                }
+            else:
+                evaluated = _evaluate_one(
+                    expanded_case=expanded_case,
+                    source=case_sources[case.case_id],
+                    model=candidate.model,
+                    effort=candidate.reasoning_effort,
+                    timeout_sec=timeout_sec,
+                    cache=cache,
+                    use_cache=use_cache,
+                )
 
             det_reference = case_det_refs[(case.case_id, case.category)]
 
