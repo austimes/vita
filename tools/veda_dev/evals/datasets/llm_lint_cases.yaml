@@ -98,6 +98,10 @@ cases:
           error_family: role_design
           difficulty: medium
           expected_presence: present
+        - error_code: STR_FUEL_PATHWAY_ROLE
+          error_family: role_design
+          difficulty: medium
+          expected_presence: present
 
   s04:
     check_id: llm.structure.res_assessment
@@ -291,10 +295,14 @@ cases:
       forbidden_code_substrings: []
       expected_deterministic_codes: []
       labels:
-        - error_code: UNIT_CAPACITY_DENOM_MISMATCH
-          error_family: capacity_alignment
+        - error_code: UNIT_INVESTMENT_COST_DENOM_MISMATCH
+          error_family: cost_denominator
           difficulty: hard
           expected_presence: present
+        - error_code: UNIT_CAPACITY_DENOM_MISMATCH
+          error_family: capacity_alignment
+          difficulty: medium
+          expected_presence: absent
 
   u06:
     check_id: llm.units.component_quorum
@@ -451,10 +459,14 @@ cases:
       forbidden_code_substrings: []
       expected_deterministic_codes: []
       labels:
-        - error_code: UNIT_CAPACITY_DENOM_MISMATCH
-          error_family: capacity_alignment
+        - error_code: UNIT_INVESTMENT_COST_DENOM_MISMATCH
+          error_family: cost_denominator
           difficulty: hard
           expected_presence: present
+        - error_code: UNIT_CAPACITY_DENOM_MISMATCH
+          error_family: capacity_alignment
+          difficulty: medium
+          expected_presence: absent
 
   u16:
     check_id: llm.units.component_quorum
