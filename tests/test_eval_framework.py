@@ -13,6 +13,31 @@ def test_candidate_matrix_has_15_entries():
     assert len(candidates) == 15
 
 
+def test_candidate_matrix_orders_fast_to_slow():
+    candidate_ids = [c.candidate_id for c in build_candidate_matrix()]
+    assert candidate_ids[:5] == [
+        "gpt-5-nano:none",
+        "gpt-5-nano:low",
+        "gpt-5-nano:medium",
+        "gpt-5-nano:high",
+        "gpt-5-nano:xhigh",
+    ]
+    assert candidate_ids[5:10] == [
+        "gpt-5-mini:none",
+        "gpt-5-mini:low",
+        "gpt-5-mini:medium",
+        "gpt-5-mini:high",
+        "gpt-5-mini:xhigh",
+    ]
+    assert candidate_ids[10:] == [
+        "gpt-5.2:none",
+        "gpt-5.2:low",
+        "gpt-5.2:medium",
+        "gpt-5.2:high",
+        "gpt-5.2:xhigh",
+    ]
+
+
 def test_dataset_profile_counts():
     dataset = load_dataset()
     assert len(cases_for_profile(dataset, "smoke")) == 5

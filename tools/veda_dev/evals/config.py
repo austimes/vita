@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from vedalang.lint.llm_runtime import canonical_model_name
 
-MODEL_FAMILIES = ["gpt-5.2", "gpt-5-mini", "gpt-5-nano"]
+MODEL_FAMILIES = ["gpt-5-nano", "gpt-5-mini", "gpt-5.2"]
 REASONING_LEVELS = ["none", "low", "medium", "high", "xhigh"]
 
 # Rough estimates used only for relative leaderboard dimensions.
