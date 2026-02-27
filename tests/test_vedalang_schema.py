@@ -709,14 +709,24 @@ def test_process_variants_validates():
         "model": {
             "name": "VariantTest",
             "regions": ["R1"],
-            "commodities": [{"id": "electricity", "type": "energy"}],
+            "commodities": [
+                {
+                    "id": "primary:natural_gas",
+                    "type": "fuel",
+                    "unit": "PJ",
+                    "combustible": True,
+                    "lhv_mj_per_unit": 48.0,
+                    "hhv_mj_per_unit": 53.5,
+                },
+                {"id": "electricity", "type": "energy", "combustible": False},
+            ],
         },
         "process_roles": [
             {
                 "id": "generate_power",
                 "activity_unit": "PJ",
                 "capacity_unit": "GW",
-                "required_inputs": [],
+                "required_inputs": [{"commodity": "primary:natural_gas"}],
                 "required_outputs": [{"commodity": "electricity"}],
             },
         ],
@@ -724,14 +734,22 @@ def test_process_variants_validates():
             {
                 "id": "coal_plant",
                 "role": "generate_power",
-                "inputs": [],
+                "inputs": [
+                    {
+                        "commodity": "primary:natural_gas",
+                        "coefficient": 1.0,
+                        "basis": "LHV",
+                    }
+                ],
                 "outputs": [{"commodity": "electricity"}],
                 "efficiency": 0.4,
                 "lifetime": 40,
                 "investment_cost": 1500,
                 "fixed_om_cost": 30,
                 "variable_om_cost": 5,
+                "variable_om_cost_basis": "LHV",
                 "emission_factors": {"co2": 0.09},
+                "emission_factor_basis": "LHV",
             },
         ],
     }

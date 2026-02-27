@@ -377,6 +377,155 @@ def _combustion_metadata_issues(comm_id: str, comm: dict) -> list[str]:
     return issues
 
 
+def _is_energy_process_unit(unit_expr: str | None) -> bool:
+    """True when process unit expression has an energy-domain base unit."""
+    if not isinstance(unit_expr, str):
+        return False
+    parsed = _parse_process_unit_expression(unit_expr)
+    if parsed is None:
+        return False
+    base, _ = parsed
+    return base in ENERGY_UNITS
+
+
+def _is_combustible_commodity(comm: dict | None) -> bool:
+    """Combustibility is metadata-driven; only explicit true is combustible."""
+    if not isinstance(comm, dict):
+        return False
+    return comm.get("combustible") is True
+
+
+def _hhv_lhv_ratio(comm_id: str, comm: dict) -> float:
+    """Return HHV/LHV ratio from explicit commodity metadata."""
+    lhv = comm.get("lhv_mj_per_unit")
+    hhv = comm.get("hhv_mj_per_unit")
+    if not isinstance(lhv, (int, float)) or float(lhv) <= 0:
+        raise SemanticValidationError(
+            [
+                f"Commodity '{comm_id}' must define positive lhv_mj_per_unit for "
+                "basis conversion."
+            ]
+        )
+    if not isinstance(hhv, (int, float)) or float(hhv) <= 0:
+        raise SemanticValidationError(
+            [
+                f"Commodity '{comm_id}' must define positive hhv_mj_per_unit for "
+                "basis conversion."
+            ]
+        )
+    if float(hhv) < float(lhv):
+        raise SemanticValidationError(
+            [
+                f"Commodity '{comm_id}' has invalid heating values (HHV < LHV), "
+                "cannot convert basis."
+            ]
+        )
+    return float(hhv) / float(lhv)
+
+
+def _basis_factor_to_hhv(
+    *,
+    comm_id: str,
+    comm: dict,
+    basis: str,
+    orientation: str,
+) -> float:
+    """Return multiplicative factor to convert a value from basis to HHV.
+
+    orientation:
+    - energy_numerator: value carries energy in numerator (e.g., PJ/Bvkm)
+    - energy_denominator: value carries energy in denominator (e.g., Mt/PJ, $/PJ)
+    """
+    if basis == "HHV":
+        return 1.0
+    if basis != "LHV":
+        raise SemanticValidationError(
+            [f"Unsupported basis '{basis}' for commodity '{comm_id}'."]
+        )
+    ratio = _hhv_lhv_ratio(comm_id, comm)  # HHV / LHV
+    if orientation == "energy_numerator":
+        return ratio
+    if orientation == "energy_denominator":
+        return 1.0 / ratio
+    raise SemanticValidationError(
+        [f"Unknown conversion orientation '{orientation}' for commodity '{comm_id}'."]
+    )
+
+
+def _scale_scalar_or_time_varying(
+    value,
+    *,
+    factor: float,
+    field_path: str,
+):
+    """Scale scalar or time-varying numeric value by factor."""
+    if _is_time_varying(value):
+        sparse = value.get("values", {})
+        normalized = deepcopy(value)
+        scaled: dict[str, float] = {}
+        for year, raw in sparse.items():
+            if not isinstance(raw, (int, float)):
+                raise SemanticValidationError(
+                    [
+                        f"{field_path}.values['{year}'] must be numeric for basis "
+                        "normalization."
+                    ]
+                )
+            scaled[str(year)] = float(raw) * factor
+        normalized["values"] = scaled
+        return normalized
+    if not isinstance(value, (int, float)):
+        raise SemanticValidationError(
+            [f"{field_path} must be numeric (or time-varying numeric) for conversion."]
+        )
+    return float(value) * factor
+
+
+def _scale_year_value_map(
+    values,
+    *,
+    factor: float,
+    field_path: str,
+) -> dict[str, float]:
+    """Scale a {year: value} map by factor."""
+    if not isinstance(values, dict):
+        raise SemanticValidationError(
+            [f"{field_path} must be a year->value mapping for basis normalization."]
+        )
+    scaled: dict[str, float] = {}
+    for year, raw in values.items():
+        if not isinstance(raw, (int, float)):
+            raise SemanticValidationError(
+                [f"{field_path}['{year}'] must be numeric for basis normalization."]
+            )
+        scaled[str(year)] = float(raw) * factor
+    return scaled
+
+
+def _variant_combustible_flow_commodities(
+    variant: dict,
+    commodities: dict[str, dict],
+) -> list[tuple[str, dict]]:
+    """Return combustible flow commodities referenced by a variant."""
+    refs = []
+    for flow in (variant.get("inputs") or []) + (variant.get("outputs") or []):
+        comm_id = flow.get("commodity")
+        if not comm_id:
+            continue
+        comm = commodities.get(comm_id)
+        if _is_combustible_commodity(comm):
+            refs.append((comm_id, comm))
+    # stable unique list by commodity id
+    seen: set[str] = set()
+    unique: list[tuple[str, dict]] = []
+    for comm_id, comm in refs:
+        if comm_id in seen:
+            continue
+        seen.add(comm_id)
+        unique.append((comm_id, comm))
+    return unique
+
+
 def _format_structural_errors(errors: list[dict[str, str]]) -> str:
     """Format structural invariant errors as deterministic diagnostics."""
     ordered = sorted(
@@ -1397,6 +1546,284 @@ def _normalize_new_syntax_monetary_costs(source: dict) -> tuple[dict, dict]:
                 )
 
     return normalized, policy
+
+
+def _normalize_new_syntax_heating_basis_values(source: dict) -> dict:
+    """Normalize point-of-use combustible values to canonical HHV basis.
+
+    This applies only to new-syntax constructs:
+    - process_variants[*].inputs/outputs[*].coefficient
+    - process_variants[*].variable_om_cost
+    - process_variants[*].emission_factors
+    - model.scenario_parameters[*] where type=commodity_price
+    - model.cases[*].fuel_price_overrides[*]
+    - model.cases[*].variant_overrides[*].variable_om_cost
+    """
+    normalized = deepcopy(source)
+    model = normalized.get("model", {})
+    unit_policy = _resolve_unit_policy(model)
+    strict_mode = _is_strict_unit_mode(unit_policy)
+
+    commodities = _normalize_commodities_for_new_syntax(model.get("commodities", []))
+    roles_by_id = {
+        r.get("id"): r for r in (normalized.get("process_roles") or []) if r.get("id")
+    }
+
+    variant_meta: dict[str, dict] = {}
+
+    for variant in normalized.get("process_variants") or []:
+        variant_id = variant.get("id", "<variant>")
+        role = roles_by_id.get(variant.get("role"), {})
+        activity_unit = role.get("activity_unit")
+        activity_is_energy = _is_energy_process_unit(activity_unit)
+
+        combustible_refs = _variant_combustible_flow_commodities(variant, commodities)
+        variant_meta[variant_id] = {
+            "activity_is_energy": activity_is_energy,
+            "combustible_refs": combustible_refs,
+        }
+
+        # Flow coefficient anchors: commodity_unit/activity_unit (energy in numerator).
+        for flow_dir in ("inputs", "outputs"):
+            for idx, flow in enumerate(variant.get(flow_dir) or []):
+                if "coefficient" not in flow:
+                    continue
+                comm_id = flow.get("commodity")
+                comm = commodities.get(comm_id)
+                if not _is_combustible_commodity(comm):
+                    continue
+                flow_basis = flow.get("basis")
+                field_path = (
+                    f"process_variants[{variant_id}].{flow_dir}[{idx}].coefficient"
+                )
+                if flow_basis not in ENERGY_BASES:
+                    if strict_mode:
+                        raise SemanticValidationError(
+                            [
+                                f"{field_path} requires explicit basis "
+                                "(HHV or LHV) for combustible commodity "
+                                f"'{comm_id}'."
+                            ]
+                        )
+                    continue
+                factor = _basis_factor_to_hhv(
+                    comm_id=comm_id,
+                    comm=comm,
+                    basis=flow_basis,
+                    orientation="energy_numerator",
+                )
+                flow["coefficient"] = _scale_scalar_or_time_varying(
+                    flow["coefficient"],
+                    factor=factor,
+                    field_path=field_path,
+                )
+                flow["basis"] = "HHV"
+
+        # Process-level variable O&M cost: currency/activity_unit (energy denominator).
+        if "variable_om_cost" in variant and combustible_refs and activity_is_energy:
+            value_basis = variant.get("variable_om_cost_basis")
+            field_path = f"process_variants[{variant_id}].variable_om_cost"
+            if value_basis not in ENERGY_BASES:
+                if strict_mode:
+                    raise SemanticValidationError(
+                        [
+                            f"{field_path} requires variable_om_cost_basis "
+                            "(HHV or LHV) because activity_unit is energy and "
+                            "variant uses combustible commodity flows."
+                        ]
+                    )
+            else:
+                ratios = {
+                    round(_hhv_lhv_ratio(comm_id, comm), 12)
+                    for comm_id, comm in combustible_refs
+                }
+                if len(ratios) > 1:
+                    raise SemanticValidationError(
+                        [
+                            f"{field_path} cannot apply one variable_om_cost_basis "
+                            f"across combustible commodities with different HHV/LHV "
+                            f"ratios in variant '{variant_id}'."
+                        ]
+                    )
+                comm_id, comm = combustible_refs[0]
+                factor = _basis_factor_to_hhv(
+                    comm_id=comm_id,
+                    comm=comm,
+                    basis=value_basis,
+                    orientation="energy_denominator",
+                )
+                variant["variable_om_cost"] = _scale_scalar_or_time_varying(
+                    variant["variable_om_cost"],
+                    factor=factor,
+                    field_path=field_path,
+                )
+                variant["variable_om_cost_basis"] = "HHV"
+
+        # Emission factors: mass/activity; if activity is energy, denominator
+        # conversion applies.
+        if "emission_factors" in variant and combustible_refs:
+            ef_basis = variant.get("emission_factor_basis")
+            field_path = f"process_variants[{variant_id}].emission_factors"
+            if ef_basis not in ENERGY_BASES:
+                if strict_mode:
+                    raise SemanticValidationError(
+                        [
+                            f"{field_path} requires emission_factor_basis "
+                            "(HHV or LHV) for variants with combustible flows."
+                        ]
+                    )
+            elif activity_is_energy:
+                ratios = {
+                    round(_hhv_lhv_ratio(comm_id, comm), 12)
+                    for comm_id, comm in combustible_refs
+                }
+                if len(ratios) > 1:
+                    raise SemanticValidationError(
+                        [
+                            f"{field_path} cannot apply one emission_factor_basis "
+                            f"across combustible commodities with different HHV/LHV "
+                            f"ratios in variant '{variant_id}'."
+                        ]
+                    )
+                comm_id, comm = combustible_refs[0]
+                factor = _basis_factor_to_hhv(
+                    comm_id=comm_id,
+                    comm=comm,
+                    basis=ef_basis,
+                    orientation="energy_denominator",
+                )
+                scaled_factors: dict[str, float | dict] = {}
+                for emission_comm, value in (
+                    variant.get("emission_factors") or {}
+                ).items():
+                    scaled_factors[emission_comm] = _scale_scalar_or_time_varying(
+                        value,
+                        factor=factor,
+                        field_path=f"{field_path}[{emission_comm}]",
+                    )
+                variant["emission_factors"] = scaled_factors
+            if ef_basis in ENERGY_BASES:
+                variant["emission_factor_basis"] = "HHV"
+
+    # Scenario commodity prices: currency/commodity_energy_unit (energy denominator).
+    for idx, param in enumerate(model.get("scenario_parameters", []) or []):
+        if param.get("type") != "commodity_price":
+            continue
+        comm_id = param.get("commodity")
+        comm = commodities.get(comm_id)
+        if not _is_combustible_commodity(comm):
+            continue
+        field_path = f"model.scenario_parameters[{idx}]"
+        value_basis = param.get("value_basis")
+        if value_basis not in ENERGY_BASES:
+            if strict_mode:
+                raise SemanticValidationError(
+                    [
+                        f"{field_path}.values requires explicit value_basis "
+                        "(HHV or LHV) for combustible commodity "
+                        f"'{comm_id}'."
+                    ]
+                )
+            continue
+        factor = _basis_factor_to_hhv(
+            comm_id=comm_id,
+            comm=comm,
+            basis=value_basis,
+            orientation="energy_denominator",
+        )
+        param["values"] = _scale_year_value_map(
+            param.get("values", {}),
+            factor=factor,
+            field_path=f"{field_path}.values",
+        )
+        param["value_basis"] = "HHV"
+
+    # Case fuel price overrides: currency/commodity_energy_unit (energy denominator).
+    for case_idx, case in enumerate(model.get("cases", []) or []):
+        case_name = case.get("name", f"case_{case_idx}")
+        for idx, override in enumerate(case.get("fuel_price_overrides", []) or []):
+            comm_id = override.get("commodity")
+            comm = commodities.get(comm_id)
+            if not _is_combustible_commodity(comm):
+                continue
+            field_path = (
+                f"model.cases[{case_name}].fuel_price_overrides[{idx}]"
+            )
+            value_basis = override.get("value_basis")
+            if value_basis not in ENERGY_BASES:
+                if strict_mode:
+                    raise SemanticValidationError(
+                        [
+                            f"{field_path}.values requires explicit value_basis "
+                            "(HHV or LHV) for combustible commodity "
+                            f"'{comm_id}'."
+                        ]
+                    )
+                continue
+            factor = _basis_factor_to_hhv(
+                comm_id=comm_id,
+                comm=comm,
+                basis=value_basis,
+                orientation="energy_denominator",
+            )
+            override["values"] = _scale_year_value_map(
+                override.get("values", {}),
+                factor=factor,
+                field_path=f"{field_path}.values",
+            )
+            override["value_basis"] = "HHV"
+
+        # Case variant overrides: same rule as process_variants variable_om_cost.
+        for idx, override in enumerate(case.get("variant_overrides", []) or []):
+            if "variable_om_cost" not in override:
+                continue
+            variant_id = override.get("variant")
+            meta = variant_meta.get(variant_id)
+            if not meta:
+                continue
+            if not (meta["combustible_refs"] and meta["activity_is_energy"]):
+                continue
+            field_path = (
+                f"model.cases[{case_name}].variant_overrides[{idx}].variable_om_cost"
+            )
+            value_basis = override.get("variable_om_cost_basis")
+            if value_basis not in ENERGY_BASES:
+                if strict_mode:
+                    raise SemanticValidationError(
+                        [
+                            f"{field_path} requires variable_om_cost_basis "
+                            "(HHV or LHV) for combustible-energy variants."
+                        ]
+                    )
+                continue
+            combustible_refs = meta["combustible_refs"]
+            ratios = {
+                round(_hhv_lhv_ratio(comm_id, comm), 12)
+                for comm_id, comm in combustible_refs
+            }
+            if len(ratios) > 1:
+                raise SemanticValidationError(
+                    [
+                        f"{field_path} cannot apply one variable_om_cost_basis "
+                        f"across combustible commodities with different HHV/LHV ratios "
+                        f"in variant '{variant_id}'."
+                    ]
+                )
+            comm_id, comm = combustible_refs[0]
+            factor = _basis_factor_to_hhv(
+                comm_id=comm_id,
+                comm=comm,
+                basis=value_basis,
+                orientation="energy_denominator",
+            )
+            override["variable_om_cost"] = _scale_scalar_or_time_varying(
+                override["variable_om_cost"],
+                factor=factor,
+                field_path=field_path,
+            )
+            override["variable_om_cost_basis"] = "HHV"
+
+    return normalized
 
 
 def _compute_cap2act(capacity_unit: str, activity_unit: str) -> float | None:
@@ -2702,6 +3129,7 @@ def _compile_new_syntax(
         TableIR dict
     """
     source, monetary_policy = _normalize_new_syntax_monetary_costs(source)
+    source = _normalize_new_syntax_heating_basis_values(source)
     model = source["model"]
     regions = model.get("regions", ["REG1"])
     default_region = ",".join(regions)
@@ -4459,6 +4887,11 @@ def _apply_case_parameter_overrides(
                 "commodity": commodity,
                 "values": merged_values,
                 "interpolation": "none",
+                **(
+                    {"value_basis": override["value_basis"]}
+                    if "value_basis" in override
+                    else {}
+                ),
             }
         )
 

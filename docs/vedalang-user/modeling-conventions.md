@@ -206,6 +206,57 @@ Preferred namespace discipline for primary-vs-secondary energy clarity:
 Legacy models that use older `fuel:*`/`energy:*` namespaces should be migrated
 to `primary:*`/`secondary:*` for clarity.
 
+### 5a) Combustion Heating Basis: Explicit Metadata + Point-of-Use Basis
+
+For combustible commodities, heating-basis handling must be explicit everywhere.
+Do not rely on implicit defaults or inherited basis.
+
+- Every commodity must explicitly set `combustible: true|false`.
+- If `combustible: true`, the commodity must provide both
+  `lhv_mj_per_unit` and `hhv_mj_per_unit`.
+- If `combustible: false`, it must not provide heating-value metadata.
+- The compiler uses the `HHV/LHV` ratio (`hhv_mj_per_unit / lhv_mj_per_unit`)
+  to convert point-of-use values between bases.
+- Canonical emitted basis is HHV.
+
+Point-of-use basis must be declared on fields that can be basis-sensitive:
+
+- Variant combustible flow anchors: `inputs[*].basis` / `outputs[*].basis`
+- Variant costs: `variable_om_cost_basis` (when activity is energy-based and
+  combustible flows are present)
+- Variant emissions: `emission_factor_basis` (when combustible flows are present)
+- Scenario commodity prices: `scenario_parameters[*].value_basis`
+- Case fuel price overrides: `fuel_price_overrides[*].value_basis`
+- Case variant cost overrides: `variant_overrides[*].variable_om_cost_basis`
+
+Recommended authoring pattern:
+
+```yaml
+model:
+  commodities:
+    - id: primary:natural_gas
+      type: fuel
+      unit: PJ
+      combustible: true
+      lhv_mj_per_unit: 50.0
+      hhv_mj_per_unit: 55.0
+
+process_variants:
+  - id: gas_supply
+    role: supply_gas
+    outputs:
+      - commodity: primary:natural_gas
+        basis: HHV
+    variable_om_cost: "6 MUSD24/PJ"
+    variable_om_cost_basis: HHV
+```
+
+Note on absolute values:
+`lhv_mj_per_unit`/`hhv_mj_per_unit` are currently used to derive a conversion
+ratio for basis normalization. Absolute calorific values become essential when
+converting across dimensions (for example mass/volume/energy), which is a
+separate modeling concern.
+
 ### 6) Cases Are Scenario Overlays, Not New RES Architectures
 
 Use one physical RES plus case overlays for deltas (policy, prices, demand

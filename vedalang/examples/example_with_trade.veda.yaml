@@ -17,16 +17,21 @@ model:
       unit: PJ
       description: Electricity
 
+      combustible: false
     - id: primary:natural_gas
       type: fuel
       unit: PJ
       description: Natural Gas
 
+      combustible: true
+      lhv_mj_per_unit: 50.0
+      hhv_mj_per_unit: 55.0
     - id: service:residential_demand
       type: service
       unit: PJ
       description: Residential demand
 
+      combustible: false
   trade_links:
     - origin: REG1
       destination: REG2
@@ -76,6 +81,7 @@ process_variants:
     inputs: []
     outputs:
       - commodity: primary:natural_gas
+        basis: HHV
     efficiency: 1.0
     lifetime: 100
 
@@ -83,6 +89,7 @@ process_variants:
     role: generate_electricity
     inputs:
       - commodity: primary:natural_gas
+        basis: HHV
     outputs:
       - commodity: secondary:electricity
     efficiency: 0.55

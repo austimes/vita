@@ -3,12 +3,11 @@
 model:
   name: TimesliceModel
   description: A model with 4 timeslices (2 seasons × 2 daynite) in role/variant syntax
-  
+
   regions:
     - REG1
 
   milestone_years: [2020, 2030]
-  
   timeslices:
     season:
       - code: S
@@ -25,23 +24,27 @@ model:
       SN: 0.23    # Summer-Night
       WD: 0.27    # Winter-Day
       WN: 0.25    # Winter-Night
-  
   commodities:
     - id: secondary:electricity
       type: energy
       unit: PJ
       description: Electricity
 
+      combustible: false
     - id: primary:natural_gas
       type: fuel
       unit: PJ
       description: Natural Gas
 
+      combustible: true
+      lhv_mj_per_unit: 50.0
+      hhv_mj_per_unit: 55.0
     - id: service:electricity_demand
       type: service
       unit: PJ
       description: Electricity demand service
 
+      combustible: false
 segments:
   sectors: [RES]
 
@@ -78,6 +81,7 @@ process_variants:
     inputs: []
     outputs:
       - commodity: primary:natural_gas
+        basis: HHV
     efficiency: 1.0
     lifetime: 100
 
@@ -85,6 +89,7 @@ process_variants:
     role: generate_electricity
     inputs:
       - commodity: primary:natural_gas
+        basis: HHV
     outputs:
       - commodity: secondary:electricity
     efficiency: 0.55

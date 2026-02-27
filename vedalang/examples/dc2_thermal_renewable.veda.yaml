@@ -18,19 +18,25 @@ model:
       type: fuel
       unit: PJ
       description: Natural gas fuel
+      combustible: true
+      lhv_mj_per_unit: 50.0
+      hhv_mj_per_unit: 55.0
     - id: resource:wind_resource
       type: other
       unit: PJ
       description: Wind resource input
+      combustible: false
     - id: secondary:electricity
       type: energy
       unit: PJ
       description: Electricity carrier
+      combustible: false
     - id: service:useful_electricity
       type: service
       unit: PJ
       description: Useful electricity service
 
+      combustible: false
 segments:
   sectors: [IND]
 
@@ -74,6 +80,7 @@ process_variants:
     inputs: []
     outputs:
       - commodity: primary:natural_gas
+        basis: HHV
     efficiency: 1.0
     lifetime: 100
 
@@ -89,6 +96,7 @@ process_variants:
     role: generate_electricity
     inputs:
       - commodity: primary:natural_gas
+        basis: HHV
     outputs:
       - commodity: secondary:electricity
     efficiency: 0.55

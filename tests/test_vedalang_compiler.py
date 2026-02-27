@@ -3285,7 +3285,11 @@ def _new_syntax_conversion_source() -> dict:
                 "id": "ccgt",
                 "role": "generate_electricity",
                 "inputs": [
-                    {"commodity": "primary:natural_gas", "coefficient": 1.0},
+                    {
+                        "commodity": "primary:natural_gas",
+                        "coefficient": 1.0,
+                        "basis": "HHV",
+                    },
                 ],
                 "outputs": [
                     {"commodity": "secondary:electricity", "coefficient": 1.0},
@@ -3503,6 +3507,131 @@ def test_new_syntax_coefficient_anchor_mismatch_is_error_in_strict_mode():
         compile_vedalang_to_tableir(source)
 
 
+def test_new_syntax_strict_requires_point_of_use_basis_for_combustible_coefficients():
+    source = _new_syntax_conversion_source()
+    source["model"]["unit_policy"] = {"mode": "strict"}
+    source["process_variants"][0]["inputs"][0].pop("basis")
+
+    with pytest.raises(Exception, match=r"requires explicit basis"):
+        compile_vedalang_to_tableir(source)
+
+
+def test_new_syntax_heating_basis_values_are_normalized_to_hhv():
+    source = {
+        "model": {
+            "name": "HeatingBasisNormalize",
+            "regions": ["R1"],
+            "milestone_years": [2020],
+            "unit_policy": {"mode": "strict"},
+            "commodities": [
+                {
+                    "id": "primary:natural_gas",
+                    "type": "fuel",
+                    "unit": "PJ",
+                    "combustible": True,
+                    "lhv_mj_per_unit": 50.0,
+                    "hhv_mj_per_unit": 55.0,
+                },
+                {
+                    "id": "secondary:electricity",
+                    "type": "energy",
+                    "unit": "PJ",
+                    "combustible": False,
+                },
+                {"id": "emission:co2", "type": "emission", "unit": "Mt"},
+            ],
+            "scenario_parameters": [
+                {
+                    "name": "gas_price",
+                    "type": "commodity_price",
+                    "commodity": "primary:natural_gas",
+                    "value_basis": "LHV",
+                    "interpolation": "none",
+                    "values": {"2020": 100.0},
+                }
+            ],
+            "cases": [{"name": "baseline", "is_baseline": True}],
+        },
+        "segments": {"sectors": ["RES"]},
+        "process_roles": [
+            {
+                "id": "generate_power",
+                "stage": "conversion",
+                "activity_unit": "PJ",
+                "capacity_unit": "GW",
+                "required_inputs": [{"commodity": "primary:natural_gas"}],
+                "required_outputs": [{"commodity": "secondary:electricity"}],
+            }
+        ],
+        "process_variants": [
+            {
+                "id": "ccgt",
+                "role": "generate_power",
+                "inputs": [{"commodity": "primary:natural_gas"}],
+                "outputs": [{"commodity": "secondary:electricity"}],
+                "efficiency": 0.5,
+                "variable_om_cost": 10.0,
+                "variable_om_cost_basis": "LHV",
+                "emission_factors": {"emission:co2": 0.070},
+                "emission_factor_basis": "LHV",
+            }
+        ],
+        "availability": [{"variant": "ccgt", "regions": ["R1"], "sectors": ["RES"]}],
+    }
+
+    tableir = compile_vedalang_to_tableir(source)
+
+    fi_t_rows = []
+    env_act_rows = []
+    scenario_rows = []
+    for file in tableir["files"]:
+        for sheet in file.get("sheets", []):
+            for table in sheet.get("tables", []):
+                if table.get("tag") == "~FI_T":
+                    fi_t_rows.extend(table.get("rows", []))
+                if table.get("tag") == "~TFM_INS":
+                    env_act_rows.extend(table.get("rows", []))
+                if table.get("tag") == "~TFM_DINS-AT":
+                    scenario_rows.extend(table.get("rows", []))
+
+    act_cost_row = next(
+        (
+            row
+            for row in fi_t_rows
+            if str(row.get("process", "")).startswith("ccgt_R1")
+            and "act_cost" in row
+        ),
+        None,
+    )
+    assert act_cost_row is not None
+    assert act_cost_row["act_cost"] == pytest.approx(10.0 * (50.0 / 55.0), rel=1e-9)
+
+    env_row = next(
+        (
+            row
+            for row in env_act_rows
+            if str(row.get("process", "")).startswith("ccgt_R1")
+            and row.get("attribute") == "ENV_ACT"
+            and row.get("commodity") == "emission:co2"
+        ),
+        None,
+    )
+    assert env_row is not None
+    assert env_row["value"] == pytest.approx(0.070 * (50.0 / 55.0), rel=1e-9)
+
+    price_row = next(
+        (
+            row
+            for row in scenario_rows
+            if row.get("cset_cn") == "primary:natural_gas"
+            and row.get("year") == 2020
+        ),
+        None,
+    )
+    assert price_row is not None
+    assert price_row["com_cstnet"] == pytest.approx(100.0 * (50.0 / 55.0), rel=1e-9)
+
+
 def test_new_syntax_cop_metric_allows_efficiency_above_one():
     source = _new_syntax_conversion_source()
     source["process_variants"][0]["efficiency"] = 3.0
@@ -3572,7 +3701,9 @@ def test_toy_buildings_uses_service_role_and_case_demand_override_conventions():
     # Variants use variant-level inputs
     variants = {v["id"]: v for v in source["process_variants"]}
     assert variants["gas_heater"]["role"] == "provide_space_heat"
-    assert variants["gas_heater"]["inputs"] == [{"commodity": "primary:natural_gas"}]
+    assert variants["gas_heater"]["inputs"] == [
+        {"commodity": "primary:natural_gas", "basis": "HHV"}
+    ]
     assert variants["heat_pump"]["role"] == "provide_space_heat"
     assert variants["heat_pump"]["inputs"] == [{"commodity": "secondary:electricity"}]
     assert "space_heat_delivery" not in variants
@@ -3607,13 +3738,17 @@ def test_toy_industry_uses_variant_level_inputs():
         for variant in source["process_variants"]
     }
     assert variants["gas_boiler"]["role"] == "provide_industrial_heat"
-    assert variants["gas_boiler"]["inputs"] == [{"commodity": "primary:natural_gas"}]
+    assert variants["gas_boiler"]["inputs"] == [
+        {"commodity": "primary:natural_gas", "basis": "HHV"}
+    ]
     assert variants["electric_heater"]["role"] == "provide_industrial_heat"
     assert variants["electric_heater"]["inputs"] == [
         {"commodity": "secondary:electricity"}
     ]
     assert variants["h2_boiler"]["role"] == "provide_industrial_heat"
-    assert variants["h2_boiler"]["inputs"] == [{"commodity": "secondary:hydrogen"}]
+    assert variants["h2_boiler"]["inputs"] == [
+        {"commodity": "secondary:hydrogen", "basis": "HHV"}
+    ]
     assert "industrial_heat_delivery" not in variants
 
 def test_toy_transport_uses_service_role_with_pathway_variants():
@@ -3633,7 +3768,9 @@ def test_toy_transport_uses_service_role_with_pathway_variants():
 
     variants = {v["id"]: v for v in source["process_variants"]}
     assert variants["ice_car"]["role"] == "provide_passenger_km"
-    assert variants["ice_car"]["inputs"] == [{"commodity": "primary:petrol"}]
+    assert variants["ice_car"]["inputs"] == [
+        {"commodity": "primary:petrol", "basis": "HHV"}
+    ]
     assert variants["ev_car"]["role"] == "provide_passenger_km"
     assert variants["ev_car"]["inputs"] == [{"commodity": "secondary:electricity"}]
     assert "passenger_service_delivery" not in variants

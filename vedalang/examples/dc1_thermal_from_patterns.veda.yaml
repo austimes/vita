@@ -5,10 +5,10 @@
 model:
   name: MiniModel
   description: A minimal thermal power model with explicit fuel supply and end-use demand
-  
+
   regions:
     - REG1
-  
+
   milestone_years: [2020, 2030]
 
   commodities:
@@ -17,16 +17,21 @@ model:
       unit: PJ
       description: Natural Gas
 
+      combustible: true
+      lhv_mj_per_unit: 50.0
+      hhv_mj_per_unit: 55.0
     - id: secondary:electricity
       type: energy
       unit: PJ
       description: Electricity
 
+      combustible: false
     - id: service:generic_electric_end_use
       type: service
       unit: PJ
       description: Generic end-use service delivered from electricity
 
+      combustible: false
 segments:
   sectors: [IND]
 
@@ -70,6 +75,7 @@ process_variants:
     inputs: []
     outputs:
       - commodity: primary:natural_gas
+        basis: HHV
     efficiency: 1.0
     lifetime: 100
 
@@ -77,6 +83,7 @@ process_variants:
     role: generate_electricity
     inputs:
       - commodity: primary:natural_gas
+        basis: HHV
     outputs:
       - commodity: secondary:electricity
     efficiency: 0.55

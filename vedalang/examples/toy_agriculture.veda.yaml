@@ -19,16 +19,19 @@ model:
       unit: Mt
       description: Aggregate physical agricultural inputs
 
+      combustible: false
     - id: service:agricultural_output
       type: service
       unit: Mt
       description: Agricultural production
 
+      combustible: false
     - id: emission:co2e
       type: emission
       unit: Mt
       description: CO2-equivalent greenhouse gas emissions
 
+      combustible: false
   scenario_parameters: []
 
   constraints:

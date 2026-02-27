@@ -17,21 +17,27 @@ model:
       type: service
       unit: PJ
       description: Space heating demand
+      combustible: false
 
     - id: secondary:electricity
       type: energy
       unit: PJ
       description: Electricity
+      combustible: false
 
     - id: primary:natural_gas
       type: fuel
       unit: PJ
       description: Natural gas
+      combustible: true
+      lhv_mj_per_unit: 50.0
+      hhv_mj_per_unit: 55.0
 
     - id: emission:co2
       type: emission
       unit: Mt
       description: Carbon dioxide
+      combustible: false
 
   cases:
     - name: baseline
@@ -90,8 +96,10 @@ process_variants:
     inputs: []
     outputs:
       - commodity: primary:natural_gas
+        basis: HHV
+    variable_om_cost_basis: HHV
 
-  - id: grid_import 
+  - id: grid_import
     role: supply_electricity
     efficiency: 1.0
     lifetime: 100
@@ -104,6 +112,7 @@ process_variants:
     role: provide_space_heat
     inputs:
       - commodity: primary:natural_gas
+        basis: HHV
     outputs:
       - commodity: service:space_heat
     efficiency: 0.90
@@ -111,6 +120,7 @@ process_variants:
     investment_cost: 30
     emission_factors:
       emission:co2: 0.056
+    emission_factor_basis: HHV
 
   - id: heat_pump
     role: provide_space_heat

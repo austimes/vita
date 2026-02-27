@@ -19,26 +19,33 @@ model:
       unit: PJ
       description: Natural Gas
 
+      combustible: true
+      lhv_mj_per_unit: 50.0
+      hhv_mj_per_unit: 55.0
     - id: resource:wind_resource
       type: other
       unit: PJ
       description: Wind resource
 
+      combustible: false
     - id: resource:solar_resource
       type: other
       unit: PJ
       description: Solar resource
 
+      combustible: false
     - id: secondary:electricity
       type: energy
       unit: PJ
       description: Electricity
 
+      combustible: false
     - id: emission:co2
       type: emission
       unit: Mt
       description: Carbon dioxide emissions
 
+      combustible: false
   constraints:
     # Emission cap: limit CO2 to 100 Mt initially, declining to 50 Mt by 2040
     - name: co2_cap
@@ -99,6 +106,7 @@ process_variants:
     inputs: []
     outputs:
       - commodity: primary:natural_gas
+        basis: HHV
     efficiency: 1.0
     lifetime: 100
 
@@ -122,6 +130,7 @@ process_variants:
     role: provide_electricity
     inputs:
       - commodity: primary:natural_gas
+        basis: HHV
     outputs:
       - commodity: secondary:electricity
     efficiency: 0.55
@@ -129,6 +138,7 @@ process_variants:
     emission_factors:
       emission:co2: 0.05
 
+    emission_factor_basis: HHV
   - id: wind_generation
     role: provide_electricity
     inputs:

@@ -19,26 +19,33 @@ model:
       unit: PJ
       description: Natural Gas
 
+      combustible: true
+      lhv_mj_per_unit: 50.0
+      hhv_mj_per_unit: 55.0
     - id: resource:wind_resource
       type: other
       unit: PJ
       description: Wind resource potential
 
+      combustible: false
     - id: secondary:electricity
       type: energy
       unit: PJ
       description: Electricity carrier
 
+      combustible: false
     - id: emission:co2
       type: emission
       unit: Mt
       description: Carbon dioxide emissions
 
+      combustible: false
     - id: service:electricity_demand
       type: service
       unit: PJ
       description: Electricity demand service
 
+      combustible: false
   scenario_parameters:
     - name: co2_price
       description: Carbon price trajectory 2025-2050
@@ -95,6 +102,7 @@ process_variants:
     inputs: []
     outputs:
       - commodity: primary:natural_gas
+        basis: HHV
     efficiency: 1.0
     lifetime: 100
 
@@ -110,6 +118,7 @@ process_variants:
     role: generate_electricity
     inputs:
       - commodity: primary:natural_gas
+        basis: HHV
     outputs:
       - commodity: secondary:electricity
     efficiency: 0.55
@@ -118,6 +127,7 @@ process_variants:
       emission:co2: 0.05  # Mt CO2 per PJ activity
 
   # Renewable plant (from add_renewable_plant pattern)
+    emission_factor_basis: HHV
   - id: wind
     role: generate_electricity
     inputs:

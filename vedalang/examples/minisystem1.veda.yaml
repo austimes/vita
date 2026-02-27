@@ -22,11 +22,13 @@ model:
       unit: PJ
       description: Electricity
 
+      combustible: false
     - id: service:residential_electricity
       type: service
       unit: PJ
       description: Residential demand
 
+      combustible: false
 segments:
   sectors: [RES]
 

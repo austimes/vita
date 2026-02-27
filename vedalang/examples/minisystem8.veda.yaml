@@ -39,58 +39,75 @@ model:
       unit: PJ
       description: Natural gas
 
+      combustible: true
+      lhv_mj_per_unit: 50.0
+      hhv_mj_per_unit: 55.0
     - id: primary:coal
       type: fuel
       unit: PJ
       description: Coal
 
+      combustible: true
+      lhv_mj_per_unit: 25.0
+      hhv_mj_per_unit: 27.5
     - id: secondary:electricity
       type: energy
       unit: PJ
       description: Electricity
 
+      combustible: false
     - id: secondary:hydrogen
       type: energy
       unit: PJ
       description: Hydrogen
 
+      combustible: true
+      lhv_mj_per_unit: 120.0
+      hhv_mj_per_unit: 132.0
     - id: resource:solar_irradiance
       type: other
       unit: PJ
       description: Solar irradiance resource
 
+      combustible: false
     - id: resource:wind_resource
       type: other
       unit: PJ
       description: Wind resource
 
     # Emissions
+      combustible: false
     - id: emission:co2
       type: emission
       unit: Mt
       description: Carbon dioxide
 
     # Service demands
+      combustible: false
     - id: service:residential_demand
       type: service
       unit: PJ
       description: Residential demand
 
+      combustible: false
     - id: service:commercial_demand
       type: service
       unit: PJ
       description: Commercial demand
 
+      combustible: false
     - id: service:industrial_demand
       type: service
       unit: PJ
       description: Industrial demand
 
+      combustible: false
     - id: service:transport_demand
       type: service
       unit: PJ
       description: Transport demand
 
+      combustible: false
   trade_links:
     - origin: NEM_EAST
       destination: NEM_SOUTH
@@ -204,6 +221,7 @@ process_variants:
     inputs: []
     outputs:
       - commodity: primary:gas
+        basis: HHV
     efficiency: 1.0
     lifetime: 100
 
@@ -212,6 +230,7 @@ process_variants:
     inputs: []
     outputs:
       - commodity: primary:coal
+        basis: HHV
     efficiency: 1.0
     lifetime: 100
 
@@ -236,6 +255,7 @@ process_variants:
     role: generate_electricity
     inputs:
       - commodity: primary:coal
+        basis: HHV
     outputs:
       - commodity: secondary:electricity
     efficiency: 0.38
@@ -246,10 +266,13 @@ process_variants:
     emission_factors:
       emission:co2: 0.09
 
+    variable_om_cost_basis: HHV
+    emission_factor_basis: HHV
   - id: ccgt
     role: generate_electricity
     inputs:
       - commodity: primary:gas
+        basis: HHV
     outputs:
       - commodity: secondary:electricity
     efficiency: 0.55
@@ -260,6 +283,8 @@ process_variants:
     emission_factors:
       emission:co2: 0.05
 
+    variable_om_cost_basis: HHV
+    emission_factor_basis: HHV
   - id: wind
     role: generate_electricity
     inputs:
@@ -289,8 +314,10 @@ process_variants:
     role: produce_hydrogen
     inputs:
       - commodity: primary:gas
+        basis: HHV
     outputs:
       - commodity: secondary:hydrogen
+        basis: HHV
     efficiency: 0.75
     investment_cost: 1500
     fixed_om_cost: 50
@@ -299,12 +326,15 @@ process_variants:
     emission_factors:
       emission:co2: 0.056
 
+    variable_om_cost_basis: HHV
+    emission_factor_basis: HHV
   - id: electrolyzer
     role: produce_hydrogen
     inputs:
       - commodity: secondary:electricity
     outputs:
       - commodity: secondary:hydrogen
+        basis: HHV
     efficiency: 0.70
     investment_cost: 2000
     fixed_om_cost: 30
@@ -312,6 +342,7 @@ process_variants:
     lifetime: 20
 
   # === DEMAND DEVICES ===
+    variable_om_cost_basis: HHV
   - id: residential_electric_device
     role: provide_residential_demand
     inputs:
@@ -334,6 +365,7 @@ process_variants:
     role: provide_industrial_demand
     inputs:
       - commodity: primary:gas
+        basis: HHV
     outputs:
       - commodity: service:industrial_demand
     efficiency: 0.85
@@ -343,6 +375,7 @@ process_variants:
     role: provide_industrial_demand
     inputs:
       - commodity: secondary:hydrogen
+        basis: HHV
     outputs:
       - commodity: service:industrial_demand
     efficiency: 0.80
@@ -361,6 +394,7 @@ process_variants:
     role: provide_transport_demand
     inputs:
       - commodity: secondary:hydrogen
+        basis: HHV
     outputs:
       - commodity: service:transport_demand
     efficiency: 0.60

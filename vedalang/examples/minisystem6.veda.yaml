@@ -38,26 +38,33 @@ model:
       unit: PJ
       description: Natural gas
 
+      combustible: true
+      lhv_mj_per_unit: 50.0
+      hhv_mj_per_unit: 55.0
     - id: secondary:electricity
       type: energy
       unit: PJ
       description: Electricity
 
+      combustible: false
     - id: emission:co2
       type: emission
       unit: Mt
       description: Carbon dioxide emissions
 
+      combustible: false
     - id: service:residential_demand
       type: service
       unit: PJ
       description: Residential demand
 
+      combustible: false
     - id: resource:wind_resource
       type: other
       unit: PJ
       description: Wind resource availability
 
+      combustible: false
   scenario_parameters:
     - name: co2_price
       description: Carbon price trajectory
@@ -112,6 +119,7 @@ process_variants:
     inputs: []
     outputs:
       - commodity: primary:natural_gas
+        basis: HHV
     efficiency: 1.0
     lifetime: 100
 
@@ -127,6 +135,7 @@ process_variants:
     role: generate_electricity
     inputs:
       - commodity: primary:natural_gas
+        basis: HHV
     outputs:
       - commodity: secondary:electricity
     efficiency: 0.55
@@ -137,6 +146,8 @@ process_variants:
     emission_factors:
       emission:co2: 0.05
 
+    variable_om_cost_basis: HHV
+    emission_factor_basis: HHV
   - id: wind
     role: generate_electricity
     inputs:

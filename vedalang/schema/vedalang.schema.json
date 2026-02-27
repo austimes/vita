@@ -386,6 +386,10 @@
           "type": "number",
           "exclusiveMinimum": 0,
           "description": "Validation-only anchor coefficient in commodity_unit/activity_unit. Used for unit/magnitude checks; compiler emission remains based on topology + efficiency."
+        },
+        "basis": {
+          "$ref": "#/$defs/energy_basis",
+          "description": "Point-of-use heating-value basis for coefficient when this flow references a combustible commodity."
         }
       },
       "additionalProperties": false
@@ -474,6 +478,10 @@
           ],
           "description": "Variable O&M cost per unit activity"
         },
+        "variable_om_cost_basis": {
+          "$ref": "#/$defs/energy_basis",
+          "description": "Point-of-use heating-value basis for variable_om_cost when activity is energy-based and the variant uses combustible commodities."
+        },
         "emission_factors": {
           "type": "object",
           "description": "Per-emission-commodity factors keyed by commodity id, per unit PROCESS ACTIVITY (TIMES ENV_ACT). Values are scalars or time-varying specs.",
@@ -483,6 +491,10 @@
               { "$ref": "#/$defs/time_varying_value" }
             ]
           }
+        },
+        "emission_factor_basis": {
+          "$ref": "#/$defs/energy_basis",
+          "description": "Point-of-use heating-value basis for emission_factors when variant has combustible inputs/outputs."
         }
       },
       "additionalProperties": false
@@ -1019,6 +1031,10 @@
       "required": ["commodity", "values"],
       "properties": {
         "commodity": { "type": "string" },
+        "value_basis": {
+          "$ref": "#/$defs/energy_basis",
+          "description": "Point-of-use heating-value basis for override price values when commodity is combustible."
+        },
         "values": {
           "type": "object",
           "additionalProperties": { "type": "number" },
@@ -1103,6 +1119,10 @@
             { "$ref": "#/$defs/cost_rate_literal" },
             { "$ref": "#/$defs/time_varying_cost_rate" }
           ]
+        },
+        "variable_om_cost_basis": {
+          "$ref": "#/$defs/energy_basis",
+          "description": "Point-of-use heating-value basis for variable_om_cost override when applied to combustible-energy variants."
         },
         "lifetime": {
           "oneOf": [
@@ -1256,6 +1276,7 @@
         "commodity": { "type": "string", "description": "Reference to commodity name" },
         "share": { "type": "number", "minimum": 0, "maximum": 1, "default": 1.0, "description": "Flow share for non-emission outputs (FLO_SHAR)" },
         "coefficient": { "type": "number", "exclusiveMinimum": 0, "description": "Validation-only anchor coefficient in commodity_unit/activity_unit. Used for lint/compile unit checks; emission semantics remain driven by topology + efficiency." },
+        "basis": { "$ref": "#/$defs/energy_basis", "description": "Point-of-use heating-value basis for coefficient when this flow references a combustible commodity." },
         "emission_factor": { "type": "number", "description": "Emission per unit PROCESS ACTIVITY. Units: <emission_commodity.unit> per <process.activity_unit> (e.g., Mt CO2 per PJ activity). Implemented via ENV_ACT in TIMES, which xl2times maps to FLO_EMIS. Always per-activity, NOT per-flow. Use instead of 'share' for emission commodities." }
       }
     },
@@ -1284,6 +1305,10 @@
         "commodity": {
           "type": "string",
           "description": "Target commodity for this parameter"
+        },
+        "value_basis": {
+          "$ref": "#/$defs/energy_basis",
+          "description": "Point-of-use heating-value basis for values when type=commodity_price and commodity is combustible."
         },
         "interpolation": {
           "type": "string",

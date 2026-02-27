@@ -16,11 +16,15 @@ model:
       unit: PJ
       description: Electricity
 
+      combustible: false
     - id: primary:natural_gas
       type: fuel
       unit: PJ
       description: Natural Gas
 
+      combustible: true
+      lhv_mj_per_unit: 50.0
+      hhv_mj_per_unit: 55.0
 process_roles:
   - id: generate_electricity
     activity_unit: PJ
@@ -36,6 +40,7 @@ process_variants:
     role: generate_electricity
     inputs:
       - commodity: primary:natural_gas
+        basis: HHV
     outputs:
       - commodity: secondary:electricity
     efficiency: 0.55

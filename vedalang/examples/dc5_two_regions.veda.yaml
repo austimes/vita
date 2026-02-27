@@ -4,11 +4,11 @@
 model:
   name: TwoRegionModel
   description: Two-region model with shared gas-to-power architecture
-  
+
   regions:
     - REG1
     - REG2
-  
+
   milestone_years: [2020, 2030, 2040, 2050]
 
   commodities:
@@ -17,16 +17,21 @@ model:
       unit: PJ
       description: Natural Gas
 
+      combustible: true
+      lhv_mj_per_unit: 50.0
+      hhv_mj_per_unit: 55.0
     - id: secondary:electricity
       type: energy
       unit: PJ
       description: Electricity
 
+      combustible: false
     - id: service:residential_electric_service
       type: service
       unit: PJ
       description: Residential electricity service demand
 
+      combustible: false
 segments:
   sectors: [RES]
 
@@ -63,6 +68,7 @@ process_variants:
     inputs: []
     outputs:
       - commodity: primary:natural_gas
+        basis: HHV
     efficiency: 1.0
     lifetime: 100
 
@@ -70,6 +76,7 @@ process_variants:
     role: generate_electricity
     inputs:
       - commodity: primary:natural_gas
+        basis: HHV
     outputs:
       - commodity: secondary:electricity
     efficiency: 0.55
