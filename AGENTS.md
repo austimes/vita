@@ -206,6 +206,43 @@ Negative emission factors are valid for DAC/LULUCF. Physical CO2 streams use `ma
 
 **Lint rules:** L1 (emission:* not in I/O), L2 (emission_factors keys must be emission:*), L3 (negative EF allowed), L5 (bare co2 warns).
 
+## Design Principle: Heating-Value Basis Must Be Explicit
+
+**No defaults, no inheritance.** Heating-value basis metadata must never be
+implicit.
+
+Policy:
+- Do not apply a default HHV/LHV basis anywhere.
+- Do not inherit basis from model-level or commodity-level context when reading
+  coefficients/attributes. Basis must be specified at the same site as the
+  value it qualifies.
+- Internal compiler normalization target is **HHV**. Inputs authored as LHV are
+  converted explicitly during compilation.
+
+Combustible commodity requirements:
+- Combustible commodities must be explicitly marked as combustible.
+- Combustible commodities must carry enough metadata to derive both bases
+  (store both LHV and HHV references, or an equivalent deterministic ratio).
+- Non-combustible commodities (e.g., electricity) must be explicitly marked
+  non-combustible and must not carry HHV/LHV basis tags.
+
+Point-of-use requirements (combustible commodities only):
+- Fuel input/output coefficients
+- Fuel-linked prices/cost coefficients
+- Emission factors tied to fuel combustion
+- Any other energy coefficient that depends on HHV/LHV interpretation
+
+Each of the above must declare its basis explicitly (HHV or LHV) at the field
+where the numeric value is provided. Compiler/lint checks must fail when basis
+is omitted or inconsistent.
+
+Combustibility detection strategy:
+- Primary enforcement must be deterministic (schema + compiler/linter), not
+  LLM-only.
+- Commodity verification workflows may infer combustibility from naming
+  conventions/registries, but models must still carry explicit combustible
+  metadata for compile-time checks.
+
 ## Design Principle: Avoid Implicit TIMES Interpolation
 
 **VedaLang should always emit explicit values for all milestone years.** Never rely on TIMES implicit interpolation.
