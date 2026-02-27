@@ -15,28 +15,26 @@ from tools.veda_dev.evals.judge import parse_judge_response
 from tools.veda_dev.evals.runner import compare_runs, run_eval
 
 
-def test_candidate_matrix_has_15_entries():
+def test_candidate_matrix_has_13_entries():
     candidates = build_candidate_matrix()
-    assert len(candidates) == 15
+    assert len(candidates) == 13
 
 
 def test_candidate_matrix_orders_fast_to_slow():
     candidate_ids = [c.candidate_id for c in build_candidate_matrix()]
-    assert candidate_ids[:5] == [
-        "gpt-5-nano:none",
+    assert candidate_ids[:4] == [
         "gpt-5-nano:low",
         "gpt-5-nano:medium",
         "gpt-5-nano:high",
         "gpt-5-nano:xhigh",
     ]
-    assert candidate_ids[5:10] == [
-        "gpt-5-mini:none",
+    assert candidate_ids[4:8] == [
         "gpt-5-mini:low",
         "gpt-5-mini:medium",
         "gpt-5-mini:high",
         "gpt-5-mini:xhigh",
     ]
-    assert candidate_ids[10:] == [
+    assert candidate_ids[8:] == [
         "gpt-5.2:none",
         "gpt-5.2:low",
         "gpt-5.2:medium",
@@ -127,8 +125,8 @@ def test_run_eval_marks_skips_without_crashing(monkeypatch, tmp_path):
     )
 
     assert run["run_id"].startswith("eval-")
-    assert len(run["candidates"]) == 15
-    assert len(run["results"]) == 15 * 5  # profile smoke expands to 5 cases at v1
+    assert len(run["candidates"]) == 13
+    assert len(run["results"]) == 13 * 5  # profile smoke expands to 5 cases at v1
     assert any(r["status"] == "skipped" for r in run["results"])
     assert all("telemetry" in r for r in run["results"])
     assert all("row_elapsed_sec" in r for r in run["results"])

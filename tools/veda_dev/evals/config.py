@@ -47,9 +47,12 @@ def build_candidate_matrix() -> list[CandidateSpec]:
     candidates: list[CandidateSpec] = []
     for family in MODEL_FAMILIES:
         for effort in REASONING_LEVELS:
+            canonical_model = canonical_model_name(family)
+            if not model_supports_reasoning_effort(canonical_model, effort):
+                continue
             candidates.append(
                 CandidateSpec(
-                    model=canonical_model_name(family),
+                    model=canonical_model,
                     reasoning_effort=effort,
                 )
             )
