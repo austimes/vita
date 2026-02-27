@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
@@ -241,8 +242,50 @@ def _normalize_units_diagnostics(
 def _deterministic_reference(source: dict, category: str) -> list[dict[str, Any]]:
     if category not in {"structure", "units"}:
         return []
-    grouped = collect_structural_by_category(source)
-    return list(grouped.get(category, []))
+    try:
+        grouped = collect_structural_by_category(source)
+        return list(grouped.get(category, []))
+    except Exception as exc:
+        text = str(exc)
+        parsed: list[dict[str, Any]] = []
+        for line in text.splitlines():
+            match = re.search(r"\[(?P<code>[EW]_[A-Z0-9_]+)\]", line)
+            if not match:
+                continue
+            code = match.group("code")
+            message = line.split("]", 1)[-1].strip()
+            if message.startswith("-"):
+                message = message[1:].strip()
+            severity = "warning" if code.startswith("W_") else "error"
+            parsed.append(
+                with_meta(
+                    {
+                        "code": code,
+                        "severity": severity,
+                        "message": message,
+                    },
+                    category=category,
+                    engine="code",
+                    check_id=f"code.{category}.compiler_semantics",
+                )
+            )
+        if parsed:
+            return parsed
+        return [
+            with_meta(
+                {
+                    "code": "E_DETERMINISTIC_REFERENCE",
+                    "severity": "error",
+                    "message": (
+                        "Failed to build deterministic reference diagnostics: "
+                        f"{exc}"
+                    ),
+                },
+                category=category,
+                engine="code",
+                check_id=f"code.{category}.compiler_semantics",
+            )
+        ]
 
 
 def _evaluate_one(

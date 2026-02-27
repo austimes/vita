@@ -344,6 +344,54 @@ def test_run_eval_parallelizes_rows(monkeypatch, tmp_path):
     assert max_active >= 2
 
 
+def test_run_eval_survives_deterministic_reference_errors(monkeypatch, tmp_path):
+    def fake_evaluate_one(**_kwargs):
+        return {
+            "status": "ok",
+            "diagnostics": [],
+            "telemetry": [],
+            "error": None,
+            "cached": False,
+        }
+
+    def broken_collect(_source):
+        raise RuntimeError(
+            "1 structural invariant violation(s):\n"
+            "  - [E_COMMODITY_TYPE_ENUM] x: bad commodity type"
+        )
+
+    monkeypatch.setattr("tools.veda_dev.evals.runner._evaluate_one", fake_evaluate_one)
+    monkeypatch.setattr(
+        "tools.veda_dev.evals.runner.collect_structural_by_category",
+        broken_collect,
+    )
+    monkeypatch.setattr("tools.veda_dev.evals.runner.load_vedalang", lambda _p: {})
+    monkeypatch.setattr(
+        "tools.veda_dev.evals.runner.validate_vedalang", lambda _s: None
+    )
+    monkeypatch.setattr(
+        "tools.veda_dev.evals.runner.build_candidate_matrix",
+        lambda: [CandidateSpec(model="gpt-5.2", reasoning_effort="low")],
+    )
+
+    run = run_eval(
+        profile="smoke",
+        prompt_version="v1",
+        dataset_path=None,
+        cache_path=tmp_path / "cache.json",
+        use_cache=False,
+        timeout_sec=10,
+        no_judge=True,
+        judge_model="gpt-5.2",
+        judge_effort="xhigh",
+        max_concurrency=1,
+    )
+
+    assert len(run["results"]) == 5
+    assert any(r["status"] == "ok" for r in run["results"])
+    assert run["timing"]["completed_runs"] == 5
+
+
 def test_run_eval_orders_results_by_effort_case_model(monkeypatch, tmp_path):
     def fake_evaluate_one(**_kwargs):
         return {
