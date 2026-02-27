@@ -156,5 +156,14 @@ def test_run_eval_emits_progress_events(monkeypatch, tmp_path):
     assert any(e["event"] == "start" for e in events)
     assert any(e["event"] == "source_loaded" for e in events)
     assert any(e["event"] == "candidate_start" for e in events)
-    assert any(e["event"] == "row_complete" for e in events)
+    row_events = [e for e in events if e["event"] == "row_complete"]
+    assert row_events
+    first_row = row_events[0]
+    assert "deterministic_score" in first_row
+    assert "judge_score" in first_row
+    assert "quality_score" in first_row
+    assert "estimated_cost_usd" in first_row
+    candidate_done_events = [e for e in events if e["event"] == "candidate_complete"]
+    assert candidate_done_events
+    assert "rank_score" in candidate_done_events[0]
     assert events[-1]["event"] == "complete"

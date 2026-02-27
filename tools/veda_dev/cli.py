@@ -817,6 +817,13 @@ def run_eval_command(args):
         run_eval,
     )
 
+    def _fmt_score(value: object, places: int = 2) -> str:
+        if value is None:
+            return "n/a"
+        if isinstance(value, (int, float)):
+            return f"{float(value):.{places}f}"
+        return str(value)
+
     def _format_progress(event: dict[str, object]) -> str:
         etype = str(event.get("event"))
         if etype == "start":
@@ -847,7 +854,11 @@ def run_eval_command(args):
                 f"candidate={event.get('candidate_id')} "
                 f"case={event.get('case_id')} "
                 f"status={event.get('status')} "
-                f"cached={event.get('cached')}"
+                f"cached={event.get('cached')} "
+                f"det={_fmt_score(event.get('deterministic_score'))} "
+                f"judge={_fmt_score(event.get('judge_score'))} "
+                f"quality={_fmt_score(event.get('quality_score'))} "
+                f"cost=${_fmt_score(event.get('estimated_cost_usd'), 4)}"
             )
         if etype == "candidate_complete":
             return (
@@ -855,7 +866,11 @@ def run_eval_command(args):
                 f"{event.get('candidate_id')} "
                 f"ok={event.get('ok_cases')} "
                 f"skipped={event.get('skipped_cases')} "
-                f"errors={event.get('error_cases')}"
+                f"errors={event.get('error_cases')} "
+                f"det={_fmt_score(event.get('deterministic_score'))} "
+                f"judge={_fmt_score(event.get('judge_score'))} "
+                f"quality={_fmt_score(event.get('quality_score'))} "
+                f"rank={_fmt_score(event.get('rank_score'))}"
             )
         if etype == "complete":
             return (

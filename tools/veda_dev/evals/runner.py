@@ -500,30 +500,29 @@ def run_eval(
                     }
                 )
 
-            row_results.append(
-                {
-                    "case_id": expanded_case.expanded_case_id,
-                    "base_case_id": case.case_id,
-                    "candidate_id": candidate.candidate_id,
-                    "model": candidate.model,
-                    "reasoning_effort": candidate.reasoning_effort,
-                    "prompt_version": expanded_case.prompt_version,
-                    "check_id": case.check_id,
-                    "category": case.category,
-                    "engine": case.engine,
-                    "status": evaluated["status"],
-                    "cached": evaluated.get("cached", False),
-                    "error": evaluated.get("error"),
-                    "diagnostics": evaluated.get("diagnostics", []),
-                    "telemetry": evaluated.get("telemetry", []),
-                    "estimated_cost_usd": est_cost,
-                    "deterministic_score": det_score,
-                    "judge_score": judge_score,
-                    "quality_score": quality_score,
-                    "known_issues": case.expected.get("known_issues", []),
-                    "judge": evaluated.get("judge"),
-                }
-            )
+            row = {
+                "case_id": expanded_case.expanded_case_id,
+                "base_case_id": case.case_id,
+                "candidate_id": candidate.candidate_id,
+                "model": candidate.model,
+                "reasoning_effort": candidate.reasoning_effort,
+                "prompt_version": expanded_case.prompt_version,
+                "check_id": case.check_id,
+                "category": case.category,
+                "engine": case.engine,
+                "status": evaluated["status"],
+                "cached": evaluated.get("cached", False),
+                "error": evaluated.get("error"),
+                "diagnostics": evaluated.get("diagnostics", []),
+                "telemetry": evaluated.get("telemetry", []),
+                "estimated_cost_usd": est_cost,
+                "deterministic_score": det_score,
+                "judge_score": judge_score,
+                "quality_score": quality_score,
+                "known_issues": case.expected.get("known_issues", []),
+                "judge": evaluated.get("judge"),
+            }
+            row_results.append(row)
 
             completed_runs += 1
             _emit_progress(
@@ -539,11 +538,16 @@ def run_eval(
                 case_id=expanded_case.expanded_case_id,
                 status=evaluated["status"],
                 cached=evaluated.get("cached", False),
+                deterministic_score=row["deterministic_score"],
+                judge_score=row["judge_score"],
+                quality_score=row["quality_score"],
+                estimated_cost_usd=row["estimated_cost_usd"],
             )
 
         candidate_rows = [
             r for r in row_results if r["candidate_id"] == candidate.candidate_id
         ]
+        candidate_summary = _summarize_candidate_rows(candidate_rows, weights)
         _emit_progress(
             progress_callback,
             "candidate_complete",
@@ -555,6 +559,10 @@ def run_eval(
                 [r for r in candidate_rows if r["status"] == "skipped"]
             ),
             error_cases=len([r for r in candidate_rows if r["status"] == "error"]),
+            deterministic_score=candidate_summary["deterministic_score"],
+            judge_score=candidate_summary["judge_score"],
+            quality_score=candidate_summary["quality_score"],
+            rank_score=candidate_summary["rank_score"],
         )
 
     _save_cache(cache_path, cache)
