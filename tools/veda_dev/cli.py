@@ -411,6 +411,19 @@ def main():
         type=Path,
         help="Optional output JSON path (default: tmp/evals/<run_id>.json)",
     )
+    eval_run.add_argument(
+        "--progress",
+        action="store_true",
+        dest="progress",
+        help="Print live eval progress to stderr (default for non-JSON output)",
+    )
+    eval_run.add_argument(
+        "--no-progress",
+        action="store_false",
+        dest="progress",
+        help="Disable live eval progress output",
+    )
+    eval_run.set_defaults(progress=None)
     eval_run.add_argument("--json", action="store_true", dest="json_output")
 
     eval_compare = eval_subparsers.add_parser(
@@ -804,6 +817,54 @@ def run_eval_command(args):
         run_eval,
     )
 
+    def _format_progress(event: dict[str, object]) -> str:
+        etype = str(event.get("event"))
+        if etype == "start":
+            return (
+                "[eval] start "
+                f"profile={event.get('profile')} "
+                f"base_cases={event.get('base_cases')} "
+                f"expanded_cases={event.get('expanded_cases')} "
+                f"candidates={event.get('candidates')} "
+                f"total_runs={event.get('total_runs')}"
+            )
+        if etype == "source_loaded":
+            return (
+                "[eval] source "
+                f"{event.get('case_index')}/{event.get('case_total')} "
+                f"case={event.get('case_id')}"
+            )
+        if etype == "candidate_start":
+            return (
+                "[eval] candidate "
+                f"{event.get('candidate_index')}/{event.get('candidate_total')} "
+                f"{event.get('candidate_id')}"
+            )
+        if etype == "row_complete":
+            return (
+                "[eval] row "
+                f"{event.get('completed_runs')}/{event.get('total_runs')} "
+                f"candidate={event.get('candidate_id')} "
+                f"case={event.get('case_id')} "
+                f"status={event.get('status')} "
+                f"cached={event.get('cached')}"
+            )
+        if etype == "candidate_complete":
+            return (
+                "[eval] candidate done "
+                f"{event.get('candidate_id')} "
+                f"ok={event.get('ok_cases')} "
+                f"skipped={event.get('skipped_cases')} "
+                f"errors={event.get('error_cases')}"
+            )
+        if etype == "complete":
+            return (
+                "[eval] complete "
+                f"run_id={event.get('run_id')} "
+                f"top={event.get('leaderboard_top')}"
+            )
+        return f"[eval] {etype}"
+
     if args.eval_command == "catalog":
         dataset = load_dataset(args.dataset)
         payload = {
@@ -840,6 +901,14 @@ def run_eval_command(args):
         sys.exit(0)
 
     if args.eval_command == "run":
+        emit_progress = (
+            args.progress if args.progress is not None else not args.json_output
+        )
+        progress_callback = None
+        if emit_progress:
+            def progress_callback(event: dict[str, object]) -> None:
+                print(_format_progress(event), file=sys.stderr, flush=True)
+
         run = run_eval(
             profile=args.profile,
             prompt_version=args.prompt_version,
@@ -850,6 +919,7 @@ def run_eval_command(args):
             no_judge=args.no_judge,
             judge_model=args.judge_model,
             judge_effort=args.judge_effort,
+            progress_callback=progress_callback,
         )
 
         out_path = args.out

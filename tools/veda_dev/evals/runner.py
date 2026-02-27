@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -39,6 +40,19 @@ class ExpandedCase:
     @property
     def expanded_case_id(self) -> str:
         return f"{self.case.case_id}@{self.prompt_version}"
+
+
+ProgressCallback = Callable[[dict[str, Any]], None]
+
+
+def _emit_progress(
+    progress_callback: ProgressCallback | None,
+    event: str,
+    **payload: Any,
+) -> None:
+    if progress_callback is None:
+        return
+    progress_callback({"event": event, **payload})
 
 
 def _is_unsupported_combo_error(message: str) -> bool:
@@ -348,6 +362,7 @@ def run_eval(
     no_judge: bool,
     judge_model: str,
     judge_effort: str,
+    progress_callback: ProgressCallback | None = None,
 ) -> dict[str, Any]:
     dataset = load_dataset(dataset_path)
     base_cases = cases_for_profile(dataset, profile)
@@ -358,9 +373,21 @@ def run_eval(
         for version in versions:
             expanded_cases.append(ExpandedCase(case=case, prompt_version=version))
 
+    candidates = build_candidate_matrix()
+    total_runs = len(candidates) * len(expanded_cases)
+    _emit_progress(
+        progress_callback,
+        "start",
+        profile=profile,
+        base_cases=len(base_cases),
+        expanded_cases=len(expanded_cases),
+        candidates=len(candidates),
+        total_runs=total_runs,
+    )
+
     case_sources: dict[str, dict[str, Any]] = {}
     case_det_refs: dict[tuple[str, str], list[dict[str, Any]]] = {}
-    for case in base_cases:
+    for case_index, case in enumerate(base_cases, start=1):
         source = load_vedalang(Path(case.source))
         validate_vedalang(source)
         case_sources[case.case_id] = source
@@ -368,15 +395,31 @@ def run_eval(
             source,
             case.category,
         )
+        _emit_progress(
+            progress_callback,
+            "source_loaded",
+            case_index=case_index,
+            case_total=len(base_cases),
+            case_id=case.case_id,
+            source=case.source,
+        )
 
-    candidates = build_candidate_matrix()
     cache = _load_cache(cache_path)
     weights = EvalWeights()
 
     row_results: list[dict[str, Any]] = []
+    completed_runs = 0
 
-    for candidate in candidates:
-        for expanded_case in expanded_cases:
+    for candidate_index, candidate in enumerate(candidates, start=1):
+        _emit_progress(
+            progress_callback,
+            "candidate_start",
+            candidate_index=candidate_index,
+            candidate_total=len(candidates),
+            candidate_id=candidate.candidate_id,
+        )
+
+        for expanded_case_index, expanded_case in enumerate(expanded_cases, start=1):
             case = expanded_case.case
             evaluated = _evaluate_one(
                 expanded_case=expanded_case,
@@ -482,6 +525,38 @@ def run_eval(
                 }
             )
 
+            completed_runs += 1
+            _emit_progress(
+                progress_callback,
+                "row_complete",
+                completed_runs=completed_runs,
+                total_runs=total_runs,
+                candidate_index=candidate_index,
+                candidate_total=len(candidates),
+                candidate_id=candidate.candidate_id,
+                case_index=expanded_case_index,
+                case_total=len(expanded_cases),
+                case_id=expanded_case.expanded_case_id,
+                status=evaluated["status"],
+                cached=evaluated.get("cached", False),
+            )
+
+        candidate_rows = [
+            r for r in row_results if r["candidate_id"] == candidate.candidate_id
+        ]
+        _emit_progress(
+            progress_callback,
+            "candidate_complete",
+            candidate_index=candidate_index,
+            candidate_total=len(candidates),
+            candidate_id=candidate.candidate_id,
+            ok_cases=len([r for r in candidate_rows if r["status"] == "ok"]),
+            skipped_cases=len(
+                [r for r in candidate_rows if r["status"] == "skipped"]
+            ),
+            error_cases=len([r for r in candidate_rows if r["status"] == "error"]),
+        )
+
     _save_cache(cache_path, cache)
 
     leaderboard: list[dict[str, Any]] = []
@@ -500,7 +575,7 @@ def run_eval(
     leaderboard.sort(key=lambda r: r["rank_score"], reverse=True)
 
     run_id = datetime.now(UTC).strftime("eval-%Y%m%dT%H%M%SZ")
-    return {
+    run = {
         "run_id": run_id,
         "created_at": datetime.now(UTC).isoformat(),
         "profile": profile,
@@ -550,6 +625,16 @@ def run_eval(
         "leaderboard": leaderboard,
         "cache_path": str(cache_path),
     }
+
+    _emit_progress(
+        progress_callback,
+        "complete",
+        run_id=run_id,
+        leaderboard_top=(
+            run["leaderboard"][0]["candidate_id"] if run["leaderboard"] else None
+        ),
+    )
+    return run
 
 
 def render_report(run: dict[str, Any]) -> str:

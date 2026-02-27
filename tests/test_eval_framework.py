@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from tools.veda_dev.evals.config import build_candidate_matrix
+from tools.veda_dev.evals.config import CandidateSpec, build_candidate_matrix
 from tools.veda_dev.evals.dataset import cases_for_profile, load_dataset
 from tools.veda_dev.evals.judge import parse_judge_response
 from tools.veda_dev.evals.runner import compare_runs, run_eval
@@ -112,3 +112,49 @@ def test_compare_runs_returns_deltas():
     assert diff["old_run_id"] == "old"
     assert diff["new_run_id"] == "new"
     assert len(diff["deltas"]) == 2
+
+
+def test_run_eval_emits_progress_events(monkeypatch, tmp_path):
+    events: list[dict[str, object]] = []
+
+    def fake_evaluate_one(**_kwargs):
+        return {
+            "status": "ok",
+            "diagnostics": [],
+            "telemetry": [],
+            "error": None,
+            "cached": False,
+        }
+
+    monkeypatch.setattr("tools.veda_dev.evals.runner._evaluate_one", fake_evaluate_one)
+    monkeypatch.setattr("tools.veda_dev.evals.runner.load_vedalang", lambda _p: {})
+    monkeypatch.setattr(
+        "tools.veda_dev.evals.runner.validate_vedalang", lambda _s: None
+    )
+    monkeypatch.setattr(
+        "tools.veda_dev.evals.runner._deterministic_reference", lambda _s, _c: []
+    )
+    monkeypatch.setattr(
+        "tools.veda_dev.evals.runner.build_candidate_matrix",
+        lambda: [CandidateSpec(model="gpt-5.2", reasoning_effort="none")],
+    )
+
+    run_eval(
+        profile="smoke",
+        prompt_version="v1",
+        dataset_path=None,
+        cache_path=tmp_path / "cache.json",
+        use_cache=False,
+        timeout_sec=10,
+        no_judge=True,
+        judge_model="gpt-5.2",
+        judge_effort="xhigh",
+        progress_callback=events.append,
+    )
+
+    assert events[0]["event"] == "start"
+    assert any(e["event"] == "start" for e in events)
+    assert any(e["event"] == "source_loaded" for e in events)
+    assert any(e["event"] == "candidate_start" for e in events)
+    assert any(e["event"] == "row_complete" for e in events)
+    assert events[-1]["event"] == "complete"
