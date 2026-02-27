@@ -1,6 +1,6 @@
 # VedaLang Project Status
 
-**Last updated:** 2026-02-25
+**Last updated:** 2026-02-28
 
 ## Executive Summary
 
@@ -12,7 +12,7 @@ VedaLang is a typed DSL that compiles to VEDA Excel tables for TIMES energy mode
 | xl2times diagnostics | ✅ Hardened |
 | Design challenges (DC1-DC5) | ✅ All passing |
 | Schema evolution policy | ✅ In place |
-| Test coverage | ✅ 755 tests passing, 11 skipped |
+| Test coverage | ✅ 970 tests passing, 18 skipped |
 | Primitives Exploration | ✅ Complete |
 | Schema Extensions | ✅ All implemented |
 | MiniSystem Stress Test | ✅ Complete |
@@ -26,61 +26,20 @@ VedaLang is a typed DSL that compiles to VEDA Excel tables for TIMES energy mode
 
 ## Current Status: Maintenance & Extension
 
-**210 issues closed.** All core design phases complete.
+All core design phases remain complete.
 
 ### Active Work
 
-**Hygiene audit** (`vedalang-qv4`) — repository cleanup and documentation sync:
+No open `bd` issues at the time of this update (`bd list --all --json`).
+
+### Recently Completed
 
 | Issue | Priority | Description | Status |
 |-------|----------|-------------|--------|
-| `vedalang-qv4` | P2 | Repository hygiene audit — 2026-02 | ○ Open (epic) |
-| `vedalang-qv4.1` | P1 | Sync STATUS.md with reality | ✓ Closed |
-| `vedalang-qv4.2` | P1 | Update AGENTS.md phase status and fix stale paths | ○ Open |
-| `vedalang-qv4.3` | P2 | Fix 99 ruff lint errors | ○ Open |
-| `vedalang-qv4.4` | P2 | Delete stale experiments/ directory | ○ Open |
-| `vedalang-qv4.5` | P3 | Clean stale build artifacts in output/, output_invalid/, tmp/ | ○ Open |
-| `vedalang-qv4.6` | P3 | Remove orphan one-off scripts | ○ Open |
-| `vedalang-qv4.7` | P3 | Review stale test artifacts | ○ Open |
-
-**Toy model structural refactor** (`vedalang-0pt`) — PRD-driven three-layer convention framework: ✅ **Complete**
-
-All 13 subtasks closed. Deliverables:
-- Compiler hard enforcement: stage enum, commodity typing, primary-output, fuel-pathway duplication, physical-only end_use
-- Lint layer: RES JSON/Mermaid export, optional LLM structural assessment
-- Modeling conventions SKILL.md
-- All toy_* examples refactored (buildings, industry, transport, resources, electricity, agriculture)
-- Cases overlay system for multi-case models
-- A1-A8 acceptance test matrix (`tests/test_prd_acceptance.py`)
-
-**Sector toy problems** (`vedalang-248`) — DSL syntax exploration via sector-specific models:
-
-| Issue | Priority | Description | Status |
-|-------|----------|-------------|--------|
-| `vedalang-248` | P2 | Sector toy problem examples (epic) | ○ Open |
-| `vedalang-248.1` | P2 | Toy 1: Electricity & Energy | ○ Open |
-| `vedalang-248.2` | P2 | Toy 2: Transport — EV uptake | ○ Open |
-| `vedalang-248.3` | P2 | Toy 3: Built Environment — heat pumps | ○ Open |
-| `vedalang-248.4` | P2 | Toy 4: Industry — industrial heat decarb | ○ Open |
-| `vedalang-248.5` | P2 | Toy 5: Resources — mining electrification | ○ Open |
-| `vedalang-248.6` | P2 | Toy 6: Agriculture & Land — methane abatement | ○ Open |
-
-**Other open issues:**
-
-| Issue | Priority | Description | Status |
-|-------|----------|-------------|--------|
-| `vedalang-iil` | P2 | xl2times: Add --force-veda flag | ○ Open |
-
-**Units & dimensions** (`vedalang-a9m`) — deterministic unit safety implementation:
-
-| Issue | Priority | Description | Status |
-|-------|----------|-------------|--------|
-| `vedalang-a9m` | P3 | Units and dimension checking system (epic) | ○ Open |
-| `vedalang-a9m.1` | P2 | Strict unit policy and enums in schema | ✓ Closed |
-| `vedalang-a9m.2` | P2 | Deterministic unit registry + canonical conversion validation | ✓ Closed |
-| `vedalang-a9m.3` | P2 | Coefficient magnitude checks with process anchors | ✓ Closed |
-| `vedalang-a9m.4` | P2 | Detect and forbid fake unit-transformation processes | ✓ Closed |
-| `vedalang-a9m.5` | P3 | LLM unit/coefficient certification workflow | ✓ Closed |
+| `vedalang-i9e` | P2 | Ground-truth llm-lint eval corpus + difficulty ladder | ✓ Closed |
+| `vedalang-7dk` | P2 | Eval reorder (effort/case/model) + judge cache reuse | ✓ Closed |
+| `vedalang-9zg` | P2 | Parallel execution for eval runner | ✓ Closed |
+| `vedalang-3t3` | P2 | bd/Dolt metadata migration chore | ✓ Closed |
 
 ### Future Work (P4)
 
