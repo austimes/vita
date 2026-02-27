@@ -391,6 +391,12 @@ def main():
         help="Per-request timeout in seconds (default: 120)",
     )
     eval_run.add_argument(
+        "--max-concurrency",
+        type=int,
+        default=4,
+        help="Max parallel eval calls per candidate (default: 4)",
+    )
+    eval_run.add_argument(
         "--no-judge",
         action="store_true",
         help="Disable LLM-as-judge scoring",
@@ -833,7 +839,8 @@ def run_eval_command(args):
                 f"base_cases={event.get('base_cases')} "
                 f"expanded_cases={event.get('expanded_cases')} "
                 f"candidates={event.get('candidates')} "
-                f"total_runs={event.get('total_runs')}"
+                f"total_runs={event.get('total_runs')} "
+                f"max_concurrency={event.get('max_concurrency')}"
             )
         if etype == "source_loaded":
             return (
@@ -936,6 +943,7 @@ def run_eval_command(args):
             cache_path=args.cache,
             use_cache=not args.no_cache,
             timeout_sec=args.timeout_sec,
+            max_concurrency=args.max_concurrency,
             no_judge=args.no_judge,
             judge_model=args.judge_model,
             judge_effort=args.judge_effort,

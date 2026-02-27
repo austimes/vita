@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import threading
+import time
+
 from tools.veda_dev.evals.config import (
     CandidateSpec,
     build_candidate_matrix,
@@ -194,6 +197,7 @@ def test_run_eval_emits_progress_events(monkeypatch, tmp_path):
 
     assert events[0]["event"] == "start"
     assert any(e["event"] == "start" for e in events)
+    assert events[0]["max_concurrency"] == 1
     assert any(e["event"] == "source_loaded" for e in events)
     assert any(e["event"] == "candidate_start" for e in events)
     row_events = [e for e in events if e["event"] == "row_complete"]
@@ -251,3 +255,55 @@ def test_run_eval_pre_skips_known_unsupported_combos(monkeypatch, tmp_path):
         "Unsupported model/effort combination" in str(r.get("error"))
         for r in run["results"]
     )
+
+
+def test_run_eval_parallelizes_rows(monkeypatch, tmp_path):
+    active = 0
+    max_active = 0
+    lock = threading.Lock()
+
+    def fake_evaluate_one(**_kwargs):
+        nonlocal active, max_active
+        with lock:
+            active += 1
+            max_active = max(max_active, active)
+        time.sleep(0.03)
+        with lock:
+            active -= 1
+        return {
+            "status": "ok",
+            "diagnostics": [],
+            "telemetry": [],
+            "error": None,
+            "cached": False,
+        }
+
+    monkeypatch.setattr("tools.veda_dev.evals.runner._evaluate_one", fake_evaluate_one)
+    monkeypatch.setattr("tools.veda_dev.evals.runner.load_vedalang", lambda _p: {})
+    monkeypatch.setattr(
+        "tools.veda_dev.evals.runner.validate_vedalang", lambda _s: None
+    )
+    monkeypatch.setattr(
+        "tools.veda_dev.evals.runner._deterministic_reference", lambda _s, _c: []
+    )
+    monkeypatch.setattr(
+        "tools.veda_dev.evals.runner.build_candidate_matrix",
+        lambda: [CandidateSpec(model="gpt-5.2", reasoning_effort="low")],
+    )
+
+    run = run_eval(
+        profile="smoke",
+        prompt_version="v1",
+        dataset_path=None,
+        cache_path=tmp_path / "cache.json",
+        use_cache=False,
+        timeout_sec=10,
+        max_concurrency=4,
+        no_judge=True,
+        judge_model="gpt-5.2",
+        judge_effort="xhigh",
+    )
+
+    assert len(run["results"]) == 5
+    assert run["timing"]["max_concurrency"] == 4
+    assert max_active >= 2

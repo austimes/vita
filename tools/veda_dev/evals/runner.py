@@ -5,10 +5,12 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from statistics import mean
+from threading import Lock
 from time import perf_counter
 from typing import Any
 
@@ -279,6 +281,226 @@ def _evaluate_one(
     return payload
 
 
+def _evaluate_one_cached_threadsafe(
+    *,
+    expanded_case: ExpandedCase,
+    source: dict[str, Any],
+    model: str,
+    effort: str,
+    timeout_sec: int,
+    cache: dict[str, Any],
+    use_cache: bool,
+    cache_lock: Lock | None,
+) -> dict[str, Any]:
+    """Thread-safe cache wrapper around `_evaluate_one`."""
+    case = expanded_case.case
+    cache_key = _cache_key(
+        case_id=case.case_id,
+        check_id=case.check_id,
+        model=model,
+        effort=effort,
+        prompt_version=expanded_case.prompt_version,
+    )
+
+    if use_cache:
+        cached_payload: dict[str, Any] | None
+        if cache_lock is None:
+            cached_payload = cache.get(cache_key)
+        else:
+            with cache_lock:
+                cached_payload = cache.get(cache_key)
+        if cached_payload is not None:
+            cached = dict(cached_payload)
+            cached["cached"] = True
+            return cached
+
+    # Avoid concurrent writes to shared cache by using a local scratch cache.
+    evaluated = _evaluate_one(
+        expanded_case=expanded_case,
+        source=source,
+        model=model,
+        effort=effort,
+        timeout_sec=timeout_sec,
+        cache={},
+        use_cache=False,
+    )
+
+    if cache_lock is None:
+        cache[cache_key] = evaluated
+    else:
+        with cache_lock:
+            cache[cache_key] = evaluated
+    return evaluated
+
+
+def _evaluate_row(
+    *,
+    candidate: Any,
+    candidate_index: int,
+    expanded_case: ExpandedCase,
+    expanded_case_index: int,
+    case_source: dict[str, Any],
+    det_reference: list[dict[str, Any]],
+    timeout_sec: int,
+    cache: dict[str, Any],
+    use_cache: bool,
+    cache_lock: Lock | None,
+    no_judge: bool,
+    judge_model: str,
+    judge_effort: str,
+    weights: EvalWeights,
+) -> dict[str, Any]:
+    """Evaluate one (candidate, expanded-case) row and compute scores."""
+    row_started = perf_counter()
+    case = expanded_case.case
+
+    try:
+        if not model_supports_reasoning_effort(
+            candidate.model, candidate.reasoning_effort
+        ):
+            evaluated = {
+                "status": "skipped",
+                "diagnostics": [],
+                "telemetry": [],
+                "error": (
+                    "Unsupported model/effort combination: "
+                    f"{candidate.model}:{candidate.reasoning_effort}"
+                ),
+                "cached": False,
+            }
+        else:
+            evaluated = _evaluate_one_cached_threadsafe(
+                expanded_case=expanded_case,
+                source=case_source,
+                model=candidate.model,
+                effort=candidate.reasoning_effort,
+                timeout_sec=timeout_sec,
+                cache=cache,
+                use_cache=use_cache,
+                cache_lock=cache_lock,
+            )
+
+        required = [
+            str(x) for x in (case.expected.get("required_code_substrings") or [])
+        ]
+        forbidden = [
+            str(x) for x in (case.expected.get("forbidden_code_substrings") or [])
+        ]
+
+        det_score = 0.0
+        judge_score = None
+        quality_score = 0.0
+        est_cost = None
+
+        if evaluated["status"] == "ok":
+            det_score = deterministic_score(
+                diagnostics=evaluated["diagnostics"],
+                expected_category=case.category,
+                expected_engine=case.engine,
+                expected_check_id=case.check_id,
+                required_code_substrings=required,
+                forbidden_code_substrings=forbidden,
+                deterministic_diagnostics=det_reference,
+            )
+
+            telemetry = evaluated.get("telemetry") or []
+            if telemetry:
+                in_tokens = sum((t.get("input_tokens") or 0) for t in telemetry)
+                out_tokens = sum((t.get("output_tokens") or 0) for t in telemetry)
+                est_cost = estimate_cost_usd(candidate.model, in_tokens, out_tokens)
+
+            judge_result = None
+            if not no_judge:
+                judge_result = run_judge(
+                    sample={
+                        "case_id": expanded_case.expanded_case_id,
+                        "check_id": case.check_id,
+                        "candidate": candidate.candidate_id,
+                        "expected": case.expected,
+                        "diagnostics": evaluated["diagnostics"],
+                        "deterministic_score": det_score,
+                    },
+                    judge_model=judge_model,
+                    judge_effort=judge_effort,
+                    timeout_sec=timeout_sec,
+                )
+                judge_score = judge_result.score_0_to_100
+
+            quality_score = aggregate_quality_score(
+                deterministic=det_score,
+                judge=judge_score,
+                deterministic_weight=weights.deterministic_weight,
+                judge_weight=weights.judge_weight,
+            )
+
+            evaluated["judge"] = (
+                None
+                if (no_judge or judge_result is None)
+                else {
+                    "score_0_to_100": judge_result.score_0_to_100,
+                    "actionability_score": judge_result.actionability_score,
+                    "hallucination_flag": judge_result.hallucination_flag,
+                    "major_errors": judge_result.major_errors,
+                    "rationale_short": judge_result.rationale_short,
+                    "error": judge_result.error,
+                    "telemetry": judge_result.telemetry,
+                }
+            )
+
+        row = {
+            "_candidate_index": candidate_index,
+            "_case_index": expanded_case_index,
+            "case_id": expanded_case.expanded_case_id,
+            "base_case_id": case.case_id,
+            "candidate_id": candidate.candidate_id,
+            "model": candidate.model,
+            "reasoning_effort": candidate.reasoning_effort,
+            "prompt_version": expanded_case.prompt_version,
+            "check_id": case.check_id,
+            "category": case.category,
+            "engine": case.engine,
+            "status": evaluated["status"],
+            "cached": evaluated.get("cached", False),
+            "error": evaluated.get("error"),
+            "diagnostics": evaluated.get("diagnostics", []),
+            "telemetry": evaluated.get("telemetry", []),
+            "estimated_cost_usd": est_cost,
+            "deterministic_score": det_score,
+            "judge_score": judge_score,
+            "quality_score": quality_score,
+            "known_issues": case.expected.get("known_issues", []),
+            "judge": evaluated.get("judge"),
+        }
+    except Exception as e:
+        row = {
+            "_candidate_index": candidate_index,
+            "_case_index": expanded_case_index,
+            "case_id": expanded_case.expanded_case_id,
+            "base_case_id": case.case_id,
+            "candidate_id": candidate.candidate_id,
+            "model": candidate.model,
+            "reasoning_effort": candidate.reasoning_effort,
+            "prompt_version": expanded_case.prompt_version,
+            "check_id": case.check_id,
+            "category": case.category,
+            "engine": case.engine,
+            "status": "error",
+            "cached": False,
+            "error": str(e),
+            "diagnostics": [],
+            "telemetry": [],
+            "estimated_cost_usd": None,
+            "deterministic_score": 0.0,
+            "judge_score": None,
+            "quality_score": 0.0,
+            "known_issues": case.expected.get("known_issues", []),
+            "judge": None,
+        }
+
+    row["row_elapsed_sec"] = perf_counter() - row_started
+    return row
+
+
 def _summarize_candidate_rows(
     rows: list[dict[str, Any]], weights: EvalWeights
 ) -> dict[str, Any]:
@@ -391,6 +613,7 @@ def run_eval(
     no_judge: bool,
     judge_model: str,
     judge_effort: str,
+    max_concurrency: int = 1,
     progress_callback: ProgressCallback | None = None,
 ) -> dict[str, Any]:
     run_started = perf_counter()
@@ -413,6 +636,7 @@ def run_eval(
         expanded_cases=len(expanded_cases),
         candidates=len(candidates),
         total_runs=total_runs,
+        max_concurrency=max(1, int(max_concurrency)),
     )
 
     case_sources: dict[str, dict[str, Any]] = {}
@@ -436,6 +660,7 @@ def run_eval(
 
     cache = _load_cache(cache_path)
     weights = EvalWeights()
+    cache_lock = Lock() if max(1, int(max_concurrency)) > 1 else None
 
     row_results: list[dict[str, Any]] = []
     completed_runs = 0
@@ -450,151 +675,103 @@ def run_eval(
             candidate_id=candidate.candidate_id,
         )
 
-        for expanded_case_index, expanded_case in enumerate(expanded_cases, start=1):
-            row_started = perf_counter()
-            case = expanded_case.case
-            if not model_supports_reasoning_effort(
-                candidate.model, candidate.reasoning_effort
+        candidate_rows: list[dict[str, Any]] = []
+        worker_count = min(max(1, int(max_concurrency)), len(expanded_cases))
+        if worker_count == 1:
+            for expanded_case_index, expanded_case in enumerate(
+                expanded_cases, start=1
             ):
-                evaluated = {
-                    "status": "skipped",
-                    "diagnostics": [],
-                    "telemetry": [],
-                    "error": (
-                        "Unsupported model/effort combination: "
-                        f"{candidate.model}:{candidate.reasoning_effort}"
-                    ),
-                    "cached": False,
-                }
-            else:
-                evaluated = _evaluate_one(
+                case = expanded_case.case
+                row = _evaluate_row(
+                    candidate=candidate,
+                    candidate_index=candidate_index,
                     expanded_case=expanded_case,
-                    source=case_sources[case.case_id],
-                    model=candidate.model,
-                    effort=candidate.reasoning_effort,
+                    expanded_case_index=expanded_case_index,
+                    case_source=case_sources[case.case_id],
+                    det_reference=case_det_refs[(case.case_id, case.category)],
                     timeout_sec=timeout_sec,
                     cache=cache,
                     use_cache=use_cache,
+                    cache_lock=cache_lock,
+                    no_judge=no_judge,
+                    judge_model=judge_model,
+                    judge_effort=judge_effort,
+                    weights=weights,
                 )
-
-            det_reference = case_det_refs[(case.case_id, case.category)]
-
-            required = [
-                str(x) for x in (case.expected.get("required_code_substrings") or [])
-            ]
-            forbidden = [
-                str(x) for x in (case.expected.get("forbidden_code_substrings") or [])
-            ]
-
-            det_score = 0.0
-            judge_score = None
-            quality_score = 0.0
-            est_cost = None
-
-            if evaluated["status"] == "ok":
-                det_score = deterministic_score(
-                    diagnostics=evaluated["diagnostics"],
-                    expected_category=case.category,
-                    expected_engine=case.engine,
-                    expected_check_id=case.check_id,
-                    required_code_substrings=required,
-                    forbidden_code_substrings=forbidden,
-                    deterministic_diagnostics=det_reference,
+                candidate_rows.append(row)
+                completed_runs += 1
+                _emit_progress(
+                    progress_callback,
+                    "row_complete",
+                    completed_runs=completed_runs,
+                    total_runs=total_runs,
+                    candidate_index=candidate_index,
+                    candidate_total=len(candidates),
+                    candidate_id=candidate.candidate_id,
+                    case_index=row["_case_index"],
+                    case_total=len(expanded_cases),
+                    case_id=row["case_id"],
+                    status=row["status"],
+                    cached=row.get("cached", False),
+                    deterministic_score=row["deterministic_score"],
+                    judge_score=row["judge_score"],
+                    quality_score=row["quality_score"],
+                    estimated_cost_usd=row["estimated_cost_usd"],
+                    row_elapsed_sec=row["row_elapsed_sec"],
                 )
-
-                telemetry = evaluated.get("telemetry") or []
-                if telemetry:
-                    in_tokens = sum((t.get("input_tokens") or 0) for t in telemetry)
-                    out_tokens = sum((t.get("output_tokens") or 0) for t in telemetry)
-                    est_cost = estimate_cost_usd(candidate.model, in_tokens, out_tokens)
-
-                judge_result = None
-                if not no_judge:
-                    judge_result = run_judge(
-                        sample={
-                            "case_id": expanded_case.expanded_case_id,
-                            "check_id": case.check_id,
-                            "candidate": candidate.candidate_id,
-                            "expected": case.expected,
-                            "diagnostics": evaluated["diagnostics"],
-                            "deterministic_score": det_score,
-                        },
+        else:
+            with ThreadPoolExecutor(max_workers=worker_count) as executor:
+                futures = {
+                    executor.submit(
+                        _evaluate_row,
+                        candidate=candidate,
+                        candidate_index=candidate_index,
+                        expanded_case=expanded_case,
+                        expanded_case_index=expanded_case_index,
+                        case_source=case_sources[expanded_case.case.case_id],
+                        det_reference=case_det_refs[
+                            (expanded_case.case.case_id, expanded_case.case.category)
+                        ],
+                        timeout_sec=timeout_sec,
+                        cache=cache,
+                        use_cache=use_cache,
+                        cache_lock=cache_lock,
+                        no_judge=no_judge,
                         judge_model=judge_model,
                         judge_effort=judge_effort,
-                        timeout_sec=timeout_sec,
+                        weights=weights,
+                    ): expanded_case
+                    for expanded_case_index, expanded_case in enumerate(
+                        expanded_cases, start=1
                     )
-                    judge_score = judge_result.score_0_to_100
+                }
+                for future in as_completed(futures):
+                    row = future.result()
+                    candidate_rows.append(row)
+                    completed_runs += 1
+                    _emit_progress(
+                        progress_callback,
+                        "row_complete",
+                        completed_runs=completed_runs,
+                        total_runs=total_runs,
+                        candidate_index=candidate_index,
+                        candidate_total=len(candidates),
+                        candidate_id=candidate.candidate_id,
+                        case_index=row["_case_index"],
+                        case_total=len(expanded_cases),
+                        case_id=row["case_id"],
+                        status=row["status"],
+                        cached=row.get("cached", False),
+                        deterministic_score=row["deterministic_score"],
+                        judge_score=row["judge_score"],
+                        quality_score=row["quality_score"],
+                        estimated_cost_usd=row["estimated_cost_usd"],
+                        row_elapsed_sec=row["row_elapsed_sec"],
+                    )
 
-                quality_score = aggregate_quality_score(
-                    deterministic=det_score,
-                    judge=judge_score,
-                    deterministic_weight=weights.deterministic_weight,
-                    judge_weight=weights.judge_weight,
-                )
+        candidate_rows.sort(key=lambda r: int(r["_case_index"]))
+        row_results.extend(candidate_rows)
 
-                evaluated["judge"] = (
-                    None
-                    if (no_judge or judge_result is None)
-                    else {
-                        "score_0_to_100": judge_result.score_0_to_100,
-                        "actionability_score": judge_result.actionability_score,
-                        "hallucination_flag": judge_result.hallucination_flag,
-                        "major_errors": judge_result.major_errors,
-                        "rationale_short": judge_result.rationale_short,
-                        "error": judge_result.error,
-                        "telemetry": judge_result.telemetry,
-                    }
-                )
-
-            row = {
-                "case_id": expanded_case.expanded_case_id,
-                "base_case_id": case.case_id,
-                "candidate_id": candidate.candidate_id,
-                "model": candidate.model,
-                "reasoning_effort": candidate.reasoning_effort,
-                "prompt_version": expanded_case.prompt_version,
-                "check_id": case.check_id,
-                "category": case.category,
-                "engine": case.engine,
-                "status": evaluated["status"],
-                "cached": evaluated.get("cached", False),
-                "error": evaluated.get("error"),
-                "diagnostics": evaluated.get("diagnostics", []),
-                "telemetry": evaluated.get("telemetry", []),
-                "estimated_cost_usd": est_cost,
-                "deterministic_score": det_score,
-                "judge_score": judge_score,
-                "quality_score": quality_score,
-                "known_issues": case.expected.get("known_issues", []),
-                "judge": evaluated.get("judge"),
-            }
-            row["row_elapsed_sec"] = perf_counter() - row_started
-            row_results.append(row)
-
-            completed_runs += 1
-            _emit_progress(
-                progress_callback,
-                "row_complete",
-                completed_runs=completed_runs,
-                total_runs=total_runs,
-                candidate_index=candidate_index,
-                candidate_total=len(candidates),
-                candidate_id=candidate.candidate_id,
-                case_index=expanded_case_index,
-                case_total=len(expanded_cases),
-                case_id=expanded_case.expanded_case_id,
-                status=evaluated["status"],
-                cached=evaluated.get("cached", False),
-                deterministic_score=row["deterministic_score"],
-                judge_score=row["judge_score"],
-                quality_score=row["quality_score"],
-                estimated_cost_usd=row["estimated_cost_usd"],
-                row_elapsed_sec=row["row_elapsed_sec"],
-            )
-
-        candidate_rows = [
-            r for r in row_results if r["candidate_id"] == candidate.candidate_id
-        ]
         candidate_summary = _summarize_candidate_rows(candidate_rows, weights)
         _emit_progress(
             progress_callback,
@@ -617,6 +794,11 @@ def run_eval(
         )
 
     _save_cache(cache_path, cache)
+
+    row_results.sort(key=lambda r: (int(r["_candidate_index"]), int(r["_case_index"])))
+    for row in row_results:
+        row.pop("_candidate_index", None)
+        row.pop("_case_index", None)
 
     leaderboard: list[dict[str, Any]] = []
     for candidate in candidates:
@@ -685,6 +867,7 @@ def run_eval(
         "cache_path": str(cache_path),
         "timing": {
             "run_elapsed_sec": perf_counter() - run_started,
+            "max_concurrency": max(1, int(max_concurrency)),
             "total_runs": total_runs,
             "completed_runs": completed_runs,
             "ok_runs": len([r for r in row_results if r["status"] == "ok"]),
