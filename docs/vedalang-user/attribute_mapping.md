@@ -189,6 +189,7 @@ process_variants:
 **Lint rules:**
 - `emission:*` MUST NOT appear in `inputs` or `outputs` (L1)
 - `emission_factors` keys MUST use `emission:*` namespace (L2)
+- emission intensity units must be `(<mass_unit>/<role.activity_unit>)`; non-mass emission units are flagged by deterministic `units` lint
 
 ---
 

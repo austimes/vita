@@ -970,6 +970,25 @@ def _collect_new_syntax_structural_invariants(
                         ),
                     }
                 )
+                continue
+
+            emission_unit = comm.get("unit") or _get_default_unit("emission")
+            emission_dimension = UNIT_DIMENSIONS.get(emission_unit)
+            if emission_dimension != "mass":
+                append_unit_issue(
+                    location=(
+                        f"process_variants[{variant_id}]."
+                        f"emission_factors[{emission_comm}]"
+                    ),
+                    message=(
+                        "Emission intensity units must use a mass numerator "
+                        f"(<mass_unit>/{activity_unit}). Commodity '{emission_comm}' "
+                        f"uses unit '{emission_unit}', yielding '{emission_unit}/"
+                        f"{activity_unit}'."
+                    ),
+                    error_code="E_UNIT_EMISSION_INTENSITY_NUMERATOR",
+                    warning_code="W_UNIT_EMISSION_INTENSITY_NUMERATOR",
+                )
 
         if has_negative and not (
             (variant.get("description") or "").strip()

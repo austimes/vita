@@ -40,6 +40,7 @@ All core design phases remain complete.
 
 | Issue | Priority | Description | Status |
 |-------|----------|-------------|--------|
+| `vedalang-3v2` | P1 | Keep negative-emission docs in `emissions` and add deterministic `units` check for emission-intensity numerator units | ✓ Closed |
 | `vedalang-1wk` | P2 | Route negative-emission unit guidance through deterministic `units` lint category | ✓ Closed |
 | `vedalang-a19` | P1 | Deterministic lint unit-cost denominator checks, all-category default lint, and legacy-syntax guard | ✓ Closed |
 | `vedalang-6hy` | P1 | Fix N001 to use `id`-backed diagnostic paths (line mapping works on new syntax examples) | ✓ Closed |
