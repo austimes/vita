@@ -20,6 +20,69 @@ def run_vedalang(*args: str) -> subprocess.CompletedProcess:
 
 
 class TestLint:
+    def _write_new_syntax_cost_model(
+        self,
+        path: Path,
+        *,
+        investment_cost: str | int,
+        fixed_om_cost: str | int | None = None,
+        variable_om_cost: str | int | None = None,
+        override_investment_cost: str | int | None = None,
+    ) -> None:
+        lines = [
+            "model:",
+            "  name: CostLintModel",
+            "  regions: [REG1]",
+            "  milestone_years: [2020]",
+            "  commodities:",
+            "    - id: secondary:electricity",
+            "      type: energy",
+            "      unit: PJ",
+            "      combustible: false",
+            "  cases:",
+            "    - name: base",
+            "      is_baseline: true",
+            "      variant_overrides:",
+            "        - variant: gen",
+        ]
+        if override_investment_cost is not None:
+            lines.append(
+                "          investment_cost: "
+                f"{json.dumps(override_investment_cost)}"
+            )
+        lines.extend(
+            [
+                "process_roles:",
+                "  - id: supply_power",
+                "    stage: supply",
+                "    activity_unit: PJ",
+                "    capacity_unit: GW",
+                "    required_inputs: []",
+                "    required_outputs:",
+                "      - commodity: secondary:electricity",
+                "process_variants:",
+                "  - id: gen",
+                "    role: supply_power",
+                "    inputs: []",
+                "    outputs:",
+                "      - commodity: secondary:electricity",
+                "    efficiency: 1.0",
+                f"    investment_cost: {json.dumps(investment_cost)}",
+            ]
+        )
+        if fixed_om_cost is not None:
+            lines.append(f"    fixed_om_cost: {json.dumps(fixed_om_cost)}")
+        if variable_om_cost is not None:
+            lines.append(f"    variable_om_cost: {json.dumps(variable_om_cost)}")
+        lines.extend(
+            [
+                "availability:",
+                "  - variant: gen",
+                "    regions: [REG1]",
+            ]
+        )
+        path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
     def test_vedalang_lint_basic(self):
         """Lint runs successfully on mini_plant.veda.yaml."""
         result = run_vedalang("lint", str(MINI_PLANT))
@@ -89,16 +152,85 @@ class TestLint:
         data = json.loads(result.stdout)
         assert all(d["category"] == "feasibility" for d in data["diagnostics"])
 
-    def test_vedalang_lint_units_requires_thorough_profile(self):
-        """Thorough-only categories error in fast profile."""
+    def test_vedalang_lint_units_runs_without_profile_flag(self):
+        """Units category is available without a profile switch."""
         result = run_vedalang(
             "lint",
+            "--json",
             "--category",
             "units",
             str(MINI_PLANT),
         )
+        assert result.returncode in (0, 1, 2)
+        data = json.loads(result.stdout)
+        checks_run = data.get("summary", {}).get("checks_run", [])
+        assert "code.units.compiler_semantics" in checks_run
+
+    def test_vedalang_lint_rejects_legacy_syntax(self, tmp_path):
+        """Deterministic lint reports legacy syntax as unsupported."""
+        src = tmp_path / "legacy.veda.yaml"
+        src.write_text(
+            "\n".join(
+                [
+                    "model:",
+                    "  name: LegacyDemo",
+                    "  regions: [REG1]",
+                    "  commodities:",
+                    "    - name: C:ELC",
+                    "      type: energy",
+                    "  processes:",
+                    "    - name: IMP_ELC",
+                    "      sets: [IMP]",
+                    "      outputs:",
+                    "        - commodity: C:ELC",
+                    "      efficiency: 1.0",
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        result = run_vedalang("lint", "--json", str(src))
         assert result.returncode == 2
-        assert "requires --profile thorough" in (result.stdout + result.stderr)
+        data = json.loads(result.stdout)
+        assert any(
+            d.get("code") == "E_LEGACY_SYNTAX_UNSUPPORTED"
+            for d in data.get("diagnostics", [])
+        )
+
+    def test_vedalang_lint_units_flags_numeric_cost_scalar(self, tmp_path):
+        """Numeric cost values fail deterministic denominator checks."""
+        src = tmp_path / "numeric_cost.veda.yaml"
+        self._write_new_syntax_cost_model(
+            src,
+            investment_cost=20,
+            fixed_om_cost=5,
+            variable_om_cost=2,
+        )
+
+        result = run_vedalang("lint", "--json", "--category", "units", str(src))
+        assert result.returncode == 2
+        data = json.loads(result.stdout)
+        codes = {d.get("code") for d in data.get("diagnostics", [])}
+        assert "E_UNIT_INVESTMENT_COST_DENOM_MISMATCH" in codes
+        assert "E_UNIT_FIXED_OM_COST_DENOM_MISMATCH" in codes
+        assert "E_UNIT_VARIABLE_COST_DENOM_MISMATCH" in codes
+
+    def test_vedalang_lint_units_accepts_explicit_cost_literals(self, tmp_path):
+        """Explicit cost literals matching role units pass deterministic checks."""
+        src = tmp_path / "literal_cost.veda.yaml"
+        self._write_new_syntax_cost_model(
+            src,
+            investment_cost="20 MUSD24/GW",
+            fixed_om_cost="5 MUSD24/GW/yr",
+            variable_om_cost="2 MUSD24/PJ",
+            override_investment_cost="22 MUSD24/GW",
+        )
+
+        result = run_vedalang("lint", "--json", "--category", "units", str(src))
+        data = json.loads(result.stdout)
+        assert result.returncode == 0
+        assert data.get("diagnostics") == []
 
     def test_vedalang_lint_json_includes_line_and_excerpt(self, tmp_path):
         """Diagnostics include source line/column metadata and excerpt."""

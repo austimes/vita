@@ -1,6 +1,6 @@
 # VedaLang Project Status
 
-**Last updated:** 2026-02-28
+**Last updated:** 2026-03-01
 
 ## Executive Summary
 
@@ -12,7 +12,7 @@ VedaLang is a typed DSL that compiles to VEDA Excel tables for TIMES energy mode
 | xl2times diagnostics | ✅ Hardened |
 | Design challenges (DC1-DC5) | ✅ All passing |
 | Schema evolution policy | ✅ In place |
-| Test coverage | ✅ 970 tests passing, 18 skipped |
+| Test coverage | ✅ 990 tests passing, 18 skipped |
 | Primitives Exploration | ✅ Complete |
 | Schema Extensions | ✅ All implemented |
 | MiniSystem Stress Test | ✅ Complete |
@@ -30,12 +30,17 @@ All core design phases remain complete.
 
 ### Active Work
 
-No open `bd` issues at the time of this update (`bd list --all --json`).
+| Issue | Priority | Description | Status |
+|-------|----------|-------------|--------|
+| `vedalang-1gf` | P2 | Phase 2: full deterministic parity with llm unit taxonomy | Open |
+| `vedalang-2kz` | P2 | Update LSP schema docs/examples to canonical namespace conventions | Open |
+| `vedalang-4k8` | P2 | Migrate remaining C/S/E runtime helpers to canonical commodity namespaces | Open |
 
 ### Recently Completed
 
 | Issue | Priority | Description | Status |
 |-------|----------|-------------|--------|
+| `vedalang-a19` | P1 | Deterministic lint unit-cost denominator checks, all-category default lint, and legacy-syntax guard | ✓ Closed |
 | `vedalang-6hy` | P1 | Fix N001 to use `id`-backed diagnostic paths (line mapping works on new syntax examples) | ✓ Closed |
 | `vedalang-4wy` | P1 | Add lint line/column + source excerpt diagnostics in CLI output | ✓ Closed |
 | `vedalang-dlt` | P2 | Set llm-lint default target + add eval-evolution skill | ✓ Closed |
@@ -44,13 +49,13 @@ No open `bd` issues at the time of this update (`bd list --all --json`).
 | `vedalang-9zg` | P2 | Parallel execution for eval runner | ✓ Closed |
 | `vedalang-3t3` | P2 | bd/Dolt metadata migration chore | ✓ Closed |
 
-### Future Work (P4)
+### Future Work (P4+)
 
 | Issue | Description |
 |-------|-------------|
-| `vedalang-jis` | Storage and flexibility primitives |
-| `vedalang-9xy` | Scenario composition and variants |
-| `vedalang-a9m` | Units and dimension checking system |
+| `vedalang-1gf` | Full deterministic parity with llm unit-check taxonomy |
+| `vedalang-2kz` | LSP schema docs/examples canonical namespace migration |
+| `vedalang-4k8` | Runtime helper migration to canonical commodity namespaces |
 
 ---
 
@@ -146,9 +151,9 @@ All 10 energy system primitives explored and implemented:
 
 | Concept | Issue | Priority |
 |---------|-------|----------|
-| Storage primitives (enhanced) | `vedalang-jis` | P4 |
-| Scenario composition | `vedalang-9xy` | P4 |
-| Units/dimension checking (advanced) | `vedalang-a9m` | P4 |
+| Deterministic parity with llm unit taxonomy | `vedalang-1gf` | P2 |
+| Canonical LSP docs/examples | `vedalang-2kz` | P2 |
+| Canonical runtime helper migration | `vedalang-4k8` | P2 |
 | Vintage/age tracking | — | Future |
 | Growth rate constraints | — | Future |
 

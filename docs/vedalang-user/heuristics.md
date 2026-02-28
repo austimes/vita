@@ -8,11 +8,8 @@ VedaLang includes a **heuristics linter** that catches common modeling mistakes 
 # Run only feasibility heuristics via deterministic lint
 uv run vedalang lint model.veda.yaml --category feasibility
 
-# Run all fast deterministic lint checks (includes feasibility)
-uv run vedalang lint model.veda.yaml
-
 # Run all deterministic categories (including feasibility)
-uv run vedalang lint model.veda.yaml --profile thorough
+uv run vedalang lint model.veda.yaml
 
 # Run heuristics as part of full validation
 uv run vedalang validate model.veda.yaml

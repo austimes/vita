@@ -1,212 +1,190 @@
-# Toy Agriculture: Methane Abatement and Carbon Sequestration
-# Agricultural emissions reduction + sequestration via negative emission_factors
-# Tests: emission_factors for emissions, negative factors for sequestration
-# Design: Emissions are ledger entries, not flows; sequestration = negative emission_factors
-# Issue: vedalang-0pt.11
-
 model:
   name: ToyAgriculture
   description: Agricultural emissions reduction with sequestration
-
   regions:
-    - SINGLE
-
-  milestone_years: [2020, 2030, 2040, 2050]
-
+  - SINGLE
+  milestone_years:
+  - 2020
+  - 2030
+  - 2040
+  - 2050
   commodities:
-    - id: material:ag_inputs
-      type: material
-      unit: Mt
-      description: Aggregate physical agricultural inputs
-
-      combustible: false
-    - id: service:agricultural_output
-      type: service
-      unit: Mt
-      description: Agricultural production
-
-      combustible: false
-    - id: emission:co2e
-      type: emission
-      unit: Mt
-      description: CO2-equivalent greenhouse gas emissions
-
-      combustible: false
+  - id: material:ag_inputs
+    type: material
+    unit: Mt
+    description: Aggregate physical agricultural inputs
+    combustible: false
+  - id: service:agricultural_output
+    type: service
+    unit: Mt
+    description: Agricultural production
+    combustible: false
+  - id: emission:co2e
+    type: emission
+    unit: Mt
+    description: CO2-equivalent greenhouse gas emissions
+    combustible: false
   scenario_parameters: []
-
   constraints:
-    - name: CO2E_CAP
-      type: emission_cap
-      commodity: emission:co2e
-      years:
-        "2020": 50
-        "2030": 35
-        "2040": 20
-        "2050": 10
-      interpolation: interp_extrap
-      limtype: up
-
+  - name: CO2E_CAP
+    type: emission_cap
+    commodity: emission:co2e
+    years:
+      '2020': 50
+      '2030': 35
+      '2040': 20
+      '2050': 10
+    interpolation: interp_extrap
+    limtype: up
 segments:
-  sectors: [AGR]
-
+  sectors:
+  - AGR
 process_roles:
-  - id: supply_ag_inputs
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: supply
-    required_inputs: []
-    required_outputs:
-      - commodity: material:ag_inputs
-
-  - id: provide_ag_output
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: end_use
-    required_inputs:
-      - commodity: material:ag_inputs
-    required_outputs:
-      - commodity: service:agricultural_output
-
-  - id: remove_co2
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: sink
-    required_inputs: []
-    required_outputs: []
-
-process_variants:
-  - id: primary_supply
-    role: supply_ag_inputs
-    inputs: []
-    outputs:
-      - commodity: material:ag_inputs
-    efficiency: 1.0
-    lifetime: 100
-
-  - id: traditional_baseline
-    role: provide_ag_output
-    inputs:
-      - commodity: material:ag_inputs
-    outputs:
-      - commodity: service:agricultural_output
-    efficiency: 1.0
-    lifetime: 50
-    emission_factors:
-      emission:co2e: 5.0
-
-  - id: traditional_with_feed_additives
-    role: provide_ag_output
-    inputs:
-      - commodity: material:ag_inputs
-    outputs:
-      - commodity: service:agricultural_output
-    efficiency: 1.0
-    lifetime: 50
-    investment_cost: 20
-    emission_factors:
-      emission:co2e: 3.0
-
-  - id: traditional_with_improved_manure
-    role: provide_ag_output
-    inputs:
-      - commodity: material:ag_inputs
-    outputs:
-      - commodity: service:agricultural_output
-    efficiency: 1.0
-    lifetime: 50
-    investment_cost: 10
-    emission_factors:
-      emission:co2e: 3.75
-
-  - id: soil_carbon
-    role: remove_co2
-    inputs: []
-    outputs: []
-    efficiency: 1.0
-    lifetime: 30
-    investment_cost: 30
-    emission_factors:
-      emission:co2e: -1.0
-
-  - id: reforestation
-    role: remove_co2
-    inputs: []
-    outputs: []
-    efficiency: 1.0
-    lifetime: 50
-    investment_cost: 15
-    emission_factors:
-      emission:co2e: -1.0
-
-availability:
-  - variant: primary_supply
-    regions: [SINGLE]
-
-  - variant: traditional_baseline
-    regions: [SINGLE]
-    sectors: [AGR]
-
-  - variant: traditional_with_feed_additives
-    regions: [SINGLE]
-    sectors: [AGR]
-
-  - variant: traditional_with_improved_manure
-    regions: [SINGLE]
-    sectors: [AGR]
-
-  - variant: soil_carbon
-    regions: [SINGLE]
-
-  - variant: reforestation
-    regions: [SINGLE]
-
-process_parameters:
-  - selector:
-      variant: primary_supply
-      region: SINGLE
-    stock: 1000
-
-  - selector:
-      variant: traditional_baseline
-      region: SINGLE
-      sector: AGR
-    stock: 10
-
-  - selector:
-      variant: traditional_with_feed_additives
-      region: SINGLE
-      sector: AGR
-    stock: 0.5
-    ncap_bound:
-      up: 4
-
-  - selector:
-      variant: traditional_with_improved_manure
-      region: SINGLE
-      sector: AGR
-    stock: 0.5
-    ncap_bound:
-      up: 6
-
-  - selector:
-      variant: soil_carbon
-      region: SINGLE
-    stock: 0.5
-    ncap_bound:
-      up: 2
-
-  - selector:
-      variant: reforestation
-      region: SINGLE
-    stock: 0.5
-    ncap_bound:
-      up: 3
-
-demands:
+- id: supply_ag_inputs
+  activity_unit: PJ
+  capacity_unit: GW
+  stage: supply
+  required_inputs: []
+  required_outputs:
+  - commodity: material:ag_inputs
+- id: provide_ag_output
+  activity_unit: PJ
+  capacity_unit: GW
+  stage: end_use
+  required_inputs:
+  - commodity: material:ag_inputs
+  required_outputs:
   - commodity: service:agricultural_output
+- id: remove_co2
+  activity_unit: PJ
+  capacity_unit: GW
+  stage: sink
+  required_inputs: []
+  required_outputs: []
+process_variants:
+- id: primary_supply
+  role: supply_ag_inputs
+  inputs: []
+  outputs:
+  - commodity: material:ag_inputs
+  efficiency: 1.0
+  lifetime: 100
+- id: traditional_baseline
+  role: provide_ag_output
+  inputs:
+  - commodity: material:ag_inputs
+  outputs:
+  - commodity: service:agricultural_output
+  efficiency: 1.0
+  lifetime: 50
+  emission_factors:
+    emission:co2e: 5.0
+- id: traditional_with_feed_additives
+  role: provide_ag_output
+  inputs:
+  - commodity: material:ag_inputs
+  outputs:
+  - commodity: service:agricultural_output
+  efficiency: 1.0
+  lifetime: 50
+  investment_cost: 20 MUSD24/GW
+  emission_factors:
+    emission:co2e: 3.0
+- id: traditional_with_improved_manure
+  role: provide_ag_output
+  inputs:
+  - commodity: material:ag_inputs
+  outputs:
+  - commodity: service:agricultural_output
+  efficiency: 1.0
+  lifetime: 50
+  investment_cost: 10 MUSD24/GW
+  emission_factors:
+    emission:co2e: 3.75
+- id: soil_carbon
+  role: remove_co2
+  inputs: []
+  outputs: []
+  efficiency: 1.0
+  lifetime: 30
+  investment_cost: 30 MUSD24/GW
+  emission_factors:
+    emission:co2e: -1.0
+- id: reforestation
+  role: remove_co2
+  inputs: []
+  outputs: []
+  efficiency: 1.0
+  lifetime: 50
+  investment_cost: 15 MUSD24/GW
+  emission_factors:
+    emission:co2e: -1.0
+availability:
+- variant: primary_supply
+  regions:
+  - SINGLE
+- variant: traditional_baseline
+  regions:
+  - SINGLE
+  sectors:
+  - AGR
+- variant: traditional_with_feed_additives
+  regions:
+  - SINGLE
+  sectors:
+  - AGR
+- variant: traditional_with_improved_manure
+  regions:
+  - SINGLE
+  sectors:
+  - AGR
+- variant: soil_carbon
+  regions:
+  - SINGLE
+- variant: reforestation
+  regions:
+  - SINGLE
+process_parameters:
+- selector:
+    variant: primary_supply
+    region: SINGLE
+  stock: 1000
+- selector:
+    variant: traditional_baseline
     region: SINGLE
     sector: AGR
-    interpolation: interp_extrap
-    values:
-      "2020": 10
-      "2050": 10
+  stock: 10
+- selector:
+    variant: traditional_with_feed_additives
+    region: SINGLE
+    sector: AGR
+  stock: 0.5
+  ncap_bound:
+    up: 4
+- selector:
+    variant: traditional_with_improved_manure
+    region: SINGLE
+    sector: AGR
+  stock: 0.5
+  ncap_bound:
+    up: 6
+- selector:
+    variant: soil_carbon
+    region: SINGLE
+  stock: 0.5
+  ncap_bound:
+    up: 2
+- selector:
+    variant: reforestation
+    region: SINGLE
+  stock: 0.5
+  ncap_bound:
+    up: 3
+demands:
+- commodity: service:agricultural_output
+  region: SINGLE
+  sector: AGR
+  interpolation: interp_extrap
+  values:
+    '2020': 10
+    '2050': 10

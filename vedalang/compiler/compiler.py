@@ -60,6 +60,12 @@ PROCESS_UNIT_EXPR_RE = re.compile(
 SUPPORTED_RATE_DENOMINATORS = {"yr"}
 MODEL_TIME_BASIS = "model_year"
 
+COST_UNIT_DIAGNOSTIC_CODES = {
+    "investment_cost": "E_UNIT_INVESTMENT_COST_DENOM_MISMATCH",
+    "fixed_om_cost": "E_UNIT_FIXED_OM_COST_DENOM_MISMATCH",
+    "variable_om_cost": "E_UNIT_VARIABLE_COST_DENOM_MISMATCH",
+}
+
 UNIT_DIMENSIONS = {
     **{u: "energy" for u in ENERGY_UNITS},
     **{u: "power" for u in POWER_UNITS},
@@ -1035,15 +1041,185 @@ def collect_new_syntax_structural_diagnostics(
     if not source.get("process_roles"):
         return [], []
 
-    normalized_source, _ = _normalize_new_syntax_monetary_costs(source)
-    model = normalized_source["model"]
+    model = source["model"]
     commodities = _normalize_commodities_for_new_syntax(model.get("commodities", []))
-    roles = build_roles(normalized_source, commodities)
+    roles = build_roles(source, commodities)
     return _collect_new_syntax_structural_invariants(
-        normalized_source,
+        source,
         roles,
         commodities,
     )
+
+
+def _check_cost_rate_literal(
+    *,
+    value,
+    location: str,
+    field_name: str,
+    expected_denominator: str,
+    require_per_year: bool,
+    errors: list[dict[str, str]],
+) -> None:
+    """Append deterministic cost-literal diagnostics for one field value."""
+    expected_suffix = (
+        f"/{expected_denominator}/yr"
+        if require_per_year
+        else f"/{expected_denominator}"
+    )
+    code = COST_UNIT_DIAGNOSTIC_CODES[field_name]
+
+    def append_issue(message: str, *, issue_location: str | None = None) -> None:
+        errors.append(
+            {
+                "code": code,
+                "location": issue_location or location,
+                "message": message,
+            }
+        )
+
+    def validate_literal(
+        literal,
+        *,
+        literal_location: str,
+    ) -> None:
+        if not isinstance(literal, str):
+            append_issue(
+                (
+                    f"{literal_location} must be an explicit cost literal "
+                    f"like '<value> <moneyYY>{expected_suffix}'."
+                ),
+                issue_location=literal_location,
+            )
+            return
+        match = COST_RATE_LITERAL_RE.match(literal)
+        if not match:
+            append_issue(
+                (
+                    f"{literal_location} must use '<value> <moneyYY>{expected_suffix}' "
+                    f"format, got '{literal}'."
+                ),
+                issue_location=literal_location,
+            )
+            return
+        denominator = match.group(5)
+        has_per_year = match.group(6) == "yr"
+        if require_per_year:
+            alt_denominator = f"{expected_denominator}/yr"
+            valid_with_suffix = denominator == expected_denominator and has_per_year
+            valid_embedded = denominator == alt_denominator and not has_per_year
+            if not (valid_with_suffix or valid_embedded):
+                append_issue(
+                    (
+                        f"{literal_location} denominator must match "
+                        f"'{expected_suffix}' "
+                        f"to match process units, got '{denominator}'."
+                    ),
+                    issue_location=literal_location,
+                )
+                return
+        else:
+            if denominator != expected_denominator:
+                append_issue(
+                    (
+                        f"{literal_location} denominator must be "
+                        f"'{expected_denominator}' to match process units, "
+                        f"got '{denominator}'."
+                    ),
+                    issue_location=literal_location,
+                )
+                return
+            if has_per_year:
+                append_issue(
+                    f"{literal_location} must not include '/yr'.",
+                    issue_location=literal_location,
+                )
+
+    if _is_time_varying(value):
+        values = value.get("values")
+        if not isinstance(values, dict):
+            append_issue(
+                f"{location} must define a 'values' mapping with "
+                f"explicit literals like '<value> <moneyYY>{expected_suffix}'."
+            )
+            return
+        for year, literal in sorted(values.items(), key=lambda item: str(item[0])):
+            literal_location = f"{location}.values.{year}"
+            validate_literal(literal, literal_location=literal_location)
+        return
+
+    validate_literal(value, literal_location=location)
+
+
+def collect_new_syntax_cost_unit_diagnostics(
+    source: dict,
+) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
+    """Return deterministic new-syntax cost denominator diagnostics for lint."""
+    if not source.get("process_roles"):
+        return [], []
+
+    errors: list[dict[str, str]] = []
+    warnings: list[dict[str, str]] = []
+
+    roles_by_id = {
+        role.get("id"): role
+        for role in (source.get("process_roles") or [])
+        if role.get("id")
+    }
+    variant_units: dict[str, tuple[str, str]] = {}
+
+    for variant in source.get("process_variants") or []:
+        variant_id = variant.get("id", "<variant>")
+        role = roles_by_id.get(variant.get("role"))
+        if role is None:
+            continue
+        activity_unit = role.get("activity_unit", "PJ")
+        capacity_unit = role.get("capacity_unit", "GW")
+        variant_units[variant_id] = (activity_unit, capacity_unit)
+
+        for field_name, expected_denominator, require_per_year in (
+            ("investment_cost", capacity_unit, False),
+            ("fixed_om_cost", capacity_unit, True),
+            ("variable_om_cost", activity_unit, False),
+        ):
+            if field_name not in variant:
+                continue
+            _check_cost_rate_literal(
+                value=variant[field_name],
+                location=f"process_variants[{variant_id}].{field_name}",
+                field_name=field_name,
+                expected_denominator=expected_denominator,
+                require_per_year=require_per_year,
+                errors=errors,
+            )
+
+    for case in source.get("model", {}).get("cases", []) or []:
+        case_name = case.get("name", "<case>")
+        for idx, override in enumerate(case.get("variant_overrides", []) or []):
+            variant_id = override.get("variant")
+            units = variant_units.get(variant_id)
+            if units is None:
+                continue
+            activity_unit, capacity_unit = units
+            for field_name, expected_denominator, require_per_year in (
+                ("investment_cost", capacity_unit, False),
+                ("fixed_om_cost", capacity_unit, True),
+                ("variable_om_cost", activity_unit, False),
+            ):
+                if field_name not in override:
+                    continue
+                _check_cost_rate_literal(
+                    value=override[field_name],
+                    location=(
+                        "model.cases["
+                        f"{case_name}].variant_overrides[{idx}].{field_name}"
+                    ),
+                    field_name=field_name,
+                    expected_denominator=expected_denominator,
+                    require_per_year=require_per_year,
+                    errors=errors,
+                )
+
+    return errors, warnings
 
 
 def _is_time_varying(value) -> bool:
@@ -1337,18 +1513,25 @@ def _parse_cost_rate_literal(
                 f"Supported currencies: {allowed}."
             ]
         )
-    if denominator != expected_denominator:
+    has_per_year = per_year == "yr"
+    if require_per_year:
+        alt_denominator = f"{expected_denominator}/yr"
+        valid_with_suffix = denominator == expected_denominator and has_per_year
+        valid_embedded = denominator == alt_denominator and not has_per_year
+        if not (valid_with_suffix or valid_embedded):
+            raise SemanticValidationError(
+                [
+                    f"{field_path} denominator must match "
+                    f"'/{expected_denominator}/yr' to match process units, "
+                    f"got '{denominator}'."
+                ]
+            )
+    elif denominator != expected_denominator:
         raise SemanticValidationError(
             [
                 f"{field_path} denominator must be '{expected_denominator}' "
                 f"to match process units, got '{denominator}'."
             ]
-        )
-
-    has_per_year = per_year == "yr"
-    if require_per_year and not has_per_year:
-        raise SemanticValidationError(
-            [f"{field_path} must include '/yr' for fixed O&M cost basis."]
         )
     if (not require_per_year) and has_per_year:
         raise SemanticValidationError(
@@ -1356,6 +1539,56 @@ def _parse_cost_rate_literal(
         )
 
     return value, scale, currency, _parse_money_year(year_token)
+
+
+def _parse_cost_rate_literal_relaxed(
+    literal: str,
+    *,
+    field_path: str,
+    expected_denominator: str,
+    require_per_year: bool,
+) -> float:
+    """Parse cost literal without currency-year normalization (denominator-checked)."""
+    match = COST_RATE_LITERAL_RE.match(literal)
+    if not match:
+        raise SemanticValidationError(
+            [
+                f"{field_path} must use '<value> <moneyYY>/<unit>' format "
+                f"(e.g., '15 MUSD23/PJ'), got '{literal}'."
+            ]
+        )
+    value_token, _, _, _, denominator, per_year = match.groups()
+    value = float(value_token)
+    if value < 0:
+        raise SemanticValidationError(
+            [f"{field_path} must be non-negative, got {value}."]
+        )
+
+    has_per_year = per_year == "yr"
+    if require_per_year:
+        alt_denominator = f"{expected_denominator}/yr"
+        valid_with_suffix = denominator == expected_denominator and has_per_year
+        valid_embedded = denominator == alt_denominator and not has_per_year
+        if not (valid_with_suffix or valid_embedded):
+            raise SemanticValidationError(
+                [
+                    f"{field_path} denominator must match "
+                    f"'/{expected_denominator}/yr' to match process units, "
+                    f"got '{denominator}'."
+                ]
+            )
+    elif denominator != expected_denominator:
+        raise SemanticValidationError(
+            [
+                f"{field_path} denominator must be '{expected_denominator}' "
+                f"to match process units, got '{denominator}'."
+            ]
+        )
+
+    if (not require_per_year) and has_per_year:
+        raise SemanticValidationError([f"{field_path} must not include '/yr'."])
+
+    return value
 
 
 def _normalize_rate_to_canonical(
@@ -1449,6 +1682,55 @@ def _normalize_cost_value(
     )
 
 
+def _coerce_cost_value_without_monetary_policy(
+    *,
+    raw_value,
+    field_path: str,
+    expected_denominator: str,
+    require_per_year: bool,
+):
+    """Coerce cost literal strings to numeric values without FX/CPI normalization."""
+    if _is_time_varying(raw_value):
+        sparse = raw_value.get("values", {})
+        normalized_values: dict[str, float] = {}
+        for year, literal in sparse.items():
+            if isinstance(literal, (int, float)):
+                normalized_values[str(year)] = float(literal)
+                continue
+            if not isinstance(literal, str):
+                raise SemanticValidationError(
+                    [
+                        f"{field_path}.values['{year}'] must be numeric or a string "
+                        "literal like '15 MUSD23/PJ'."
+                    ]
+                )
+            normalized_values[str(year)] = _parse_cost_rate_literal_relaxed(
+                literal,
+                field_path=f"{field_path}.values['{year}']",
+                expected_denominator=expected_denominator,
+                require_per_year=require_per_year,
+            )
+        normalized = deepcopy(raw_value)
+        normalized["values"] = normalized_values
+        return normalized
+
+    if isinstance(raw_value, (int, float)):
+        return float(raw_value)
+    if isinstance(raw_value, str):
+        return _parse_cost_rate_literal_relaxed(
+            raw_value,
+            field_path=field_path,
+            expected_denominator=expected_denominator,
+            require_per_year=require_per_year,
+        )
+    raise SemanticValidationError(
+        [
+            f"{field_path} must be numeric or explicit cost literal string "
+            "(e.g., '15 MUSD23/PJ')."
+        ]
+    )
+
+
 def _model_output_currency(model: dict) -> str:
     """Get output currency code for ~CURRENCIES and G_DRATE rows."""
     policy = _resolve_monetary_policy(model)
@@ -1462,8 +1744,6 @@ def _normalize_new_syntax_monetary_costs(source: dict) -> tuple[dict, dict]:
     normalized = deepcopy(source)
     model = normalized.get("model", {})
     policy = _resolve_monetary_policy(model)
-    if not policy.get("enabled"):
-        return normalized, policy
 
     roles_by_id = {
         r.get("id"): r for r in (normalized.get("process_roles") or []) if r.get("id")
@@ -1493,13 +1773,21 @@ def _normalize_new_syntax_monetary_costs(source: dict) -> tuple[dict, dict]:
         for field_name, denominator, require_per_year in cost_specs:
             if field_name not in variant:
                 continue
-            variant[field_name] = _normalize_cost_value(
-                raw_value=variant[field_name],
-                field_path=f"process_variants[{variant_id}].{field_name}",
-                expected_denominator=denominator,
-                require_per_year=require_per_year,
-                policy=policy,
-            )
+            if policy.get("enabled"):
+                variant[field_name] = _normalize_cost_value(
+                    raw_value=variant[field_name],
+                    field_path=f"process_variants[{variant_id}].{field_name}",
+                    expected_denominator=denominator,
+                    require_per_year=require_per_year,
+                    policy=policy,
+                )
+            else:
+                variant[field_name] = _coerce_cost_value_without_monetary_policy(
+                    raw_value=variant[field_name],
+                    field_path=f"process_variants[{variant_id}].{field_name}",
+                    expected_denominator=denominator,
+                    require_per_year=require_per_year,
+                )
 
     for case in model.get("cases", []) or []:
         case_name = case.get("name", "<case>")
@@ -1516,16 +1804,25 @@ def _normalize_new_syntax_monetary_costs(source: dict) -> tuple[dict, dict]:
             for field_name, denominator, require_per_year in cost_specs:
                 if field_name not in override:
                     continue
-                override[field_name] = _normalize_cost_value(
-                    raw_value=override[field_name],
-                    field_path=(
-                        "model.cases["
-                        f"{case_name}].variant_overrides[{idx}].{field_name}"
-                    ),
-                    expected_denominator=denominator,
-                    require_per_year=require_per_year,
-                    policy=policy,
+                field_path = (
+                    "model.cases["
+                    f"{case_name}].variant_overrides[{idx}].{field_name}"
                 )
+                if policy.get("enabled"):
+                    override[field_name] = _normalize_cost_value(
+                        raw_value=override[field_name],
+                        field_path=field_path,
+                        expected_denominator=denominator,
+                        require_per_year=require_per_year,
+                        policy=policy,
+                    )
+                else:
+                    override[field_name] = _coerce_cost_value_without_monetary_policy(
+                        raw_value=override[field_name],
+                        field_path=field_path,
+                        expected_denominator=denominator,
+                        require_per_year=require_per_year,
+                    )
 
     return normalized, policy
 

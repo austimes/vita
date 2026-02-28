@@ -1,286 +1,189 @@
-# DemoS_001 — Resource Supply (Coal)
-#
-# VedaLang recreation of VEDA-TIMES Demo Model 001.
-# Same physical system, modern typed DSL instead of spreadsheets.
-#
-# Original: 4 Excel files (SysSettings, Sets, VT_REG_PRI_V01, BY_Trans)
-# across 15+ sheets with implicit conventions, magic column names,
-# and scattered cross-references.
-#
-# VedaLang: 1 file, explicit types, validated by schema.
-#
-# System: Single region coal supply chain
-#   - 3-step domestic mining supply curve (cheapest-first merit order)
-#   - Unlimited coal imports at fixed price
-#   - Bounded coal exports
-#   - Single demand technology consuming coal
-#   - Constant coal demand (~13,414 PJ)
-#
-# What this example demonstrates for learners:
-#   1. Commodity namespaces (primary:, service:) replace cryptic codes
-#   2. Process roles declare INTENT; variants declare TECHNOLOGY
-#   3. Costs and bounds live next to what they describe
-#   4. Schema validation catches errors before you ever run TIMES
-#   5. One file replaces four spreadsheets and fifteen sheets
-#
-# Original data source: VEDA-TIMES Demo Models, Part IV documentation §3.1
-
 model:
   name: DemoS001
-  description: >
-    Coal resource supply system — domestic mining (3-step supply curve),
-    imports, exports, and demand technology. Single region, annual resolution.
-
+  description: "Coal resource supply system \u2014 domestic mining (3-step supply\
+    \ curve), imports, exports, and demand technology. Single region, annual resolution.\n"
   regions:
-    - REG1
-
-  # Original: StartYear=2005, two periods (1yr, 2yr)
-  # In VEDA this is scattered across SysSettings→TimePeriods sheet
-  milestone_years: [2005, 2006]
-
+  - REG1
+  milestone_years:
+  - 2005
+  - 2006
   commodities:
-    # Original: COA defined in VT_REG_PRI_V01→Pri_COA sheet, ~FI_Comm table
-    # with Csets=NRG, Unit=PJ — requires knowing that NRG maps to energy carrier
-    - id: primary:coal
-      type: fuel
-      unit: PJ
-      description: Solid fuels (coal)
-
-    # Original: TPSCOA defined in VT_REG_PRI_V01→DemTechs_TPS sheet, ~FI_Comm table
-    # with Csets=DEM — a separate sheet just for one demand commodity definition
-      combustible: true
-      lhv_mj_per_unit: 25.0
-      hhv_mj_per_unit: 27.5
-    - id: service:coal_supply
-      type: service
-      unit: PJ
-      description: Total primary supply demand for coal
-
-# Original: no explicit sector in demo, but DemTechs_TPS implies energy sector
-      combustible: false
+  - id: primary:coal
+    type: fuel
+    unit: PJ
+    description: Solid fuels (coal)
+    combustible: true
+    lhv_mj_per_unit: 25.0
+    hhv_mj_per_unit: 27.5
+  - id: service:coal_supply
+    type: service
+    unit: PJ
+    description: Total primary supply demand for coal
+    combustible: false
 segments:
-  sectors: [IND]
-
-# Process roles: WHAT each process does (intent/contract)
-# Original: scattered across ~FI_Process tables with cryptic set codes (MIN, IMP, EXP, DMD)
+  sectors:
+  - IND
 process_roles:
-  - id: mine_coal
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: supply
-    description: Domestic coal extraction (mining)
-    required_inputs: []
-    required_outputs:
-      - commodity: primary:coal
-
-  - id: import_coal
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: supply
-    description: Coal imports from international market
-    required_inputs: []
-    required_outputs:
-      - commodity: primary:coal
-
-  - id: export_coal
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: sink
-    description: Coal exports to international market
-    required_inputs:
-      - commodity: primary:coal
-    required_outputs: []
-
-  - id: deliver_coal_supply
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: end_use
-    description: Demand technology — delivers coal to meet supply demand
-    required_inputs:
-      - commodity: primary:coal
-    required_outputs:
-      - commodity: service:coal_supply
-
-# Process variants: HOW each role is fulfilled (technology/pathway)
-# Original: process names, costs, and topology scattered across 3+ sheets
-# in VT_REG_PRI_V01 (~FI_Process, ~FI_T tables) plus BY_Trans
-process_variants:
-  # === Three-step domestic mining supply curve ===
-  # In VEDA: defined across Pri_COA sheet columns (TechName, COST, CUM, ACT_BND)
-  # with implicit ordering by cost. Here the merit order is explicit.
-
-  - id: mine_coal_step1
-    role: mine_coal
-    description: Cheapest domestic coal — shallow/accessible deposits
-    inputs: []
-    outputs:
-      - commodity: primary:coal
-        basis: HHV
-    efficiency: 1.0
-    lifetime: 100
-    variable_om_cost: 2.0    # 2.0 M€2005/PJ — cheapest tranche
-
-    variable_om_cost_basis: HHV
-  - id: mine_coal_step2
-    role: mine_coal
-    description: Mid-cost domestic coal — deeper deposits
-    inputs: []
-    outputs:
-      - commodity: primary:coal
-        basis: HHV
-    efficiency: 1.0
-    lifetime: 100
-    variable_om_cost: 2.5    # 2.5 M€2005/PJ
-
-    variable_om_cost_basis: HHV
-  - id: mine_coal_step3
-    role: mine_coal
-    description: Expensive domestic coal — marginal deposits
-    inputs: []
-    outputs:
-      - commodity: primary:coal
-        basis: HHV
-    efficiency: 1.0
-    lifetime: 100
-    variable_om_cost: 3.0    # 3.0 M€2005/PJ — most expensive tranche
-
-  # === Import ===
-  # In VEDA: IMPCOA1 defined in ~FI_Process with Sets=IMP, cost in ~FI_T
-    variable_om_cost_basis: HHV
-  - id: coal_import
-    role: import_coal
-    description: International coal import at world market price
-    inputs: []
-    outputs:
-      - commodity: primary:coal
-        basis: HHV
-    efficiency: 1.0
-    lifetime: 100
-    variable_om_cost: 2.75   # 2.75 M€2005/PJ — import price
-
-  # === Export ===
-  # In VEDA: EXPCOA1 defined with Sets=EXP, COA as input, cost in ~FI_T
-  # Note: In a single-region model, exports act as a sink — coal leaves
-  # the system. The original model bounds exports at historical levels.
-    variable_om_cost_basis: HHV
-  - id: coal_export
-    role: export_coal
-    description: Coal export to international market
-    inputs:
-      - commodity: primary:coal
-        basis: HHV
-    outputs: []
-    efficiency: 1.0
-    lifetime: 100
-    variable_om_cost: 2.75   # 2.75 M€2005/PJ — export handling cost
-
-  # === Demand technology ===
-  # In VEDA: DTPSCOA in DemTechs_TPS sheet with EFF, AFA, INVCOST, FIXOM, LIFE
-  # scattered across columns in the ~FI_T table
-    variable_om_cost_basis: HHV
-  - id: coal_demand_device
-    role: deliver_coal_supply
-    description: Generic demand technology consuming coal
-    inputs:
-      - commodity: primary:coal
-        basis: HHV
-    outputs:
-      - commodity: service:coal_supply
-    efficiency: 1.0
-    lifetime: 20
-    investment_cost: 10      # 10 M€2005/PJ capacity
-    fixed_om_cost: 0.2       # 0.2 M€2005/PJa/yr
-    # Note: Original has AFA=0.95 (availability factor). VedaLang does not
-    # yet have an explicit availability_factor field. In practice this means
-    # ~5% more capacity is needed to serve the same demand.
-
-# Where each variant is available
-# Original: implicit — all processes in VT_REG_PRI_V01 are for REG1
-availability:
-  - variant: mine_coal_step1
-    regions: [REG1]
-
-  - variant: mine_coal_step2
-    regions: [REG1]
-
-  - variant: mine_coal_step3
-    regions: [REG1]
-
-  - variant: coal_import
-    regions: [REG1]
-
-  - variant: coal_export
-    regions: [REG1]
-
-  - variant: coal_demand_device
-    regions: [REG1]
-    sectors: [IND]
-
-# Parameterisation: stocks, bounds, capacity
-# Original: scattered across ~FI_T columns (STOCK, ACT_BND, CUM) in
-# VT_REG_PRI_V01 and BY_Trans transformation tables
-process_parameters:
-  # Mining step 1: cheapest, largest existing tranche
-  # Original: MINCOA1 — ACT_BND UP=6,074 PJ/yr, CUM=80,000 PJ total reserves
-  - selector:
-      variant: mine_coal_step1
-      region: REG1
-    stock: 10000
-    activity_bound:
-      up: 6074     # Max annual extraction (PJ/yr)
-    # Note: Original has CUM=80,000 PJ cumulative resource bound.
-    # VedaLang does not yet support cumulative production limits directly.
-    # For now, annual bounds constrain extraction rate.
-
-  # Mining step 2: mid-cost tranche
-  # Original: MINCOA2 — ACT_BND UP=2,025 PJ/yr, CUM=160,000 PJ
-  - selector:
-      variant: mine_coal_step2
-      region: REG1
-    stock: 10000
-    activity_bound:
-      up: 2025     # Max annual extraction (PJ/yr)
-
-  # Mining step 3: expensive, uncapped annual production
-  # Original: MINCOA3 — no ACT_BND, CUM=320,000 PJ
-  - selector:
-      variant: mine_coal_step3
-      region: REG1
-    stock: 10000
-
-  # Imports: effectively unlimited supply capacity
-  # Original: IMPCOA1 — no bounds specified
-  - selector:
-      variant: coal_import
-      region: REG1
-    stock: 100000
-
-  # Exports: bounded at historical export level
-  # Original: EXPCOA1 — ACT_BND UP=1,147 PJ/yr
-  - selector:
-      variant: coal_export
-      region: REG1
-    stock: 10000
-    activity_bound:
-      up: 1147     # Max annual export (PJ/yr)
-
-  # Demand technology: large existing stock to serve base-year demand
-  # Original: DTPSCOA — stock derived from energy balance calibration
-  - selector:
-      variant: coal_demand_device
-      region: REG1
-      sector: IND
-    stock: 15000
-    cap_bound:
-      up: 100000
-
-# Demand projection
-# Original: in VT_REG_PRI_V01→Demands sheet, single row in ~FI_T table
-# specifying Demand=13,414 PJ for TPSCOA in 2005
-demands:
+- id: mine_coal
+  activity_unit: PJ
+  capacity_unit: GW
+  stage: supply
+  description: Domestic coal extraction (mining)
+  required_inputs: []
+  required_outputs:
+  - commodity: primary:coal
+- id: import_coal
+  activity_unit: PJ
+  capacity_unit: GW
+  stage: supply
+  description: Coal imports from international market
+  required_inputs: []
+  required_outputs:
+  - commodity: primary:coal
+- id: export_coal
+  activity_unit: PJ
+  capacity_unit: GW
+  stage: sink
+  description: Coal exports to international market
+  required_inputs:
+  - commodity: primary:coal
+  required_outputs: []
+- id: deliver_coal_supply
+  activity_unit: PJ
+  capacity_unit: GW
+  stage: end_use
+  description: "Demand technology \u2014 delivers coal to meet supply demand"
+  required_inputs:
+  - commodity: primary:coal
+  required_outputs:
   - commodity: service:coal_supply
+process_variants:
+- id: mine_coal_step1
+  role: mine_coal
+  description: "Cheapest domestic coal \u2014 shallow/accessible deposits"
+  inputs: []
+  outputs:
+  - commodity: primary:coal
+    basis: HHV
+  efficiency: 1.0
+  lifetime: 100
+  variable_om_cost: 2 MUSD24/PJ
+  variable_om_cost_basis: HHV
+- id: mine_coal_step2
+  role: mine_coal
+  description: "Mid-cost domestic coal \u2014 deeper deposits"
+  inputs: []
+  outputs:
+  - commodity: primary:coal
+    basis: HHV
+  efficiency: 1.0
+  lifetime: 100
+  variable_om_cost: 2.5 MUSD24/PJ
+  variable_om_cost_basis: HHV
+- id: mine_coal_step3
+  role: mine_coal
+  description: "Expensive domestic coal \u2014 marginal deposits"
+  inputs: []
+  outputs:
+  - commodity: primary:coal
+    basis: HHV
+  efficiency: 1.0
+  lifetime: 100
+  variable_om_cost: 3 MUSD24/PJ
+  variable_om_cost_basis: HHV
+- id: coal_import
+  role: import_coal
+  description: International coal import at world market price
+  inputs: []
+  outputs:
+  - commodity: primary:coal
+    basis: HHV
+  efficiency: 1.0
+  lifetime: 100
+  variable_om_cost: 2.75 MUSD24/PJ
+  variable_om_cost_basis: HHV
+- id: coal_export
+  role: export_coal
+  description: Coal export to international market
+  inputs:
+  - commodity: primary:coal
+    basis: HHV
+  outputs: []
+  efficiency: 1.0
+  lifetime: 100
+  variable_om_cost: 2.75 MUSD24/PJ
+  variable_om_cost_basis: HHV
+- id: coal_demand_device
+  role: deliver_coal_supply
+  description: Generic demand technology consuming coal
+  inputs:
+  - commodity: primary:coal
+    basis: HHV
+  outputs:
+  - commodity: service:coal_supply
+  efficiency: 1.0
+  lifetime: 20
+  investment_cost: 10 MUSD24/GW
+  fixed_om_cost: 0.2 MUSD24/GW/yr
+availability:
+- variant: mine_coal_step1
+  regions:
+  - REG1
+- variant: mine_coal_step2
+  regions:
+  - REG1
+- variant: mine_coal_step3
+  regions:
+  - REG1
+- variant: coal_import
+  regions:
+  - REG1
+- variant: coal_export
+  regions:
+  - REG1
+- variant: coal_demand_device
+  regions:
+  - REG1
+  sectors:
+  - IND
+process_parameters:
+- selector:
+    variant: mine_coal_step1
+    region: REG1
+  stock: 10000
+  activity_bound:
+    up: 6074
+- selector:
+    variant: mine_coal_step2
+    region: REG1
+  stock: 10000
+  activity_bound:
+    up: 2025
+- selector:
+    variant: mine_coal_step3
+    region: REG1
+  stock: 10000
+- selector:
+    variant: coal_import
+    region: REG1
+  stock: 100000
+- selector:
+    variant: coal_export
+    region: REG1
+  stock: 10000
+  activity_bound:
+    up: 1147
+- selector:
+    variant: coal_demand_device
     region: REG1
     sector: IND
-    interpolation: interp_extrap
-    values:
-      "2005": 13414  # Total primary supply of coal (PJ)
+  stock: 15000
+  cap_bound:
+    up: 100000
+demands:
+- commodity: service:coal_supply
+  region: REG1
+  sector: IND
+  interpolation: interp_extrap
+  values:
+    '2005': 13414

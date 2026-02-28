@@ -52,7 +52,8 @@ not supported.
 | `variable_om_cost` | ACT_COST | act_cost | `<moneyYY>/<activity_unit>` | Variable cost per unit of activity |
 | `import_price` | IRE_PRICE | ire_price | `<moneyYY>/<unit>` | Price for imported commodity (IMP/EXP only) |
 
-When `model.monetary` is set, cost fields must use explicit monetary literals, e.g.:
+Deterministic lint requires explicit monetary literals for cost fields
+(even when `model.monetary` is not set), e.g.:
 
 ```yaml
 model:
@@ -65,6 +66,9 @@ process_variants:
     fixed_om_cost: "4 MAUD24/GW/yr"
     variable_om_cost: "6.944444 MUSD24/PJ"
 ```
+
+When `model.monetary` is set, these literals are additionally normalized to
+the configured canonical currency-year token during compilation.
 
 ---
 

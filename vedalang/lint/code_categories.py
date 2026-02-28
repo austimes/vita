@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from vedalang.compiler.compiler import (
+    collect_new_syntax_cost_unit_diagnostics,
     collect_new_syntax_structural_diagnostics,
     validate_cross_references,
 )
@@ -132,6 +133,36 @@ def collect_structural_by_category(source: dict) -> dict[str, list[dict]]:
                 category=category,
                 engine="code",
                 check_id=f"code.{category}.compiler_semantics",
+            )
+        )
+
+    unit_errors, unit_warnings = collect_new_syntax_cost_unit_diagnostics(source)
+    for d in unit_errors:
+        grouped["units"].append(
+            with_meta(
+                {
+                    "code": d["code"],
+                    "severity": "error",
+                    "message": d["message"],
+                    "location": d["location"],
+                },
+                category="units",
+                engine="code",
+                check_id="code.units.cost_denominator",
+            )
+        )
+    for d in unit_warnings:
+        grouped["units"].append(
+            with_meta(
+                {
+                    "code": d["code"],
+                    "severity": "warning",
+                    "message": d["message"],
+                    "location": d["location"],
+                },
+                category="units",
+                engine="code",
+                check_id="code.units.cost_denominator",
             )
         )
     return grouped

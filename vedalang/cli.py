@@ -36,9 +36,6 @@ from vedalang.lint.registry import (
     CATEGORY_DESCRIPTIONS,
     CATEGORY_ORDER,
     CODE_CHECKS,
-    PROFILE_FAST,
-    PROFILE_THOROUGH,
-    categories_for_profile,
     checks_for_engine,
     normalize_categories,
 )
@@ -75,7 +72,7 @@ def _add_lint_parser(subparsers):
     p = subparsers.add_parser(
         "lint",
         help="Lint a VedaLang source file",
-        description="Run deterministic lint checks with category/profile selection.",
+        description="Run deterministic lint checks with category selection.",
     )
     p.add_argument(
         "file",
@@ -92,15 +89,9 @@ def _add_lint_parser(subparsers):
         ),
     )
     p.add_argument(
-        "--profile",
-        choices=[PROFILE_FAST, PROFILE_THOROUGH],
-        default=PROFILE_FAST,
-        help="Lint profile: fast (default) or thorough",
-    )
-    p.add_argument(
         "--list-categories",
         action="store_true",
-        help="List available lint categories and profile support",
+        help="List available lint categories",
     )
     p.add_argument(
         "--list-checks",
@@ -260,11 +251,6 @@ def _print_lint_categories(output_json: bool) -> None:
         {
             "category": cat,
             "description": CATEGORY_DESCRIPTIONS[cat],
-            "profiles": (
-                [PROFILE_FAST, PROFILE_THOROUGH]
-                if cat in categories_for_profile(PROFILE_FAST)
-                else [PROFILE_THOROUGH]
-            ),
         }
         for cat in CATEGORY_ORDER
     ]
@@ -273,8 +259,7 @@ def _print_lint_categories(output_json: bool) -> None:
         return
     print("Lint categories:")
     for item in data:
-        profiles = ", ".join(item["profiles"])
-        print(f"  - {item['category']}: {item['description']} (profiles: {profiles})")
+        print(f"  - {item['category']}: {item['description']}")
 
 
 def _print_lint_checks(output_json: bool) -> None:
@@ -283,7 +268,6 @@ def _print_lint_checks(output_json: bool) -> None:
         grouped[check.category].append(
             {
                 "check_id": check.check_id,
-                "profile": check.profile,
                 "scope": check.scope,
             }
         )
@@ -297,16 +281,12 @@ def _print_lint_checks(output_json: bool) -> None:
             continue
         print(f"  {category}:")
         for c in checks:
-            print(
-                f"    - {c['check_id']} "
-                f"(profile={c['profile']}, scope={c['scope']})"
-            )
+            print(f"    - {c['check_id']} (scope={c['scope']})")
 
 
 def cmd_lint(args) -> int:
-    """Run deterministic lint checks with category/profile support."""
+    """Run deterministic lint checks with category selection."""
     output_json: bool = args.json
-    profile: str = getattr(args, "profile", PROFILE_FAST)
     requested_categories = getattr(args, "category", None)
     list_categories: bool = getattr(args, "list_categories", False)
     list_checks: bool = getattr(args, "list_checks", False)
@@ -337,32 +317,14 @@ def cmd_lint(args) -> int:
     else:
         selected_categories = []
 
-    allowed_categories = categories_for_profile(profile)
-    invalid_for_profile = [
-        c for c in selected_categories if c not in allowed_categories
-    ]
-    if invalid_for_profile:
-        _error(
-            "Selected category requires --profile thorough: "
-            + ", ".join(invalid_for_profile),
-            output_json,
-            str(file_path),
-        )
-        return 2
-
     run_categories = (
-        selected_categories
-        if requested_categories
-        else [c for c in CATEGORY_ORDER if c in allowed_categories]
+        selected_categories if requested_categories else list(CATEGORY_ORDER)
     )
     run_category_set = set(run_categories)
     checks_run = [
         c.check_id
         for c in checks_for_engine("code")
-        if (
-            c.category in run_category_set
-            and c.profile in {PROFILE_FAST, PROFILE_THOROUGH}
-        )
+        if c.category in run_category_set
     ]
 
     diagnostics: list[dict] = []
@@ -409,6 +371,40 @@ def cmd_lint(args) -> int:
                     "severity": "error",
                     "message": e.message,
                     "location": path_str,
+                },
+                category="core",
+                engine="code",
+                check_id="code.core.schema_xref",
+            )
+        )
+        _attach_source_positions(diagnostics, source=source, file_path=file_path)
+        errors, warnings, _ = severity_counts(diagnostics)
+        summary = build_summary(
+            diagnostics,
+            checks_run=checks_run,
+            skipped_categories=skipped_categories,
+        )
+        return _output_lint_result(
+            file_path,
+            diagnostics,
+            errors,
+            warnings,
+            output_json,
+            summary=summary,
+        )
+
+    if not source.get("process_roles"):
+        diagnostics.append(
+            with_meta(
+                {
+                    "code": "E_LEGACY_SYNTAX_UNSUPPORTED",
+                    "severity": "error",
+                    "message": (
+                        "Legacy syntax is no longer supported by deterministic lint. "
+                        "Use new syntax with process_roles/process_variants/"
+                        "availability."
+                    ),
+                    "location": "model.processes",
                 },
                 category="core",
                 engine="code",

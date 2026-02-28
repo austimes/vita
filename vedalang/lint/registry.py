@@ -22,12 +22,8 @@ CATEGORY_DESCRIPTIONS = {
     "feasibility": "Pre-solve heuristic risk checks.",
 }
 
-PROFILE_FAST = "fast"
-PROFILE_THOROUGH = "thorough"
+PROFILE_CODE = "code"
 PROFILE_LLM = "llm"
-
-FAST_CATEGORIES = {"core", "identity", "feasibility"}
-THOROUGH_CATEGORIES = set(CATEGORY_ORDER)
 
 
 @dataclass(frozen=True)
@@ -35,7 +31,7 @@ class LintCheck:
     check_id: str
     category: str
     engine: str  # "code" | "llm"
-    profile: str  # "fast" | "thorough" | "llm"
+    profile: str  # "code" | "llm"
     scope: str  # "model" | "component"
     runner: str
     supported: bool = True
@@ -46,7 +42,7 @@ CODE_CHECKS = [
         check_id="code.core.schema_xref",
         category="core",
         engine="code",
-        profile=PROFILE_FAST,
+        profile=PROFILE_CODE,
         scope="model",
         runner="run_core_checks",
     ),
@@ -54,7 +50,7 @@ CODE_CHECKS = [
         check_id="code.identity.naming",
         category="identity",
         engine="code",
-        profile=PROFILE_FAST,
+        profile=PROFILE_CODE,
         scope="model",
         runner="run_identity_checks",
     ),
@@ -62,7 +58,7 @@ CODE_CHECKS = [
         check_id="code.feasibility.heuristics",
         category="feasibility",
         engine="code",
-        profile=PROFILE_FAST,
+        profile=PROFILE_CODE,
         scope="model",
         runner="run_feasibility_checks",
     ),
@@ -70,7 +66,7 @@ CODE_CHECKS = [
         check_id="code.structure.compiler_semantics",
         category="structure",
         engine="code",
-        profile=PROFILE_THOROUGH,
+        profile=PROFILE_CODE,
         scope="model",
         runner="run_compiler_semantic_checks",
     ),
@@ -78,15 +74,23 @@ CODE_CHECKS = [
         check_id="code.units.compiler_semantics",
         category="units",
         engine="code",
-        profile=PROFILE_THOROUGH,
+        profile=PROFILE_CODE,
         scope="model",
         runner="run_compiler_semantic_checks",
+    ),
+    LintCheck(
+        check_id="code.units.cost_denominator",
+        category="units",
+        engine="code",
+        profile=PROFILE_CODE,
+        scope="model",
+        runner="run_cost_unit_checks",
     ),
     LintCheck(
         check_id="code.emissions.compiler_semantics",
         category="emissions",
         engine="code",
-        profile=PROFILE_THOROUGH,
+        profile=PROFILE_CODE,
         scope="model",
         runner="run_compiler_semantic_checks",
     ),
@@ -161,15 +165,6 @@ def normalize_categories(requested: list[str] | None) -> list[str]:
         )
     requested_set = set(requested)
     return [c for c in CATEGORY_ORDER if c in requested_set]
-
-
-def categories_for_profile(profile: str) -> set[str]:
-    if profile == PROFILE_FAST:
-        return set(FAST_CATEGORIES)
-    if profile == PROFILE_THOROUGH:
-        return set(THOROUGH_CATEGORIES)
-    return set()
-
 
 def checks_for_engine(engine: str) -> list[LintCheck]:
     if engine == "code":

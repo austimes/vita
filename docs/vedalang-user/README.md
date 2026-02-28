@@ -50,15 +50,12 @@ uv run vedalang validate your_model.veda.yaml --case baseline --case policy
 # Compile only selected case(s)
 uv run vedalang compile your_model.veda.yaml --out out/ --case policy
 
-# Lint only (fast profile)
+# Lint all deterministic categories
 uv run vedalang lint your_model.veda.yaml
 
 # Deterministic lint categories (repeat --category as needed)
 uv run vedalang lint your_model.veda.yaml --category feasibility
 uv run vedalang lint your_model.veda.yaml --category core --category identity
-
-# Thorough deterministic lint (adds structure/units/emissions)
-uv run vedalang lint your_model.veda.yaml --profile thorough
 
 # LLM lint (advisory checks; critical findings fail by default)
 uv run vedalang llm-lint your_model.veda.yaml --category structure
@@ -87,10 +84,10 @@ engines:
 - `emissions` — emission namespace/type/factor checks
 - `feasibility` — pre-solve heuristic risk checks
 
-Deterministic `lint` profiles:
+Deterministic `lint` behavior:
 
-- `fast` (default): `core`, `identity`, `feasibility`
-- `thorough`: all categories
+- default runs all deterministic categories
+- use `--category` to narrow to specific categories
 
 Use `uv run vedalang lint --list-categories` and
 `uv run vedalang lint --list-checks` to inspect available coverage.
