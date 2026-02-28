@@ -36,6 +36,7 @@ No open `bd` issues at the time of this update (`bd list --all --json`).
 
 | Issue | Priority | Description | Status |
 |-------|----------|-------------|--------|
+| `vedalang-4wy` | P1 | Add lint line/column + source excerpt diagnostics in CLI output | ✓ Closed |
 | `vedalang-dlt` | P2 | Set llm-lint default target + add eval-evolution skill | ✓ Closed |
 | `vedalang-i9e` | P2 | Ground-truth llm-lint eval corpus + difficulty ladder | ✓ Closed |
 | `vedalang-7dk` | P2 | Eval reorder (effort/case/model) + judge cache reuse | ✓ Closed |

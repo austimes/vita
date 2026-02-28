@@ -8,11 +8,14 @@ This CLI provides intuitive commands for:
 
 import argparse
 import json
+import re
 import sys
 import tempfile
 from pathlib import Path
 
 import jsonschema
+import yaml
+from yaml.nodes import MappingNode, Node, SequenceNode
 
 from vedalang.compiler.compiler import (
     SemanticValidationError,
@@ -398,23 +401,21 @@ def cmd_lint(args) -> int:
     try:
         validate_vedalang(source)
     except jsonschema.ValidationError as e:
-        path_str = (
-            " -> ".join(str(p) for p in e.absolute_path)
-            if e.absolute_path
-            else "root"
-        )
+        path_str = _format_location_path(list(e.absolute_path))
         diagnostics.append(
             with_meta(
                 {
                     "code": "SCHEMA_ERROR",
                     "severity": "error",
-                    "message": f"{e.message} (at {path_str})",
+                    "message": e.message,
+                    "location": path_str,
                 },
                 category="core",
                 engine="code",
                 check_id="code.core.schema_xref",
             )
         )
+        _attach_source_positions(diagnostics, source=source, file_path=file_path)
         errors, warnings, _ = severity_counts(diagnostics)
         summary = build_summary(
             diagnostics,
@@ -480,6 +481,7 @@ def cmd_lint(args) -> int:
             if not output_json:
                 print(f"RES Mermaid diagram: {res_mermaid_path}")
 
+    _attach_source_positions(diagnostics, source=source, file_path=file_path)
     errors, warnings, _ = severity_counts(diagnostics)
     summary = build_summary(
         diagnostics,
@@ -570,6 +572,7 @@ def cmd_llm_lint(args) -> int:
         )
         llm_runs.extend(result.extras.get("llm_runs", []))
 
+    _attach_source_positions(diagnostics, source=source, file_path=file_path)
     errors, warnings, critical = severity_counts(diagnostics)
     summary = build_summary(
         diagnostics,
@@ -625,6 +628,249 @@ def cmd_llm_lint(args) -> int:
     return exit_code
 
 
+_LOCATION_SEGMENT_RE = re.compile(r"^(?P<key>[^\[\]]+)(?P<idx>(?:\[[^\]]+\])*)$")
+_LOCATION_INDEX_RE = re.compile(r"\[([^\]]+)\]")
+_LIST_ID_KEYS = (
+    "id",
+    "name",
+    "commodity",
+    "process",
+    "role",
+    "variant",
+    "case",
+    "parameter",
+    "attribute",
+    "region",
+    "code",
+)
+
+
+def _split_location_segments(location: str) -> list[str]:
+    """Split dotted location path while preserving bracket contents."""
+    out: list[str] = []
+    depth = 0
+    token_chars: list[str] = []
+    for ch in location.strip():
+        if ch == "." and depth == 0:
+            if token_chars:
+                out.append("".join(token_chars))
+                token_chars = []
+            continue
+        if ch == "[":
+            depth += 1
+        elif ch == "]" and depth > 0:
+            depth -= 1
+        token_chars.append(ch)
+    if token_chars:
+        out.append("".join(token_chars))
+    return out
+
+
+def _parse_location_steps(location: str) -> list[tuple[str, str | int]]:
+    """Parse location text into key/index traversal steps."""
+    if not location or location == "root":
+        return []
+    steps: list[tuple[str, str | int]] = []
+    for segment in _split_location_segments(location):
+        match = _LOCATION_SEGMENT_RE.match(segment)
+        if match is None:
+            return []
+        key = match.group("key")
+        if key:
+            steps.append(("key", key))
+        for raw_idx in _LOCATION_INDEX_RE.findall(match.group("idx") or ""):
+            idx = raw_idx.strip().strip("'\"")
+            if idx.isdigit():
+                steps.append(("index", int(idx)))
+            elif idx:
+                steps.append(("index", idx))
+    return steps
+
+
+def _format_location_path(path_tokens: list[str | int]) -> str:
+    """Convert jsonschema path tokens to location format."""
+    if not path_tokens:
+        return "root"
+    parts: list[str] = []
+    for token in path_tokens:
+        if isinstance(token, int):
+            if not parts:
+                parts.append(f"[{token}]")
+            else:
+                parts[-1] = f"{parts[-1]}[{token}]"
+            continue
+        parts.append(token)
+    return ".".join(parts)
+
+
+def _find_list_item_index(items: list, label: str) -> int | None:
+    """Find list index for string labels used in location bracket notation."""
+    if label.isdigit():
+        idx = int(label)
+        return idx if 0 <= idx < len(items) else None
+    for idx, item in enumerate(items):
+        if isinstance(item, dict):
+            for key in _LIST_ID_KEYS:
+                value = item.get(key)
+                if value is not None and str(value) == label:
+                    return idx
+        elif str(item) == label:
+            return idx
+    return None
+
+
+def _resolve_location_to_runtime_path(
+    source: dict,
+    location: str,
+) -> list[str | int] | None:
+    """Resolve a location string to concrete dict/list traversal path."""
+    steps = _parse_location_steps(location)
+    if not steps and location not in {"", "root"}:
+        return None
+    current: object = source
+    runtime_path: list[str | int] = []
+    for kind, token in steps:
+        if kind == "key":
+            if not isinstance(current, dict) or token not in current:
+                return None
+            runtime_path.append(token)
+            current = current[token]
+            continue
+
+        # kind == "index"
+        if isinstance(token, int):
+            if not isinstance(current, list) or token < 0 or token >= len(current):
+                return None
+            runtime_path.append(token)
+            current = current[token]
+            continue
+
+        if isinstance(current, list):
+            idx = _find_list_item_index(current, token)
+            if idx is None:
+                return None
+            runtime_path.append(idx)
+            current = current[idx]
+            continue
+
+        if isinstance(current, dict) and token in current:
+            runtime_path.append(token)
+            current = current[token]
+            continue
+
+        return None
+    return runtime_path
+
+
+def _yaml_node_for_path(root: Node, path: list[str | int]) -> Node | None:
+    """Traverse YAML AST node by runtime path."""
+    node: Node | None = root
+    for token in path:
+        if isinstance(token, str):
+            if not isinstance(node, MappingNode):
+                return None
+            matched: Node | None = None
+            for key_node, value_node in node.value:
+                if key_node.value == token:
+                    matched = value_node
+                    break
+            if matched is None:
+                return None
+            node = matched
+            continue
+
+        if not isinstance(node, SequenceNode):
+            return None
+        if token < 0 or token >= len(node.value):
+            return None
+        node = node.value[token]
+    return node
+
+
+def _build_source_excerpt(
+    source_lines: list[str],
+    *,
+    line: int,
+    end_line: int,
+    column: int,
+    max_lines: int = 5,
+) -> dict | None:
+    """Build compact source excerpt for diagnostics."""
+    if not source_lines:
+        return None
+
+    start_line = max(1, line - 1)
+    finish_line = min(len(source_lines), end_line + 1)
+    if finish_line - start_line + 1 > max_lines:
+        finish_line = start_line + max_lines - 1
+
+    lines: list[dict] = []
+    for ln in range(start_line, finish_line + 1):
+        lines.append({"line": ln, "text": source_lines[ln - 1]})
+
+    return {
+        "start_line": start_line,
+        "end_line": finish_line,
+        "caret_line": line,
+        "caret_column": max(1, column),
+        "lines": lines,
+    }
+
+
+def _attach_source_positions(
+    diagnostics: list[dict],
+    *,
+    source: dict,
+    file_path: Path,
+) -> None:
+    """Attach line/column/source excerpt metadata to diagnostics when possible."""
+    if not diagnostics:
+        return
+
+    try:
+        source_text = file_path.read_text(encoding="utf-8")
+    except Exception:
+        return
+
+    try:
+        root = yaml.compose(source_text)
+    except yaml.YAMLError:
+        return
+    if root is None:
+        return
+
+    source_lines = source_text.splitlines()
+    for diag in diagnostics:
+        raw_location = diag.get("location") or diag.get("path")
+        if not isinstance(raw_location, str) or not raw_location:
+            continue
+
+        runtime_path = _resolve_location_to_runtime_path(source, raw_location)
+        if runtime_path is None:
+            continue
+        node = _yaml_node_for_path(root, runtime_path)
+        if node is None:
+            continue
+
+        line = node.start_mark.line + 1
+        column = node.start_mark.column + 1
+        end_line = max(line, node.end_mark.line + 1)
+        end_column = max(1, node.end_mark.column + 1)
+
+        diag["line"] = line
+        diag["column"] = column
+        diag["end_line"] = end_line
+        diag["end_column"] = end_column
+        diag["source_excerpt"] = _build_source_excerpt(
+            source_lines,
+            line=line,
+            end_line=end_line,
+            column=column,
+        )
+        if "location" not in diag and "path" in diag:
+            diag["location"] = diag["path"]
+
+
 def _split_fenced_code_blocks(text: str) -> list[dict]:
     """Split a markdown-ish string into alternating text/code segments."""
     import re
@@ -670,6 +916,9 @@ def _format_finding_rich(finding: dict, index: int, total: int):
     category = finding.get("category")
     message = finding.get("message") or ""
     location = finding.get("location")
+    line = finding.get("line")
+    column = finding.get("column")
+    source_excerpt = finding.get("source_excerpt")
     suggestion = finding.get("suggestion")
 
     if severity_raw in ("critical", "error"):
@@ -704,12 +953,53 @@ def _format_finding_rich(finding: dict, index: int, total: int):
     body_items: list = [header]
 
     if location:
-        body_items.append(Text(f"Location: {location}", style="dim"))
+        if isinstance(line, int) and isinstance(column, int):
+            body_items.append(
+                Text(f"Location: {location} (line {line}:{column})", style="dim")
+            )
+        elif isinstance(line, int):
+            body_items.append(Text(f"Location: {location} (line {line})", style="dim"))
+        else:
+            body_items.append(Text(f"Location: {location}", style="dim"))
 
     body_items.append(Rule(style="dim"))
 
     # Message — render markdown for inline `code` formatting
     body_items.append(Markdown(message.strip() or " ", code_theme="monokai"))
+
+    if isinstance(source_excerpt, dict):
+        excerpt_lines = source_excerpt.get("lines") or []
+        if isinstance(excerpt_lines, list) and excerpt_lines:
+            body_items.append(Rule("Source", style="dim"))
+            block = Text()
+            caret_line = source_excerpt.get("caret_line")
+            caret_column = source_excerpt.get("caret_column")
+            for row in excerpt_lines:
+                line_no = row.get("line")
+                line_text = row.get("text")
+                if not isinstance(line_no, int) or not isinstance(line_text, str):
+                    continue
+                block.append(f"{line_no:>5} | ", style="dim")
+                block.append(line_text)
+                block.append("\n")
+                if (
+                    isinstance(caret_line, int)
+                    and caret_line == line_no
+                    and isinstance(caret_column, int)
+                ):
+                    block.append("      | ", style="dim")
+                    block.append(" " * max(0, caret_column - 1))
+                    block.append("^", style="bold red")
+                    block.append("\n")
+            if block:
+                body_items.append(
+                    Panel(
+                        block,
+                        border_style="dim",
+                        box=box.ROUNDED,
+                        padding=(0, 1),
+                    )
+                )
 
     # Fix / suggestion section
     if suggestion:

@@ -100,6 +100,71 @@ class TestLint:
         assert result.returncode == 2
         assert "requires --profile thorough" in (result.stdout + result.stderr)
 
+    def test_vedalang_lint_json_includes_line_and_excerpt(self, tmp_path):
+        """Diagnostics include source line/column metadata and excerpt."""
+        src = tmp_path / "bad_schema.veda.yaml"
+        src.write_text(
+            "\n".join(
+                [
+                    "model:",
+                    "  name: Demo",
+                    "  regions: [REG1]",
+                    '  milestone_years: "2020"',
+                    "  commodities:",
+                    "    - id: secondary:electricity",
+                    "      type: energy",
+                    "      unit: PJ",
+                    "      combustible: false",
+                    "process_roles: []",
+                    "process_variants: []",
+                    "availability: []",
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        result = run_vedalang("lint", "--json", str(src))
+        assert result.returncode == 2
+
+        data = json.loads(result.stdout)
+        assert data["diagnostics"], "Expected at least one diagnostic"
+        first = data["diagnostics"][0]
+        assert isinstance(first.get("line"), int)
+        assert isinstance(first.get("column"), int)
+        assert isinstance(first.get("source_excerpt"), dict)
+        excerpt_lines = first["source_excerpt"].get("lines", [])
+        assert any("milestone_years" in line.get("text", "") for line in excerpt_lines)
+
+    def test_vedalang_lint_text_shows_offending_source_line(self, tmp_path):
+        """Human output includes source snippet for quick debugging."""
+        src = tmp_path / "bad_schema_text.veda.yaml"
+        src.write_text(
+            "\n".join(
+                [
+                    "model:",
+                    "  name: Demo",
+                    "  regions: [REG1]",
+                    '  milestone_years: "2020"',
+                    "  commodities:",
+                    "    - id: secondary:electricity",
+                    "      type: energy",
+                    "      unit: PJ",
+                    "      combustible: false",
+                    "process_roles: []",
+                    "process_variants: []",
+                    "availability: []",
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        result = run_vedalang("lint", str(src))
+        assert result.returncode == 2
+        assert "milestone_years" in result.stdout
+        assert "line " in result.stdout
+
 
 class TestCompile:
     def test_vedalang_compile_basic(self, tmp_path):
