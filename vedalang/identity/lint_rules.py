@@ -15,6 +15,21 @@ from vedalang.identity.parser import (
 from vedalang.identity.registry import AbbreviationRegistry
 
 
+def _identifier_value_and_path(
+    item: dict[str, Any],
+    *,
+    base_path: str,
+) -> tuple[str, str]:
+    """Return identifier value + JSON path for id/name keyed objects."""
+    if "id" in item:
+        value = item.get("id")
+        return (str(value) if value is not None else "", f"{base_path}.id")
+    if "name" in item:
+        value = item.get("name")
+        return (str(value) if value is not None else "", f"{base_path}.name")
+    return "", base_path
+
+
 @dataclass
 class LintDiagnostic:
     """A naming convention lint diagnostic."""
@@ -57,7 +72,10 @@ class N001_CommodityIDGrammar(NamingLintRule):
         model_data = model.get("model", {})
 
         for i, comm in enumerate(model_data.get("commodities", [])):
-            name = comm.get("name", "")
+            name, path = _identifier_value_and_path(
+                comm,
+                base_path=f"model.commodities[{i}]",
+            )
             kind = self._infer_kind(comm)
 
             if kind is None:
@@ -71,7 +89,7 @@ class N001_CommodityIDGrammar(NamingLintRule):
                         code=self.code,
                         severity="error",
                         message=result.error,
-                        path=f"model.commodities[{i}].name",
+                        path=path,
                     )
                 )
 

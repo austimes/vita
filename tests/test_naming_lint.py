@@ -38,6 +38,14 @@ class TestN001_CommodityIDGrammar:
         diagnostics = rule.check(model)
         assert len(diagnostics) == 0
 
+    def test_valid_tradable_commodity_with_id_field(self):
+        model = make_model(
+            commodities=[{"id": "C:ELC", "type": "energy", "kind": "TRADABLE"}]
+        )
+        rule = N001_CommodityIDGrammar()
+        diagnostics = rule.check(model)
+        assert len(diagnostics) == 0
+
     def test_valid_service_commodity(self):
         model = make_model(
             commodities=[
@@ -71,6 +79,16 @@ class TestN001_CommodityIDGrammar:
         assert diagnostics[0].code == "N001"
         assert diagnostics[0].severity == "error"
         assert "Wrong prefix" in diagnostics[0].message
+
+    def test_wrong_prefix_with_id_field_points_to_id_path(self):
+        model = make_model(
+            commodities=[{"id": "S:ELC", "type": "energy", "kind": "TRADABLE"}]
+        )
+        rule = N001_CommodityIDGrammar()
+        diagnostics = rule.check(model)
+        assert len(diagnostics) == 1
+        assert diagnostics[0].code == "N001"
+        assert diagnostics[0].path == "model.commodities[0].id"
 
     def test_service_without_context_format_triggers_n001(self):
         model = make_model(
