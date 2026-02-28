@@ -232,6 +232,56 @@ class TestLint:
         assert result.returncode == 0
         assert data.get("diagnostics") == []
 
+    def test_vedalang_lint_units_includes_negative_emission_doc_guidance(
+        self, tmp_path
+    ):
+        """Negative-emission guidance is surfaced via units lint category."""
+        src = tmp_path / "negative_emission_doc.veda.yaml"
+        src.write_text(
+            "\n".join(
+                [
+                    "model:",
+                    "  name: EmissionDocModel",
+                    "  regions: [REG1]",
+                    "  milestone_years: [2020]",
+                    "  commodities:",
+                    "    - id: emission:co2e",
+                    "      type: emission",
+                    "      unit: Mt",
+                    "      combustible: false",
+                    "process_roles:",
+                    "  - id: remove_co2",
+                    "    activity_unit: PJ",
+                    "    capacity_unit: GW",
+                    "    stage: sink",
+                    "    required_inputs: []",
+                    "    required_outputs: []",
+                    "process_variants:",
+                    "  - id: afforestation",
+                    "    role: remove_co2",
+                    "    inputs: []",
+                    "    outputs: []",
+                    "    efficiency: 1.0",
+                    "    emission_factors:",
+                    "      emission:co2e: -1.0",
+                    "availability:",
+                    "  - variant: afforestation",
+                    "    regions: [REG1]",
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        result = run_vedalang("lint", "--json", "--category", "units", str(src))
+        assert result.returncode in (0, 1)
+        data = json.loads(result.stdout)
+        assert any(
+            d.get("code") == "W_NEGATIVE_EMISSION_DOC"
+            for d in data["diagnostics"]
+        )
+        assert all(d["category"] == "units" for d in data["diagnostics"])
+
     def test_vedalang_lint_json_includes_line_and_excerpt(self, tmp_path):
         """Diagnostics include source line/column metadata and excerpt."""
         src = tmp_path / "bad_schema.veda.yaml"

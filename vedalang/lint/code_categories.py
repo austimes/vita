@@ -13,6 +13,9 @@ from vedalang.lint.diagnostics import with_meta
 
 
 def _category_for_structural_code(code: str) -> str:
+    # Treat negative-emission documentation guidance as part of units linting.
+    if code == "W_NEGATIVE_EMISSION_DOC":
+        return "units"
     if (
         code.startswith("E_UNIT_")
         or code.startswith("W_UNIT_")
@@ -23,7 +26,7 @@ def _category_for_structural_code(code: str) -> str:
         or code.startswith("W_ENERGY_MASS_BASIS_")
     ):
         return "units"
-    if "EMISSION" in code or code == "W_NEGATIVE_EMISSION_DOC":
+    if "EMISSION" in code:
         return "emissions"
     return "structure"
 
