@@ -40,6 +40,12 @@ For the full LLM-facing docs ownership map (what each doc is for), see
 Always validate your models:
 
 ```bash
+# Formatting only (blank lines/indent/layout)
+uv run vedalang fmt your_model.veda.yaml
+
+# Non-mutating formatting gate
+uv run vedalang fmt --check your_model.veda.yaml
+
 # Full validation (lint + compile + xl2times)
 uv run vedalang validate your_model.veda.yaml
 
@@ -71,6 +77,13 @@ uv run vedalang-dev eval run --profile ci --prompt-version all
 uv run vedalang-dev eval compare tmp/evals/run_a.json tmp/evals/run_b.json
 uv run vedalang-dev eval report tmp/evals/run_b.json
 ```
+
+Command responsibilities:
+
+- `fmt`: formatting only (style/layout)
+- `lint`: semantic/modeling checks
+- `compile`: VedaLang to Excel/TableIR emission
+- `validate`: full pipeline validation through xl2times
 
 ## Lint Taxonomy
 

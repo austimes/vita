@@ -9,6 +9,8 @@ This CLI provides intuitive commands for:
 import argparse
 import json
 import re
+import shutil
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -40,6 +42,17 @@ from vedalang.lint.registry import (
     normalize_categories,
 )
 
+FMT_DIR_IGNORES = {
+    ".beads",
+    ".dolt",
+    ".git",
+    ".venv",
+    "node_modules",
+    "output",
+    "output_invalid",
+    "tmp",
+}
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -50,6 +63,7 @@ def main():
 
     _add_lint_parser(subparsers)
     _add_llm_lint_parser(subparsers)
+    _add_fmt_parser(subparsers)
     _add_compile_parser(subparsers)
     _add_validate_parser(subparsers)
     _add_viz_parser(subparsers)
@@ -60,6 +74,8 @@ def main():
         sys.exit(cmd_lint(args))
     elif args.command == "llm-lint":
         sys.exit(cmd_llm_lint(args))
+    elif args.command == "fmt":
+        sys.exit(cmd_fmt(args))
     elif args.command == "compile":
         sys.exit(cmd_compile(args))
     elif args.command == "validate":
@@ -202,6 +218,29 @@ def _add_compile_parser(subparsers):
         help="Compile only the specified case (repeatable)",
     )
     p.add_argument("--no-lint", action="store_true", help="Skip linting before compile")
+    p.add_argument("--json", action="store_true", help="Output JSON format")
+
+
+def _add_fmt_parser(subparsers):
+    p = subparsers.add_parser(
+        "fmt",
+        help="Format VedaLang YAML source files",
+        description=(
+            "Format .veda.yaml files using Prettier. "
+            "Use --check for non-mutating CI checks."
+        ),
+    )
+    p.add_argument(
+        "paths",
+        type=Path,
+        nargs="+",
+        help="File(s) or directory path(s) containing .veda.yaml source files",
+    )
+    p.add_argument(
+        "--check",
+        action="store_true",
+        help="Check formatting without modifying files",
+    )
     p.add_argument("--json", action="store_true", help="Output JSON format")
 
 
@@ -1176,6 +1215,197 @@ def _output_lint_result(
     elif warnings > 0:
         return 1
     return 0
+
+
+def _is_yaml_file(path: Path) -> bool:
+    return path.suffix.lower() in {".yaml", ".yml"}
+
+
+def _collect_fmt_targets(paths: list[Path]) -> tuple[list[Path], list[Path]]:
+    targets: list[Path] = []
+    missing: list[Path] = []
+    seen: set[str] = set()
+
+    for raw_path in paths:
+        path = raw_path.resolve()
+        if not path.exists():
+            missing.append(raw_path)
+            continue
+
+        if path.is_file():
+            if not _is_yaml_file(path):
+                continue
+            key = str(path)
+            if key not in seen:
+                seen.add(key)
+                targets.append(path)
+            continue
+
+        if path.is_dir():
+            for file_path in sorted(path.rglob("*.veda.yaml")) + sorted(
+                path.rglob("*.veda.yml")
+            ):
+                if any(part in FMT_DIR_IGNORES for part in file_path.parts):
+                    continue
+                key = str(file_path)
+                if key not in seen:
+                    seen.add(key)
+                    targets.append(file_path)
+
+    return targets, missing
+
+
+def _resolve_prettier_command(repo_root: Path) -> list[str] | None:
+    local_bin_name = "prettier.cmd" if sys.platform == "win32" else "prettier"
+    local_bin = repo_root / "node_modules" / ".bin" / local_bin_name
+    if local_bin.exists():
+        return [str(local_bin)]
+
+    if shutil.which("prettier"):
+        return ["prettier"]
+
+    return None
+
+
+def _run_prettier(
+    command: list[str],
+    *,
+    check_only: bool,
+    targets: list[Path],
+    repo_root: Path,
+) -> subprocess.CompletedProcess[str]:
+    mode_flag = "--check" if check_only else "--write"
+    args = [
+        *command,
+        "--parser",
+        "yaml",
+        "--log-level",
+        "warn",
+        mode_flag,
+        *[str(t) for t in targets],
+    ]
+    return subprocess.run(
+        args,
+        capture_output=True,
+        text=True,
+        cwd=repo_root,
+    )
+
+
+def cmd_fmt(args) -> int:
+    """Run fmt command: format .veda.yaml source files with Prettier."""
+    output_json: bool = args.json
+    check_only: bool = args.check
+    input_paths: list[Path] = args.paths
+    repo_root = Path(__file__).resolve().parent.parent
+
+    targets, missing = _collect_fmt_targets(input_paths)
+
+    if missing:
+        message = "Path not found: " + ", ".join(str(p) for p in missing)
+        if output_json:
+            print(
+                json.dumps(
+                    {
+                        "success": False,
+                        "paths": [str(p) for p in input_paths],
+                        "error": message,
+                    },
+                    indent=2,
+                )
+            )
+        else:
+            print(f"Error: {message}", file=sys.stderr)
+        return 2
+
+    if not targets:
+        if output_json:
+            print(
+                json.dumps(
+                    {
+                        "success": True,
+                        "mode": "check" if check_only else "write",
+                        "paths": [str(p) for p in input_paths],
+                        "file_count": 0,
+                        "files": [],
+                        "changed": False,
+                    },
+                    indent=2,
+                )
+            )
+        else:
+            print("No .veda.yaml files found.")
+        return 0
+
+    prettier_command = _resolve_prettier_command(repo_root)
+    if prettier_command is None:
+        message = (
+            "Prettier not found. Install formatter tooling with "
+            "`npm install` in the repository root."
+        )
+        if output_json:
+            print(
+                json.dumps(
+                    {
+                        "success": False,
+                        "mode": "check" if check_only else "write",
+                        "paths": [str(p) for p in input_paths],
+                        "files": [str(p) for p in targets],
+                        "file_count": len(targets),
+                        "error": message,
+                    },
+                    indent=2,
+                )
+            )
+        else:
+            print(f"Error: {message}", file=sys.stderr)
+        return 2
+
+    result = _run_prettier(
+        prettier_command,
+        check_only=check_only,
+        targets=targets,
+        repo_root=repo_root,
+    )
+    stdout = result.stdout.strip()
+    stderr = result.stderr.strip()
+
+    if output_json:
+        check_failed = check_only and result.returncode == 1
+        payload = {
+            "success": result.returncode == 0,
+            "mode": "check" if check_only else "write",
+            "paths": [str(p) for p in input_paths],
+            "files": [str(p) for p in targets],
+            "file_count": len(targets),
+            "changed": (not check_only and result.returncode == 0),
+            "needs_formatting": check_failed,
+            "stdout": stdout,
+            "stderr": stderr,
+        }
+        print(json.dumps(payload, indent=2))
+    else:
+        if stdout:
+            print(stdout)
+        if stderr:
+            print(stderr, file=sys.stderr)
+
+        if check_only:
+            if result.returncode == 0:
+                print(f"Formatting check passed for {len(targets)} file(s).")
+            elif result.returncode == 1:
+                print(
+                    "Formatting drift detected. "
+                    "Run `uv run vedalang fmt <path>` to apply fixes."
+                )
+        elif result.returncode == 0:
+            print(f"Formatted {len(targets)} file(s).")
+
+    if result.returncode == 0:
+        return 0
+    if check_only and result.returncode == 1:
+        return 1
+    return 2
 
 
 def cmd_compile(args) -> int:

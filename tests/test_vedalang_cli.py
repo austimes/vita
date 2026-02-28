@@ -481,6 +481,12 @@ class TestHelp:
         assert result.returncode == 0
         assert "validate" in result.stdout.lower()
 
+    def test_vedalang_fmt_help(self):
+        """Fmt subcommand help works."""
+        result = run_vedalang("fmt", "--help")
+        assert result.returncode == 0
+        assert "format" in result.stdout.lower()
+
     def test_vedalang_llm_lint_help(self):
         """llm-lint subcommand help works."""
         result = run_vedalang("llm-lint", "--help")

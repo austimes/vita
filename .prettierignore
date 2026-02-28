@@ -1,0 +1,10 @@
+.beads/
+.dolt/
+.venv/
+node_modules/
+output/
+output_invalid/
+tmp/
+tools/vedalang_lsp/extension/node_modules/
+tools/vedalang_lsp/extension/out/
+xl2times/

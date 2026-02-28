@@ -15,9 +15,10 @@ Read first:
 
 Then execute with this order:
 1. Author/edit model YAML (`.veda.yaml`)
-2. Lint quickly: `uv run vedalang lint <model>.veda.yaml`
-3. Full validation: `uv run vedalang validate <model>.veda.yaml`
-4. If needed, compile only: `uv run vedalang compile <model>.veda.yaml --out <dir>`
+2. Format: `uv run vedalang fmt <model>.veda.yaml`
+3. Lint quickly: `uv run vedalang lint <model>.veda.yaml`
+4. Full validation: `uv run vedalang validate <model>.veda.yaml`
+5. If needed, compile only: `uv run vedalang compile <model>.veda.yaml --out <dir>`
 
 Hard rules:
 - Treat schema as authoritative for valid syntax.

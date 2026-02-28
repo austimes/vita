@@ -16,7 +16,7 @@ This repository serves **two distinct AI personas** — understanding this disti
 An AI agent that **uses VedaLang** to create `.veda.yaml` models for energy system analysis. This agent:
 - Reads the VedaLang schema and examples
 - Writes valid VedaLang source files
-- Uses `vedalang lint` and `vedalang validate` to check models
+- Uses `vedalang fmt`, `vedalang lint`, and `vedalang validate` to check models
 - Does NOT modify the language, compiler, or schema
 
 **User agent documentation:**
@@ -270,7 +270,7 @@ vedalang/
 ├── docs/
 │   └── VEDA2_NL_to_VEDA_PRD_v0_3.txt
 ├── vedalang/
-│   ├── cli.py                   # User CLI (vedalang lint/compile/validate)
+│   ├── cli.py                   # User CLI (vedalang fmt/lint/compile/validate)
 │   ├── schema/                  # JSON Schema definitions
 │   │   ├── vedalang.schema.json # VedaLang source schema
 │   │   └── tableir.schema.json  # TableIR schema
@@ -642,6 +642,7 @@ See [docs/vedalang-design-agent/schema_evolution.md](docs/vedalang-design-agent/
 uv run python tools/sync_conventions.py --check
 
 # Run before committing
+npm run format:veda:check
 uv run pytest tests/
 uv run ruff check .
 
