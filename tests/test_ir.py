@@ -27,7 +27,11 @@ class TestRole:
 
     def test_role_creation(self):
         """Role can be created with required fields."""
-        role = Role(id="generate_electricity", required_inputs=[], required_outputs=["electricity"])
+        role = Role(
+            id="generate_electricity",
+            required_inputs=[],
+            required_outputs=["electricity"],
+        )
         assert role.id == "generate_electricity"
         assert role.required_inputs == []
         assert role.required_outputs == ["electricity"]
@@ -49,8 +53,14 @@ class TestVariant:
 
     def test_variant_creation(self):
         """Variant can be created with role reference."""
-        role = Role(id="generate_electricity", required_inputs=[], required_outputs=["electricity"])
-        variant = Variant(id="simple_generator", role=role, inputs=[], outputs=["electricity"])
+        role = Role(
+            id="generate_electricity",
+            required_inputs=[],
+            required_outputs=["electricity"],
+        )
+        variant = Variant(
+            id="simple_generator", role=role, inputs=[], outputs=["electricity"]
+        )
         assert variant.id == "simple_generator"
         assert variant.role is role
         assert variant.attrs == {}
@@ -59,7 +69,11 @@ class TestVariant:
 
     def test_variant_with_attrs(self):
         """Variant can have attributes."""
-        role = Role(id="deliver_lighting", required_inputs=["electricity"], required_outputs=["lighting"])
+        role = Role(
+            id="deliver_lighting",
+            required_inputs=["electricity"],
+            required_outputs=["lighting"],
+        )
         variant = Variant(
             id="led_lighting",
             role=role,
@@ -101,7 +115,13 @@ class TestProcessInstance:
     def test_process_instance_creation(self):
         """ProcessInstance can be created."""
         role = Role(id="test_role", required_inputs=[], required_outputs=["out"])
-        variant = Variant(id="test_variant", role=role, inputs=[], outputs=["out"], attrs={"efficiency": 0.5})
+        variant = Variant(
+            id="test_variant",
+            role=role,
+            inputs=[],
+            outputs=["out"],
+            attrs={"efficiency": 0.5},
+        )
         key = InstanceKey("test_variant", "REG", "SEG")
         instance = ProcessInstance(
             key=key,
@@ -241,7 +261,9 @@ class TestBuildVariants:
         """Single variant is built correctly."""
         roles = {
             "generate_electricity": Role(
-                id="generate_electricity", required_inputs=[], required_outputs=["electricity"]
+                id="generate_electricity",
+                required_inputs=[],
+                required_outputs=["electricity"],
             )
         }
         model = {
@@ -307,9 +329,7 @@ class TestBuildVariants:
 
     def test_unknown_role_raises(self):
         """Unknown role reference raises IRError."""
-        model = {
-            "process_variants": [{"id": "var1", "role": "unknown_role"}]
-        }
+        model = {"process_variants": [{"id": "var1", "role": "unknown_role"}]}
         with pytest.raises(IRError, match="unknown role: unknown_role"):
             build_variants(model, {})
 
@@ -319,7 +339,9 @@ class TestExpandAvailability:
 
     def test_empty_availability(self):
         """Empty availability returns empty dict."""
-        variants = {"var1": Variant(id="var1", role=Role("r", [], []), inputs=[], outputs=[])}
+        variants = {
+            "var1": Variant(id="var1", role=Role("r", [], []), inputs=[], outputs=[])
+        }
         assert expand_availability({}, variants, []) == {}
         assert expand_availability({"availability": []}, variants, []) == {}
 
@@ -339,7 +361,11 @@ class TestExpandAvailability:
     def test_availability_with_sectors_coarse(self):
         """Availability with sectors (no end_uses) expands to sectors."""
         role = Role(id="deliver", required_inputs=["elec"], required_outputs=["heat"])
-        variants = {"heat_pump": Variant(id="heat_pump", role=role, inputs=["elec"], outputs=["heat"])}
+        variants = {
+            "heat_pump": Variant(
+                id="heat_pump", role=role, inputs=["elec"], outputs=["heat"]
+            )
+        }
         model = {
             "segments": {"sectors": ["RES", "COM"]},
             "availability": [
@@ -403,9 +429,7 @@ class TestExpandAvailability:
         """Availability expands across multiple regions."""
         role = Role(id="gen", required_inputs=[], required_outputs=[])
         variants = {"gen": Variant(id="gen", role=role, inputs=[], outputs=[])}
-        model = {
-            "availability": [{"variant": "gen", "regions": ["R1", "R2", "R3"]}]
-        }
+        model = {"availability": [{"variant": "gen", "regions": ["R1", "R2", "R3"]}]}
 
         instances = expand_availability(model, variants, [])
 
@@ -424,7 +448,11 @@ class TestExpandAvailability:
         """ProcessInstance inherits variant attrs."""
         role = Role(id="gen", required_inputs=[], required_outputs=[])
         variant = Variant(
-            id="gen", role=role, inputs=[], outputs=[], attrs={"efficiency": 0.5, "lifetime": 30}
+            id="gen",
+            role=role,
+            inputs=[],
+            outputs=[],
+            attrs={"efficiency": 0.5, "lifetime": 30},
         )
         variants = {"gen": variant}
         model = {"availability": [{"variant": "gen", "regions": ["R1"]}]}
@@ -442,7 +470,9 @@ class TestApplyProcessParameters:
     def test_no_parameters(self):
         """No process_parameters leaves instances unchanged."""
         role = Role(id="r", required_inputs=[], required_outputs=[])
-        variant = Variant(id="v", role=role, inputs=[], outputs=[], attrs={"efficiency": 0.5})
+        variant = Variant(
+            id="v", role=role, inputs=[], outputs=[], attrs={"efficiency": 0.5}
+        )
         key = InstanceKey("v", "R1", None)
         instances = {
             key: ProcessInstance(key=key, role=role, variant=variant, attrs={})
@@ -602,8 +632,12 @@ class TestLowerInstancesToTableir:
 
     def test_process_with_inputs_and_outputs(self):
         """Process with inputs and outputs."""
-        role = Role(id="deliver", required_inputs=["electricity"], required_outputs=["lighting"])
-        variant = Variant(id="led", role=role, inputs=["electricity"], outputs=["lighting"])
+        role = Role(
+            id="deliver", required_inputs=["electricity"], required_outputs=["lighting"]
+        )
+        variant = Variant(
+            id="led", role=role, inputs=["electricity"], outputs=["lighting"]
+        )
         key = InstanceKey("led", "R1", "RES")
         instances = {
             key: ProcessInstance(key=key, role=role, variant=variant, attrs={})
