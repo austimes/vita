@@ -1,0 +1,4 @@
+interface:
+  display_name: "LLM Lint Eval Evolution"
+  short_description: "Calibrate llm-lint eval cases and prompts"
+  default_prompt: "Use $llm-lint-eval-evolution to convert this llm-lint misfire into a benchmark case and prompt update."

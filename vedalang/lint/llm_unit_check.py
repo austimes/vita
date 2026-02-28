@@ -24,7 +24,7 @@ from vedalang.lint.prompt_registry import load_prompt_template
 
 CHECK_ID = "llm.units.component_quorum"
 DEFAULT_PROMPT_VERSION = "v3"
-DEFAULT_MODELS = ("gpt-5.2", "gpt-5-mini")
+DEFAULT_MODELS = ("gpt-5-nano",)
 DEFAULT_MAX_OUTPUT_TOKENS = 2200
 
 _CONTROLLED_ERROR_CODES = {

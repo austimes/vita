@@ -145,13 +145,16 @@ def _add_llm_lint_parser(subparsers):
     p.add_argument(
         "--model",
         action="append",
-        help="LLM model for quorum vote (repeatable, default is two models).",
+        help=(
+            "LLM model selection (repeatable for quorum-capable checks; "
+            "default is gpt-5-nano)."
+        ),
     )
     p.add_argument(
         "--reasoning-effort",
         choices=["none", "low", "medium", "high", "xhigh"],
-        default="medium",
-        help="Reasoning effort for LLM calls (default: medium).",
+        default="low",
+        help="Reasoning effort for LLM calls (default: low).",
     )
     p.add_argument(
         "--prompt-version",

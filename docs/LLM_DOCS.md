@@ -29,6 +29,7 @@ repo so conventions updates do not require hunting across duplicate docs.
 | `vedalang/lint/prompts/unit-check/v1/*` | LLM lint runtime | Versioned unit-check prompt text and response schema for reproducible evaluation | **Keep** as canonical prompt text artifacts |
 | `vedalang/lint/prompt_registry.py` | LLM lint runtime | Prompt version registry + immutable hash verification | **Keep** as the guardrail for append-only prompt evolution |
 | `tools/veda_dev/evals/` | Design-agent eval runtime | Model/effort benchmark runner + scoring + reporting | **Keep** as the canonical eval scaffold for prompt/model selection |
+| `skills/llm-lint-eval-evolution/SKILL.md` (+ `references/`) | Design-agent calibration workflow | Converts llm-lint misfires into benchmark case updates and prompt evolution | **Keep** as canonical calibration loop skill |
 
 ## Placement Rules
 

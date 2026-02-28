@@ -65,8 +65,8 @@ uv run vedalang llm-lint your_model.veda.yaml --category structure
 uv run vedalang llm-lint your_model.veda.yaml --category units
 
 # LLM lint runtime controls
-uv run vedalang llm-lint your_model.veda.yaml --category structure --model gpt-5-mini --reasoning-effort low --prompt-version v1
-uv run vedalang llm-lint your_model.veda.yaml --category units --model gpt-5.2 --model gpt-5-mini --reasoning-effort medium --request-timeout-sec 180
+uv run vedalang llm-lint your_model.veda.yaml --category structure --model gpt-5-nano --reasoning-effort low --prompt-version v1
+uv run vedalang llm-lint your_model.veda.yaml --category units --model gpt-5-mini --model gpt-5-nano --reasoning-effort low --request-timeout-sec 180
 
 # Eval harness (model/effort leaderboard)
 uv run vedalang-dev eval catalog
@@ -102,6 +102,7 @@ LLM lint behavior:
 - currently unsupported (reported as skipped): `core`, `identity`, `emissions`, `feasibility`
 - default exit behavior: critical findings return exit code `2`
 - use `--advisory` to avoid critical findings causing exit code `2`
+- default runtime target: `gpt-5-nano` at `low` reasoning effort
 - runtime controls:
   - `--reasoning-effort none|low|medium|high|xhigh`
   - `--prompt-version <version|all>`
