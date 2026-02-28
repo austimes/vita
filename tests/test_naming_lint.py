@@ -1,5 +1,9 @@
 """Tests for naming convention lint rules."""
 
+from pathlib import Path
+
+import yaml
+
 from vedalang.identity.lint_rules import (
     N001_CommodityIDGrammar,
     N002_ProcessIDGrammar,
@@ -32,7 +36,13 @@ class TestN001_CommodityIDGrammar:
 
     def test_valid_tradable_commodity(self):
         model = make_model(
-            commodities=[{"name": "C:ELC", "type": "energy", "kind": "TRADABLE"}]
+            commodities=[
+                {
+                    "name": "secondary:electricity",
+                    "type": "energy",
+                    "kind": "TRADABLE",
+                }
+            ]
         )
         rule = N001_CommodityIDGrammar()
         diagnostics = rule.check(model)
@@ -40,7 +50,7 @@ class TestN001_CommodityIDGrammar:
 
     def test_valid_tradable_commodity_with_id_field(self):
         model = make_model(
-            commodities=[{"id": "C:ELC", "type": "energy", "kind": "TRADABLE"}]
+            commodities=[{"id": "secondary:electricity", "type": "energy"}]
         )
         rule = N001_CommodityIDGrammar()
         diagnostics = rule.check(model)
@@ -50,10 +60,8 @@ class TestN001_CommodityIDGrammar:
         model = make_model(
             commodities=[
                 {
-                    "name": "S:RSD:RES.ALL",
-                    "type": "demand",
-                    "kind": "SERVICE",
-                    "context": "RES.ALL",
+                    "name": "service:space_heat",
+                    "type": "service",
                 }
             ]
         )
@@ -63,26 +71,26 @@ class TestN001_CommodityIDGrammar:
 
     def test_valid_emission_commodity(self):
         model = make_model(
-            commodities=[{"name": "E:CO2", "type": "emission", "kind": "EMISSION"}]
+            commodities=[{"name": "emission:co2", "type": "emission"}]
         )
         rule = N001_CommodityIDGrammar()
         diagnostics = rule.check(model)
         assert len(diagnostics) == 0
 
-    def test_wrong_prefix_triggers_n001(self):
+    def test_legacy_prefix_triggers_n001(self):
         model = make_model(
-            commodities=[{"name": "S:ELC", "type": "energy", "kind": "TRADABLE"}]
+            commodities=[{"name": "C:ELC", "type": "energy"}]
         )
         rule = N001_CommodityIDGrammar()
         diagnostics = rule.check(model)
         assert len(diagnostics) == 1
         assert diagnostics[0].code == "N001"
         assert diagnostics[0].severity == "error"
-        assert "Wrong prefix" in diagnostics[0].message
+        assert "Legacy commodity prefix" in diagnostics[0].message
 
-    def test_wrong_prefix_with_id_field_points_to_id_path(self):
+    def test_legacy_prefix_with_id_field_points_to_id_path(self):
         model = make_model(
-            commodities=[{"id": "S:ELC", "type": "energy", "kind": "TRADABLE"}]
+            commodities=[{"id": "E:CO2", "type": "emission"}]
         )
         rule = N001_CommodityIDGrammar()
         diagnostics = rule.check(model)
@@ -90,9 +98,9 @@ class TestN001_CommodityIDGrammar:
         assert diagnostics[0].code == "N001"
         assert diagnostics[0].path == "model.commodities[0].id"
 
-    def test_service_without_context_format_triggers_n001(self):
+    def test_namespace_type_mismatch_triggers_n001(self):
         model = make_model(
-            commodities=[{"name": "S:RSD", "type": "demand", "kind": "SERVICE"}]
+            commodities=[{"name": "service:space_heat", "type": "energy"}]
         )
         rule = N001_CommodityIDGrammar()
         diagnostics = rule.check(model)
@@ -337,19 +345,17 @@ class TestLintNamingConventions:
         model = make_model(
             regions=["NEM_EAST"],
             commodities=[
-                {"name": "C:ELC", "type": "energy", "kind": "TRADABLE"},
-                {
-                    "name": "S:RSD:RES.ALL",
-                    "type": "demand",
-                    "kind": "SERVICE",
-                    "context": "RES.ALL",
-                },
+                {"name": "secondary:electricity", "type": "energy"},
+                {"name": "service:residential_service", "type": "service"},
             ],
             processes=[
-                {"name": "P:CCG:GEN:NEM_EAST", "outputs": [{"commodity": "C:ELC"}]},
+                {
+                    "name": "P:CCG:GEN:NEM_EAST",
+                    "outputs": [{"commodity": "secondary:electricity"}],
+                },
                 {
                     "name": "P:DEM:EUS:NEM_EAST:RES.ALL",
-                    "outputs": [{"commodity": "S:RSD:RES.ALL"}],
+                    "outputs": [{"commodity": "service:residential_service"}],
                 },
             ],
         )
@@ -360,7 +366,7 @@ class TestLintNamingConventions:
         model = make_model(
             regions=["NEM_EAST"],
             commodities=[
-                {"name": "S:ELC", "type": "energy", "kind": "TRADABLE"},  # N001 error
+                {"name": "service:elc", "type": "energy"},  # N001 error
             ],
             processes=[
                 {
@@ -379,3 +385,15 @@ class TestLintNamingConventions:
         model = make_model()
         diagnostics = lint_naming_conventions(model)
         assert len(diagnostics) == 0
+
+    def test_toy_agriculture_namespaced_ids_do_not_trigger_n001(self):
+        source = yaml.safe_load(
+            (
+                Path(__file__).resolve().parents[1]
+                / "vedalang"
+                / "examples"
+                / "toy_agriculture.veda.yaml"
+            ).read_text(encoding="utf-8")
+        )
+        diagnostics = lint_naming_conventions(source)
+        assert not any(diag.code == "N001" for diag in diagnostics)

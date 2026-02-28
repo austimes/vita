@@ -14,8 +14,12 @@ from pint.errors import DimensionalityError, UndefinedUnitError
 
 from vedalang.conventions import (
     commodity_namespace_enum,
+    commodity_namespace_type_map,
     commodity_type_enum,
+    is_legacy_commodity_namespace,
     process_stage_enum,
+    scenario_category_enum,
+    split_commodity_namespace,
 )
 
 from .demands import compile_demands
@@ -223,31 +227,14 @@ DEFAULT_CATEGORY_FROM_TYPE = {
 }
 
 # Valid scenario categories
-VALID_CATEGORIES = {
-    "demands",
-    "prices",
-    "policies",
-    "technology_assumptions",
-    "resource_availability",
-    "global_settings",
-}
+VALID_CATEGORIES = set(scenario_category_enum())
 
 VALID_PROCESS_STAGES = process_stage_enum()
 VALID_COMMODITY_TYPES = commodity_type_enum()
 VALID_COMMODITY_NAMESPACES = set(commodity_namespace_enum())
-
-NAMESPACE_TO_TYPES = {
-    "secondary": {"energy"},
-    "primary": {"fuel"},
-    "resource": {"other", "energy"},
-    "material": {"material"},
-    "service": {"service"},
-    "emission": {"emission"},
-    "money": {"money"},
-}
+NAMESPACE_TO_TYPES = commodity_namespace_type_map()
 
 AMBIGUOUS_EMISSION_SPECIES = {"co2", "co2e", "ch4", "n2o"}
-LEGACY_NAMESPACES = {"C", "E", "S", "M", "D", "F"}
 
 ROLE_FUEL_PATHWAY_PATTERN = re.compile(
     r"(?:^|_)(?:from|with|using|via)_(?:[a-z0-9_]+)$"
@@ -256,10 +243,7 @@ ROLE_FUEL_PATHWAY_PATTERN = re.compile(
 
 def _split_namespace(commodity_ref: str) -> tuple[str | None, str]:
     """Return namespace + base name for a commodity reference."""
-    if ":" not in commodity_ref:
-        return None, commodity_ref
-    namespace, _, base = commodity_ref.partition(":")
-    return namespace, base
+    return split_commodity_namespace(commodity_ref)
 
 
 def _is_emission_namespace_ref(commodity_ref: str) -> bool:
@@ -270,9 +254,7 @@ def _is_emission_namespace_ref(commodity_ref: str) -> bool:
 
 def _is_legacy_namespace(namespace: str | None) -> bool:
     """Legacy VEDA-style commodity namespaces like C:/E:/S: remain valid."""
-    if namespace is None:
-        return False
-    return namespace in LEGACY_NAMESPACES
+    return is_legacy_commodity_namespace(namespace)
 
 
 def _is_ambiguous_unnamespaced_emission(commodity_ref: str) -> bool:

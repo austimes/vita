@@ -5,8 +5,10 @@ from pathlib import Path
 from tools.sync_conventions import sync_generated_blocks
 from vedalang.conventions import (
     commodity_namespace_enum,
+    commodity_namespace_type_map,
     commodity_type_enum,
     format_enum_csv,
+    namespaces_for_commodity_type,
     process_stage_enum,
 )
 from vedalang.lint.llm_assessment import assemble_prompt
@@ -63,3 +65,18 @@ def test_llm_system_prompt_uses_schema_enums():
 def test_generated_conventions_blocks_are_synced():
     repo_root = Path(__file__).resolve().parents[1]
     assert sync_generated_blocks(repo_root, check_only=True) == 0
+
+
+def test_namespace_type_mapping_covers_all_schema_namespaces():
+    mapping = commodity_namespace_type_map()
+    assert set(mapping.keys()) == set(commodity_namespace_enum())
+
+    assert mapping["primary"] == frozenset({"fuel"})
+    assert mapping["secondary"] == frozenset({"energy"})
+    assert mapping["service"] == frozenset({"service"})
+    assert mapping["emission"] == frozenset({"emission"})
+
+
+def test_reverse_namespace_lookup_for_type():
+    assert namespaces_for_commodity_type("energy") == ("resource", "secondary")
+    assert namespaces_for_commodity_type("service") == ("service",)

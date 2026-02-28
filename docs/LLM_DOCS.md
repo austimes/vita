@@ -6,11 +6,12 @@ repo so conventions updates do not require hunting across duplicate docs.
 ## Source-of-Truth Rules
 
 1. **Schema enums and syntax truth:** `vedalang/schema/vedalang.schema.json`
-2. **Modeling convention guidance truth:** `docs/vedalang-user/modeling-conventions.md`
-3. **User-agent operation truth:** `skills/vedalang-dsl-cli/SKILL.md`
-4. **Design-agent execution truth:** `AGENTS.md`
-5. **Skills are wrappers where possible:** keep heavy prose in dedicated references
-6. **Generated enum snippets:** maintained by `tools/sync_conventions.py`
+2. **Runtime enum/mapping accessors:** `vedalang/conventions.py`
+3. **Modeling convention guidance truth:** `docs/vedalang-user/modeling-conventions.md`
+4. **User-agent operation truth:** `skills/vedalang-dsl-cli/SKILL.md`
+5. **Design-agent execution truth:** `AGENTS.md`
+6. **Skills are wrappers where possible:** keep heavy prose in dedicated references
+7. **Generated enum snippets:** maintained by `tools/sync_conventions.py`
 
 ## LLM-Facing Surface Inventory
 

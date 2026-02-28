@@ -9,17 +9,9 @@ This module provides utilities for:
 
 from dataclasses import dataclass
 
-from vedalang.conventions import commodity_namespace_enum
+from vedalang.conventions import commodity_namespace_enum, commodity_namespace_type_map
 
-NAMESPACE_TO_TYPES = {
-    "secondary": {"energy"},
-    "primary": {"fuel"},
-    "resource": {"other", "energy"},
-    "material": {"material"},
-    "service": {"service"},
-    "emission": {"emission"},
-    "money": {"money"},
-}
+NAMESPACE_TO_TYPES = commodity_namespace_type_map()
 VALID_COMMODITY_NAMESPACES = set(commodity_namespace_enum())
 
 

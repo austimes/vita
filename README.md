@@ -47,6 +47,7 @@ The repo keeps LLM-facing guidance split by persona, with explicit ownership:
 
 - [docs/LLM_DOCS.md](docs/LLM_DOCS.md) — full index of each LLM-facing file, purpose, and source-of-truth
 - `vedalang/schema/vedalang.schema.json` — canonical enums and syntax truth
+- `vedalang/conventions.py` — canonical runtime accessors used by compiler, linter, and LLM prompts
 - `docs/vedalang-user/modeling-conventions.md` — canonical modeling conventions guidance text
 - `skills/vedalang-dsl-cli/SKILL.md` — canonical user-agent DSL+CLI skill
 - `tools/sync_conventions.py` — regenerates schema-derived enum snippets in docs
@@ -55,6 +56,12 @@ To verify docs are in sync with schema enums:
 
 ```bash
 uv run python tools/sync_conventions.py --check
+```
+
+To verify runtime consumers stay aligned with canonical conventions:
+
+```bash
+uv run pytest tests/test_conventions_sync.py
 ```
 
 ---

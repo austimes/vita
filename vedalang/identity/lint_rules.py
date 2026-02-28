@@ -7,10 +7,16 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any
 
+from vedalang.conventions import (
+    commodity_namespace_enum,
+    commodity_namespace_type_map,
+    is_legacy_commodity_namespace,
+    namespaces_for_commodity_type,
+    split_commodity_namespace,
+)
 from vedalang.identity.parser import (
     VALID_ROLES,
     parse_process_id,
-    validate_commodity_id,
 )
 from vedalang.identity.registry import AbbreviationRegistry
 
@@ -62,10 +68,14 @@ class NamingLintRule(ABC):
 
 
 class N001_CommodityIDGrammar(NamingLintRule):
-    """TRADABLE must start with C:, SERVICE with S:, EMISSION with E:."""
+    """Commodity namespace prefix must follow canonical namespace/type conventions."""
 
     code = "N001"
-    description = "Commodity ID must match its kind prefix"
+    description = "Commodity ID namespace must match canonical conventions"
+
+    def __init__(self) -> None:
+        self._valid_namespaces = set(commodity_namespace_enum())
+        self._namespace_to_types = commodity_namespace_type_map()
 
     def check(self, model: dict) -> list[LintDiagnostic]:
         diagnostics = []
@@ -76,40 +86,72 @@ class N001_CommodityIDGrammar(NamingLintRule):
                 comm,
                 base_path=f"model.commodities[{i}]",
             )
-            kind = self._infer_kind(comm)
-
-            if kind is None:
+            commodity_type = self._canonical_commodity_type(comm.get("type"))
+            if not name or commodity_type is None:
                 continue
-
-            result = validate_commodity_id(name, kind, comm.get("context"))
-
-            if not result.valid and result.error:
+            namespace, _ = split_commodity_namespace(name)
+            if namespace is None:
+                continue
+            if is_legacy_commodity_namespace(namespace):
+                expected_namespaces = namespaces_for_commodity_type(commodity_type)
+                if expected_namespaces:
+                    expected_text = ", ".join(
+                        f"{candidate}:*" for candidate in expected_namespaces
+                    )
+                else:
+                    expected_text = "a canonical namespace"
                 diagnostics.append(
                     LintDiagnostic(
                         code=self.code,
                         severity="error",
-                        message=result.error,
+                        message=(
+                            f"Legacy commodity prefix '{namespace}:' in '{name}' is "
+                            f"deprecated; use {expected_text} for type "
+                            f"'{commodity_type}'."
+                        ),
+                        path=path,
+                    )
+                )
+                continue
+
+            if namespace not in self._valid_namespaces:
+                diagnostics.append(
+                    LintDiagnostic(
+                        code=self.code,
+                        severity="error",
+                        message=(
+                            f"Unknown commodity namespace '{namespace}' in '{name}'. "
+                            f"Expected one of: {sorted(self._valid_namespaces)}"
+                        ),
+                        path=path,
+                    )
+                )
+                continue
+
+            expected_types = self._namespace_to_types.get(namespace, frozenset())
+            if commodity_type not in expected_types:
+                diagnostics.append(
+                    LintDiagnostic(
+                        code=self.code,
+                        severity="error",
+                        message=(
+                            f"Commodity '{name}' namespace '{namespace}' implies "
+                            f"type in {sorted(expected_types)}, but commodity "
+                            f"type is '{commodity_type}'."
+                        ),
                         path=path,
                     )
                 )
 
         return diagnostics
 
-    def _infer_kind(self, comm: dict) -> str | None:
-        """Infer commodity kind from type field."""
-        comm_type = comm.get("type", "")
-        kind = comm.get("kind")
-
-        if kind:
-            return kind
-
-        type_to_kind = {
-            "energy": "TRADABLE",
-            "material": "TRADABLE",
-            "demand": "SERVICE",
-            "emission": "EMISSION",
-        }
-        return type_to_kind.get(comm_type)
+    def _canonical_commodity_type(self, comm_type: Any) -> str | None:
+        """Normalize legacy aliases to canonical schema commodity.type values."""
+        if not isinstance(comm_type, str) or not comm_type:
+            return None
+        if comm_type == "demand":
+            return "service"
+        return comm_type
 
 
 class N002_ProcessIDGrammar(NamingLintRule):
@@ -308,7 +350,7 @@ class N007_EUSMustOutputService(NamingLintRule):
             kind = comm.get("kind")
             if kind:
                 commodity_kinds[name] = kind
-            elif comm_type == "demand":
+            elif comm_type in {"demand", "service"}:
                 commodity_kinds[name] = "SERVICE"
 
         for i, proc in enumerate(model_data.get("processes", [])):
@@ -407,7 +449,9 @@ class N009_ServiceInTradeLink(NamingLintRule):
 
             if kind == "SERVICE" or comm_type == "demand":
                 service_commodities.add(name)
-            elif name.startswith("S:"):
+            elif comm_type == "service":
+                service_commodities.add(name)
+            elif split_commodity_namespace(name)[0] == "service":
                 service_commodities.add(name)
 
         for i, link in enumerate(model_data.get("trade_links", [])):
@@ -444,7 +488,7 @@ class N010_ContextKindMismatch(NamingLintRule):
             comm_type = comm.get("type", "")
 
             if kind is None:
-                if comm_type == "demand":
+                if comm_type in {"demand", "service"}:
                     kind = "SERVICE"
                 elif comm_type == "emission":
                     kind = "EMISSION"

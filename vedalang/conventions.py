@@ -48,6 +48,16 @@ _FALLBACK_SCENARIO_CATEGORIES = (
     "resource_availability",
     "global_settings",
 )
+_FALLBACK_NAMESPACE_TO_TYPES: dict[str, tuple[str, ...]] = {
+    "secondary": ("energy",),
+    "primary": ("fuel",),
+    "resource": ("other", "energy"),
+    "material": ("material",),
+    "service": ("service",),
+    "emission": ("emission",),
+    "money": ("money",),
+}
+_FALLBACK_LEGACY_COMMODITY_NAMESPACES = frozenset({"C", "E", "S", "M", "D", "F"})
 
 
 @lru_cache(maxsize=1)
@@ -92,6 +102,39 @@ def commodity_namespace_enum() -> tuple[str, ...]:
     if isinstance(enum, list) and enum and all(isinstance(x, str) for x in enum):
         return tuple(enum)
     return _FALLBACK_COMMODITY_NAMESPACES
+
+
+def commodity_namespace_type_map() -> dict[str, frozenset[str]]:
+    """Canonical namespace->allowed commodity.type mapping."""
+    return {
+        namespace: frozenset(_FALLBACK_NAMESPACE_TO_TYPES.get(namespace, ()))
+        for namespace in commodity_namespace_enum()
+    }
+
+
+def namespaces_for_commodity_type(commodity_type: str) -> tuple[str, ...]:
+    """Canonical namespace prefixes that are valid for a commodity.type."""
+    if not isinstance(commodity_type, str) or not commodity_type:
+        return ()
+    mapping = commodity_namespace_type_map()
+    return tuple(
+        namespace
+        for namespace, allowed_types in mapping.items()
+        if commodity_type in allowed_types
+    )
+
+
+def split_commodity_namespace(commodity_id: str) -> tuple[str | None, str]:
+    """Split commodity id into (namespace, base_name)."""
+    if not isinstance(commodity_id, str) or ":" not in commodity_id:
+        return None, commodity_id if isinstance(commodity_id, str) else ""
+    namespace, _, base = commodity_id.partition(":")
+    return namespace, base
+
+
+def is_legacy_commodity_namespace(namespace: str | None) -> bool:
+    """True for legacy VEDA-style namespace prefixes (C:/E:/S:/...)."""
+    return namespace in _FALLBACK_LEGACY_COMMODITY_NAMESPACES
 
 
 def scenario_category_enum() -> tuple[str, ...]:
