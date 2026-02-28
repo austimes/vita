@@ -90,7 +90,7 @@ uv sync
 uv run vedalang validate model.veda.yaml
 
 # Check formatting for VedaLang YAML
-npm run format:veda:check
+bun run format:veda:check
 
 # Lint for heuristic issues
 uv run vedalang lint model.veda.yaml
@@ -184,7 +184,7 @@ Extend the VedaLang DSL, improve the compiler, or discover new VEDA patterns.
 uv run pytest
 
 # Check VedaLang YAML formatting
-npm run format:veda:check
+bun run format:veda:check
 
 # Run linter
 uv run ruff check .
@@ -200,7 +200,7 @@ uv run vedalang validate vedalang/examples/mini_plant.veda.yaml
 ### Prerequisites
 
 - Python 3.11+
-- Node.js + npm (for YAML formatting checks)
+- [Bun](https://bun.sh/) (for YAML formatting checks)
 - [uv](https://docs.astral.sh/uv/) package manager
 - GAMS with a valid license (for running the solver)
 - TIMES source code

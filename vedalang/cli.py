@@ -1341,7 +1341,7 @@ def cmd_fmt(args) -> int:
     if prettier_command is None:
         message = (
             "Prettier not found. Install formatter tooling with "
-            "`npm install` in the repository root."
+            "`bun install` in the repository root."
         )
         if output_json:
             print(

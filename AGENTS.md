@@ -352,7 +352,7 @@ The LSP has two parts: a **Python server** (`tools/vedalang_lsp/server/`) and a 
 
 ```bash
 # 1. Compile TypeScript
-cd tools/vedalang_lsp/extension && npm run compile
+cd tools/vedalang_lsp/extension && bun run compile
 
 # 2. Copy compiled JS to the installed extension (Cursor)
 cp tools/vedalang_lsp/extension/out/*.js ~/.cursor/extensions/austimes.vedalang-0.1.0/out/
@@ -360,7 +360,7 @@ cp tools/vedalang_lsp/extension/out/*.js ~/.cursor/extensions/austimes.vedalang-
 # 3. Reload window: Cmd+Shift+P → "Developer: Reload Window"
 ```
 
-**Important:** Cursor loads the extension from `~/.cursor/extensions/austimes.vedalang-0.1.0/`, NOT from the repo's `out/` directory. After `npm run compile`, you MUST copy the built JS files to the installed extension path. For VS Code, the equivalent path is `~/.vscode/extensions/`.
+**Important:** Cursor loads the extension from `~/.cursor/extensions/austimes.vedalang-0.1.0/`, NOT from the repo's `out/` directory. After `bun run compile`, you MUST copy the built JS files to the installed extension path. For VS Code, the equivalent path is `~/.vscode/extensions/`.
 
 Python server changes (e.g., `tools/vedalang_lsp/server/server.py`) take effect on window reload without any build step.
 
@@ -642,7 +642,7 @@ See [docs/vedalang-design-agent/schema_evolution.md](docs/vedalang-design-agent/
 uv run python tools/sync_conventions.py --check
 
 # Run before committing
-npm run format:veda:check
+bun run format:veda:check
 uv run pytest tests/
 uv run ruff check .
 
