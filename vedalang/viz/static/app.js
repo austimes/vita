@@ -1,6 +1,22 @@
 let cy = null;
 let lastResponse = null;
 
+const MODE_OPTIONS = [
+  { value: "compiled", label: "compiled" },
+  { value: "source", label: "source" },
+];
+
+const GRANULARITY_OPTIONS = [
+  { value: "role", label: "role" },
+  { value: "variant", label: "variant" },
+  { value: "instance", label: "instance" },
+];
+
+const LENS_OPTIONS = [
+  { value: "system", label: "system" },
+  { value: "trade", label: "trade" },
+];
+
 const state = {
   file: "",
   mode: "compiled",
@@ -10,17 +26,28 @@ const state = {
   regions: [],
   sectors: [],
   segments: [],
+  availableFiles: [],
+  availableCases: [],
+  availableRegions: [],
+  availableSectors: [],
+  availableSegments: [],
 };
 
 function setStatus(text) {
   document.getElementById("status").textContent = text;
 }
 
-function parseCsv(value) {
-  return value
-    .split(",")
-    .map((v) => v.trim())
-    .filter((v) => v.length > 0);
+function normalizeToKnown(values, available) {
+  const known = new Set(available);
+  return [...new Set(values)].filter((value) => known.has(value));
+}
+
+function compactPath(path) {
+  const parts = path.split("/").filter((part) => part.length > 0);
+  if (parts.length <= 3) {
+    return path;
+  }
+  return `.../${parts.slice(-3).join("/")}`;
 }
 
 function getRequest() {
@@ -126,24 +153,24 @@ function initCy() {
 
 function renderGraph(response) {
   lastResponse = response;
-  const nodes = (response.graph.nodes || []).map((n) => {
-    const style = styleForNode(n.type);
+  const nodes = (response.graph.nodes || []).map((node) => {
+    const style = styleForNode(node.type);
     return {
       data: {
-        id: n.id,
-        label: n.label,
-        type: n.type,
+        id: node.id,
+        label: node.label,
+        type: node.type,
         shape: style.shape,
         color: style.color,
       },
     };
   });
-  const edges = (response.graph.edges || []).map((e) => ({
+  const edges = (response.graph.edges || []).map((edge) => ({
     data: {
-      id: e.id,
-      source: e.source,
-      target: e.target,
-      type: e.type,
+      id: edge.id,
+      source: edge.source,
+      target: edge.target,
+      type: edge.type,
     },
   }));
 
@@ -165,61 +192,280 @@ function renderGraph(response) {
   document.getElementById("diagnostics").textContent = JSON.stringify(response.diagnostics || [], null, 2);
 }
 
+function createOptionButton({ label, active, title, onClick }) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = `option-btn${active ? " is-active" : ""}`;
+  button.textContent = label;
+  if (title) {
+    button.title = title;
+  }
+  button.addEventListener("click", onClick);
+  return button;
+}
+
+function renderPlaceholder(container, text) {
+  const placeholder = document.createElement("div");
+  placeholder.className = "option-placeholder";
+  placeholder.textContent = text;
+  container.appendChild(placeholder);
+}
+
+function renderSingleGroup(containerId, options, selectedValue, onSelect) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = "";
+  if (options.length === 0) {
+    renderPlaceholder(container, "No options");
+    return;
+  }
+
+  options.forEach((option) => {
+    container.appendChild(
+      createOptionButton({
+        label: option.label,
+        title: option.title || option.label,
+        active: option.value === selectedValue,
+        onClick: () => {
+          if (option.value === selectedValue) {
+            return;
+          }
+          onSelect(option.value);
+        },
+      }),
+    );
+  });
+}
+
+function updateMultiSelection(currentValues, value, event) {
+  const useMultiSelect = event.ctrlKey || event.metaKey;
+  const currentSet = new Set(currentValues);
+
+  if (useMultiSelect) {
+    if (currentSet.has(value)) {
+      currentSet.delete(value);
+    } else {
+      currentSet.add(value);
+    }
+    return [...currentSet];
+  }
+
+  return [value];
+}
+
+function renderRegionGroup() {
+  const container = document.getElementById("regionButtons");
+  container.innerHTML = "";
+
+  const available = state.availableRegions;
+  if (available.length === 0) {
+    renderPlaceholder(container, "No regions");
+    return;
+  }
+
+  const uiSelected = state.regions.length === 0 ? [...available] : normalizeToKnown(state.regions, available);
+
+  container.appendChild(
+    createOptionButton({
+      label: "(all regions)",
+      active: state.regions.length === 0,
+      onClick: () => {
+        if (state.regions.length === 0) {
+          return;
+        }
+        state.regions = [];
+        runQuery();
+      },
+    }),
+  );
+
+  available.forEach((region) => {
+    container.appendChild(
+      createOptionButton({
+        label: region,
+        active: uiSelected.includes(region),
+        onClick: (event) => {
+          let next = updateMultiSelection(uiSelected, region, event);
+          next = normalizeToKnown(next, available);
+
+          if (next.length === 0 || next.length === available.length) {
+            state.regions = [];
+          } else {
+            state.regions = next;
+          }
+
+          runQuery();
+        },
+      }),
+    );
+  });
+}
+
+function renderFacetMultiGroup({ containerId, available, selected, anyLabel, onSelect }) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = "";
+
+  if (available.length === 0) {
+    renderPlaceholder(container, "No options");
+    return;
+  }
+
+  const knownSelected = normalizeToKnown(selected, available);
+
+  container.appendChild(
+    createOptionButton({
+      label: anyLabel,
+      active: knownSelected.length === 0,
+      onClick: () => {
+        if (knownSelected.length === 0) {
+          return;
+        }
+        onSelect([]);
+        runQuery();
+      },
+    }),
+  );
+
+  available.forEach((value) => {
+    container.appendChild(
+      createOptionButton({
+        label: value,
+        active: knownSelected.includes(value),
+        onClick: (event) => {
+          let next = updateMultiSelection(knownSelected, value, event);
+          next = normalizeToKnown(next, available);
+          if (next.length === available.length) {
+            next = [];
+          }
+          onSelect(next);
+          runQuery();
+        },
+      }),
+    );
+  });
+}
+
+function renderControls() {
+  renderSingleGroup(
+    "fileButtons",
+    state.availableFiles.map((file) => ({
+      value: file,
+      label: compactPath(file),
+      title: file,
+    })),
+    state.file,
+    (value) => {
+      state.file = value;
+      runQuery();
+    },
+  );
+
+  renderSingleGroup("modeButtons", MODE_OPTIONS, state.mode, (value) => {
+    state.mode = value;
+    runQuery();
+  });
+
+  renderSingleGroup("granularityButtons", GRANULARITY_OPTIONS, state.granularity, (value) => {
+    state.granularity = value;
+    runQuery();
+  });
+
+  renderSingleGroup("lensButtons", LENS_OPTIONS, state.lens, (value) => {
+    state.lens = value;
+    runQuery();
+  });
+
+  renderSingleGroup(
+    "caseButtons",
+    [{ value: "", label: "(default case)" }].concat(
+      state.availableCases.map((item) => ({ value: item, label: item })),
+    ),
+    state.caseName,
+    (value) => {
+      state.caseName = value;
+      runQuery();
+    },
+  );
+
+  renderRegionGroup();
+
+  renderFacetMultiGroup({
+    containerId: "sectorButtons",
+    available: state.availableSectors,
+    selected: state.sectors,
+    anyLabel: "(any sector)",
+    onSelect: (values) => {
+      state.sectors = values;
+    },
+  });
+
+  renderFacetMultiGroup({
+    containerId: "segmentButtons",
+    available: state.availableSegments,
+    selected: state.segments,
+    anyLabel: "(any segment)",
+    onSelect: (values) => {
+      state.segments = values;
+    },
+  });
+}
+
+function reconcileStateWithFacets() {
+  state.availableCases = [...state.availableCases];
+  state.availableRegions = [...state.availableRegions];
+  state.availableSectors = [...state.availableSectors];
+  state.availableSegments = [...state.availableSegments];
+
+  if (state.caseName && !state.availableCases.includes(state.caseName)) {
+    state.caseName = "";
+  }
+
+  state.regions = normalizeToKnown(state.regions, state.availableRegions);
+  if (state.regions.length === state.availableRegions.length) {
+    state.regions = [];
+  }
+
+  state.sectors = normalizeToKnown(state.sectors, state.availableSectors);
+  if (state.sectors.length === state.availableSectors.length) {
+    state.sectors = [];
+  }
+
+  state.segments = normalizeToKnown(state.segments, state.availableSegments);
+  if (state.segments.length === state.availableSegments.length) {
+    state.segments = [];
+  }
+}
+
 function updateFacetControls(response) {
   const facets = response.facets || {};
+  state.availableCases = facets.cases || [];
+  state.availableRegions = facets.regions || [];
+  state.availableSectors = facets.sectors || [];
+  state.availableSegments = facets.segments || [];
 
-  const caseSelect = document.getElementById("caseSelect");
-  const currentCase = state.caseName;
-  caseSelect.innerHTML = '<option value="">(default)</option>';
-  (facets.cases || []).forEach((c) => {
-    const opt = document.createElement("option");
-    opt.value = c;
-    opt.textContent = c;
-    if (c === currentCase) {
-      opt.selected = true;
-    }
-    caseSelect.appendChild(opt);
-  });
-
-  const regionFilters = document.getElementById("regionFilters");
-  regionFilters.innerHTML = "";
-  const available = facets.regions || [];
-  available.forEach((region) => {
-    const label = document.createElement("label");
-    label.className = "region-pill";
-    const checkbox = document.createElement("input");
-    checkbox.type = "checkbox";
-    checkbox.value = region;
-    checkbox.checked = state.regions.length === 0 || state.regions.includes(region);
-    checkbox.addEventListener("change", () => {
-      const selected = Array.from(regionFilters.querySelectorAll("input:checked")).map((el) => el.value);
-      state.regions = selected.length === available.length ? [] : selected;
-      runQuery();
-    });
-    label.appendChild(checkbox);
-    label.appendChild(document.createTextNode(" " + region));
-    regionFilters.appendChild(label);
-  });
+  reconcileStateWithFacets();
+  renderControls();
 }
 
 async function runQuery() {
   if (!state.file) {
+    setStatus("No .veda.yaml files found");
     return;
   }
+
   setStatus("Querying...");
   try {
-    const resp = await fetch("/api/query", {
+    const response = await fetch("/api/query", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(getRequest()),
     });
-    const data = await resp.json();
+    const data = await response.json();
     renderGraph(data);
     updateFacetControls(data);
     setStatus(`${data.status} (${data.mode_used})`);
-  } catch (err) {
+  } catch (error) {
     setStatus("Query failed");
-    document.getElementById("diagnostics").textContent = String(err);
+    document.getElementById("diagnostics").textContent = String(error);
   }
 }
 
@@ -227,61 +473,20 @@ async function loadFiles() {
   const response = await fetch("/api/files");
   const payload = await response.json();
 
-  const select = document.getElementById("fileSelect");
-  select.innerHTML = "";
-
-  (payload.files || []).forEach((file) => {
-    const opt = document.createElement("option");
-    opt.value = file;
-    opt.textContent = file;
-    select.appendChild(opt);
-  });
+  state.availableFiles = payload.files || [];
 
   if (payload.initial_file) {
     state.file = payload.initial_file;
-    select.value = payload.initial_file;
-  } else if ((payload.files || []).length > 0) {
-    state.file = payload.files[0];
-    select.value = payload.files[0];
+  } else if (state.availableFiles.length > 0) {
+    state.file = state.availableFiles[0];
+  } else {
+    state.file = "";
   }
+
+  renderControls();
 }
 
 function wireControls() {
-  document.getElementById("fileSelect").addEventListener("change", (evt) => {
-    state.file = evt.target.value;
-    runQuery();
-  });
-
-  document.getElementById("modeSelect").addEventListener("change", (evt) => {
-    state.mode = evt.target.value;
-    runQuery();
-  });
-
-  document.getElementById("granularitySelect").addEventListener("change", (evt) => {
-    state.granularity = evt.target.value;
-    runQuery();
-  });
-
-  document.getElementById("lensSelect").addEventListener("change", (evt) => {
-    state.lens = evt.target.value;
-    runQuery();
-  });
-
-  document.getElementById("caseSelect").addEventListener("change", (evt) => {
-    state.caseName = evt.target.value;
-    runQuery();
-  });
-
-  document.getElementById("sectorInput").addEventListener("change", (evt) => {
-    state.sectors = parseCsv(evt.target.value);
-    runQuery();
-  });
-
-  document.getElementById("segmentInput").addEventListener("change", (evt) => {
-    state.segments = parseCsv(evt.target.value);
-    runQuery();
-  });
-
   document.getElementById("refreshBtn").addEventListener("click", () => runQuery());
 }
 

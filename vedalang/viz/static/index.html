@@ -12,50 +12,56 @@
 <body>
   <div class="app">
     <header>
-      <h1>RES Viewer</h1>
-      <div id="status">Ready</div>
+      <div>
+        <h1>RES Viewer</h1>
+        <div id="status">Ready</div>
+      </div>
+      <button id="refreshBtn" class="refresh-btn" type="button">Refresh</button>
     </header>
 
     <section class="controls">
-      <label>File
-        <select id="fileSelect"></select>
-      </label>
-      <label>Mode
-        <select id="modeSelect">
-          <option value="compiled" selected>compiled</option>
-          <option value="source">source</option>
-        </select>
-      </label>
-      <label>Granularity
-        <select id="granularitySelect">
-          <option value="role" selected>role</option>
-          <option value="variant">variant</option>
-          <option value="instance">instance</option>
-        </select>
-      </label>
-      <label>Lens
-        <select id="lensSelect">
-          <option value="system" selected>system</option>
-          <option value="trade">trade</option>
-        </select>
-      </label>
-      <label>Case
-        <select id="caseSelect">
-          <option value="">(default)</option>
-        </select>
-      </label>
-      <label>Sectors (comma)
-        <input id="sectorInput" placeholder="RES,COM" />
-      </label>
-      <label>Segments (comma)
-        <input id="segmentInput" placeholder="RES.heating" />
-      </label>
-      <button id="refreshBtn">Refresh</button>
-    </section>
+      <div class="control-card">
+        <h2>File</h2>
+        <div id="fileButtons" class="option-list file-list"></div>
+      </div>
 
-    <section class="regions">
-      <span>Regions:</span>
-      <div id="regionFilters"></div>
+      <div class="control-card">
+        <h2>Mode</h2>
+        <div id="modeButtons" class="option-list"></div>
+      </div>
+
+      <div class="control-card">
+        <h2>Granularity</h2>
+        <div id="granularityButtons" class="option-list"></div>
+      </div>
+
+      <div class="control-card">
+        <h2>Lens</h2>
+        <div id="lensButtons" class="option-list"></div>
+      </div>
+
+      <div class="control-card">
+        <h2>Case</h2>
+        <div id="caseButtons" class="option-list"></div>
+      </div>
+
+      <div class="control-card">
+        <h2>Regions</h2>
+        <p class="control-hint">Ctrl/Cmd-click for multi-select.</p>
+        <div id="regionButtons" class="option-list"></div>
+      </div>
+
+      <div class="control-card">
+        <h2>Sectors</h2>
+        <p class="control-hint">Ctrl/Cmd-click for multi-select.</p>
+        <div id="sectorButtons" class="option-list"></div>
+      </div>
+
+      <div class="control-card">
+        <h2>Segments</h2>
+        <p class="control-hint">Ctrl/Cmd-click for multi-select.</p>
+        <div id="segmentButtons" class="option-list"></div>
+      </div>
     </section>
 
     <main>
