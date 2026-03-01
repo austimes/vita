@@ -1,6 +1,7 @@
 """Pipeline orchestrator for full VedaLang -> TIMES cycle."""
 
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -82,8 +83,12 @@ class PipelineResult:
                     "problem_type": gams_summary.get("problem_type"),
                     "message": gams_summary.get("message", ""),
                     "ran_solver": execution.get("ran_solver", False),
+                    "model_status_code": execution.get("model_status", {}).get("code"),
                     "model_status": execution.get("model_status", {}).get("category"),
+                    "model_status_text": execution.get("model_status", {}).get("text"),
+                    "solve_status_code": execution.get("solve_status", {}).get("code"),
                     "solve_status": execution.get("solve_status", {}).get("category"),
+                    "solve_status_text": execution.get("solve_status", {}).get("text"),
                     "objective": execution.get("objective", {}).get("value"),
                 }
 
@@ -104,6 +109,34 @@ def detect_input_kind(path: Path) -> str:
         if list(path.glob("*.xlsx")):
             return "excel"
     return "unknown"
+
+
+def _tail_text(text: str, *, max_lines: int = 20, max_chars: int = 2000) -> str:
+    """Return a bounded tail excerpt for logs/std streams."""
+    lines = text.splitlines()
+    tail = "\n".join(lines[-max_lines:])
+    if len(tail) > max_chars:
+        tail = tail[-max_chars:]
+    return tail
+
+
+def _extract_licensing_excerpt(lst_file: Path, *, max_lines: int = 6) -> list[str]:
+    """Extract key licensing lines from a GAMS listing file."""
+    if not lst_file.exists():
+        return []
+
+    excerpt: list[str] = []
+    pattern = re.compile(r"licens|demo|gamslice", re.IGNORECASE)
+    try:
+        for raw_line in lst_file.read_text(errors="replace").splitlines():
+            if pattern.search(raw_line):
+                excerpt.append(raw_line.strip())
+                if len(excerpt) >= max_lines:
+                    break
+    except OSError:
+        return []
+
+    return excerpt
 
 
 def run_pipeline(
@@ -392,11 +425,34 @@ def run_pipeline(
                         times_result.solve_status
                     )
                     run_times_result.artifacts["objective"] = times_result.objective
+                    run_times_result.artifacts["gams_command"] = " ".join(
+                        times_result.gams_command
+                    )
+                    if times_result.stdout:
+                        run_times_result.artifacts["gams_stdout_tail"] = _tail_text(
+                            times_result.stdout
+                        )
+                    if times_result.stderr:
+                        run_times_result.artifacts["gams_stderr_tail"] = _tail_text(
+                            times_result.stderr
+                        )
 
                     if times_result.lst_file:
                         run_times_result.artifacts["lst_file"] = str(
                             times_result.lst_file
                         )
+                        if times_result.diagnostics:
+                            problem_type = times_result.diagnostics.get(
+                                "summary", {}
+                            ).get("problem_type")
+                            if problem_type == "licensing":
+                                excerpt = _extract_licensing_excerpt(
+                                    times_result.lst_file
+                                )
+                                if excerpt:
+                                    run_times_result.artifacts[
+                                        "lst_license_excerpt"
+                                    ] = excerpt
                     if times_result.gdx_files:
                         run_times_result.artifacts["gdx_files"] = [
                             str(f) for f in times_result.gdx_files
@@ -532,8 +588,9 @@ def _format_step_detail(name: str, step: StepResult) -> str:
         diag = step.artifacts.get("gams_diagnostics")
         if diag:
             summary = diag.get("summary", {})
+            execution = diag.get("execution", {})
             if summary.get("ok"):
-                obj = diag.get("execution", {}).get("objective", {}).get("value")
+                obj = execution.get("objective", {}).get("value")
                 if obj is not None:
                     details.append(f"obj={obj:.2f}")
                 else:
@@ -541,9 +598,18 @@ def _format_step_detail(name: str, step: StepResult) -> str:
             else:
                 prob = summary.get("problem_type", "error")
                 details.append(prob)
+                model_code = execution.get("model_status", {}).get("code")
+                solve_code = execution.get("solve_status", {}).get("code")
+                if model_code is not None:
+                    details.append(f"m={model_code}")
+                if solve_code is not None:
+                    details.append(f"s={solve_code}")
+                rc = step.artifacts.get("gams_return_code")
+                if rc is not None and rc != 0:
+                    details.append(f"rc={rc}")
 
             # Show if solver didn't run
-            if not diag.get("execution", {}).get("ran_solver"):
+            if not execution.get("ran_solver"):
                 details.append("no-solve")
         else:
             # Fall back to legacy fields
@@ -560,6 +626,91 @@ def _format_step_detail(name: str, step: StepResult) -> str:
             details.append(f"{years}y/{regions}r")
 
     return ", ".join(details) if details else ""
+
+
+def _format_exec_status(status: dict[str, Any] | None) -> str | None:
+    """Format model/solver status from structured diagnostics."""
+    if not status:
+        return None
+
+    code = status.get("code")
+    text = status.get("text")
+    category = status.get("category")
+
+    parts = []
+    if code is not None:
+        parts.append(str(code))
+    if text:
+        parts.append(str(text))
+
+    if not parts and not category:
+        return None
+
+    base = " ".join(parts) if parts else "unknown"
+    if category:
+        return f"{base} [{category}]"
+    return base
+
+
+def _format_run_times_failure(step: StepResult) -> list[str]:
+    """Build verbose failure lines for the run_times step."""
+    lines: list[str] = ["Run-times diagnostics:"]
+
+    gams_rc = step.artifacts.get("gams_return_code")
+    if gams_rc is not None:
+        lines.append(f"  - GAMS return code: {gams_rc}")
+
+    diag = step.artifacts.get("gams_diagnostics")
+    if diag:
+        summary = diag.get("summary", {})
+        execution = diag.get("execution", {})
+
+        problem = summary.get("problem_type")
+        if problem:
+            lines.append(f"  - Problem: {problem}")
+
+        message = summary.get("message")
+        if message:
+            lines.append(f"  - Message: {message}")
+
+        model_status = _format_exec_status(execution.get("model_status"))
+        if model_status:
+            lines.append(f"  - Model status: {model_status}")
+
+        solve_status = _format_exec_status(execution.get("solve_status"))
+        if solve_status:
+            lines.append(f"  - Solve status: {solve_status}")
+
+        ran_solver = execution.get("ran_solver")
+        if isinstance(ran_solver, bool):
+            lines.append(f"  - Ran solver: {'yes' if ran_solver else 'no'}")
+
+    command = step.artifacts.get("gams_command")
+    if command:
+        lines.append(f"  - Command: {command}")
+
+    lst_file = step.artifacts.get("lst_file")
+    if lst_file:
+        lines.append(f"  - LST file: {lst_file}")
+
+    diag_file = step.artifacts.get("gams_diagnostics_file")
+    if diag_file:
+        lines.append(f"  - Diagnostics JSON: {diag_file}")
+
+    lst_license_excerpt = step.artifacts.get("lst_license_excerpt")
+    if lst_license_excerpt:
+        lines.append("  - Licensing excerpt (from .lst):")
+        for line in lst_license_excerpt[:6]:
+            lines.append(f"      {line[:120]}")
+
+    stderr_tail = step.artifacts.get("gams_stderr_tail")
+    if stderr_tail:
+        lines.append("  - GAMS stderr tail:")
+        for line in stderr_tail.splitlines()[-8:]:
+            if line.strip():
+                lines.append(f"      {line[:120]}")
+
+    return lines
 
 
 def format_result_table(result: PipelineResult) -> str:
@@ -608,5 +759,10 @@ def format_result_table(result: PipelineResult) -> str:
         lines.append("Errors:")
         for err in all_errors[:10]:
             lines.append(f"  - {err[:70]}")
+
+    run_times_step = result.steps.get("run_times")
+    if run_times_step and not run_times_step.skipped and not run_times_step.success:
+        lines.append("")
+        lines.extend(_format_run_times_failure(run_times_step))
 
     return "\n".join(lines)
