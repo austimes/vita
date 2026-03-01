@@ -1,6 +1,8 @@
 let cy = null;
 let lastResponse = null;
 
+const SIDEBAR_STORAGE_KEY = "vedalang.viz.sidebarCollapsed";
+
 const MODE_OPTIONS = [
   { value: "compiled", label: "compiled" },
   { value: "source", label: "source" },
@@ -31,6 +33,7 @@ const state = {
   availableRegions: [],
   availableSectors: [],
   availableSegments: [],
+  sidebarCollapsed: false,
 };
 
 function setStatus(text) {
@@ -48,6 +51,31 @@ function compactPath(path) {
     return path;
   }
   return `.../${parts.slice(-3).join("/")}`;
+}
+
+function setSidebarCollapsed(collapsed) {
+  state.sidebarCollapsed = collapsed;
+  const appRoot = document.getElementById("appRoot");
+  const toggleButton = document.getElementById("toggleSidebarBtn");
+
+  appRoot.classList.toggle("sidebar-collapsed", collapsed);
+  toggleButton.textContent = collapsed ? "▶" : "◀";
+  toggleButton.title = collapsed ? "Expand file sidebar" : "Collapse file sidebar";
+
+  try {
+    localStorage.setItem(SIDEBAR_STORAGE_KEY, collapsed ? "1" : "0");
+  } catch (error) {
+    void error;
+  }
+}
+
+function loadSidebarPreference() {
+  try {
+    return localStorage.getItem(SIDEBAR_STORAGE_KEY) === "1";
+  } catch (error) {
+    void error;
+    return false;
+  }
 }
 
 function getRequest() {
@@ -138,14 +166,14 @@ function initCy() {
     wheelSensitivity: 0.25,
   });
 
-  cy.on("tap", "node", (evt) => {
-    const id = evt.target.id();
+  cy.on("tap", "node", (event) => {
+    const id = event.target.id();
     const details = (lastResponse && lastResponse.details && lastResponse.details.nodes[id]) || {};
     document.getElementById("details").textContent = JSON.stringify(details, null, 2);
   });
 
-  cy.on("tap", "edge", (evt) => {
-    const id = evt.target.id();
+  cy.on("tap", "edge", (event) => {
+    const id = event.target.id();
     const details = (lastResponse && lastResponse.details && lastResponse.details.edges[id]) || {};
     document.getElementById("details").textContent = JSON.stringify(details, null, 2);
   });
@@ -165,6 +193,7 @@ function renderGraph(response) {
       },
     };
   });
+
   const edges = (response.graph.edges || []).map((edge) => ({
     data: {
       id: edge.id,
@@ -488,11 +517,15 @@ async function loadFiles() {
 
 function wireControls() {
   document.getElementById("refreshBtn").addEventListener("click", () => runQuery());
+  document.getElementById("toggleSidebarBtn").addEventListener("click", () => {
+    setSidebarCollapsed(!state.sidebarCollapsed);
+  });
 }
 
 async function bootstrap() {
   initCy();
   wireControls();
+  setSidebarCollapsed(loadSidebarPreference());
   await loadFiles();
   await runQuery();
 }

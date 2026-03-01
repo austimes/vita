@@ -56,6 +56,58 @@ h1 {
   border-color: var(--button-active-border);
 }
 
+.workspace {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  min-height: 0;
+  flex: 1;
+}
+
+.file-sidebar {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-right: 1px solid var(--panel-border);
+  background: #0d1525;
+  padding: 10px;
+  gap: 8px;
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sidebar-header h2 {
+  margin: 0;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.sidebar-toggle {
+  background: var(--button);
+  color: var(--text);
+  border: 1px solid var(--button-border);
+  border-radius: 6px;
+  width: 32px;
+  height: 28px;
+  cursor: pointer;
+}
+
+.sidebar-toggle:hover {
+  border-color: var(--button-active-border);
+}
+
+.main-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
 .controls {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
@@ -117,6 +169,11 @@ h1 {
   font-weight: 700;
 }
 
+.file-list {
+  max-height: none;
+  flex: 1;
+}
+
 .file-list .option-btn {
   white-space: nowrap;
   overflow: hidden;
@@ -131,7 +188,7 @@ h1 {
   border-radius: 6px;
 }
 
-main {
+.res-main {
   display: grid;
   grid-template-columns: 2fr 1fr;
   min-height: 0;
@@ -143,12 +200,12 @@ main {
   border-right: 1px solid var(--panel-border);
 }
 
-aside {
+.details-pane {
   padding: 8px;
   overflow: auto;
 }
 
-aside h2 {
+.details-pane h2 {
   margin: 8px 0;
   font-size: 14px;
 }
@@ -162,8 +219,55 @@ pre {
   font-size: 11px;
 }
 
+.app.sidebar-collapsed .workspace {
+  grid-template-columns: 52px 1fr;
+}
+
+.app.sidebar-collapsed .file-sidebar {
+  padding: 8px;
+}
+
+.app.sidebar-collapsed .sidebar-header h2,
+.app.sidebar-collapsed .file-list {
+  display: none;
+}
+
+.app.sidebar-collapsed .sidebar-header {
+  justify-content: center;
+}
+
 @media (max-width: 1000px) {
-  main {
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .file-sidebar {
+    border-right: none;
+    border-bottom: 1px solid var(--panel-border);
+    max-height: 240px;
+  }
+
+  .app.sidebar-collapsed .workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .app.sidebar-collapsed .file-sidebar {
+    max-height: none;
+  }
+
+  .app.sidebar-collapsed .file-list {
+    display: flex;
+  }
+
+  .app.sidebar-collapsed .sidebar-header h2 {
+    display: block;
+  }
+
+  .app.sidebar-collapsed .sidebar-header {
+    justify-content: space-between;
+  }
+
+  .res-main {
     grid-template-columns: 1fr;
   }
 

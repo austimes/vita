@@ -10,7 +10,7 @@
   <script src="https://unpkg.com/cytoscape-dagre@2.5.0/cytoscape-dagre.js"></script>
 </head>
 <body>
-  <div class="app">
+  <div class="app" id="appRoot">
     <header>
       <div>
         <h1>RES Viewer</h1>
@@ -19,60 +19,67 @@
       <button id="refreshBtn" class="refresh-btn" type="button">Refresh</button>
     </header>
 
-    <section class="controls">
-      <div class="control-card">
-        <h2>File</h2>
+    <section class="workspace">
+      <aside class="file-sidebar" id="fileSidebar">
+        <div class="sidebar-header">
+          <h2 id="fileSidebarTitle">Model Files</h2>
+          <button id="toggleSidebarBtn" class="sidebar-toggle" type="button" title="Collapse file sidebar">◀</button>
+        </div>
         <div id="fileButtons" class="option-list file-list"></div>
-      </div>
-
-      <div class="control-card">
-        <h2>Mode</h2>
-        <div id="modeButtons" class="option-list"></div>
-      </div>
-
-      <div class="control-card">
-        <h2>Granularity</h2>
-        <div id="granularityButtons" class="option-list"></div>
-      </div>
-
-      <div class="control-card">
-        <h2>Lens</h2>
-        <div id="lensButtons" class="option-list"></div>
-      </div>
-
-      <div class="control-card">
-        <h2>Case</h2>
-        <div id="caseButtons" class="option-list"></div>
-      </div>
-
-      <div class="control-card">
-        <h2>Regions</h2>
-        <p class="control-hint">Ctrl/Cmd-click for multi-select.</p>
-        <div id="regionButtons" class="option-list"></div>
-      </div>
-
-      <div class="control-card">
-        <h2>Sectors</h2>
-        <p class="control-hint">Ctrl/Cmd-click for multi-select.</p>
-        <div id="sectorButtons" class="option-list"></div>
-      </div>
-
-      <div class="control-card">
-        <h2>Segments</h2>
-        <p class="control-hint">Ctrl/Cmd-click for multi-select.</p>
-        <div id="segmentButtons" class="option-list"></div>
-      </div>
-    </section>
-
-    <main>
-      <div id="graph"></div>
-      <aside>
-        <h2>Diagnostics</h2>
-        <pre id="diagnostics"></pre>
-        <h2>Details</h2>
-        <pre id="details"></pre>
       </aside>
-    </main>
+
+      <section class="main-panel">
+        <section class="controls">
+          <div class="control-card">
+            <h2>Mode</h2>
+            <div id="modeButtons" class="option-list"></div>
+          </div>
+
+          <div class="control-card">
+            <h2>Granularity</h2>
+            <div id="granularityButtons" class="option-list"></div>
+          </div>
+
+          <div class="control-card">
+            <h2>Lens</h2>
+            <div id="lensButtons" class="option-list"></div>
+          </div>
+
+          <div class="control-card">
+            <h2>Case</h2>
+            <div id="caseButtons" class="option-list"></div>
+          </div>
+
+          <div class="control-card">
+            <h2>Regions</h2>
+            <p class="control-hint">Ctrl/Cmd-click for multi-select.</p>
+            <div id="regionButtons" class="option-list"></div>
+          </div>
+
+          <div class="control-card">
+            <h2>Sectors</h2>
+            <p class="control-hint">Ctrl/Cmd-click for multi-select.</p>
+            <div id="sectorButtons" class="option-list"></div>
+          </div>
+
+          <div class="control-card">
+            <h2>Segments</h2>
+            <p class="control-hint">Ctrl/Cmd-click for multi-select.</p>
+            <div id="segmentButtons" class="option-list"></div>
+          </div>
+        </section>
+
+        <main class="res-main">
+          <div id="graph"></div>
+          <aside class="details-pane">
+            <h2>Diagnostics</h2>
+            <pre id="diagnostics"></pre>
+            <h2>Details</h2>
+            <pre id="details"></pre>
+          </aside>
+        </main>
+      </section>
+    </section>
   </div>
 
   <script src="/static/app.js"></script>
