@@ -1,62 +1,55 @@
-# VedaLang example with timeslice definitions
-# This model includes intra-annual temporal structure (seasons + day/night)
 model:
   name: TimesliceModel
   description: A model with 4 timeslices (2 seasons × 2 daynite) in role/variant syntax
-
   regions:
     - REG1
-
-  milestone_years: [2020, 2030]
+  milestone_years:
+    - 2020
+    - 2030
   timeslices:
-    season:
-      - code: S
-        name: Summer
-      - code: W
-        name: Winter
     daynite:
-      - code: D
-        name: Day
-      - code: N
-        name: Night
-    fractions:
-      SD: 0.25 # Summer-Day
-      SN: 0.23 # Summer-Night
-      WD: 0.27 # Winter-Day
-      WN: 0.25 # Winter-Night
-  commodities:
-    - id: secondary:electricity
-      type: energy
-      unit: PJ
-      description: Electricity
+      - name: Day
+        code: D
 
-      combustible: false
+      - name: Night
+        code: N
+    fractions:
+      SD: 0.25
+      SN: 0.23
+      WD: 0.27
+      WN: 0.25
+    season:
+      - name: Summer
+        code: S
+
+      - name: Winter
+        code: W
+  commodities:
     - id: primary:natural_gas
+      description: Natural Gas
       type: fuel
       unit: PJ
-      description: Natural Gas
-
       combustible: true
-      lhv_mj_per_unit: 50.0
       hhv_mj_per_unit: 55.0
+      lhv_mj_per_unit: 50.0
+
+    - id: secondary:electricity
+      description: Electricity
+      type: energy
+      unit: PJ
+      combustible: false
+
     - id: service:electricity_demand
+      description: Electricity demand service
       type: service
       unit: PJ
-      description: Electricity demand service
-
       combustible: false
+
 segments:
-  sectors: [RES]
+  sectors:
+    - RES
 
 process_roles:
-  - id: supply_natural_gas
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: supply
-    required_inputs: []
-    required_outputs:
-      - commodity: primary:natural_gas
-
   - id: generate_electricity
     activity_unit: PJ
     capacity_unit: GW
@@ -75,16 +68,15 @@ process_roles:
     required_outputs:
       - commodity: service:electricity_demand
 
-process_variants:
-  - id: gas_import
-    role: supply_natural_gas
-    inputs: []
-    outputs:
+  - id: supply_natural_gas
+    activity_unit: PJ
+    capacity_unit: GW
+    stage: supply
+    required_inputs: []
+    required_outputs:
       - commodity: primary:natural_gas
-        basis: HHV
-    efficiency: 1.0
-    lifetime: 100
 
+process_variants:
   - id: ccgt
     role: generate_electricity
     inputs:
@@ -104,23 +96,31 @@ process_variants:
     efficiency: 1.0
     lifetime: 100
 
-availability:
-  - variant: gas_import
-    regions: [REG1]
+  - id: gas_import
+    role: supply_natural_gas
+    inputs: []
+    outputs:
+      - commodity: primary:natural_gas
+        basis: HHV
+    efficiency: 1.0
+    lifetime: 100
 
+availability:
   - variant: ccgt
-    regions: [REG1]
+    regions:
+      - REG1
 
   - variant: electric_device
-    regions: [REG1]
-    sectors: [RES]
+    regions:
+      - REG1
+    sectors:
+      - RES
+
+  - variant: gas_import
+    regions:
+      - REG1
 
 process_parameters:
-  - selector:
-      variant: gas_import
-      region: REG1
-    stock: 1000
-
   - selector:
       variant: ccgt
       region: REG1
@@ -132,11 +132,16 @@ process_parameters:
       sector: RES
     stock: 1000
 
+  - selector:
+      variant: gas_import
+      region: REG1
+    stock: 1000
+
 demands:
   - commodity: service:electricity_demand
     region: REG1
-    sector: RES
-    interpolation: interp_extrap
     values:
       "2020": 20
       "2030": 24
+    interpolation: interp_extrap
+    sector: RES

@@ -17,7 +17,7 @@ def test_toy_resources_has_ref_co2cap_force_shift_cases():
     tableir = compile_vedalang_to_tableir(source)
 
     case_names = [case["name"] for case in tableir["cases"]]
-    assert case_names == ["ref", "co2cap", "force_shift"]
+    assert sorted(case_names) == ["co2cap", "force_shift", "ref"]
 
     ref_case = next(case for case in tableir["cases"] if case["name"] == "ref")
     assert ref_case["is_baseline"] is True

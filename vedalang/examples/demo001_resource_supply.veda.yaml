@@ -1,7 +1,9 @@
 model:
   name: DemoS001
-  description: "Coal resource supply system \u2014 domestic mining (3-step supply\
-    \ curve), imports, exports, and demand technology. Single region, annual resolution.\n"
+  description: "Coal resource supply system — domestic mining (3-step supply curve),
+    imports, exports, and demand technology. Single region, annual resolution.
+
+    "
   regions:
     - REG1
   milestone_years:
@@ -9,102 +11,78 @@ model:
     - 2006
   commodities:
     - id: primary:coal
+      description: Solid fuels (coal)
       type: fuel
       unit: PJ
-      description: Solid fuels (coal)
       combustible: true
-      lhv_mj_per_unit: 25.0
       hhv_mj_per_unit: 27.5
+      lhv_mj_per_unit: 25.0
+
     - id: service:coal_supply
+      description: Total primary supply demand for coal
       type: service
       unit: PJ
-      description: Total primary supply demand for coal
       combustible: false
+
 segments:
   sectors:
     - IND
+
 process_roles:
-  - id: mine_coal
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: supply
-    description: Domestic coal extraction (mining)
-    required_inputs: []
-    required_outputs:
-      - commodity: primary:coal
-  - id: import_coal
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: supply
-    description: Coal imports from international market
-    required_inputs: []
-    required_outputs:
-      - commodity: primary:coal
-  - id: export_coal
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: sink
-    description: Coal exports to international market
-    required_inputs:
-      - commodity: primary:coal
-    required_outputs: []
   - id: deliver_coal_supply
+    description: Demand technology — delivers coal to meet supply demand
     activity_unit: PJ
     capacity_unit: GW
     stage: end_use
-    description: "Demand technology \u2014 delivers coal to meet supply demand"
     required_inputs:
       - commodity: primary:coal
     required_outputs:
       - commodity: service:coal_supply
+
+  - id: export_coal
+    description: Coal exports to international market
+    activity_unit: PJ
+    capacity_unit: GW
+    stage: sink
+    required_inputs:
+      - commodity: primary:coal
+    required_outputs: []
+
+  - id: import_coal
+    description: Coal imports from international market
+    activity_unit: PJ
+    capacity_unit: GW
+    stage: supply
+    required_inputs: []
+    required_outputs:
+      - commodity: primary:coal
+
+  - id: mine_coal
+    description: Domestic coal extraction (mining)
+    activity_unit: PJ
+    capacity_unit: GW
+    stage: supply
+    required_inputs: []
+    required_outputs:
+      - commodity: primary:coal
+
 process_variants:
-  - id: mine_coal_step1
-    role: mine_coal
-    description: "Cheapest domestic coal \u2014 shallow/accessible deposits"
-    inputs: []
-    outputs:
+  - id: coal_demand_device
+    description: Generic demand technology consuming coal
+    role: deliver_coal_supply
+    inputs:
       - commodity: primary:coal
         basis: HHV
-    efficiency: 1.0
-    lifetime: 100
-    variable_om_cost: 2 MUSD24/PJ
-    variable_om_cost_basis: HHV
-  - id: mine_coal_step2
-    role: mine_coal
-    description: "Mid-cost domestic coal \u2014 deeper deposits"
-    inputs: []
     outputs:
-      - commodity: primary:coal
-        basis: HHV
+      - commodity: service:coal_supply
     efficiency: 1.0
-    lifetime: 100
-    variable_om_cost: 2.5 MUSD24/PJ
-    variable_om_cost_basis: HHV
-  - id: mine_coal_step3
-    role: mine_coal
-    description: "Expensive domestic coal \u2014 marginal deposits"
-    inputs: []
-    outputs:
-      - commodity: primary:coal
-        basis: HHV
-    efficiency: 1.0
-    lifetime: 100
-    variable_om_cost: 3 MUSD24/PJ
-    variable_om_cost_basis: HHV
-  - id: coal_import
-    role: import_coal
-    description: International coal import at world market price
-    inputs: []
-    outputs:
-      - commodity: primary:coal
-        basis: HHV
-    efficiency: 1.0
-    lifetime: 100
-    variable_om_cost: 2.75 MUSD24/PJ
-    variable_om_cost_basis: HHV
+    fixed_om_cost: 0.2 MUSD24/GW/yr
+    investment_cost: 10 MUSD24/GW
+    lifetime: 20
+
   - id: coal_export
-    role: export_coal
     description: Coal export to international market
+    role: export_coal
     inputs:
       - commodity: primary:coal
         basis: HHV
@@ -113,77 +91,126 @@ process_variants:
     lifetime: 100
     variable_om_cost: 2.75 MUSD24/PJ
     variable_om_cost_basis: HHV
-  - id: coal_demand_device
-    role: deliver_coal_supply
-    description: Generic demand technology consuming coal
-    inputs:
+
+  - id: coal_import
+    description: International coal import at world market price
+    role: import_coal
+    inputs: []
+    outputs:
       - commodity: primary:coal
         basis: HHV
-    outputs:
-      - commodity: service:coal_supply
     efficiency: 1.0
-    lifetime: 20
-    investment_cost: 10 MUSD24/GW
-    fixed_om_cost: 0.2 MUSD24/GW/yr
+    lifetime: 100
+    variable_om_cost: 2.75 MUSD24/PJ
+    variable_om_cost_basis: HHV
+
+  - id: mine_coal_step1
+    description: Cheapest domestic coal — shallow/accessible deposits
+    role: mine_coal
+    inputs: []
+    outputs:
+      - commodity: primary:coal
+        basis: HHV
+    efficiency: 1.0
+    lifetime: 100
+    variable_om_cost: 2 MUSD24/PJ
+    variable_om_cost_basis: HHV
+
+  - id: mine_coal_step2
+    description: Mid-cost domestic coal — deeper deposits
+    role: mine_coal
+    inputs: []
+    outputs:
+      - commodity: primary:coal
+        basis: HHV
+    efficiency: 1.0
+    lifetime: 100
+    variable_om_cost: 2.5 MUSD24/PJ
+    variable_om_cost_basis: HHV
+
+  - id: mine_coal_step3
+    description: Expensive domestic coal — marginal deposits
+    role: mine_coal
+    inputs: []
+    outputs:
+      - commodity: primary:coal
+        basis: HHV
+    efficiency: 1.0
+    lifetime: 100
+    variable_om_cost: 3 MUSD24/PJ
+    variable_om_cost_basis: HHV
+
 availability:
-  - variant: mine_coal_step1
-    regions:
-      - REG1
-  - variant: mine_coal_step2
-    regions:
-      - REG1
-  - variant: mine_coal_step3
-    regions:
-      - REG1
-  - variant: coal_import
-    regions:
-      - REG1
-  - variant: coal_export
-    regions:
-      - REG1
   - variant: coal_demand_device
     regions:
       - REG1
     sectors:
       - IND
+
+  - variant: coal_export
+    regions:
+      - REG1
+
+  - variant: coal_import
+    regions:
+      - REG1
+
+  - variant: mine_coal_step1
+    regions:
+      - REG1
+
+  - variant: mine_coal_step2
+    regions:
+      - REG1
+
+  - variant: mine_coal_step3
+    regions:
+      - REG1
+
 process_parameters:
-  - selector:
-      variant: mine_coal_step1
-      region: REG1
-    stock: 10000
-    activity_bound:
-      up: 6074
-  - selector:
-      variant: mine_coal_step2
-      region: REG1
-    stock: 10000
-    activity_bound:
-      up: 2025
-  - selector:
-      variant: mine_coal_step3
-      region: REG1
-    stock: 10000
-  - selector:
-      variant: coal_import
-      region: REG1
-    stock: 100000
-  - selector:
-      variant: coal_export
-      region: REG1
-    stock: 10000
-    activity_bound:
-      up: 1147
-  - selector:
+  - cap_bound:
+      up: 100000
+    selector:
       variant: coal_demand_device
       region: REG1
       sector: IND
     stock: 15000
-    cap_bound:
-      up: 100000
+
+  - activity_bound:
+      up: 1147
+    selector:
+      variant: coal_export
+      region: REG1
+    stock: 10000
+
+  - selector:
+      variant: coal_import
+      region: REG1
+    stock: 100000
+
+  - activity_bound:
+      up: 6074
+    selector:
+      variant: mine_coal_step1
+      region: REG1
+    stock: 10000
+
+  - activity_bound:
+      up: 2025
+    selector:
+      variant: mine_coal_step2
+      region: REG1
+    stock: 10000
+
+  - selector:
+      variant: mine_coal_step3
+      region: REG1
+    stock: 10000
+
 demands:
   - commodity: service:coal_supply
     region: REG1
-    sector: IND
-    interpolation: interp_extrap
     values:
       "2005": 13414
+    interpolation: interp_extrap
+    sector: IND

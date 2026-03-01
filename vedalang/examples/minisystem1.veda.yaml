@@ -8,26 +8,22 @@ model:
     - 2030
   commodities:
     - id: secondary:electricity
+      description: Electricity
       type: energy
       unit: PJ
-      description: Electricity
       combustible: false
+
     - id: service:residential_electricity
+      description: Residential demand
       type: service
       unit: PJ
-      description: Residential demand
       combustible: false
+
 segments:
   sectors:
     - RES
+
 process_roles:
-  - id: supply_electricity
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: supply
-    required_inputs: []
-    required_outputs:
-      - commodity: secondary:electricity
   - id: provide_residential_electricity
     activity_unit: PJ
     capacity_unit: GW
@@ -36,6 +32,15 @@ process_roles:
       - commodity: secondary:electricity
     required_outputs:
       - commodity: service:residential_electricity
+
+  - id: supply_electricity
+    activity_unit: PJ
+    capacity_unit: GW
+    stage: supply
+    required_inputs: []
+    required_outputs:
+      - commodity: secondary:electricity
+
 process_variants:
   - id: grid_supply
     role: supply_electricity
@@ -43,8 +48,9 @@ process_variants:
     outputs:
       - commodity: secondary:electricity
     efficiency: 1.0
-    variable_om_cost: 10 MUSD24/PJ
     lifetime: 40
+    variable_om_cost: 10 MUSD24/PJ
+
   - id: residential_device
     role: provide_residential_electricity
     inputs:
@@ -53,37 +59,42 @@ process_variants:
       - commodity: service:residential_electricity
     efficiency: 1.0
     lifetime: 40
+
 availability:
   - variant: grid_supply
     regions:
       - SINGLE
+
   - variant: residential_device
     regions:
       - SINGLE
     sectors:
       - RES
+
 process_parameters:
-  - selector:
+  - cap_bound:
+      up: 1000
+    existing_capacity:
+      - capacity: 100
+        vintage: 2010
+    selector:
       variant: grid_supply
       region: SINGLE
-    existing_capacity:
-      - vintage: 2010
-        capacity: 100
-    cap_bound:
+
+  - cap_bound:
       up: 1000
-  - selector:
+    existing_capacity:
+      - capacity: 100
+        vintage: 2010
+    selector:
       variant: residential_device
       region: SINGLE
       sector: RES
-    existing_capacity:
-      - vintage: 2010
-        capacity: 100
-    cap_bound:
-      up: 1000
+
 demands:
   - commodity: service:residential_electricity
     region: SINGLE
-    sector: RES
-    interpolation: interp_extrap
     values:
       "2020": 50
+    interpolation: interp_extrap
+    sector: RES

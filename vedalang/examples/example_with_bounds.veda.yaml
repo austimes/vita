@@ -13,38 +13,29 @@ model:
       type: fuel
       unit: PJ
       combustible: true
-      lhv_mj_per_unit: 50.0
       hhv_mj_per_unit: 55.0
+      lhv_mj_per_unit: 50.0
+
     - id: resource:wind_resource
       type: other
       unit: PJ
       combustible: false
+
     - id: secondary:electricity
       type: energy
       unit: PJ
       combustible: false
+
     - id: service:residential_energy_services
       type: service
       unit: PJ
       combustible: false
+
 segments:
   sectors:
     - RES
+
 process_roles:
-  - id: import_gas
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: supply
-    required_inputs: []
-    required_outputs:
-      - commodity: primary:natural_gas
-  - id: supply_wind_resource
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: supply
-    required_inputs: []
-    required_outputs:
-      - commodity: resource:wind_resource
   - id: generate_electricity
     activity_unit: PJ
     capacity_unit: GW
@@ -52,6 +43,15 @@ process_roles:
     required_inputs: []
     required_outputs:
       - commodity: secondary:electricity
+
+  - id: import_gas
+    activity_unit: PJ
+    capacity_unit: GW
+    stage: supply
+    required_inputs: []
+    required_outputs:
+      - commodity: primary:natural_gas
+
   - id: provide_residential_energy_services
     activity_unit: PJ
     capacity_unit: GW
@@ -60,22 +60,16 @@ process_roles:
       - commodity: secondary:electricity
     required_outputs:
       - commodity: service:residential_energy_services
-process_variants:
-  - id: pipeline_import
-    role: import_gas
-    inputs: []
-    outputs:
-      - commodity: primary:natural_gas
-        basis: HHV
-    efficiency: 1.0
-    lifetime: 100
-  - id: onshore_wind_resource
-    role: supply_wind_resource
-    inputs: []
-    outputs:
+
+  - id: supply_wind_resource
+    activity_unit: PJ
+    capacity_unit: GW
+    stage: supply
+    required_inputs: []
+    required_outputs:
       - commodity: resource:wind_resource
-    efficiency: 1.0
-    lifetime: 100
+
+process_variants:
   - id: ccgt
     role: generate_electricity
     inputs:
@@ -84,19 +78,19 @@ process_variants:
     outputs:
       - commodity: secondary:electricity
     efficiency: 0.55
-    investment_cost: 800 MUSD24/GW
     fixed_om_cost: 20 MUSD24/GW/yr
+    investment_cost: 800 MUSD24/GW
     lifetime: 30
-  - id: onshore_wind_turbine
-    role: generate_electricity
+
+  - id: electric_residential_devices
+    role: provide_residential_energy_services
     inputs:
-      - commodity: resource:wind_resource
-    outputs:
       - commodity: secondary:electricity
+    outputs:
+      - commodity: service:residential_energy_services
     efficiency: 1.0
-    investment_cost: 1200 MUSD24/GW
-    fixed_om_cost: 25 MUSD24/GW/yr
-    lifetime: 25
+    lifetime: 100
+
   - id: existing_gas_steam
     role: generate_electricity
     inputs:
@@ -106,61 +100,92 @@ process_variants:
       - commodity: secondary:electricity
     efficiency: 0.4
     lifetime: 40
-  - id: electric_residential_devices
-    role: provide_residential_energy_services
-    inputs:
-      - commodity: secondary:electricity
+
+  - id: onshore_wind_resource
+    role: supply_wind_resource
+    inputs: []
     outputs:
-      - commodity: service:residential_energy_services
+      - commodity: resource:wind_resource
     efficiency: 1.0
     lifetime: 100
+
+  - id: onshore_wind_turbine
+    role: generate_electricity
+    inputs:
+      - commodity: resource:wind_resource
+    outputs:
+      - commodity: secondary:electricity
+    efficiency: 1.0
+    fixed_om_cost: 25 MUSD24/GW/yr
+    investment_cost: 1200 MUSD24/GW
+    lifetime: 25
+
+  - id: pipeline_import
+    role: import_gas
+    inputs: []
+    outputs:
+      - commodity: primary:natural_gas
+        basis: HHV
+    efficiency: 1.0
+    lifetime: 100
+
 availability:
-  - variant: pipeline_import
-    regions:
-      - REG1
-  - variant: onshore_wind_resource
-    regions:
-      - REG1
   - variant: ccgt
     regions:
       - REG1
-  - variant: onshore_wind_turbine
-    regions:
-      - REG1
-  - variant: existing_gas_steam
-    regions:
-      - REG1
+
   - variant: electric_residential_devices
     regions:
       - REG1
     sectors:
       - RES
+
+  - variant: existing_gas_steam
+    regions:
+      - REG1
+
+  - variant: onshore_wind_resource
+    regions:
+      - REG1
+
+  - variant: onshore_wind_turbine
+    regions:
+      - REG1
+
+  - variant: pipeline_import
+    regions:
+      - REG1
+
 process_parameters:
-  - selector:
-      variant: pipeline_import
-      region: REG1
-    activity_bound:
-      up: 500.0
-  - selector:
-      variant: ccgt
-      region: REG1
-    cap_bound:
+  - cap_bound:
       up: 10.0
     ncap_bound:
       up: 2.0
-  - selector:
-      variant: onshore_wind_turbine
+    selector:
+      variant: ccgt
       region: REG1
-    cap_bound:
-      lo: 5.0
-      up: 50.0
-  - selector:
-      variant: existing_gas_steam
-      region: REG1
-    ncap_bound:
-      fx: 3.0
+
   - selector:
       variant: electric_residential_devices
       region: REG1
       sector: RES
     stock: 1000
+
+  - ncap_bound:
+      fx: 3.0
+    selector:
+      variant: existing_gas_steam
+      region: REG1
+
+  - cap_bound:
+      lo: 5.0
+      up: 50.0
+    selector:
+      variant: onshore_wind_turbine
+      region: REG1
+
+  - activity_bound:
+      up: 500.0
+    selector:
+      variant: pipeline_import
+      region: REG1

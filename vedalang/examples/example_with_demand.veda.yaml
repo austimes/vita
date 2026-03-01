@@ -1,36 +1,31 @@
-# VedaLang example demonstrating demand_projection scenario type
-# Uses new VedaLang syntax (P4): process_roles, process_variants, demands
-
 model:
   name: DemandExample
-  regions: [REG1]
-  milestone_years: [2020, 2030, 2040, 2050, 2060]
-
+  regions:
+    - REG1
+  milestone_years:
+    - 2020
+    - 2030
+    - 2040
+    - 2050
+    - 2060
   commodities:
     - id: secondary:electricity
+      description: Electricity
       type: energy
       unit: PJ
-      description: Electricity
-
       combustible: false
+
     - id: service:residential_electric_service
+      description: Residential electricity demand
       type: service
       unit: PJ
-      description: Residential electricity demand
-
       combustible: false
+
 segments:
-  sectors: [RES]
+  sectors:
+    - RES
 
 process_roles:
-  - id: supply_electricity
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: supply
-    required_inputs: []
-    required_outputs:
-      - commodity: secondary:electricity
-
   - id: provide_residential_electric_service
     activity_unit: PJ
     capacity_unit: GW
@@ -39,6 +34,14 @@ process_roles:
       - commodity: secondary:electricity
     required_outputs:
       - commodity: service:residential_electric_service
+
+  - id: supply_electricity
+    activity_unit: PJ
+    capacity_unit: GW
+    stage: supply
+    required_inputs: []
+    required_outputs:
+      - commodity: secondary:electricity
 
 process_variants:
   - id: generic_supply
@@ -60,11 +63,14 @@ process_variants:
 
 availability:
   - variant: generic_supply
-    regions: [REG1]
+    regions:
+      - REG1
 
   - variant: residential_device
-    regions: [REG1]
-    sectors: [RES]
+    regions:
+      - REG1
+    sectors:
+      - RES
 
 process_parameters:
   - selector:
@@ -81,9 +87,9 @@ process_parameters:
 demands:
   - commodity: service:residential_electric_service
     region: REG1
-    sector: RES
-    interpolation: interp_extrap
     values:
       "2020": 100.0
       "2030": 120.0
       "2050": 160.0
+    interpolation: interp_extrap
+    sector: RES

@@ -1,49 +1,38 @@
-# DC1: Thermal plant generated from patterns
-# This model was created by combining pattern expansions:
-#   - add_energy_commodity: primary:natural_gas, secondary:electricity
-#   - add_power_plant: ccgt
 model:
   name: MiniModel
-  description: A minimal thermal power model with explicit fuel supply and end-use demand
-
+  description: A minimal thermal power model with explicit fuel supply and end-use
+    demand
   regions:
     - REG1
-
-  milestone_years: [2020, 2030]
-
+  milestone_years:
+    - 2020
+    - 2030
   commodities:
     - id: primary:natural_gas
+      description: Natural Gas
       type: fuel
       unit: PJ
-      description: Natural Gas
-
       combustible: true
-      lhv_mj_per_unit: 50.0
       hhv_mj_per_unit: 55.0
+      lhv_mj_per_unit: 50.0
+
     - id: secondary:electricity
+      description: Electricity
       type: energy
       unit: PJ
-      description: Electricity
-
       combustible: false
+
     - id: service:generic_electric_end_use
+      description: Generic end-use service delivered from electricity
       type: service
       unit: PJ
-      description: Generic end-use service delivered from electricity
-
       combustible: false
+
 segments:
-  sectors: [IND]
+  sectors:
+    - IND
 
 process_roles:
-  - id: supply_natural_gas
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: supply
-    required_inputs: []
-    required_outputs:
-      - commodity: primary:natural_gas
-
   - id: generate_electricity
     activity_unit: PJ
     capacity_unit: GW
@@ -69,13 +58,21 @@ process_roles:
       - commodity: service:generic_electric_end_use
     required_outputs: []
 
-process_variants:
-  - id: natural_gas_import
-    role: supply_natural_gas
-    inputs: []
-    outputs:
+  - id: supply_natural_gas
+    activity_unit: PJ
+    capacity_unit: GW
+    stage: supply
+    required_inputs: []
+    required_outputs:
       - commodity: primary:natural_gas
-        basis: HHV
+
+process_variants:
+  - id: baseline_electric_end_use
+    role: provide_generic_electric_end_use
+    inputs:
+      - commodity: secondary:electricity
+    outputs:
+      - commodity: service:generic_electric_end_use
     efficiency: 1.0
     lifetime: 100
 
@@ -89,15 +86,6 @@ process_variants:
     efficiency: 0.55
     lifetime: 30
 
-  - id: baseline_electric_end_use
-    role: provide_generic_electric_end_use
-    inputs:
-      - commodity: secondary:electricity
-    outputs:
-      - commodity: service:generic_electric_end_use
-    efficiency: 1.0
-    lifetime: 100
-
   - id: generic_end_use_sink
     role: sink_generic_electric_end_use
     inputs:
@@ -106,26 +94,43 @@ process_variants:
     efficiency: 1.0
     lifetime: 100
 
+  - id: natural_gas_import
+    role: supply_natural_gas
+    inputs: []
+    outputs:
+      - commodity: primary:natural_gas
+        basis: HHV
+    efficiency: 1.0
+    lifetime: 100
+
 availability:
-  - variant: natural_gas_import
-    regions: [REG1]
+  - variant: baseline_electric_end_use
+    regions:
+      - REG1
+    sectors:
+      - IND
 
   - variant: ccgt
-    regions: [REG1]
-    sectors: [IND]
-
-  - variant: baseline_electric_end_use
-    regions: [REG1]
-    sectors: [IND]
+    regions:
+      - REG1
+    sectors:
+      - IND
 
   - variant: generic_end_use_sink
-    regions: [REG1]
-    sectors: [IND]
+    regions:
+      - REG1
+    sectors:
+      - IND
+
+  - variant: natural_gas_import
+    regions:
+      - REG1
 
 process_parameters:
   - selector:
-      variant: natural_gas_import
+      variant: baseline_electric_end_use
       region: REG1
+      sector: IND
     stock: 1000
 
   - selector:
@@ -135,22 +140,21 @@ process_parameters:
     stock: 10
 
   - selector:
-      variant: baseline_electric_end_use
-      region: REG1
-      sector: IND
-    stock: 1000
-
-  - selector:
       variant: generic_end_use_sink
       region: REG1
       sector: IND
     stock: 1000
 
+  - selector:
+      variant: natural_gas_import
+      region: REG1
+    stock: 1000
+
 demands:
   - commodity: service:generic_electric_end_use
     region: REG1
-    sector: IND
-    interpolation: interp_extrap
     values:
       "2020": 10
       "2030": 10
+    interpolation: interp_extrap
+    sector: IND

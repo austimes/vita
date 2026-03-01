@@ -1,49 +1,40 @@
-# DC5: Two-Region Model Extension
-# Demonstrates multi-region support in VedaLang.
-# Both regions share the same supply, conversion, and end-use variants.
 model:
   name: TwoRegionModel
   description: Two-region model with shared gas-to-power architecture
-
   regions:
     - REG1
     - REG2
-
-  milestone_years: [2020, 2030, 2040, 2050]
-
+  milestone_years:
+    - 2020
+    - 2030
+    - 2040
+    - 2050
   commodities:
     - id: primary:natural_gas
+      description: Natural Gas
       type: fuel
       unit: PJ
-      description: Natural Gas
-
       combustible: true
-      lhv_mj_per_unit: 50.0
       hhv_mj_per_unit: 55.0
+      lhv_mj_per_unit: 50.0
+
     - id: secondary:electricity
+      description: Electricity
       type: energy
       unit: PJ
-      description: Electricity
-
       combustible: false
+
     - id: service:residential_electric_service
+      description: Residential electricity service demand
       type: service
       unit: PJ
-      description: Residential electricity service demand
-
       combustible: false
+
 segments:
-  sectors: [RES]
+  sectors:
+    - RES
 
 process_roles:
-  - id: import_gas
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: supply
-    required_inputs: []
-    required_outputs:
-      - commodity: primary:natural_gas
-
   - id: generate_electricity
     activity_unit: PJ
     capacity_unit: GW
@@ -52,6 +43,14 @@ process_roles:
       - commodity: primary:natural_gas
     required_outputs:
       - commodity: secondary:electricity
+
+  - id: import_gas
+    activity_unit: PJ
+    capacity_unit: GW
+    stage: supply
+    required_inputs: []
+    required_outputs:
+      - commodity: primary:natural_gas
 
   - id: provide_residential_electric_service
     activity_unit: PJ
@@ -63,15 +62,6 @@ process_roles:
       - commodity: service:residential_electric_service
 
 process_variants:
-  - id: pipeline_import
-    role: import_gas
-    inputs: []
-    outputs:
-      - commodity: primary:natural_gas
-        basis: HHV
-    efficiency: 1.0
-    lifetime: 100
-
   - id: ccgt
     role: generate_electricity
     inputs:
@@ -81,6 +71,15 @@ process_variants:
       - commodity: secondary:electricity
     efficiency: 0.55
     lifetime: 30
+
+  - id: pipeline_import
+    role: import_gas
+    inputs: []
+    outputs:
+      - commodity: primary:natural_gas
+        basis: HHV
+    efficiency: 1.0
+    lifetime: 100
 
   - id: residential_device
     role: provide_residential_electric_service
@@ -92,28 +91,25 @@ process_variants:
     lifetime: 100
 
 availability:
-  - variant: pipeline_import
-    regions: [REG1, REG2]
-
   - variant: ccgt
-    regions: [REG1, REG2]
+    regions:
+      - REG1
+      - REG2
+
+  - variant: pipeline_import
+    regions:
+      - REG1
+      - REG2
 
   - variant: residential_device
-    regions: [REG1, REG2]
-    sectors: [RES]
+    regions:
+      - REG1
+      - REG2
+    sectors:
+      - RES
 
 process_parameters:
   - selector:
-      variant: pipeline_import
-      region: REG1
-    stock: 1000
-
-  - selector:
-      variant: pipeline_import
-      region: REG2
-    stock: 1000
-
-  - selector:
       variant: ccgt
       region: REG1
     stock: 10
@@ -122,6 +118,16 @@ process_parameters:
       variant: ccgt
       region: REG2
     stock: 10
+
+  - selector:
+      variant: pipeline_import
+      region: REG1
+    stock: 1000
+
+  - selector:
+      variant: pipeline_import
+      region: REG2
+    stock: 1000
 
   - selector:
       variant: residential_device
@@ -138,20 +144,20 @@ process_parameters:
 demands:
   - commodity: service:residential_electric_service
     region: REG1
-    sector: RES
-    interpolation: interp_extrap
     values:
       "2020": 100.0
       "2030": 120.0
       "2040": 140.0
       "2050": 160.0
+    interpolation: interp_extrap
+    sector: RES
 
   - commodity: service:residential_electric_service
     region: REG2
-    sector: RES
-    interpolation: interp_extrap
     values:
       "2020": 100.0
       "2030": 120.0
       "2040": 140.0
       "2050": 160.0
+    interpolation: interp_extrap
+    sector: RES

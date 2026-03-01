@@ -1,68 +1,51 @@
-# DC3: Thermal + Renewable plants with emission tracking
-# Extends DC2 with explicit emission accounting via emission_factors.
-
 model:
   name: MiniModel
   description: Thermal and renewable electricity supply with CO2 emissions accounting
-
   regions:
     - SINGLE
-
-  milestone_years: [2020, 2030, 2040, 2050]
-
+  milestone_years:
+    - 2020
+    - 2030
+    - 2040
+    - 2050
   commodities:
-    - id: primary:natural_gas
-      type: fuel
-      unit: PJ
-      description: Natural gas fuel
-
-      combustible: true
-      lhv_mj_per_unit: 50.0
-      hhv_mj_per_unit: 55.0
-    - id: resource:wind_resource
-      type: other
-      unit: PJ
-      description: Wind resource input
-
-      combustible: false
-    - id: secondary:electricity
-      type: energy
-      unit: PJ
-      description: Electricity carrier
-
-      combustible: false
-    - id: service:electricity_demand
-      type: service
-      unit: PJ
-      description: Electricity demand service
-
-      combustible: false
     - id: emission:co2
+      description: Carbon dioxide emissions ledger
       type: emission
       unit: Mt
-      description: Carbon dioxide emissions ledger
-
       combustible: false
+
+    - id: primary:natural_gas
+      description: Natural gas fuel
+      type: fuel
+      unit: PJ
+      combustible: true
+      hhv_mj_per_unit: 55.0
+      lhv_mj_per_unit: 50.0
+
+    - id: resource:wind_resource
+      description: Wind resource input
+      type: other
+      unit: PJ
+      combustible: false
+
+    - id: secondary:electricity
+      description: Electricity carrier
+      type: energy
+      unit: PJ
+      combustible: false
+
+    - id: service:electricity_demand
+      description: Electricity demand service
+      type: service
+      unit: PJ
+      combustible: false
+
 segments:
-  sectors: [IND]
+  sectors:
+    - IND
 
 process_roles:
-  - id: supply_natural_gas
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: supply
-    required_inputs: []
-    required_outputs:
-      - commodity: primary:natural_gas
-
-  - id: supply_wind_resource
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: supply
-    required_inputs: []
-    required_outputs:
-      - commodity: resource:wind_resource
-
   - id: provide_electricity
     activity_unit: PJ
     capacity_unit: GW
@@ -80,7 +63,45 @@ process_roles:
     required_outputs:
       - commodity: service:electricity_demand
 
+  - id: supply_natural_gas
+    activity_unit: PJ
+    capacity_unit: GW
+    stage: supply
+    required_inputs: []
+    required_outputs:
+      - commodity: primary:natural_gas
+
+  - id: supply_wind_resource
+    activity_unit: PJ
+    capacity_unit: GW
+    stage: supply
+    required_inputs: []
+    required_outputs:
+      - commodity: resource:wind_resource
+
 process_variants:
+  - id: ccgt
+    role: provide_electricity
+    inputs:
+      - commodity: primary:natural_gas
+        basis: HHV
+    outputs:
+      - commodity: secondary:electricity
+    emission_factors:
+      emission:co2: 0.05
+    efficiency: 0.55
+    emission_factor_basis: HHV
+    lifetime: 30
+
+  - id: grid_delivery
+    role: satisfy_electricity_demand
+    inputs:
+      - commodity: secondary:electricity
+    outputs:
+      - commodity: service:electricity_demand
+    efficiency: 1.0
+    lifetime: 100
+
   - id: natural_gas_supply
     role: supply_natural_gas
     inputs: []
@@ -98,19 +119,6 @@ process_variants:
     efficiency: 1.0
     lifetime: 100
 
-  - id: ccgt
-    role: provide_electricity
-    inputs:
-      - commodity: primary:natural_gas
-        basis: HHV
-    outputs:
-      - commodity: secondary:electricity
-    efficiency: 0.55
-    lifetime: 30
-    emission_factors:
-      emission:co2: 0.05
-
-    emission_factor_basis: HHV
   - id: wind_turbine
     role: provide_electricity
     inputs:
@@ -120,35 +128,46 @@ process_variants:
     efficiency: 1.0
     lifetime: 25
 
-  - id: grid_delivery
-    role: satisfy_electricity_demand
-    inputs:
-      - commodity: secondary:electricity
-    outputs:
-      - commodity: service:electricity_demand
-    efficiency: 1.0
-    lifetime: 100
-
 availability:
-  - variant: natural_gas_supply
-    regions: [SINGLE]
-
-  - variant: wind_resource_supply
-    regions: [SINGLE]
-
   - variant: ccgt
-    regions: [SINGLE]
-    sectors: [IND]
-
-  - variant: wind_turbine
-    regions: [SINGLE]
-    sectors: [IND]
+    regions:
+      - SINGLE
+    sectors:
+      - IND
 
   - variant: grid_delivery
-    regions: [SINGLE]
-    sectors: [IND]
+    regions:
+      - SINGLE
+    sectors:
+      - IND
+
+  - variant: natural_gas_supply
+    regions:
+      - SINGLE
+
+  - variant: wind_resource_supply
+    regions:
+      - SINGLE
+
+  - variant: wind_turbine
+    regions:
+      - SINGLE
+    sectors:
+      - IND
 
 process_parameters:
+  - selector:
+      variant: ccgt
+      region: SINGLE
+      sector: IND
+    stock: 5
+
+  - selector:
+      variant: grid_delivery
+      region: SINGLE
+      sector: IND
+    stock: 1000
+
   - selector:
       variant: natural_gas_supply
       region: SINGLE
@@ -160,28 +179,16 @@ process_parameters:
     stock: 1000
 
   - selector:
-      variant: ccgt
-      region: SINGLE
-      sector: IND
-    stock: 5
-
-  - selector:
       variant: wind_turbine
       region: SINGLE
       sector: IND
     stock: 3
 
-  - selector:
-      variant: grid_delivery
-      region: SINGLE
-      sector: IND
-    stock: 1000
-
 demands:
   - commodity: service:electricity_demand
     region: SINGLE
-    sector: IND
-    interpolation: interp_extrap
     values:
       "2020": 8
       "2050": 10
+    interpolation: interp_extrap
+    sector: IND

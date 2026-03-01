@@ -12,61 +12,68 @@ model:
     - 2050
   timeslices:
     daynite:
-      - code: D
-        name: Day
-      - code: N
-        name: Night
+      - name: Day
+        code: D
+
+      - name: Night
+        code: N
     fractions:
       D: 0.5
       N: 0.5
   commodities:
-    - id: secondary:electricity
-      type: energy
-      unit: PJ
-      description: Electricity
-      combustible: false
-    - id: secondary:delivered_electricity
-      type: energy
-      unit: PJ
-      description: Grid-delivered electricity at end-use connection
-      combustible: false
-    - id: service:electricity_service
-      type: service
-      unit: PJ
-      description: Electricity service demand
-      combustible: false
-    - id: primary:natural_gas
-      type: fuel
-      unit: PJ
-      description: Natural gas
-      combustible: true
-      lhv_mj_per_unit: 50.0
-      hhv_mj_per_unit: 55.0
-    - id: resource:solar_irradiance
-      type: other
-      unit: PJ
-      description: Solar irradiance resource
-      combustible: false
-    - id: resource:wind_resource
-      type: other
-      unit: PJ
-      description: Wind energy resource
-      combustible: false
     - id: emission:co2
+      description: Carbon dioxide
       type: emission
       unit: Mt
-      description: Carbon dioxide
+      combustible: false
+
+    - id: primary:natural_gas
+      description: Natural gas
+      type: fuel
+      unit: PJ
+      combustible: true
+      hhv_mj_per_unit: 55.0
+      lhv_mj_per_unit: 50.0
+
+    - id: resource:solar_irradiance
+      description: Solar irradiance resource
+      type: other
+      unit: PJ
+      combustible: false
+
+    - id: resource:wind_resource
+      description: Wind energy resource
+      type: other
+      unit: PJ
+      combustible: false
+
+    - id: secondary:delivered_electricity
+      description: Grid-delivered electricity at end-use connection
+      type: energy
+      unit: PJ
+      combustible: false
+
+    - id: secondary:electricity
+      description: Electricity
+      type: energy
+      unit: PJ
+      combustible: false
+
+    - id: service:electricity_service
+      description: Electricity service demand
+      type: service
+      unit: PJ
       combustible: false
   scenario_parameters:
     - name: co2-price
       description: Carbon price trajectory
       type: commodity_price
       commodity: emission:co2
-      interpolation: interp_extrap
       values:
         "2020": 10
         "2030": 50
         "2050": 100
+      interpolation: interp_extrap
   constraints:
     - name: CO2_CAP
       type: emission_cap
@@ -78,46 +85,12 @@ model:
         "2050": 0.5
       interpolation: interp_extrap
       limtype: up
+
 segments:
   sectors:
     - RES
+
 process_roles:
-  - id: supply_gas
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: supply
-    required_inputs: []
-    required_outputs:
-      - commodity: primary:natural_gas
-  - id: supply_solar_irradiance
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: supply
-    required_inputs: []
-    required_outputs:
-      - commodity: resource:solar_irradiance
-  - id: supply_wind_resource
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: supply
-    required_inputs: []
-    required_outputs:
-      - commodity: resource:wind_resource
-  - id: generate_electricity
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: conversion
-    required_inputs: []
-    required_outputs:
-      - commodity: secondary:electricity
-  - id: store_electricity
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: storage
-    required_inputs:
-      - commodity: secondary:electricity
-    required_outputs:
-      - commodity: secondary:electricity
   - id: deliver_electricity_grid
     activity_unit: PJ
     capacity_unit: GW
@@ -126,6 +99,15 @@ process_roles:
       - commodity: secondary:electricity
     required_outputs:
       - commodity: secondary:delivered_electricity
+
+  - id: generate_electricity
+    activity_unit: PJ
+    capacity_unit: GW
+    stage: conversion
+    required_inputs: []
+    required_outputs:
+      - commodity: secondary:electricity
+
   - id: provide_electricity_service
     activity_unit: PJ
     capacity_unit: GW
@@ -134,7 +116,94 @@ process_roles:
       - commodity: secondary:delivered_electricity
     required_outputs:
       - commodity: service:electricity_service
+
+  - id: store_electricity
+    activity_unit: PJ
+    capacity_unit: GW
+    stage: storage
+    required_inputs:
+      - commodity: secondary:electricity
+    required_outputs:
+      - commodity: secondary:electricity
+
+  - id: supply_gas
+    activity_unit: PJ
+    capacity_unit: GW
+    stage: supply
+    required_inputs: []
+    required_outputs:
+      - commodity: primary:natural_gas
+
+  - id: supply_solar_irradiance
+    activity_unit: PJ
+    capacity_unit: GW
+    stage: supply
+    required_inputs: []
+    required_outputs:
+      - commodity: resource:solar_irradiance
+
+  - id: supply_wind_resource
+    activity_unit: PJ
+    capacity_unit: GW
+    stage: supply
+    required_inputs: []
+    required_outputs:
+      - commodity: resource:wind_resource
+
 process_variants:
+  - id: battery
+    role: store_electricity
+    inputs:
+      - commodity: secondary:electricity
+    outputs:
+      - commodity: secondary:electricity
+    efficiency: 0.85
+    fixed_om_cost: 5 MUSD24/GW/yr
+    investment_cost: 300 MUSD24/GW
+    lifetime: 15
+
+  - id: ccgt
+    role: generate_electricity
+    inputs:
+      - commodity: primary:natural_gas
+        basis: HHV
+    outputs:
+      - commodity: secondary:electricity
+    emission_factors:
+      emission:co2: 0.05
+    efficiency: 0.55
+    emission_factor_basis: HHV
+    fixed_om_cost: 20 MUSD24/GW/yr
+    investment_cost: 800 MUSD24/GW
+    lifetime: 40
+    variable_om_cost: 2 MUSD24/PJ
+    variable_om_cost_basis: HHV
+
+  - id: direct_electric
+    role: provide_electricity_service
+    inputs:
+      - commodity: secondary:delivered_electricity
+    outputs:
+      - commodity: service:electricity_service
+    efficiency: 1.0
+    lifetime: 100
+
+  - id: exogenous_solar
+    role: supply_solar_irradiance
+    inputs: []
+    outputs:
+      - commodity: resource:solar_irradiance
+    efficiency: 1.0
+    lifetime: 100
+
+  - id: exogenous_wind
+    role: supply_wind_resource
+    inputs: []
+    outputs:
+      - commodity: resource:wind_resource
+    efficiency: 1.0
+    lifetime: 100
+
   - id: gas_import
     role: supply_gas
     inputs: []
@@ -145,84 +214,7 @@ process_variants:
     lifetime: 100
     variable_om_cost: 8 MUSD24/PJ
     variable_om_cost_basis: HHV
-  - id: exogenous_solar
-    role: supply_solar_irradiance
-    inputs: []
-    outputs:
-      - commodity: resource:solar_irradiance
-    efficiency: 1.0
-    lifetime: 100
-  - id: exogenous_wind
-    role: supply_wind_resource
-    inputs: []
-    outputs:
-      - commodity: resource:wind_resource
-    efficiency: 1.0
-    lifetime: 100
-  - id: ccgt
-    role: generate_electricity
-    inputs:
-      - commodity: primary:natural_gas
-        basis: HHV
-    outputs:
-      - commodity: secondary:electricity
-    efficiency: 0.55
-    lifetime: 40
-    investment_cost: 800 MUSD24/GW
-    fixed_om_cost: 20 MUSD24/GW/yr
-    variable_om_cost: 2 MUSD24/PJ
-    emission_factors:
-      emission:co2: 0.05
-    variable_om_cost_basis: HHV
-    emission_factor_basis: HHV
-  - id: ocgt
-    role: generate_electricity
-    inputs:
-      - commodity: primary:natural_gas
-        basis: HHV
-    outputs:
-      - commodity: secondary:electricity
-    efficiency: 0.35
-    lifetime: 30
-    investment_cost: 400 MUSD24/GW
-    fixed_om_cost: 10 MUSD24/GW/yr
-    variable_om_cost: 5 MUSD24/PJ
-    emission_factors:
-      emission:co2: 0.08
-    variable_om_cost_basis: HHV
-    emission_factor_basis: HHV
-  - id: solar_pv
-    role: generate_electricity
-    inputs:
-      - commodity: resource:solar_irradiance
-    outputs:
-      - commodity: secondary:electricity
-    efficiency: 1.0
-    lifetime: 25
-    investment_cost: 1000 MUSD24/GW
-    fixed_om_cost: 15 MUSD24/GW/yr
-    variable_om_cost: 0.5 MUSD24/PJ
-  - id: onshore_wind
-    role: generate_electricity
-    inputs:
-      - commodity: resource:wind_resource
-    outputs:
-      - commodity: secondary:electricity
-    efficiency: 1.0
-    lifetime: 25
-    investment_cost: 1200 MUSD24/GW
-    fixed_om_cost: 25 MUSD24/GW/yr
-    variable_om_cost: 1 MUSD24/PJ
-  - id: battery
-    role: store_electricity
-    inputs:
-      - commodity: secondary:electricity
-    outputs:
-      - commodity: secondary:electricity
-    efficiency: 0.85
-    lifetime: 15
-    investment_cost: 300 MUSD24/GW
-    fixed_om_cost: 5 MUSD24/GW/yr
+
   - id: grid_distribution
     role: deliver_electricity_grid
     inputs:
@@ -230,106 +222,160 @@ process_variants:
     outputs:
       - commodity: secondary:delivered_electricity
     efficiency: 0.95
-    lifetime: 100
     kind: network
-  - id: direct_electric
-    role: provide_electricity_service
-    inputs:
-      - commodity: secondary:delivered_electricity
-    outputs:
-      - commodity: service:electricity_service
-    efficiency: 1.0
     lifetime: 100
+
+  - id: ocgt
+    role: generate_electricity
+    inputs:
+      - commodity: primary:natural_gas
+        basis: HHV
+    outputs:
+      - commodity: secondary:electricity
+    emission_factors:
+      emission:co2: 0.08
+    efficiency: 0.35
+    emission_factor_basis: HHV
+    fixed_om_cost: 10 MUSD24/GW/yr
+    investment_cost: 400 MUSD24/GW
+    lifetime: 30
+    variable_om_cost: 5 MUSD24/PJ
+    variable_om_cost_basis: HHV
+
+  - id: onshore_wind
+    role: generate_electricity
+    inputs:
+      - commodity: resource:wind_resource
+    outputs:
+      - commodity: secondary:electricity
+    efficiency: 1.0
+    fixed_om_cost: 25 MUSD24/GW/yr
+    investment_cost: 1200 MUSD24/GW
+    lifetime: 25
+    variable_om_cost: 1 MUSD24/PJ
+
+  - id: solar_pv
+    role: generate_electricity
+    inputs:
+      - commodity: resource:solar_irradiance
+    outputs:
+      - commodity: secondary:electricity
+    efficiency: 1.0
+    fixed_om_cost: 15 MUSD24/GW/yr
+    investment_cost: 1000 MUSD24/GW
+    lifetime: 25
+    variable_om_cost: 0.5 MUSD24/PJ
+
 availability:
-  - variant: gas_import
-    regions:
-      - SINGLE
-  - variant: exogenous_solar
-    regions:
-      - SINGLE
-  - variant: exogenous_wind
-    regions:
-      - SINGLE
-  - variant: ccgt
-    regions:
-      - SINGLE
-  - variant: ocgt
-    regions:
-      - SINGLE
-  - variant: solar_pv
-    regions:
-      - SINGLE
-  - variant: onshore_wind
-    regions:
-      - SINGLE
   - variant: battery
     regions:
       - SINGLE
-  - variant: grid_distribution
+
+  - variant: ccgt
     regions:
       - SINGLE
+
   - variant: direct_electric
     regions:
       - SINGLE
     sectors:
       - RES
+
+  - variant: exogenous_solar
+    regions:
+      - SINGLE
+
+  - variant: exogenous_wind
+    regions:
+      - SINGLE
+
+  - variant: gas_import
+    regions:
+      - SINGLE
+
+  - variant: grid_distribution
+    regions:
+      - SINGLE
+
+  - variant: ocgt
+    regions:
+      - SINGLE
+
+  - variant: onshore_wind
+    regions:
+      - SINGLE
+
+  - variant: solar_pv
+    regions:
+      - SINGLE
+
 process_parameters:
-  - selector:
-      variant: gas_import
-      region: SINGLE
-    stock: 1000
-  - selector:
-      variant: exogenous_solar
-      region: SINGLE
-    stock: 1000
-  - selector:
-      variant: exogenous_wind
-      region: SINGLE
-    stock: 1000
-  - selector:
-      variant: ccgt
-      region: SINGLE
-    stock: 5
-    cap_bound:
-      up: 100
-  - selector:
-      variant: ocgt
-      region: SINGLE
-    stock: 2
-    cap_bound:
-      up: 100
-  - selector:
-      variant: solar_pv
-      region: SINGLE
-    stock: 1
-    cap_bound:
-      up: 500
-  - selector:
-      variant: onshore_wind
-      region: SINGLE
-    stock: 1
-    cap_bound:
-      up: 500
-  - selector:
+  - cap_bound:
+      up: 200
+    selector:
       variant: battery
       region: SINGLE
     stock: 0.5
-    cap_bound:
-      up: 200
-  - selector:
-      variant: grid_distribution
+
+  - cap_bound:
+      up: 100
+    selector:
+      variant: ccgt
       region: SINGLE
-    stock: 1000
+    stock: 5
+
   - selector:
       variant: direct_electric
       region: SINGLE
       sector: RES
     stock: 1000
+
+  - selector:
+      variant: exogenous_solar
+      region: SINGLE
+    stock: 1000
+
+  - selector:
+      variant: exogenous_wind
+      region: SINGLE
+    stock: 1000
+
+  - selector:
+      variant: gas_import
+      region: SINGLE
+    stock: 1000
+
+  - selector:
+      variant: grid_distribution
+      region: SINGLE
+    stock: 1000
+
+  - cap_bound:
+      up: 100
+    selector:
+      variant: ocgt
+      region: SINGLE
+    stock: 2
+
+  - cap_bound:
+      up: 500
+    selector:
+      variant: onshore_wind
+      region: SINGLE
+    stock: 1
+
+  - cap_bound:
+      up: 500
+    selector:
+      variant: solar_pv
+      region: SINGLE
+    stock: 1
+
 demands:
   - commodity: service:electricity_service
     region: SINGLE
-    sector: RES
-    interpolation: interp_extrap
     values:
       "2020": 50
       "2050": 100
+    interpolation: interp_extrap
+    sector: RES

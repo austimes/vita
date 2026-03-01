@@ -1,30 +1,26 @@
-# Minimal VedaLang example: A simple thermal power plant
-# Uses new VedaLang syntax (P4): process_roles, process_variants, availability
-
 model:
   name: MiniModel
   description: A minimal test model with one power plant
-
   regions:
     - REG1
-
-  milestone_years: [2020, 2030]
-
+  milestone_years:
+    - 2020
+    - 2030
   commodities:
-    - id: secondary:electricity
-      type: energy
-      unit: PJ
-      description: Electricity
-
-      combustible: false
     - id: primary:natural_gas
+      description: Natural Gas
       type: fuel
       unit: PJ
-      description: Natural Gas
-
       combustible: true
-      lhv_mj_per_unit: 50.0
       hhv_mj_per_unit: 55.0
+      lhv_mj_per_unit: 50.0
+
+    - id: secondary:electricity
+      description: Electricity
+      type: energy
+      unit: PJ
+      combustible: false
+
 process_roles:
   - id: generate_electricity
     activity_unit: PJ
@@ -47,4 +43,5 @@ process_variants:
 
 availability:
   - variant: ccgt
-    regions: [REG1]
+    regions:
+      - REG1
