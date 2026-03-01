@@ -1,484 +1,295 @@
-// VedaLang RES Visualizer - Frontend Application
-
-const PROCESS_COLORS = {
-    import: '#22c55e',
-    export: '#10b981',
-    generation: '#3b82f6',
-    demand: '#f59e0b',
-    storage: '#8b5cf6',
-    trade: '#06b6d4',
-    conversion: '#64748b'
-};
-
-const COMMODITY_COLORS = {
-    energy: '#06b6d4',
-    emission: '#ef4444',
-    demand: '#f97316',
-    material: '#a855f7'
-};
-
 let cy = null;
-let ws = null;
-let reconnectTimeout = null;
+let lastResponse = null;
 
-let baseGraph = null;
-let currentViewMode = 'all';
-let selectedRegion = null;
-let selectedRegions = [];
-let availableRegions = [];
+const state = {
+  file: "",
+  mode: "compiled",
+  granularity: "role",
+  lens: "system",
+  caseName: "",
+  regions: [],
+  sectors: [],
+  segments: [],
+};
 
-function initCytoscape() {
-    cy = cytoscape({
-        container: document.getElementById('cy'),
-        style: [
-            // Process nodes (rounded rectangles)
-            {
-                selector: 'node[type="process"]',
-                style: {
-                    'shape': 'round-rectangle',
-                    'width': 100,
-                    'height': 40,
-                    'label': 'data(label)',
-                    'text-valign': 'center',
-                    'text-halign': 'center',
-                    'font-size': '11px',
-                    'font-weight': '500',
-                    'color': '#ffffff',
-                    'text-outline-width': 0,
-                    'background-color': function(ele) {
-                        return PROCESS_COLORS[ele.data('processClass')] || PROCESS_COLORS.conversion;
-                    },
-                    'border-width': 2,
-                    'border-color': function(ele) {
-                        const base = PROCESS_COLORS[ele.data('processClass')] || PROCESS_COLORS.conversion;
-                        return shadeColor(base, -20);
-                    }
-                }
-            },
-            // Commodity nodes (circles)
-            {
-                selector: 'node[type="commodity"]',
-                style: {
-                    'shape': 'ellipse',
-                    'width': 50,
-                    'height': 50,
-                    'label': 'data(label)',
-                    'text-valign': 'center',
-                    'text-halign': 'center',
-                    'font-size': '11px',
-                    'font-weight': '600',
-                    'color': '#ffffff',
-                    'background-color': function(ele) {
-                        return COMMODITY_COLORS[ele.data('commodityType')] || COMMODITY_COLORS.energy;
-                    },
-                    'border-width': 2,
-                    'border-color': function(ele) {
-                        const base = COMMODITY_COLORS[ele.data('commodityType')] || COMMODITY_COLORS.energy;
-                        return shadeColor(base, -20);
-                    }
-                }
-            },
-            // Trade view commodity nodes (with region label)
-            {
-                selector: 'node[?isTradeNode]',
-                style: {
-                    'width': 80,
-                    'height': 80,
-                    'font-size': '11px',
-                    'label': function(ele) {
-                        return ele.data('label') + '\n' + ele.data('sublabel');
-                    },
-                    'text-wrap': 'wrap',
-                    'line-height': 1.4
-                }
-            },
-            // Input edges
-            {
-                selector: 'edge[kind="input"]',
-                style: {
-                    'width': 2,
-                    'line-color': '#52525b',
-                    'target-arrow-color': '#52525b',
-                    'target-arrow-shape': 'triangle',
-                    'curve-style': 'bezier',
-                    'arrow-scale': 0.8
-                }
-            },
-            // Output edges
-            {
-                selector: 'edge[kind="output"]',
-                style: {
-                    'width': 3,
-                    'line-color': '#71717a',
-                    'target-arrow-color': '#71717a',
-                    'target-arrow-shape': 'triangle',
-                    'curve-style': 'bezier',
-                    'arrow-scale': 1
-                }
-            },
-            // Emission edges
-            {
-                selector: 'edge[kind="emission"]',
-                style: {
-                    'width': 2,
-                    'line-color': '#ef4444',
-                    'line-style': 'dashed',
-                    'target-arrow-color': '#ef4444',
-                    'target-arrow-shape': 'triangle',
-                    'curve-style': 'bezier',
-                    'arrow-scale': 0.8
-                }
-            },
-            // Trade edges
-            {
-                selector: 'edge[kind="trade"]',
-                style: {
-                    'width': 2,
-                    'line-color': '#06b6d4',
-                    'line-style': 'dotted',
-                    'target-arrow-color': '#06b6d4',
-                    'target-arrow-shape': 'diamond',
-                    'curve-style': 'bezier',
-                    'arrow-scale': 0.8,
-                    'opacity': 0.7
-                }
-            },
-            // Hover states
-            {
-                selector: 'node:active',
-                style: {
-                    'overlay-color': '#ffffff',
-                    'overlay-padding': 4,
-                    'overlay-opacity': 0.2
-                }
-            }
-        ],
-        layout: { name: 'preset' },
-        wheelSensitivity: 0.3,
-        minZoom: 0.1,
-        maxZoom: 3
-    });
-
-    // Tooltip on tap
-    cy.on('tap', 'node', function(evt) {
-        const node = evt.target;
-        console.log('Node clicked:', node.data());
-    });
+function setStatus(text) {
+  document.getElementById("status").textContent = text;
 }
 
-function shadeColor(color, percent) {
-    const num = parseInt(color.replace('#', ''), 16);
-    const amt = Math.round(2.55 * percent);
-    const R = Math.max(0, Math.min(255, (num >> 16) + amt));
-    const G = Math.max(0, Math.min(255, (num >> 8 & 0x00FF) + amt));
-    const B = Math.max(0, Math.min(255, (num & 0x0000FF) + amt));
-    return '#' + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
+function parseCsv(value) {
+  return value
+    .split(",")
+    .map((v) => v.trim())
+    .filter((v) => v.length > 0);
 }
 
-function runLayout() {
-    if (!cy || cy.nodes().length === 0) return;
-
-    const layout = cy.layout({
-        name: 'dagre',
-        rankDir: 'LR',
-        nodeSep: 60,
-        rankSep: 100,
-        edgeSep: 20,
-        animate: true,
-        animationDuration: 300,
-        fit: true,
-        padding: 50
-    });
-
-    layout.run();
+function getRequest() {
+  return {
+    version: "1",
+    file: state.file,
+    mode: state.mode,
+    granularity: state.granularity,
+    lens: state.lens,
+    filters: {
+      regions: state.regions,
+      case: state.caseName || null,
+      sectors: state.sectors,
+      segments: state.segments,
+    },
+    compiled: {
+      truth: "auto",
+      cache: true,
+      allow_partial: true,
+    },
+  };
 }
 
-function updateGraph(data) {
-    if (!cy) return;
-
-    cy.elements().remove();
-    cy.add(data.nodes);
-    cy.add(data.edges);
-
-    document.getElementById('nodeCount').textContent = data.nodes.length;
-    document.getElementById('edgeCount').textContent = data.edges.length;
-
-    runLayout();
-
-    document.getElementById('errorBanner').classList.remove('visible');
+function styleForNode(nodeType) {
+  if (nodeType === "commodity" || nodeType === "trade_commodity") {
+    return { shape: "ellipse", color: "#0891b2" };
+  }
+  if (nodeType === "role") {
+    return { shape: "round-rectangle", color: "#6366f1" };
+  }
+  if (nodeType === "variant") {
+    return { shape: "round-rectangle", color: "#9333ea" };
+  }
+  return { shape: "round-rectangle", color: "#16a34a" };
 }
 
-function rebuildView() {
-    if (!cy || !baseGraph) return;
-    console.log('rebuildView called, mode:', currentViewMode);
-    const viewGraph = buildViewGraph(baseGraph, {
-        mode: currentViewMode,
-        singleRegion: selectedRegion,
-        regions: selectedRegions
-    });
-    console.log('viewGraph:', viewGraph.modelName, 'nodes:', viewGraph.nodes.length, 'edges:', viewGraph.edges.length);
-    document.getElementById('modelName').textContent = viewGraph.modelName;
-    updateGraph(viewGraph);
+function initCy() {
+  cy = cytoscape({
+    container: document.getElementById("graph"),
+    style: [
+      {
+        selector: "node",
+        style: {
+          label: "data(label)",
+          "text-wrap": "wrap",
+          "text-max-width": 160,
+          "font-size": 10,
+          shape: "data(shape)",
+          "background-color": "data(color)",
+          color: "#e5e7eb",
+          "text-valign": "center",
+          "text-halign": "center",
+          "border-width": 1,
+          "border-color": "#0f172a",
+          width: 60,
+          height: 40,
+        },
+      },
+      {
+        selector: "edge",
+        style: {
+          width: 2,
+          "line-color": "#6b7280",
+          "target-arrow-color": "#6b7280",
+          "target-arrow-shape": "triangle",
+          "curve-style": "bezier",
+        },
+      },
+      {
+        selector: 'edge[type="emission"]',
+        style: {
+          "line-style": "dashed",
+          "line-color": "#ef4444",
+          "target-arrow-color": "#ef4444",
+        },
+      },
+      {
+        selector: 'edge[type="trade"]',
+        style: {
+          "line-style": "dotted",
+          "line-color": "#22d3ee",
+          "target-arrow-color": "#22d3ee",
+          "target-arrow-shape": "diamond",
+        },
+      },
+    ],
+    layout: { name: "preset" },
+    wheelSensitivity: 0.25,
+  });
+
+  cy.on("tap", "node", (evt) => {
+    const id = evt.target.id();
+    const details = (lastResponse && lastResponse.details && lastResponse.details.nodes[id]) || {};
+    document.getElementById("details").textContent = JSON.stringify(details, null, 2);
+  });
+
+  cy.on("tap", "edge", (evt) => {
+    const id = evt.target.id();
+    const details = (lastResponse && lastResponse.details && lastResponse.details.edges[id]) || {};
+    document.getElementById("details").textContent = JSON.stringify(details, null, 2);
+  });
 }
 
-function buildViewGraph(base, options) {
-    const { mode, singleRegion, regions } = options;
-
-    if (mode === 'all') {
-        return {
-            modelName: base.modelName,
-            nodes: base.nodes,
-            edges: base.edges
-        };
-    }
-
-    if (mode === 'single') {
-        const edges = base.edges.filter(e => e.data.kind !== 'trade');
-        return {
-            modelName: base.modelName + ' (' + (singleRegion || 'region') + ')',
-            nodes: base.nodes,
-            edges: edges
-        };
-    }
-
-    if (mode === 'multi') {
-        const selected = new Set(regions || []);
-        const tradeEdges = base.edges.filter(e => e.data.kind === 'trade');
-
-        const nodesByRegionComm = new Map();
-        const nodes = [];
-        const edges = [];
-
-        for (const e of tradeEdges) {
-            const { commodity, origin, destination } = e.data;
-            if (!selected.has(origin) || !selected.has(destination)) continue;
-
-            const baseCommNode = base.nodes.find(n => n.data.id === 'C:' + commodity);
-            const commodityType = baseCommNode ? baseCommNode.data.commodityType : 'energy';
-
-            function ensureNode(region) {
-                const key = commodity + ':' + region;
-                if (!nodesByRegionComm.has(key)) {
-                    const node = {
-                        data: {
-                            id: 'C:' + commodity + ':' + region,
-                            label: commodity,
-                            sublabel: region,
-                            type: 'commodity',
-                            commodityType: commodityType,
-                            region: region,
-                            baseCommodityId: 'C:' + commodity,
-                            isTradeNode: true
-                        }
-                    };
-                    nodesByRegionComm.set(key, node);
-                    nodes.push(node);
-                }
-                return nodesByRegionComm.get(key);
-            }
-
-            ensureNode(origin);
-            ensureNode(destination);
-
-            edges.push({
-                data: {
-                    id: 'T:' + commodity + ':' + origin + '->' + destination,
-                    source: 'C:' + commodity + ':' + origin,
-                    target: 'C:' + commodity + ':' + destination,
-                    kind: 'trade',
-                    commodity: commodity,
-                    origin: origin,
-                    destination: destination,
-                    bidirectional: e.data.bidirectional,
-                    efficiency: e.data.efficiency
-                }
-            });
-        }
-
-        return {
-            modelName: base.modelName + ' (trade flows)',
-            nodes: nodes,
-            edges: edges
-        };
-    }
-
-    return base;
-}
-
-function initRegionControls(regions) {
-    console.log('initRegionControls called with regions:', regions);
-    availableRegions = regions;
-    selectedRegion = regions[0] || null;
-    selectedRegions = [...regions];
-    console.log('selectedRegions initialized:', selectedRegions);
-
-    renderRegionPills();
-    updateRegionControlVisibility();
-}
-
-function renderRegionPills() {
-    const pillsContainer = document.getElementById('regionPills');
-    if (!pillsContainer) return;
-
-    pillsContainer.innerHTML = '';
-
-    availableRegions.forEach(r => {
-        const pill = document.createElement('button');
-        pill.className = 'region-pill';
-        pill.textContent = r;
-        pill.dataset.region = r;
-
-        if (currentViewMode === 'single') {
-            if (r === selectedRegion) {
-                pill.classList.add('single-selected');
-            }
-        } else if (currentViewMode === 'multi') {
-            if (selectedRegions.includes(r)) {
-                pill.classList.add('selected');
-            }
-        }
-
-        pill.addEventListener('click', () => handlePillClick(r));
-        pillsContainer.appendChild(pill);
-    });
-}
-
-function handlePillClick(region) {
-    if (currentViewMode === 'single') {
-        selectedRegion = region;
-        renderRegionPills();
-        rebuildView();
-    } else if (currentViewMode === 'multi') {
-        if (selectedRegions.includes(region)) {
-            selectedRegions = selectedRegions.filter(r => r !== region);
-        } else {
-            selectedRegions.push(region);
-        }
-        renderRegionPills();
-        rebuildView();
-    }
-}
-
-function updateRegionControlVisibility() {
-    const regionSection = document.getElementById('regionSection');
-    const sectionTitle = document.getElementById('regionSectionTitle');
-
-    if (currentViewMode === 'all') {
-        regionSection.classList.add('hidden');
-    } else {
-        regionSection.classList.remove('hidden');
-        sectionTitle.textContent = currentViewMode === 'single' ? 'Select Region' : 'Trade Between';
-    }
-
-    renderRegionPills();
-}
-
-function showError(message) {
-    document.getElementById('errorMessage').textContent = message;
-    document.getElementById('errorBanner').classList.add('visible');
-}
-
-function setStatus(connected, hasError = false) {
-    const dot = document.getElementById('statusDot');
-    const text = document.getElementById('statusText');
-
-    dot.classList.remove('disconnected', 'error');
-
-    if (!connected) {
-        dot.classList.add('disconnected');
-        text.textContent = 'Disconnected';
-    } else if (hasError) {
-        dot.classList.add('error');
-        text.textContent = 'Parse Error';
-    } else {
-        text.textContent = 'Watching';
-    }
-}
-
-function connectWebSocket() {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
-
-    ws = new WebSocket(wsUrl);
-
-    ws.onopen = function() {
-        console.log('WebSocket connected');
-        setStatus(true);
-        if (reconnectTimeout) {
-            clearTimeout(reconnectTimeout);
-            reconnectTimeout = null;
-        }
+function renderGraph(response) {
+  lastResponse = response;
+  const nodes = (response.graph.nodes || []).map((n) => {
+    const style = styleForNode(n.type);
+    return {
+      data: {
+        id: n.id,
+        label: n.label,
+        type: n.type,
+        shape: style.shape,
+        color: style.color,
+      },
     };
+  });
+  const edges = (response.graph.edges || []).map((e) => ({
+    data: {
+      id: e.id,
+      source: e.source,
+      target: e.target,
+      type: e.type,
+    },
+  }));
 
-    ws.onmessage = function(event) {
-        try {
-            const msg = JSON.parse(event.data);
+  cy.elements().remove();
+  cy.add(nodes);
+  cy.add(edges);
 
-            if (msg.type === 'graph') {
-                baseGraph = msg.data;
-                availableRegions = baseGraph.regions || [];
-                initRegionControls(availableRegions);
-                document.getElementById('modelName').textContent = baseGraph.modelName || 'Model';
-                rebuildView();
-                setStatus(true, false);
-            } else if (msg.type === 'error') {
-                showError(msg.message);
-                setStatus(true, true);
-            }
-        } catch (e) {
-            console.error('Failed to parse message:', e);
-        }
-    };
+  cy.layout({
+    name: "dagre",
+    rankDir: "LR",
+    nodeSep: 60,
+    rankSep: 100,
+    edgeSep: 25,
+    fit: true,
+    padding: 40,
+    animate: false,
+  }).run();
 
-    ws.onclose = function() {
-        console.log('WebSocket disconnected');
-        setStatus(false);
-        // Reconnect after delay
-        reconnectTimeout = setTimeout(connectWebSocket, 2000);
-    };
-
-    ws.onerror = function(err) {
-        console.error('WebSocket error:', err);
-    };
+  document.getElementById("diagnostics").textContent = JSON.stringify(response.diagnostics || [], null, 2);
 }
 
-// Initialize
-document.addEventListener('DOMContentLoaded', function() {
-    initCytoscape();
-    connectWebSocket();
+function updateFacetControls(response) {
+  const facets = response.facets || {};
 
-    // Control buttons
-    document.getElementById('fitBtn').addEventListener('click', function() {
-        cy.fit(50);
-    });
+  const caseSelect = document.getElementById("caseSelect");
+  const currentCase = state.caseName;
+  caseSelect.innerHTML = '<option value="">(default)</option>';
+  (facets.cases || []).forEach((c) => {
+    const opt = document.createElement("option");
+    opt.value = c;
+    opt.textContent = c;
+    if (c === currentCase) {
+      opt.selected = true;
+    }
+    caseSelect.appendChild(opt);
+  });
 
-    document.getElementById('layoutBtn').addEventListener('click', function() {
-        runLayout();
+  const regionFilters = document.getElementById("regionFilters");
+  regionFilters.innerHTML = "";
+  const available = facets.regions || [];
+  available.forEach((region) => {
+    const label = document.createElement("label");
+    label.className = "region-pill";
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.value = region;
+    checkbox.checked = state.regions.length === 0 || state.regions.includes(region);
+    checkbox.addEventListener("change", () => {
+      const selected = Array.from(regionFilters.querySelectorAll("input:checked")).map((el) => el.value);
+      state.regions = selected.length === available.length ? [] : selected;
+      runQuery();
     });
+    label.appendChild(checkbox);
+    label.appendChild(document.createTextNode(" " + region));
+    regionFilters.appendChild(label);
+  });
+}
 
-    document.getElementById('zoomInBtn').addEventListener('click', function() {
-        cy.zoom(cy.zoom() * 1.2);
-        cy.center();
+async function runQuery() {
+  if (!state.file) {
+    return;
+  }
+  setStatus("Querying...");
+  try {
+    const resp = await fetch("/api/query", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(getRequest()),
     });
+    const data = await resp.json();
+    renderGraph(data);
+    updateFacetControls(data);
+    setStatus(`${data.status} (${data.mode_used})`);
+  } catch (err) {
+    setStatus("Query failed");
+    document.getElementById("diagnostics").textContent = String(err);
+  }
+}
 
-    document.getElementById('zoomOutBtn').addEventListener('click', function() {
-        cy.zoom(cy.zoom() / 1.2);
-        cy.center();
-    });
+async function loadFiles() {
+  const response = await fetch("/api/files");
+  const payload = await response.json();
 
-    // View mode tabs
-    document.querySelectorAll('.view-tab').forEach(tab => {
-        tab.addEventListener('click', function() {
-            document.querySelectorAll('.view-tab').forEach(t => t.classList.remove('active'));
-            this.classList.add('active');
-            currentViewMode = this.dataset.mode;
-            updateRegionControlVisibility();
-            rebuildView();
-        });
-    });
+  const select = document.getElementById("fileSelect");
+  select.innerHTML = "";
 
-    // Sidebar collapse toggle
-    document.getElementById('sidebarToggle').addEventListener('click', function() {
-        document.getElementById('sidebar').classList.toggle('collapsed');
-    });
-});
+  (payload.files || []).forEach((file) => {
+    const opt = document.createElement("option");
+    opt.value = file;
+    opt.textContent = file;
+    select.appendChild(opt);
+  });
+
+  if (payload.initial_file) {
+    state.file = payload.initial_file;
+    select.value = payload.initial_file;
+  } else if ((payload.files || []).length > 0) {
+    state.file = payload.files[0];
+    select.value = payload.files[0];
+  }
+}
+
+function wireControls() {
+  document.getElementById("fileSelect").addEventListener("change", (evt) => {
+    state.file = evt.target.value;
+    runQuery();
+  });
+
+  document.getElementById("modeSelect").addEventListener("change", (evt) => {
+    state.mode = evt.target.value;
+    runQuery();
+  });
+
+  document.getElementById("granularitySelect").addEventListener("change", (evt) => {
+    state.granularity = evt.target.value;
+    runQuery();
+  });
+
+  document.getElementById("lensSelect").addEventListener("change", (evt) => {
+    state.lens = evt.target.value;
+    runQuery();
+  });
+
+  document.getElementById("caseSelect").addEventListener("change", (evt) => {
+    state.caseName = evt.target.value;
+    runQuery();
+  });
+
+  document.getElementById("sectorInput").addEventListener("change", (evt) => {
+    state.sectors = parseCsv(evt.target.value);
+    runQuery();
+  });
+
+  document.getElementById("segmentInput").addEventListener("change", (evt) => {
+    state.segments = parseCsv(evt.target.value);
+    runQuery();
+  });
+
+  document.getElementById("refreshBtn").addEventListener("click", () => runQuery());
+}
+
+async function bootstrap() {
+  initCy();
+  wireControls();
+  await loadFiles();
+  await runQuery();
+}
+
+bootstrap();

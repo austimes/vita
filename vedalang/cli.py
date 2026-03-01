@@ -67,6 +67,7 @@ def main():
     _add_fmt_parser(subparsers)
     _add_compile_parser(subparsers)
     _add_validate_parser(subparsers)
+    _add_res_parser(subparsers)
     _add_viz_parser(subparsers)
 
     args = parser.parse_args()
@@ -81,6 +82,13 @@ def main():
         sys.exit(cmd_compile(args))
     elif args.command == "validate":
         sys.exit(cmd_validate(args))
+    elif args.command == "res":
+        if args.res_command == "query":
+            sys.exit(cmd_res_query(args))
+        elif args.res_command == "mermaid":
+            sys.exit(cmd_res_mermaid(args))
+        _error("Unknown res subcommand", as_json=True, source="res")
+        sys.exit(2)
     elif args.command == "viz":
         sys.exit(cmd_viz(args))
 
@@ -261,7 +269,79 @@ def _add_validate_parser(subparsers):
     p.add_argument(
         "--keep-workdir", action="store_true", help="Keep temp directory for debugging"
     )
+def _add_res_parser(subparsers):
+    p = subparsers.add_parser(
+        "res",
+        help="Query RES graph views (agent-first JSON API)",
+        description=(
+            "Unified RES query interface for source/compiled graph projections."
+        ),
+    )
+    res_subparsers = p.add_subparsers(dest="res_command", required=True)
 
+    common = argparse.ArgumentParser(add_help=False)
+    common.add_argument("file", type=Path, help="Path to VedaLang source (.veda.yaml)")
+    common.add_argument(
+        "--mode",
+        choices=["source", "compiled"],
+        default="compiled",
+        help="Graph source mode (default: compiled)",
+    )
+    common.add_argument(
+        "--granularity",
+        choices=["role", "variant", "instance"],
+        default="role",
+        help="Node granularity (default: role)",
+    )
+    common.add_argument(
+        "--lens",
+        choices=["system", "trade"],
+        default="system",
+        help="Graph lens (default: system)",
+    )
+    common.add_argument(
+        "--region",
+        action="append",
+        default=[],
+        help="Region filter (repeatable); default is all model regions",
+    )
+    common.add_argument("--case", default=None, help="Optional case filter")
+    common.add_argument(
+        "--sector",
+        action="append",
+        default=[],
+        help="Sector filter (repeatable)",
+    )
+    common.add_argument(
+        "--segment",
+        action="append",
+        default=[],
+        help="Segment filter (repeatable)",
+    )
+    common.add_argument(
+        "--no-cache",
+        action="store_true",
+        help="Disable compiled artifact cache",
+    )
+    common.add_argument(
+        "--strict-compiled",
+        action="store_true",
+        help="Disable source fallback when compiled artifacts are unavailable",
+    )
+
+    query = res_subparsers.add_parser(
+        "query",
+        parents=[common],
+        help="Return RES query JSON response",
+    )
+    query.add_argument("--json", action="store_true", help="Output JSON format")
+
+    mermaid = res_subparsers.add_parser(
+        "mermaid",
+        parents=[common],
+        help="Return Mermaid projection of RES query response",
+    )
+    mermaid.add_argument("--json", action="store_true", help="Output JSON format")
 
 
 def _add_viz_parser(subparsers):
@@ -270,7 +350,12 @@ def _add_viz_parser(subparsers):
         help="Visualize the Reference Energy System",
         description="Open a real-time browser visualization of the RES.",
     )
-    p.add_argument("file", type=Path, help="Path to VedaLang source (.veda.yaml)")
+    p.add_argument(
+        "file",
+        type=Path,
+        nargs="?",
+        help="Optional path to VedaLang source (.veda.yaml)",
+    )
     p.add_argument("--port", type=int, default=8765, help="Server port (default: 8765)")
     p.add_argument(
         "--no-browser", action="store_true", help="Don't auto-open browser"
@@ -1810,6 +1895,69 @@ def cmd_validate(args) -> int:
     return 0
 
 
+def _res_request_from_args(args) -> dict[str, Any]:
+    return {
+        "version": "1",
+        "file": str(args.file.resolve()),
+        "mode": args.mode,
+        "granularity": args.granularity,
+        "lens": args.lens,
+        "filters": {
+            "regions": list(args.region or []),
+            "case": args.case,
+            "sectors": list(args.sector or []),
+            "segments": list(args.segment or []),
+        },
+        "compiled": {
+            "truth": "auto",
+            "cache": not bool(args.no_cache),
+            "allow_partial": not bool(args.strict_compiled),
+        },
+    }
+
+
+def cmd_res_query(args) -> int:
+    """Run res query command and print stable JSON response."""
+    from vedalang.viz.query_engine import query_res_graph
+
+    request = _res_request_from_args(args)
+    response = query_res_graph(request)
+
+    if args.json:
+        print(json.dumps(response, indent=2))
+    else:
+        print(json.dumps(response, indent=2))
+
+    status = response.get("status", "error")
+    if status == "ok":
+        return 0
+    if status == "partial":
+        return 1
+    return 2
+
+
+def cmd_res_mermaid(args) -> int:
+    """Run res mermaid command from query response."""
+    from vedalang.viz.query_engine import query_res_graph, response_to_mermaid
+
+    request = _res_request_from_args(args)
+    response = query_res_graph(request)
+    mermaid = response_to_mermaid(response)
+
+    if args.json:
+        payload = {"response": response, "mermaid": mermaid}
+        print(json.dumps(payload, indent=2))
+    else:
+        print(mermaid)
+
+    status = response.get("status", "error")
+    if status == "ok":
+        return 0
+    if status == "partial":
+        return 1
+    return 2
+
+
 def _error(message: str, as_json: bool, source: str):
     """Print error message."""
     if as_json:
@@ -1823,57 +1971,60 @@ def _error(message: str, as_json: bool, source: str):
 
 
 def cmd_viz(args) -> int:
-    """Run viz command: real-time RES visualization."""
-    file_path: Path = args.file
-
-    if not file_path.exists():
-        print(f"Error: File not found: {file_path}", file=sys.stderr)
-        return 2
-
-    # Mermaid mode: just output the diagram and exit
-    if getattr(args, "mermaid", False):
-        import yaml
-
-        from vedalang.viz.res_mermaid import build_res_graph, graph_to_mermaid
-
-        with open(file_path) as f:
-            parsed = yaml.safe_load(f)
-
-        include_variants = getattr(args, "variants", False)
-        graph = build_res_graph(parsed, include_variants=include_variants)
-
-        if getattr(args, "debug", False):
-            print("=== Nodes ===", file=sys.stderr)
-            for n in graph["nodes"]:
-                kind, nid = n['kind'], n['id']
-                ntype, stage = n.get('type'), n.get('stage')
-                parent = n.get('parentRole', '')
-                parent_str = f" (parent={parent})" if parent else ""
-                msg = f"  {kind}: {nid} (type={ntype}, stage={stage}){parent_str}"
-                print(msg, file=sys.stderr)
-            print("=== Edges ===", file=sys.stderr)
-            for e in graph["edges"]:
-                print(f"  {e['from']} --{e['kind']}--> {e['to']}", file=sys.stderr)
-            print("", file=sys.stderr)
-
-        print(graph_to_mermaid(graph))
-        return 0
-
-    # Web server mode
-    import asyncio
+    """Run viz command: standalone web UI backed by unified query engine."""
     import webbrowser
 
     import uvicorn
 
+    from vedalang.viz.query_engine import query_res_graph, response_to_mermaid
     from vedalang.viz.server import create_app
 
     port: int = args.port
     no_browser: bool = args.no_browser
+    file_path: Path | None = args.file
 
-    app, server = create_app(file_path)
+    if file_path is not None and not file_path.exists():
+        print(f"Error: File not found: {file_path}", file=sys.stderr)
+        return 2
+
+    # Mermaid mode: output a projection from the unified query engine
+    if getattr(args, "mermaid", False):
+        if file_path is None:
+            print("Error: file is required when using --mermaid", file=sys.stderr)
+            return 2
+        request = {
+            "version": "1",
+            "file": str(file_path.resolve()),
+            "mode": "source",
+            "granularity": "variant" if getattr(args, "variants", False) else "role",
+            "lens": "system",
+            "filters": {"regions": [], "case": None, "sectors": [], "segments": []},
+            "compiled": {"truth": "auto", "cache": True, "allow_partial": True},
+        }
+        response = query_res_graph(request)
+        mermaid = response_to_mermaid(response)
+
+        if getattr(args, "debug", False):
+            print(json.dumps(response, indent=2), file=sys.stderr)
+
+        print(mermaid)
+        status = response.get("status", "error")
+        if status == "ok":
+            return 0
+        if status == "partial":
+            return 1
+        return 2
+
+    app = create_app(
+        workspace_root=Path.cwd(),
+        initial_file=file_path.resolve() if file_path else None,
+    )
 
     print("Starting VedaLang RES Visualizer...")
-    print(f"  File: {file_path}")
+    if file_path:
+        print(f"  File: {file_path}")
+    else:
+        print("  File: (select from workspace in UI)")
     print(f"  URL:  http://localhost:{port}")
     print()
     print("Press Ctrl+C to stop")
@@ -1890,17 +2041,10 @@ def cmd_viz(args) -> int:
     )
     uvicorn_server = uvicorn.Server(config)
 
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
-    server.start_watcher(loop)
-
     try:
-        loop.run_until_complete(uvicorn_server.serve())
+        uvicorn_server.run()
     except KeyboardInterrupt:
         pass
-    finally:
-        server.stop_watcher()
 
     return 0
 

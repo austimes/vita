@@ -1,13 +1,20 @@
 import * as vscode from "vscode";
 import { LanguageClient } from "vscode-languageclient/node";
 
-interface ResGraph {
-  nodes: unknown[];
-  edges: unknown[];
-  mermaid: string;
+interface ResGraphResponse {
+  graph?: {
+    nodes?: unknown[];
+    edges?: unknown[];
+  };
+  mermaid?: string;
+  facets?: {
+    regions?: string[];
+  };
+  diagnostics?: unknown[];
 }
 
-type ViewMode = "roles" | "variants";
+type SourceMode = "source" | "compiled";
+type Granularity = "role" | "variant" | "instance";
 
 export class ResPreviewPanel {
   public static currentPanel: ResPreviewPanel | undefined;
@@ -19,7 +26,10 @@ export class ResPreviewPanel {
   private disposables: vscode.Disposable[] = [];
   private debounceTimer: NodeJS.Timeout | undefined;
   private lastVedaDocument: vscode.TextDocument | undefined;
-  private viewMode: ViewMode = "roles";
+
+  private mode: SourceMode = "source";
+  private granularity: Granularity = "role";
+  private selectedRegions: string[] = [];
 
   public static createOrShow(
     extensionUri: vscode.Uri,
@@ -60,7 +70,6 @@ export class ResPreviewPanel {
     this.extensionUri = extensionUri;
     this.client = client;
 
-    // Initialize with the current editor if it's a VedaLang file
     const editor = vscode.window.activeTextEditor;
     if (editor && this.isVedaDocument(editor.document)) {
       this.lastVedaDocument = editor.document;
@@ -70,11 +79,20 @@ export class ResPreviewPanel {
 
     this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
 
-    // Handle messages from webview
     this.panel.webview.onDidReceiveMessage(
       (message) => {
-        if (message.command === "setViewMode") {
-          this.viewMode = message.mode as ViewMode;
+        if (message.command === "setMode") {
+          this.mode = message.mode as SourceMode;
+          this.updateContent();
+        } else if (message.command === "setGranularity") {
+          this.granularity = message.granularity as Granularity;
+          this.updateContent();
+        } else if (message.command === "setRegions") {
+          const raw = String(message.regions || "");
+          this.selectedRegions = raw
+            .split(",")
+            .map((v: string) => v.trim())
+            .filter((v: string) => v.length > 0);
           this.updateContent();
         }
       },
@@ -119,7 +137,6 @@ export class ResPreviewPanel {
   }
 
   private async updateContent(): Promise<void> {
-    // Use lastVedaDocument if available, otherwise try activeTextEditor
     let doc = this.lastVedaDocument;
     const editor = vscode.window.activeTextEditor;
     if (editor && this.isVedaDocument(editor.document)) {
@@ -128,26 +145,45 @@ export class ResPreviewPanel {
     }
 
     if (!doc) {
-      this.panel.webview.html = this.getWebviewContent("flowchart LR\n    N[No VedaLang file open]");
+      this.panel.webview.html = this.getWebviewContent(
+        "flowchart LR\n    N[No VedaLang file open]",
+        [],
+        []
+      );
       return;
     }
 
     try {
-      const graph = await this.client.sendRequest<ResGraph>("veda/resGraph", {
-        textDocument: {
-          uri: doc.uri.toString(),
-        },
-        includeVariants: this.viewMode === "variants",
-      });
+      const graph = await this.client.sendRequest<ResGraphResponse>(
+        "veda/resGraph",
+        {
+          textDocument: {
+            uri: doc.uri.toString(),
+          },
+          mode: this.mode,
+          granularity: this.granularity,
+          lens: "system",
+          regions: this.selectedRegions,
+          includeVariants: this.granularity === "variant",
+        }
+      );
 
       if (!graph || !graph.mermaid) {
         this.panel.webview.html = this.getWebviewContent(
-          "flowchart LR\n    N[No processes or commodities found]"
+          "flowchart LR\n    N[No processes or commodities found]",
+          [],
+          []
         );
         return;
       }
 
-      this.panel.webview.html = this.getWebviewContent(graph.mermaid);
+      const regions = graph.facets?.regions || [];
+      const diagnostics = (graph.diagnostics || []) as unknown[];
+      this.panel.webview.html = this.getWebviewContent(
+        graph.mermaid,
+        regions,
+        diagnostics
+      );
     } catch (error) {
       console.error("Failed to get RES graph:", error);
       this.panel.webview.html = this.getErrorContent(
@@ -156,9 +192,19 @@ export class ResPreviewPanel {
     }
   }
 
-  private getWebviewContent(mermaidCode: string): string {
-    const rolesActive = this.viewMode === "roles" ? "active" : "";
-    const variantsActive = this.viewMode === "variants" ? "active" : "";
+  private getWebviewContent(
+    mermaidCode: string,
+    regions: string[],
+    diagnostics: unknown[]
+  ): string {
+    const modeSourceSelected = this.mode === "source" ? "selected" : "";
+    const modeCompiledSelected = this.mode === "compiled" ? "selected" : "";
+    const roleSelected = this.granularity === "role" ? "selected" : "";
+    const variantSelected = this.granularity === "variant" ? "selected" : "";
+    const instanceSelected = this.granularity === "instance" ? "selected" : "";
+    const regionCsv = this.selectedRegions.join(",");
+    const regionHint = regions.join(", ");
+    const diagnosticsText = JSON.stringify(diagnostics, null, 2).replace(/</g, "&lt;");
 
     return `<!DOCTYPE html>
 <html>
@@ -179,15 +225,23 @@ export class ResPreviewPanel {
 
         const vscode = acquireVsCodeApi();
 
-        function setViewMode(mode) {
-            vscode.postMessage({ command: 'setViewMode', mode: mode });
+        function setMode(value) {
+            vscode.postMessage({ command: 'setMode', mode: value });
+        }
+
+        function setGranularity(value) {
+            vscode.postMessage({ command: 'setGranularity', granularity: value });
+        }
+
+        function setRegions(value) {
+            vscode.postMessage({ command: 'setRegions', regions: value });
         }
     </script>
     <style>
         body {
             background: var(--vscode-editor-background);
             color: var(--vscode-editor-foreground);
-            padding: 20px;
+            padding: 16px;
             margin: 0;
             font-family: var(--vscode-font-family);
         }
@@ -195,95 +249,76 @@ export class ResPreviewPanel {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 20px;
+            margin-bottom: 12px;
+            gap: 8px;
         }
-        h2 {
-            color: var(--vscode-editor-foreground);
-            margin: 0;
-            font-weight: 400;
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(140px, 1fr));
+            gap: 8px;
+            margin-bottom: 12px;
         }
-        .view-toggle {
+        .control {
             display: flex;
-            gap: 0;
-            border: 1px solid var(--vscode-button-border, #444);
-            border-radius: 4px;
-            overflow: hidden;
-        }
-        .view-toggle button {
-            background: var(--vscode-button-secondaryBackground, #3c3c3c);
-            color: var(--vscode-button-secondaryForeground, #ccc);
-            border: none;
-            padding: 6px 12px;
-            cursor: pointer;
+            flex-direction: column;
+            gap: 4px;
             font-size: 12px;
+        }
+        select, input {
+            background: var(--vscode-input-background);
+            color: var(--vscode-input-foreground);
+            border: 1px solid var(--vscode-input-border);
+            border-radius: 4px;
+            padding: 4px 6px;
             font-family: var(--vscode-font-family);
+            font-size: 12px;
         }
-        .view-toggle button:hover {
-            background: var(--vscode-button-secondaryHoverBackground, #4c4c4c);
-        }
-        .view-toggle button.active {
-            background: var(--vscode-button-background, #0e639c);
-            color: var(--vscode-button-foreground, #fff);
+        .meta {
+            margin-bottom: 8px;
+            font-size: 11px;
+            opacity: 0.8;
         }
         .mermaid {
             text-align: center;
+            border-top: 1px solid rgba(255,255,255,0.15);
+            padding-top: 12px;
         }
-        /* Make Mermaid subgraph (stage) labels and borders visible in dark theme */
-        .mermaid .cluster rect {
-            stroke: rgba(255, 255, 255, 0.3) !important;
-            stroke-width: 1.5px !important;
-            fill: rgba(255, 255, 255, 0.04) !important;
+        .diag {
+            margin-top: 12px;
+            font-size: 11px;
+            white-space: pre-wrap;
+            border-top: 1px solid rgba(255,255,255,0.15);
+            padding-top: 8px;
         }
-        .mermaid .cluster span,
-        .mermaid .cluster text {
-            color: rgba(255, 255, 255, 0.7) !important;
-            fill: rgba(255, 255, 255, 0.7) !important;
-            font-weight: 600 !important;
-        }
-        .legend {
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-            margin-top: 20px;
-            flex-wrap: wrap;
-        }
-        .legend-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .legend-color {
-            width: 20px;
-            height: 20px;
-            border-radius: 4px;
-        }
-        .secondary { background: #4a90d9; }
-        .emission { background: #d94a4a; }
-        .service { background: #4ad94a; }
-        .primary { background: #d9a84a; }
-        .process { background: #9b59b6; }
-        .variant { background: #8e44ad; }
     </style>
 </head>
 <body>
     <div class="header">
         <h2>Reference Energy System</h2>
-        <div class="view-toggle">
-            <button class="${rolesActive}" onclick="setViewMode('roles')">Roles</button>
-            <button class="${variantsActive}" onclick="setViewMode('variants')">Variants</button>
-        </div>
     </div>
+    <div class="controls">
+        <label class="control">Mode
+            <select onchange="setMode(this.value)">
+              <option value="source" ${modeSourceSelected}>source</option>
+              <option value="compiled" ${modeCompiledSelected}>compiled</option>
+            </select>
+        </label>
+        <label class="control">Granularity
+            <select onchange="setGranularity(this.value)">
+              <option value="role" ${roleSelected}>role</option>
+              <option value="variant" ${variantSelected}>variant</option>
+              <option value="instance" ${instanceSelected}>instance</option>
+            </select>
+        </label>
+        <label class="control">Regions (CSV)
+            <input value="${regionCsv}" placeholder="${regionHint}" onchange="setRegions(this.value)" />
+        </label>
+    </div>
+    <div class="meta">Available regions: ${regionHint || "(none)"}</div>
     <div class="mermaid">
 ${mermaidCode}
     </div>
-    <div class="legend">
-        <div class="legend-item"><div class="legend-color secondary"></div><span>Secondary</span></div>
-        <div class="legend-item"><div class="legend-color emission"></div><span>Emission</span></div>
-        <div class="legend-item"><div class="legend-color service"></div><span>Service</span></div>
-        <div class="legend-item"><div class="legend-color primary"></div><span>Primary</span></div>
-        <div class="legend-item"><div class="legend-color process"></div><span>Process</span></div>
-        <div class="legend-item"><div class="legend-color variant"></div><span>Variant</span></div>
-    </div>
+    <div class="diag">Diagnostics:\n${diagnosticsText}</div>
 </body>
 </html>`;
   }

@@ -5,6 +5,7 @@ import logging
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
+from urllib.parse import unquote, urlparse
 
 import yaml
 from jsonschema import Draft7Validator
@@ -1436,43 +1437,92 @@ def code_action(
     return actions
 
 
-# Import shared RES graph builder and Mermaid renderer
-from vedalang.viz.res_mermaid import build_res_graph, graph_to_mermaid  # noqa: E402
+# Import shared RES query engine and Mermaid renderer
+from vedalang.viz.query_engine import query_res_graph, response_to_mermaid  # noqa: E402
 
 
 @server.feature("veda/resGraph")
 def res_graph(ls: VedaLangServer, params) -> dict:
-    """Return the RES graph and pre-rendered Mermaid for the given document."""
+    """Return RES graph response and Mermaid for the given document."""
     # Handle both {uri: ...} and {textDocument: {uri: ...}} formats
     include_variants = False
+    mode = "source"
+    granularity = "role"
+    lens = "system"
+    regions: list[str] = []
+    case_name = None
+    sectors: list[str] = []
+    segments: list[str] = []
     if hasattr(params, "textDocument"):
         td = params.textDocument
         uri = td.get("uri") if isinstance(td, dict) else td.uri
         include_variants = getattr(params, "includeVariants", False)
+        mode = getattr(params, "mode", mode)
+        granularity = getattr(params, "granularity", granularity)
+        lens = getattr(params, "lens", lens)
+        regions = list(getattr(params, "regions", regions) or [])
+        case_name = getattr(params, "case", case_name)
+        sectors = list(getattr(params, "sectors", sectors) or [])
+        segments = list(getattr(params, "segments", segments) or [])
     elif hasattr(params, "uri"):
         uri = params.uri
         include_variants = getattr(params, "includeVariants", False)
+        mode = getattr(params, "mode", mode)
+        granularity = getattr(params, "granularity", granularity)
+        lens = getattr(params, "lens", lens)
+        regions = list(getattr(params, "regions", regions) or [])
+        case_name = getattr(params, "case", case_name)
+        sectors = list(getattr(params, "sectors", sectors) or [])
+        segments = list(getattr(params, "segments", segments) or [])
     elif isinstance(params, dict):
         uri = params.get("textDocument", {}).get("uri") or params.get("uri")
         include_variants = params.get("includeVariants", False)
+        mode = params.get("mode", mode)
+        granularity = params.get("granularity", granularity)
+        lens = params.get("lens", lens)
+        regions = list(params.get("regions", regions) or [])
+        case_name = params.get("case", case_name)
+        sectors = list(params.get("sectors", sectors) or [])
+        segments = list(params.get("segments", segments) or [])
     else:
         return {
-            "nodes": [],
-            "edges": [],
+            "graph": {"nodes": [], "edges": []},
             "mermaid": "",
             "error": "Invalid params: no uri found",
         }
 
-    doc = ls.workspace.get_text_document(uri)
-    try:
-        parsed = yaml.safe_load(doc.source)
-        if not parsed:
-            return {"nodes": [], "edges": [], "mermaid": "", "error": "Empty document"}
-        graph = build_res_graph(parsed, include_variants=include_variants)
-        graph["mermaid"] = graph_to_mermaid(graph)
-        return graph
-    except yaml.YAMLError as e:
-        return {"nodes": [], "edges": [], "mermaid": "", "error": str(e)}
+    if include_variants and granularity == "role":
+        granularity = "variant"
+
+    parsed_uri = urlparse(uri)
+    file_path = unquote(parsed_uri.path) if parsed_uri.path else ""
+    if not file_path:
+        return {
+            "graph": {"nodes": [], "edges": []},
+            "mermaid": "",
+            "error": "Unable to resolve file path from URI",
+        }
+    request = {
+        "version": "1",
+        "file": file_path,
+        "mode": mode,
+        "granularity": granularity,
+        "lens": lens,
+        "filters": {
+            "regions": regions,
+            "case": case_name,
+            "sectors": sectors,
+            "segments": segments,
+        },
+        "compiled": {
+            "truth": "auto",
+            "cache": True,
+            "allow_partial": True,
+        },
+    }
+    response = query_res_graph(request)
+    response["mermaid"] = response_to_mermaid(response)
+    return response
 
 
 def main():
