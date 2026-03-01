@@ -20,10 +20,10 @@ model:
       - code: N
         name: Night
     fractions:
-      SD: 0.25    # Summer-Day
-      SN: 0.23    # Summer-Night
-      WD: 0.27    # Winter-Day
-      WN: 0.25    # Winter-Night
+      SD: 0.25 # Summer-Day
+      SN: 0.23 # Summer-Night
+      WD: 0.27 # Winter-Day
+      WN: 0.25 # Winter-Night
   commodities:
     - id: secondary:electricity
       type: energy

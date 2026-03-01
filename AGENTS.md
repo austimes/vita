@@ -16,7 +16,7 @@ This repository serves **two distinct AI personas** — understanding this disti
 An AI agent that **uses VedaLang** to create `.veda.yaml` models for energy system analysis. This agent:
 - Reads the VedaLang schema and examples
 - Writes valid VedaLang source files
-- Uses `vedalang lint` and `vedalang validate` to check models
+- Uses `vedalang fmt`, `vedalang lint`, and `vedalang validate` to check models
 - Does NOT modify the language, compiler, or schema
 
 **User agent documentation:**
@@ -270,7 +270,7 @@ vedalang/
 ├── docs/
 │   └── VEDA2_NL_to_VEDA_PRD_v0_3.txt
 ├── vedalang/
-│   ├── cli.py                   # User CLI (vedalang lint/compile/validate)
+│   ├── cli.py                   # User CLI (vedalang fmt/lint/compile/validate)
 │   ├── schema/                  # JSON Schema definitions
 │   │   ├── vedalang.schema.json # VedaLang source schema
 │   │   └── tableir.schema.json  # TableIR schema
@@ -352,7 +352,7 @@ The LSP has two parts: a **Python server** (`tools/vedalang_lsp/server/`) and a 
 
 ```bash
 # 1. Compile TypeScript
-cd tools/vedalang_lsp/extension && npm run compile
+cd tools/vedalang_lsp/extension && bun run compile
 
 # 2. Copy compiled JS to the installed extension (Cursor)
 cp tools/vedalang_lsp/extension/out/*.js ~/.cursor/extensions/austimes.vedalang-0.1.0/out/
@@ -360,7 +360,7 @@ cp tools/vedalang_lsp/extension/out/*.js ~/.cursor/extensions/austimes.vedalang-
 # 3. Reload window: Cmd+Shift+P → "Developer: Reload Window"
 ```
 
-**Important:** Cursor loads the extension from `~/.cursor/extensions/austimes.vedalang-0.1.0/`, NOT from the repo's `out/` directory. After `npm run compile`, you MUST copy the built JS files to the installed extension path. For VS Code, the equivalent path is `~/.vscode/extensions/`.
+**Important:** Cursor loads the extension from `~/.cursor/extensions/austimes.vedalang-0.1.0/`, NOT from the repo's `out/` directory. After `bun run compile`, you MUST copy the built JS files to the installed extension path. For VS Code, the equivalent path is `~/.vscode/extensions/`.
 
 Python server changes (e.g., `tools/vedalang_lsp/server/server.py`) take effect on window reload without any build step.
 
@@ -642,6 +642,7 @@ See [docs/vedalang-design-agent/schema_evolution.md](docs/vedalang-design-agent/
 uv run python tools/sync_conventions.py --check
 
 # Run before committing
+bun run format:veda:check
 uv run pytest tests/
 uv run ruff check .
 

@@ -29,6 +29,7 @@ experiments/trade/diagnostics.json
 tools/vedalang_lsp/extension/node_modules/
 tools/vedalang_lsp/extension/out/
 *.vsix
+node_modules/
 
 # Dolt database files (added by bd init)
 .dolt/

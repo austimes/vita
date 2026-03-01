@@ -3,166 +3,166 @@ model:
   description: Heating decarbonisation with variant-level inputs and retrofit demand
     case overlay
   regions:
-  - SINGLE
+    - SINGLE
   milestone_years:
-  - 2020
-  - 2025
-  - 2030
-  - 2035
-  - 2040
-  - 2050
+    - 2020
+    - 2025
+    - 2030
+    - 2035
+    - 2040
+    - 2050
   commodities:
-  - id: service:space_heat
-    type: service
-    unit: PJ
-    description: Space heating demand
-    combustible: false
-  - id: secondary:electricity
-    type: energy
-    unit: PJ
-    description: Electricity
-    combustible: false
-  - id: primary:natural_gas
-    type: fuel
-    unit: PJ
-    description: Natural gas
-    combustible: true
-    lhv_mj_per_unit: 50.0
-    hhv_mj_per_unit: 55.0
-  - id: emission:co2
-    type: emission
-    unit: Mt
-    description: Carbon dioxide
-    combustible: false
+    - id: service:space_heat
+      type: service
+      unit: PJ
+      description: Space heating demand
+      combustible: false
+    - id: secondary:electricity
+      type: energy
+      unit: PJ
+      description: Electricity
+      combustible: false
+    - id: primary:natural_gas
+      type: fuel
+      unit: PJ
+      description: Natural gas
+      combustible: true
+      lhv_mj_per_unit: 50.0
+      hhv_mj_per_unit: 55.0
+    - id: emission:co2
+      type: emission
+      unit: Mt
+      description: Carbon dioxide
+      combustible: false
   cases:
-  - name: baseline
-    is_baseline: true
-    description: Reference demand trajectory
-  - name: retrofit_policy
-    description: Building envelope retrofit reduces space heat demand
-    demand_overrides:
-    - commodity: service:space_heat
-      region: SINGLE
-      sector: RES
-      interpolation: interp_extrap
-      values:
-        '2020': 100
-        '2025': 95
-        '2030': 90
-        '2035': 84
-        '2040': 78
-        '2050': 70
+    - name: baseline
+      is_baseline: true
+      description: Reference demand trajectory
+    - name: retrofit_policy
+      description: Building envelope retrofit reduces space heat demand
+      demand_overrides:
+        - commodity: service:space_heat
+          region: SINGLE
+          sector: RES
+          interpolation: interp_extrap
+          values:
+            "2020": 100
+            "2025": 95
+            "2030": 90
+            "2035": 84
+            "2040": 78
+            "2050": 70
 segments:
   sectors:
-  - RES
+    - RES
 process_roles:
-- id: supply_natural_gas
-  activity_unit: PJ
-  capacity_unit: GW
-  stage: supply
-  required_inputs: []
-  required_outputs:
-  - commodity: primary:natural_gas
-- id: supply_electricity
-  activity_unit: PJ
-  capacity_unit: GW
-  stage: supply
-  required_inputs: []
-  required_outputs:
-  - commodity: secondary:electricity
-- id: provide_space_heat
-  activity_unit: PJ
-  capacity_unit: GW
-  stage: end_use
-  required_inputs: []
-  required_outputs:
-  - commodity: service:space_heat
+  - id: supply_natural_gas
+    activity_unit: PJ
+    capacity_unit: GW
+    stage: supply
+    required_inputs: []
+    required_outputs:
+      - commodity: primary:natural_gas
+  - id: supply_electricity
+    activity_unit: PJ
+    capacity_unit: GW
+    stage: supply
+    required_inputs: []
+    required_outputs:
+      - commodity: secondary:electricity
+  - id: provide_space_heat
+    activity_unit: PJ
+    capacity_unit: GW
+    stage: end_use
+    required_inputs: []
+    required_outputs:
+      - commodity: service:space_heat
 process_variants:
-- id: pipeline_import
-  role: supply_natural_gas
-  efficiency: 1.0
-  lifetime: 100
-  variable_om_cost: 8 MUSD24/PJ
-  inputs: []
-  outputs:
-  - commodity: primary:natural_gas
-    basis: HHV
-  variable_om_cost_basis: HHV
-- id: grid_import
-  role: supply_electricity
-  efficiency: 1.0
-  lifetime: 100
-  variable_om_cost: 25 MUSD24/PJ
-  inputs: []
-  outputs:
-  - commodity: secondary:electricity
-- id: gas_heater
-  role: provide_space_heat
-  inputs:
-  - commodity: primary:natural_gas
-    basis: HHV
-  outputs:
-  - commodity: service:space_heat
-  efficiency: 0.9
-  lifetime: 20
-  investment_cost: 30 MUSD24/GW
-  emission_factors:
-    emission:co2: 0.056
-  emission_factor_basis: HHV
-- id: heat_pump
-  role: provide_space_heat
-  inputs:
-  - commodity: secondary:electricity
-  outputs:
-  - commodity: service:space_heat
-  efficiency: 1.0
-  lifetime: 20
-  investment_cost: 150 MUSD24/GW
+  - id: pipeline_import
+    role: supply_natural_gas
+    efficiency: 1.0
+    lifetime: 100
+    variable_om_cost: 8 MUSD24/PJ
+    inputs: []
+    outputs:
+      - commodity: primary:natural_gas
+        basis: HHV
+    variable_om_cost_basis: HHV
+  - id: grid_import
+    role: supply_electricity
+    efficiency: 1.0
+    lifetime: 100
+    variable_om_cost: 25 MUSD24/PJ
+    inputs: []
+    outputs:
+      - commodity: secondary:electricity
+  - id: gas_heater
+    role: provide_space_heat
+    inputs:
+      - commodity: primary:natural_gas
+        basis: HHV
+    outputs:
+      - commodity: service:space_heat
+    efficiency: 0.9
+    lifetime: 20
+    investment_cost: 30 MUSD24/GW
+    emission_factors:
+      emission:co2: 0.056
+    emission_factor_basis: HHV
+  - id: heat_pump
+    role: provide_space_heat
+    inputs:
+      - commodity: secondary:electricity
+    outputs:
+      - commodity: service:space_heat
+    efficiency: 1.0
+    lifetime: 20
+    investment_cost: 150 MUSD24/GW
 availability:
-- variant: pipeline_import
-  regions:
-  - SINGLE
-- variant: grid_import
-  regions:
-  - SINGLE
-- variant: gas_heater
-  regions:
-  - SINGLE
-  sectors:
-  - RES
-- variant: heat_pump
-  regions:
-  - SINGLE
-  sectors:
-  - RES
+  - variant: pipeline_import
+    regions:
+      - SINGLE
+  - variant: grid_import
+    regions:
+      - SINGLE
+  - variant: gas_heater
+    regions:
+      - SINGLE
+    sectors:
+      - RES
+  - variant: heat_pump
+    regions:
+      - SINGLE
+    sectors:
+      - RES
 process_parameters:
-- selector:
-    variant: pipeline_import
-    region: SINGLE
-  stock: 1000
-- selector:
-    variant: grid_import
-    region: SINGLE
-  stock: 1000
-- selector:
-    variant: gas_heater
-    region: SINGLE
-    sector: RES
-  stock: 80
-  cap_bound:
-    up: 200
-- selector:
-    variant: heat_pump
-    region: SINGLE
-    sector: RES
-  stock: 10
-  cap_bound:
-    up: 200
+  - selector:
+      variant: pipeline_import
+      region: SINGLE
+    stock: 1000
+  - selector:
+      variant: grid_import
+      region: SINGLE
+    stock: 1000
+  - selector:
+      variant: gas_heater
+      region: SINGLE
+      sector: RES
+    stock: 80
+    cap_bound:
+      up: 200
+  - selector:
+      variant: heat_pump
+      region: SINGLE
+      sector: RES
+    stock: 10
+    cap_bound:
+      up: 200
 demands:
-- commodity: service:space_heat
-  region: SINGLE
-  sector: RES
-  interpolation: interp_extrap
-  values:
-    '2020': 100
-    '2050': 100
+  - commodity: service:space_heat
+    region: SINGLE
+    sector: RES
+    interpolation: interp_extrap
+    values:
+      "2020": 100
+      "2050": 100

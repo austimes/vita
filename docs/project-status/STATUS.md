@@ -182,6 +182,9 @@ uv run vedalang viz model.veda.yaml
 # Run all tests
 uv run pytest tests/ -v
 
+# Check VedaLang YAML formatting
+bun run format:veda:check
+
 # Run linter
 uv run ruff check .
 

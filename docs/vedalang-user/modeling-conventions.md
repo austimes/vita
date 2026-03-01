@@ -391,6 +391,7 @@ The following should be treated as guidance/lint focus (unless hard rules are ad
 - [ ] Commodity IDs use namespace prefixes (`primary:`, `resource:`, `secondary:`,
   `service:`, `emission:`, etc.) consistently
 - [ ] Emissions use emission_factors dict, not inputs/outputs
+- [ ] `uv run vedalang fmt --check <model>.veda.yaml` passes
 - [ ] `uv run vedalang lint <model>.veda.yaml` and
   `uv run vedalang validate <model>.veda.yaml` pass
 

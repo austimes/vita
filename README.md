@@ -89,6 +89,9 @@ uv sync
 # Validate a model
 uv run vedalang validate model.veda.yaml
 
+# Check formatting for VedaLang YAML
+bun run format:veda:check
+
 # Lint for heuristic issues
 uv run vedalang lint model.veda.yaml
 
@@ -119,6 +122,13 @@ Capacity-to-activity conversion is explicit and deterministic:
 
 See [docs/vedalang-user/attribute_mapping.md](docs/vedalang-user/attribute_mapping.md)
 for the complete unit mapping and cost denominator expectations.
+
+### CLI Command Boundaries
+
+- `uv run vedalang fmt <path>`: formatting only (layout/blank-lines/indentation)
+- `uv run vedalang lint <model>.veda.yaml`: semantic/modeling diagnostics
+- `uv run vedalang compile <model>.veda.yaml --out <dir>`: compilation only
+- `uv run vedalang validate <model>.veda.yaml`: full compile + oracle validation
 
 ### Minimal Example
 
@@ -173,6 +183,9 @@ Extend the VedaLang DSL, improve the compiler, or discover new VEDA patterns.
 # Run tests
 uv run pytest
 
+# Check VedaLang YAML formatting
+bun run format:veda:check
+
 # Run linter
 uv run ruff check .
 
@@ -187,6 +200,7 @@ uv run vedalang validate vedalang/examples/mini_plant.veda.yaml
 ### Prerequisites
 
 - Python 3.11+
+- [Bun](https://bun.sh/) (for YAML formatting checks)
 - [uv](https://docs.astral.sh/uv/) package manager
 - GAMS with a valid license (for running the solver)
 - TIMES source code

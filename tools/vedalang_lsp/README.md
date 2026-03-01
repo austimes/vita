@@ -31,7 +31,7 @@ Language Server Protocol (LSP) implementation for VedaLang, providing IDE suppor
 ### Prerequisites
 
 1. Python 3.11+ with the project's virtual environment
-2. Node.js 18+ (for building the VS Code extension)
+2. Bun (for building the VS Code extension)
 3. The `pygls` and `lsprotocol` packages
 
 ### Install Python Dependencies
@@ -45,8 +45,8 @@ uv add pygls lsprotocol
 
 ```bash
 cd tools/vedalang_lsp/extension
-npm install
-npm run compile
+bun install
+bun run compile
 ```
 
 ### Install in VS Code/Cursor
@@ -70,9 +70,9 @@ ln -s $(pwd)/tools/vedalang_lsp/extension ~/.vscode/extensions/vedalang-0.1.0
 
 ```bash
 cd tools/vedalang_lsp/extension
-npm install
-npm run compile
-npm run package
+bun install
+bun run compile
+bun run package
 ```
 
 This produces a `.vsix` in the same folder, which you can install via “Extensions: Install from VSIX…” in VS Code/Cursor.

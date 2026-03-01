@@ -22,6 +22,9 @@ generation agents.
 ## Standard Commands
 
 ```bash
+# Normalize YAML formatting first
+uv run vedalang fmt model.veda.yaml
+
 # Fast structural checks
 uv run vedalang lint model.veda.yaml
 

@@ -51,7 +51,7 @@ model:
       description: Carbon price trajectory 2025-2050
       type: commodity_price
       commodity: emission:co2
-      interpolation: interp_extrap  # Full interpolation and extrapolation
+      interpolation: interp_extrap # Full interpolation and extrapolation
       values:
         "2025": 50
         "2030": 100
@@ -124,9 +124,9 @@ process_variants:
     efficiency: 0.55
     lifetime: 40
     emission_factors:
-      emission:co2: 0.05  # Mt CO2 per PJ activity
+      emission:co2: 0.05 # Mt CO2 per PJ activity
 
-  # Renewable plant (from add_renewable_plant pattern)
+    # Renewable plant (from add_renewable_plant pattern)
     emission_factor_basis: HHV
   - id: wind
     role: generate_electricity
@@ -162,7 +162,6 @@ availability:
   - variant: grid_delivery
     regions: [REG1]
     sectors: [RES]
-
 
 process_parameters:
   - selector:

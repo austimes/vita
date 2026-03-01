@@ -1,0 +1,12 @@
+{
+  "name": "vedalang-formatting",
+  "private": true,
+  "description": "Formatting tooling for VedaLang YAML sources",
+  "devDependencies": {
+    "prettier": "3.6.2"
+  },
+  "scripts": {
+    "format:veda": "prettier --write \"**/*.veda.yaml\"",
+    "format:veda:check": "prettier --check \"**/*.veda.yaml\""
+  }
+}
