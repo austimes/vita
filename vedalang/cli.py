@@ -14,6 +14,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from typing import Any
 
 import jsonschema
 import yaml
@@ -1221,6 +1222,263 @@ def _is_yaml_file(path: Path) -> bool:
     return path.suffix.lower() in {".yaml", ".yml"}
 
 
+FMT_ROOT_KEY_ORDER = (
+    "model",
+    "segments",
+    "process_roles",
+    "process_variants",
+    "availability",
+    "process_parameters",
+    "demands",
+    "diagnostics",
+)
+
+FMT_MODEL_KEY_ORDER = (
+    "name",
+    "description",
+    "regions",
+    "milestone_years",
+    "unit_policy",
+    "monetary",
+    "timeslices",
+    "commodities",
+    "scenario_parameters",
+    "trade_links",
+    "constraints",
+    "cases",
+    "studies",
+)
+
+FMT_GENERIC_KEY_ORDER = (
+    "id",
+    "name",
+    "description",
+    "type",
+    "role",
+    "variant",
+    "commodity",
+    "emission",
+    "region",
+    "origin",
+    "destination",
+    "unit",
+    "activity_unit",
+    "capacity_unit",
+    "stage",
+    "inputs",
+    "outputs",
+    "required_inputs",
+    "required_outputs",
+    "emission_factors",
+    "years",
+    "values",
+)
+
+FMT_PATH_KEY_ORDER: dict[tuple[str, ...], tuple[str, ...]] = {
+    (): FMT_ROOT_KEY_ORDER,
+    ("model",): FMT_MODEL_KEY_ORDER,
+}
+
+FMT_LIST_SORT_KEYS = (
+    "id",
+    "name",
+    "code",
+    "variant",
+    "role",
+    "commodity",
+    "emission",
+    "region",
+    "origin",
+    "destination",
+    "type",
+    "selector",
+    "year",
+)
+
+FMT_SCALAR_LIST_LAST_KEYS = {
+    "regions",
+    "milestone_years",
+    "sectors",
+    "end_uses",
+    "required_inputs",
+    "required_outputs",
+    "processes",
+    "cases",
+    "includes",
+    "excludes",
+}
+
+FMT_MAP_ITEM_RE = re.compile(r"^\s*-\s+[^#:\n][^:\n]*:\s*.*$")
+
+
+def _is_int_like(value: Any) -> bool:
+    if isinstance(value, int):
+        return True
+    if not isinstance(value, str):
+        return False
+    return value.isdigit() or (value.startswith("-") and value[1:].isdigit())
+
+
+def _scalar_sort_key(value: Any) -> tuple[int, int | float | str]:
+    if isinstance(value, bool):
+        return (2, str(value).lower())
+    if isinstance(value, (int, float)):
+        return (0, value)
+    if isinstance(value, str) and _is_int_like(value):
+        return (0, int(value))
+    return (1, str(value))
+
+
+def _mapping_key_rank(key: str, path: tuple[str, ...]) -> tuple[int, int | str]:
+    specific = FMT_PATH_KEY_ORDER.get(path, ())
+    if key in specific:
+        return (0, specific.index(key))
+    if key in FMT_GENERIC_KEY_ORDER:
+        return (1, FMT_GENERIC_KEY_ORDER.index(key))
+    return (2, key)
+
+
+def _canonical_json(value: Any) -> str:
+    return json.dumps(value, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
+
+
+def _sort_mapping_keys(
+    data: dict[str, Any], path: tuple[str, ...]
+) -> list[tuple[str, Any]]:
+    return sorted(data.items(), key=lambda kv: _mapping_key_rank(kv[0], path))
+
+
+def _should_sort_scalar_list(path: tuple[str, ...], items: list[Any]) -> bool:
+    if not items:
+        return False
+    if not all(not isinstance(item, (dict, list)) for item in items):
+        return False
+    return bool(path and path[-1] in FMT_SCALAR_LIST_LAST_KEYS)
+
+
+def _sequence_mapping_sort_key(item: dict[str, Any]) -> tuple[int, tuple[Any, ...]]:
+    for key in FMT_LIST_SORT_KEYS:
+        if key in item:
+            return (0, (_scalar_sort_key(item[key]), _canonical_json(item)))
+    return (1, (_canonical_json(item),))
+
+
+def _canonicalize_value(value: Any, path: tuple[str, ...]) -> Any:
+    if isinstance(value, dict):
+        canonical: dict[str, Any] = {}
+        for key, raw_val in _sort_mapping_keys(value, path):
+            canonical[key] = _canonicalize_value(raw_val, path + (key,))
+        return canonical
+
+    if isinstance(value, list):
+        canonical_items = [_canonicalize_value(item, path + ("[]",)) for item in value]
+        if not canonical_items:
+            return canonical_items
+
+        if _should_sort_scalar_list(path, canonical_items):
+            return sorted(canonical_items, key=_scalar_sort_key)
+
+        if all(isinstance(item, dict) for item in canonical_items):
+            if any(
+                any(k in item for k in FMT_LIST_SORT_KEYS)
+                for item in canonical_items
+            ):
+                return sorted(canonical_items, key=_sequence_mapping_sort_key)
+
+        return canonical_items
+
+    return value
+
+
+def _insert_readability_blank_lines(source: str) -> str:
+    lines = source.splitlines()
+    if not lines:
+        return ""
+
+    out: list[str] = []
+    seen_top_level_key = False
+    seen_mapping_items_by_indent: dict[int, bool] = {}
+
+    for raw_line in lines:
+        if not raw_line.strip():
+            if out and out[-1] != "":
+                out.append("")
+            continue
+
+        stripped = raw_line.lstrip(" ")
+        indent = len(raw_line) - len(stripped)
+        is_top_level_key = (
+            indent == 0 and not stripped.startswith("-") and ":" in stripped
+        )
+
+        # Clear list-item tracking when indentation decreases.
+        for known_indent in list(seen_mapping_items_by_indent):
+            if known_indent > indent:
+                seen_mapping_items_by_indent.pop(known_indent, None)
+
+        if is_top_level_key:
+            if seen_top_level_key and out and out[-1] != "":
+                out.append("")
+            seen_top_level_key = True
+
+        is_mapping_item = bool(FMT_MAP_ITEM_RE.match(raw_line))
+        if is_mapping_item:
+            if (
+                seen_mapping_items_by_indent.get(indent, False)
+                and out
+                and out[-1] != ""
+            ):
+                out.append("")
+            seen_mapping_items_by_indent[indent] = True
+        elif stripped.startswith("-"):
+            # Scalar list item at this depth; do not add extra spacing.
+            seen_mapping_items_by_indent.pop(indent, None)
+        else:
+            seen_mapping_items_by_indent.pop(indent, None)
+
+        out.append(raw_line)
+
+    normalized = "\n".join(out).strip()
+    if not normalized:
+        return ""
+    return normalized + "\n"
+
+
+def _canonicalize_yaml_text(source: str) -> str | None:
+    try:
+        parsed = yaml.safe_load(source)
+    except yaml.YAMLError:
+        return None
+
+    canonical = _canonicalize_value(parsed, ())
+    dumped = yaml.safe_dump(
+        canonical,
+        default_flow_style=False,
+        sort_keys=False,
+        allow_unicode=True,
+    )
+    return _insert_readability_blank_lines(dumped)
+
+
+def _apply_yaml_canonicalization(
+    targets: list[Path], *, check_only: bool
+) -> list[Path]:
+    drifted: list[Path] = []
+
+    for target in targets:
+        original = target.read_text(encoding="utf-8")
+        canonical = _canonicalize_yaml_text(original)
+        if canonical is None:
+            continue
+        if canonical == original:
+            continue
+        drifted.append(target)
+        if not check_only:
+            target.write_text(canonical, encoding="utf-8")
+
+    return drifted
+
+
 def _collect_fmt_targets(paths: list[Path]) -> tuple[list[Path], list[Path]]:
     targets: list[Path] = []
     missing: list[Path] = []
@@ -1293,7 +1551,7 @@ def _run_prettier(
 
 
 def cmd_fmt(args) -> int:
-    """Run fmt command: format .veda.yaml source files with Prettier."""
+    """Run fmt command: canonicalize + format .veda.yaml files."""
     output_json: bool = args.json
     check_only: bool = args.check
     input_paths: list[Path] = args.paths
@@ -1361,6 +1619,8 @@ def cmd_fmt(args) -> int:
             print(f"Error: {message}", file=sys.stderr)
         return 2
 
+    canonical_drift = _apply_yaml_canonicalization(targets, check_only=check_only)
+
     result = _run_prettier(
         prettier_command,
         check_only=check_only,
@@ -1369,17 +1629,23 @@ def cmd_fmt(args) -> int:
     )
     stdout = result.stdout.strip()
     stderr = result.stderr.strip()
+    prettier_check_drift = check_only and result.returncode == 1
+    canonical_check_drift = check_only and bool(canonical_drift)
+    has_check_drift = prettier_check_drift or canonical_check_drift
+    success = result.returncode == 0 and not has_check_drift
+    changed = (not check_only) and (result.returncode == 0)
 
     if output_json:
-        check_failed = check_only and result.returncode == 1
         payload = {
-            "success": result.returncode == 0,
+            "success": success,
             "mode": "check" if check_only else "write",
             "paths": [str(p) for p in input_paths],
             "files": [str(p) for p in targets],
             "file_count": len(targets),
-            "changed": (not check_only and result.returncode == 0),
-            "needs_formatting": check_failed,
+            "changed": changed,
+            "needs_formatting": has_check_drift,
+            "canonical_drift_count": len(canonical_drift),
+            "canonical_drift_files": [str(p) for p in canonical_drift],
             "stdout": stdout,
             "stderr": stderr,
         }
@@ -1391,9 +1657,9 @@ def cmd_fmt(args) -> int:
             print(stderr, file=sys.stderr)
 
         if check_only:
-            if result.returncode == 0:
+            if not has_check_drift and result.returncode == 0:
                 print(f"Formatting check passed for {len(targets)} file(s).")
-            elif result.returncode == 1:
+            elif has_check_drift:
                 print(
                     "Formatting drift detected. "
                     "Run `uv run vedalang fmt <path>` to apply fixes."
@@ -1402,6 +1668,8 @@ def cmd_fmt(args) -> int:
             print(f"Formatted {len(targets)} file(s).")
 
     if result.returncode == 0:
+        if check_only and has_check_drift:
+            return 1
         return 0
     if check_only and result.returncode == 1:
         return 1

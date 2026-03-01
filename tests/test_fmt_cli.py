@@ -3,6 +3,7 @@
 import argparse
 import json
 import subprocess
+import textwrap
 
 from vedalang import cli
 
@@ -127,3 +128,112 @@ def test_cmd_fmt_no_matching_files_is_success(tmp_path, capsys):
     payload = json.loads(captured.out)
     assert payload["success"] is True
     assert payload["file_count"] == 0
+
+
+def test_canonicalize_yaml_text_sorts_and_adds_blank_lines():
+    source = textwrap.dedent(
+        """\
+        process_roles:
+          - stage: demand
+            id: role_b
+          - id: role_a
+            stage: supply
+        model:
+          commodities:
+            - type: service
+              id: service:z
+            - id: service:a
+              type: service
+          name: Demo
+        """
+    )
+
+    formatted = cli._canonicalize_yaml_text(source)
+    assert formatted is not None
+    assert formatted.startswith("model:\n")
+    assert "\n\nprocess_roles:\n" in formatted
+    assert formatted.index("id: service:a") < formatted.index("id: service:z")
+    assert formatted.index("id: role_a") < formatted.index("id: role_b")
+    assert "\n\n  - id: service:z\n" in formatted
+
+
+def test_cmd_fmt_check_mode_returns_1_on_canonical_drift(tmp_path, monkeypatch, capsys):
+    src = tmp_path / "canonical_drift.veda.yaml"
+    src.write_text(
+        "process_roles:\n"
+        "  - stage: demand\n"
+        "    id: role_b\n"
+        "model:\n"
+        "  name: Demo\n",
+        encoding="utf-8",
+    )
+    original = src.read_text(encoding="utf-8")
+
+    monkeypatch.setattr(cli, "_resolve_prettier_command", lambda _: ["prettier"])
+
+    def fake_run(*_args, **_kwargs):
+        return subprocess.CompletedProcess(
+            args=["prettier"],
+            returncode=0,
+            stdout="",
+            stderr="",
+        )
+
+    monkeypatch.setattr(cli, "_run_prettier", fake_run)
+
+    args = argparse.Namespace(paths=[src], check=True, json=True)
+    exit_code = cli.cmd_fmt(args)
+    captured = capsys.readouterr()
+
+    assert exit_code == 1
+    payload = json.loads(captured.out)
+    assert payload["success"] is False
+    assert payload["needs_formatting"] is True
+    assert payload["canonical_drift_count"] == 1
+    assert src.read_text(encoding="utf-8") == original
+
+
+def test_cmd_fmt_write_mode_applies_canonicalization(tmp_path, monkeypatch, capsys):
+    src = tmp_path / "canonicalize_me.veda.yaml"
+    src.write_text(
+        "process_roles:\n"
+        "  - stage: demand\n"
+        "    id: role_b\n"
+        "  - stage: supply\n"
+        "    id: role_a\n"
+        "model:\n"
+        "  commodities:\n"
+        "    - type: service\n"
+        "      id: service:z\n"
+        "    - type: service\n"
+        "      id: service:a\n"
+        "  name: Demo\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(cli, "_resolve_prettier_command", lambda _: ["prettier"])
+
+    def fake_run(*_args, **_kwargs):
+        return subprocess.CompletedProcess(
+            args=["prettier"],
+            returncode=0,
+            stdout="",
+            stderr="",
+        )
+
+    monkeypatch.setattr(cli, "_run_prettier", fake_run)
+
+    args = argparse.Namespace(paths=[src], check=False, json=True)
+    exit_code = cli.cmd_fmt(args)
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    payload = json.loads(captured.out)
+    assert payload["success"] is True
+    assert payload["canonical_drift_count"] == 1
+
+    updated = src.read_text(encoding="utf-8")
+    assert updated.startswith("model:\n")
+    assert "\n\nprocess_roles:\n" in updated
+    assert updated.index("id: service:a") < updated.index("id: service:z")
+    assert updated.index("id: role_a") < updated.index("id: role_b")

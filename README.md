@@ -125,7 +125,7 @@ for the complete unit mapping and cost denominator expectations.
 
 ### CLI Command Boundaries
 
-- `uv run vedalang fmt <path>`: formatting only (layout/blank-lines/indentation)
+- `uv run vedalang fmt <path>`: canonical formatting (deterministic ordering + layout/blank-lines/indentation)
 - `uv run vedalang lint <model>.veda.yaml`: semantic/modeling diagnostics
 - `uv run vedalang compile <model>.veda.yaml --out <dir>`: compilation only
 - `uv run vedalang validate <model>.veda.yaml`: full compile + oracle validation
