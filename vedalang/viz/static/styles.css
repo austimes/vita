@@ -73,6 +73,12 @@ h1 {
   gap: 8px;
 }
 
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 .sidebar-header {
   display: flex;
   align-items: center;
@@ -100,6 +106,40 @@ h1 {
 
 .sidebar-toggle:hover {
   border-color: var(--button-active-border);
+}
+
+.sidebar-up-btn {
+  background: var(--button);
+  color: var(--text);
+  border: 1px solid var(--button-border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sidebar-up-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.sidebar-up-btn:not(:disabled):hover {
+  border-color: var(--button-active-border);
+}
+
+.current-dir-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 4px 2px;
+  overflow-wrap: anywhere;
+}
+
+.selected-file-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 2px;
+  overflow-wrap: anywhere;
 }
 
 .main-panel {
@@ -180,6 +220,10 @@ h1 {
   text-overflow: ellipsis;
 }
 
+.file-list .option-btn.is-directory {
+  border-style: dashed;
+}
+
 .option-placeholder {
   font-size: 12px;
   color: var(--text-muted);
@@ -228,7 +272,8 @@ pre {
 }
 
 .app.sidebar-collapsed .sidebar-header h2,
-.app.sidebar-collapsed .file-list {
+.app.sidebar-collapsed .file-list,
+.app.sidebar-collapsed .sidebar-nav {
   display: none;
 }
 
@@ -256,6 +301,10 @@ pre {
   }
 
   .app.sidebar-collapsed .file-list {
+    display: flex;
+  }
+
+  .app.sidebar-collapsed .sidebar-nav {
     display: flex;
   }
 

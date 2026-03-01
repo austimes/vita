@@ -19,7 +19,19 @@ def test_viz_server_health_and_files_and_query():
     files = client.get("/api/files")
     assert files.status_code == 200
     payload = files.json()
-    assert str(initial) in payload["files"]
+    assert payload["workspace_root"] == str(Path.cwd())
+    assert payload["current_dir"] == str(initial.parent)
+    assert payload["initial_file"] == str(initial)
+    assert any(
+        entry["kind"] == "file" and entry["path"] == str(initial)
+        for entry in payload["entries"]
+    )
+
+    parent = payload["parent_dir"]
+    if parent:
+        parent_resp = client.get("/api/files", params={"dir": parent})
+        assert parent_resp.status_code == 200
+        assert parent_resp.json()["current_dir"] == parent
 
     query = client.post(
         "/api/query",

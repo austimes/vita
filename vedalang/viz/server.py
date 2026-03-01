@@ -9,9 +9,18 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from vedalang.viz.query_engine import list_workspace_veda_files, query_res_graph
+from vedalang.viz.query_engine import query_res_graph
 
 STATIC_DIR = Path(__file__).parent / "static"
+IGNORED_DIR_NAMES = {
+    ".cache",
+    ".git",
+    ".venv",
+    "__pycache__",
+    "node_modules",
+    "output",
+    "tmp",
+}
 
 
 class VizApiState:
@@ -29,6 +38,58 @@ def _resolve_file(state: VizApiState, raw_path: str | None) -> Path | None:
             candidate = (state.workspace_root / candidate).resolve()
         return candidate
     return state.initial_file
+
+
+def _assert_within_workspace(state: VizApiState, path: Path) -> None:
+    try:
+        path.relative_to(state.workspace_root)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Path outside workspace root: {path}",
+        ) from exc
+
+
+def _resolve_directory(state: VizApiState, raw_dir: str | None) -> Path:
+    if raw_dir:
+        candidate = Path(raw_dir).expanduser()
+        if not candidate.is_absolute():
+            candidate = state.workspace_root / candidate
+        resolved = candidate.resolve()
+    elif state.initial_file and state.initial_file.exists():
+        resolved = state.initial_file.parent.resolve()
+    else:
+        resolved = state.workspace_root
+
+    _assert_within_workspace(state, resolved)
+    if not resolved.exists() or not resolved.is_dir():
+        raise HTTPException(
+            status_code=400,
+            detail=f"Directory does not exist: {resolved}",
+        )
+    return resolved
+
+
+def _directory_entries(directory: Path) -> list[dict[str, str]]:
+    entries: list[dict[str, str]] = []
+    for child in directory.iterdir():
+        if child.is_dir():
+            if child.name.startswith(".") or child.name in IGNORED_DIR_NAMES:
+                continue
+            entries.append(
+                {
+                    "kind": "directory",
+                    "name": child.name,
+                    "path": str(child.resolve()),
+                }
+            )
+            continue
+        if child.is_file() and child.name.endswith(".veda.yaml"):
+            entries.append(
+                {"kind": "file", "name": child.name, "path": str(child.resolve())}
+            )
+
+    return sorted(entries, key=lambda item: (item["kind"] != "directory", item["name"]))
 
 
 def create_app(*, workspace_root: Path, initial_file: Path | None = None) -> FastAPI:
@@ -54,10 +115,18 @@ def create_app(*, workspace_root: Path, initial_file: Path | None = None) -> Fas
         }
 
     @app.get("/api/files")
-    async def list_files() -> dict[str, Any]:
-        files = list_workspace_veda_files(state.workspace_root)
+    async def list_files(dir: str | None = None) -> dict[str, Any]:
+        current_dir = _resolve_directory(state, dir)
+        parent_dir: Path | None = None
+        if current_dir != state.workspace_root:
+            parent_dir = current_dir.parent
+            _assert_within_workspace(state, parent_dir)
+
         return {
-            "files": files,
+            "workspace_root": str(state.workspace_root),
+            "current_dir": str(current_dir),
+            "parent_dir": str(parent_dir) if parent_dir else None,
+            "entries": _directory_entries(current_dir),
             "initial_file": str(state.initial_file) if state.initial_file else None,
         }
 

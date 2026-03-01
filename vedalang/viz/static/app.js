@@ -28,11 +28,14 @@ const state = {
   regions: [],
   sectors: [],
   segments: [],
-  availableFiles: [],
   availableCases: [],
   availableRegions: [],
   availableSectors: [],
   availableSegments: [],
+  workspaceRoot: "",
+  currentDir: "",
+  parentDir: null,
+  currentEntries: [],
   sidebarCollapsed: false,
 };
 
@@ -51,6 +54,17 @@ function compactPath(path) {
     return path;
   }
   return `.../${parts.slice(-3).join("/")}`;
+}
+
+function relativeToWorkspace(path) {
+  if (!path) {
+    return "";
+  }
+  if (!state.workspaceRoot || !path.startsWith(state.workspaceRoot)) {
+    return path;
+  }
+  const rel = path.slice(state.workspaceRoot.length).replace(/^\/+/, "");
+  return rel || ".";
 }
 
 function setSidebarCollapsed(collapsed) {
@@ -221,15 +235,20 @@ function renderGraph(response) {
   document.getElementById("diagnostics").textContent = JSON.stringify(response.diagnostics || [], null, 2);
 }
 
-function createOptionButton({ label, active, title, onClick }) {
+function createOptionButton({ label, active, title, className, onClick }) {
   const button = document.createElement("button");
   button.type = "button";
-  button.className = `option-btn${active ? " is-active" : ""}`;
+  button.className = `option-btn${active ? " is-active" : ""}${className ? ` ${className}` : ""}`;
   button.textContent = label;
   if (title) {
     button.title = title;
   }
-  button.addEventListener("click", onClick);
+  button.addEventListener("click", (event) => {
+    Promise.resolve(onClick(event)).catch((error) => {
+      setStatus("Sidebar action failed");
+      document.getElementById("diagnostics").textContent = String(error);
+    });
+  });
   return button;
 }
 
@@ -238,6 +257,58 @@ function renderPlaceholder(container, text) {
   placeholder.className = "option-placeholder";
   placeholder.textContent = text;
   container.appendChild(placeholder);
+}
+
+function renderFileExplorer() {
+  const container = document.getElementById("fileButtons");
+  const currentDirLabel = document.getElementById("currentDirLabel");
+  const selectedFileLabel = document.getElementById("selectedFileLabel");
+  const upButton = document.getElementById("upDirBtn");
+
+  container.innerHTML = "";
+  currentDirLabel.textContent = `Dir: ${relativeToWorkspace(state.currentDir) || "(none)"}`;
+  selectedFileLabel.textContent = state.file
+    ? `Selected: ${relativeToWorkspace(state.file)}`
+    : "Selected: (none)";
+  upButton.disabled = !state.parentDir;
+
+  const directories = state.currentEntries.filter((entry) => entry.kind === "directory");
+  const files = state.currentEntries.filter((entry) => entry.kind === "file");
+
+  directories.forEach((entry) => {
+    container.appendChild(
+      createOptionButton({
+        label: `[DIR] ${entry.name}/`,
+        title: relativeToWorkspace(entry.path),
+        className: "is-directory",
+        onClick: async () => {
+          await loadDirectory(entry.path);
+        },
+      }),
+    );
+  });
+
+  files.forEach((entry) => {
+    container.appendChild(
+      createOptionButton({
+        label: entry.name,
+        title: relativeToWorkspace(entry.path),
+        active: entry.path === state.file,
+        className: "is-file",
+        onClick: () => {
+          if (entry.path === state.file) {
+            return;
+          }
+          state.file = entry.path;
+          runQuery();
+        },
+      }),
+    );
+  });
+
+  if (directories.length === 0 && files.length === 0) {
+    renderPlaceholder(container, "No folders or .veda.yaml files in this directory.");
+  }
 }
 
 function renderSingleGroup(containerId, options, selectedValue, onSelect) {
@@ -374,19 +445,7 @@ function renderFacetMultiGroup({ containerId, available, selected, anyLabel, onS
 }
 
 function renderControls() {
-  renderSingleGroup(
-    "fileButtons",
-    state.availableFiles.map((file) => ({
-      value: file,
-      label: compactPath(file),
-      title: file,
-    })),
-    state.file,
-    (value) => {
-      state.file = value;
-      runQuery();
-    },
-  );
+  renderFileExplorer();
 
   renderSingleGroup("modeButtons", MODE_OPTIONS, state.mode, (value) => {
     state.mode = value;
@@ -477,7 +536,7 @@ function updateFacetControls(response) {
 
 async function runQuery() {
   if (!state.file) {
-    setStatus("No .veda.yaml files found");
+    setStatus("Select a .veda.yaml file from the sidebar");
     return;
   }
 
@@ -498,18 +557,32 @@ async function runQuery() {
   }
 }
 
-async function loadFiles() {
-  const response = await fetch("/api/files");
+async function loadDirectory(targetDir) {
+  const url = new URL("/api/files", window.location.origin);
+  if (targetDir) {
+    url.searchParams.set("dir", targetDir);
+  }
+
+  const response = await fetch(`${url.pathname}${url.search}`);
+  if (!response.ok) {
+    throw new Error(`Directory load failed (${response.status})`);
+  }
+
   const payload = await response.json();
+  state.workspaceRoot = payload.workspace_root || state.workspaceRoot;
+  state.currentDir = payload.current_dir || "";
+  state.parentDir = payload.parent_dir || null;
+  state.currentEntries = payload.entries || [];
 
-  state.availableFiles = payload.files || [];
-
-  if (payload.initial_file) {
+  if (!state.file && payload.initial_file) {
     state.file = payload.initial_file;
-  } else if (state.availableFiles.length > 0) {
-    state.file = state.availableFiles[0];
-  } else {
-    state.file = "";
+  }
+
+  if (!state.file) {
+    const firstFile = state.currentEntries.find((entry) => entry.kind === "file");
+    if (firstFile) {
+      state.file = firstFile.path;
+    }
   }
 
   renderControls();
@@ -520,14 +593,26 @@ function wireControls() {
   document.getElementById("toggleSidebarBtn").addEventListener("click", () => {
     setSidebarCollapsed(!state.sidebarCollapsed);
   });
+  document.getElementById("upDirBtn").addEventListener("click", async () => {
+    if (!state.parentDir) {
+      return;
+    }
+    await loadDirectory(state.parentDir);
+  });
 }
 
 async function bootstrap() {
   initCy();
   wireControls();
   setSidebarCollapsed(loadSidebarPreference());
-  await loadFiles();
-  await runQuery();
+
+  try {
+    await loadDirectory();
+    await runQuery();
+  } catch (error) {
+    setStatus("Failed to initialize sidebar");
+    document.getElementById("diagnostics").textContent = String(error);
+  }
 }
 
 bootstrap();
