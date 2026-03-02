@@ -5,8 +5,8 @@ import subprocess
 from pathlib import Path
 
 EXAMPLES_DIR = Path(__file__).parent.parent / "vedalang" / "examples"
-MINI_PLANT = EXAMPLES_DIR / "mini_plant.veda.yaml"
-MINISYSTEM = EXAMPLES_DIR / "minisystem8.veda.yaml"
+MINI_PLANT = EXAMPLES_DIR / "quickstart/mini_plant.veda.yaml"
+MINISYSTEM = EXAMPLES_DIR / "minisystem/minisystem8.veda.yaml"
 
 
 def run_vedalang(*args: str) -> subprocess.CompletedProcess:
@@ -84,7 +84,7 @@ class TestLint:
         path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
     def test_vedalang_lint_basic(self):
-        """Lint runs successfully on mini_plant.veda.yaml."""
+        """Lint runs successfully on quickstart/mini_plant.veda.yaml."""
         result = run_vedalang("lint", str(MINI_PLANT))
         assert result.returncode in (0, 1)
         assert "error(s)" in result.stdout

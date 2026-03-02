@@ -15,14 +15,18 @@ EXAMPLES_DIR = PROJECT_ROOT / "vedalang" / "examples"
 
 
 SKIP_XL2TIMES_VALIDATION = {
-    "example_with_constraints.veda.yaml",
+    "feature_demos/example_with_constraints.veda.yaml",
 }
 
 
 def get_vedalang_fixtures() -> list[Path]:
     """Find all .veda.yaml files in examples directory."""
-    fixtures = list(EXAMPLES_DIR.glob("*.veda.yaml"))
-    fixtures = [f for f in fixtures if f.name not in SKIP_XL2TIMES_VALIDATION]
+    fixtures = sorted(EXAMPLES_DIR.rglob("*.veda.yaml"))
+    fixtures = [
+        f
+        for f in fixtures
+        if str(f.relative_to(EXAMPLES_DIR)) not in SKIP_XL2TIMES_VALIDATION
+    ]
     if not fixtures:
         pytest.skip("No VedaLang fixtures found")
     return fixtures
@@ -30,7 +34,7 @@ def get_vedalang_fixtures() -> list[Path]:
 
 def get_tableir_fixtures() -> list[Path]:
     """Find all valid TableIR fixtures (excluding invalid ones)."""
-    all_yaml = list(EXAMPLES_DIR.glob("tableir_*.yaml"))
+    all_yaml = sorted((EXAMPLES_DIR / "tableir").glob("tableir_*.yaml"))
     return [f for f in all_yaml if "invalid" not in f.name]
 
 
@@ -70,13 +74,13 @@ def test_tableir_fixture_emits(fixture_path: Path):
 
 def test_invalid_tableir_fails():
     """Invalid TableIR should fail schema validation."""
-    invalid_path = EXAMPLES_DIR / "tableir_invalid.yaml"
+    invalid_path = EXAMPLES_DIR / "tableir/tableir_invalid.yaml"
     if not invalid_path.exists():
-        pytest.skip("tableir_invalid.yaml not found")
+        pytest.skip("tableir/tableir_invalid.yaml not found")
 
     result = run_check(invalid_path, from_tableir=True)
     assert not result.success or result.errors > 0, (
-        "tableir_invalid.yaml should have failed but passed"
+        "tableir/tableir_invalid.yaml should have failed but passed"
     )
 
 
@@ -85,10 +89,12 @@ class TestFixtureInventory:
 
     def test_has_vedalang_fixtures(self):
         """Ensure at least one VedaLang fixture exists."""
-        fixtures = list(EXAMPLES_DIR.glob("*.veda.yaml"))
+        fixtures = list(EXAMPLES_DIR.rglob("*.veda.yaml"))
         assert len(fixtures) >= 1, "Expected at least one .veda.yaml fixture"
 
     def test_mini_plant_exists(self):
         """The canonical mini_plant fixture must exist."""
-        mini_plant = EXAMPLES_DIR / "mini_plant.veda.yaml"
-        assert mini_plant.exists(), "mini_plant.veda.yaml is the canonical fixture"
+        mini_plant = EXAMPLES_DIR / "quickstart/mini_plant.veda.yaml"
+        assert mini_plant.exists(), (
+            "quickstart/mini_plant.veda.yaml is the canonical fixture"
+        )

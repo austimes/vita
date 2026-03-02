@@ -12,8 +12,8 @@ EXAMPLES_DIR = PROJECT_ROOT / "vedalang" / "examples"
 
 
 def test_emit_minimal_tableir():
-    """Emit tableir_minimal.yaml and verify Excel structure."""
-    tableir = load_tableir(EXAMPLES_DIR / "tableir_minimal.yaml")
+    """Emit tableir/tableir_minimal.yaml and verify Excel structure."""
+    tableir = load_tableir(EXAMPLES_DIR / "tableir/tableir_minimal.yaml")
 
     with tempfile.TemporaryDirectory() as tmpdir:
         created = emit_excel(tableir, Path(tmpdir))

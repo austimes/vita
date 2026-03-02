@@ -24,7 +24,7 @@ def _viz_args(**overrides):
 
 def test_cmd_res_query_json_output(capsys):
     args = argparse.Namespace(
-        file=EXAMPLES_DIR / "toy_buildings.veda.yaml",
+        file=EXAMPLES_DIR / "toy_sectors/toy_buildings.veda.yaml",
         mode="source",
         granularity="role",
         lens="system",
@@ -47,7 +47,7 @@ def test_cmd_res_query_json_output(capsys):
 
 def test_cmd_res_mermaid_outputs_flowchart(capsys):
     args = argparse.Namespace(
-        file=EXAMPLES_DIR / "toy_buildings.veda.yaml",
+        file=EXAMPLES_DIR / "toy_sectors/toy_buildings.veda.yaml",
         mode="source",
         granularity="variant",
         lens="system",

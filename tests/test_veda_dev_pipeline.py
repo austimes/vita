@@ -70,7 +70,7 @@ def test_format_result_table_shows_verbose_run_times_failure_block() -> None:
 
     result = PipelineResult(
         success=False,
-        input_path="vedalang/examples/toy_agriculture.veda.yaml",
+        input_path="vedalang/examples/toy_sectors/toy_agriculture.veda.yaml",
         input_kind="vedalang",
         work_dir="/tmp/run",
         steps={"run_times": step},

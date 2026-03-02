@@ -17,7 +17,7 @@ from vedalang.compiler import compile_vedalang_to_tableir, load_vedalang
 
 PROJECT_ROOT = Path(__file__).parent.parent
 EXAMPLES_DIR = PROJECT_ROOT / "vedalang" / "examples"
-MINISYSTEM_PATH = EXAMPLES_DIR / "minisystem8.veda.yaml"
+MINISYSTEM_PATH = EXAMPLES_DIR / "minisystem/minisystem8.veda.yaml"
 GOLDEN_TABLEIR_PATH = EXAMPLES_DIR / "minisystem8_golden.tableir.yaml"
 
 
@@ -37,7 +37,7 @@ class TestMiniSystemCompilation:
     def test_minisystem_exists(self):
         """MiniSystem fixture must exist."""
         assert MINISYSTEM_PATH.exists(), (
-            "minisystem8.veda.yaml is the stress-test model"
+            "minisystem/minisystem8.veda.yaml is the stress-test model"
         )
 
     def test_compiles_without_error(self, tableir):

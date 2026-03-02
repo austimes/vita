@@ -90,7 +90,7 @@ Experiments in `experiments/` are design agent outputs from Phase 1. For each:
 
 - Do all examples in `vedalang/examples/` compile successfully?
   ```bash
-  for f in vedalang/examples/*.veda.yaml; do
+  for f in $(find vedalang/examples -type f -name '*.veda.yaml' | sort); do
     uv run vedalang compile "$f" --out /tmp/test_out 2>&1 || echo "FAIL: $f"
   done
   ```

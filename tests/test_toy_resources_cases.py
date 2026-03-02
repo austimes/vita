@@ -8,7 +8,12 @@ from tools.veda_check import run_check
 from vedalang.compiler import compile_vedalang_to_tableir, load_vedalang
 
 PROJECT_ROOT = Path(__file__).parent.parent
-TOY_RESOURCES_PATH = PROJECT_ROOT / "vedalang" / "examples" / "toy_resources.veda.yaml"
+TOY_RESOURCES_PATH = (
+    PROJECT_ROOT
+    / "vedalang"
+    / "examples"
+    / "toy_sectors/toy_resources.veda.yaml"
+)
 
 
 def test_toy_resources_has_ref_co2cap_force_shift_cases():

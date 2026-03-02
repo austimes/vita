@@ -6,7 +6,7 @@ EXAMPLES_DIR = Path(__file__).resolve().parent.parent / "vedalang" / "examples"
 
 
 def test_source_query_returns_graph():
-    source_file = EXAMPLES_DIR / "toy_buildings.veda.yaml"
+    source_file = EXAMPLES_DIR / "toy_sectors/toy_buildings.veda.yaml"
 
     response = query_res_graph(
         {
@@ -27,7 +27,7 @@ def test_source_query_returns_graph():
 
 
 def test_compiled_instance_query_has_segment_scoped_entities():
-    source_file = EXAMPLES_DIR / "toy_buildings.veda.yaml"
+    source_file = EXAMPLES_DIR / "toy_sectors/toy_buildings.veda.yaml"
 
     response = query_res_graph(
         {
@@ -55,7 +55,7 @@ def test_compiled_instance_query_has_segment_scoped_entities():
 
 
 def test_compiled_trade_query_exposes_trade_edges_and_details():
-    source_file = EXAMPLES_DIR / "example_with_trade.veda.yaml"
+    source_file = EXAMPLES_DIR / "feature_demos/example_with_trade.veda.yaml"
 
     response = query_res_graph(
         {

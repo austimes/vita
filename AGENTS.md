@@ -468,7 +468,7 @@ The agent iteratively designs VedaLang through a structured feedback loop:
 **Preferred workflow:** Use `vedalang validate` for the full pipeline:
 ```bash
 # Validate VedaLang source end-to-end
-uv run vedalang validate vedalang/examples/mini_plant.veda.yaml
+uv run vedalang validate vedalang/examples/quickstart/mini_plant.veda.yaml
 
 # Validate TableIR directly
 uv run vedalang-dev validate-tableir tables.yaml
@@ -491,7 +491,7 @@ uv run vedalang-dev validate-tableir tables.yaml
 - ✅ `vedalang-dev emit-excel` emits valid Excel
 - ✅ `vedalang validate` orchestrates pipeline
 - ✅ xl2times emits structured diagnostics (not crashes)
-- ✅ `mini_plant.veda.yaml` passes VedaLang compilation
+- ✅ `quickstart/mini_plant.veda.yaml` passes VedaLang compilation
 
 ### P1: TableIR Experimentation (DONE)
 - ✅ DC1-DC5 design challenges complete
@@ -647,7 +647,7 @@ uv run pytest tests/
 uv run ruff check .
 
 # Full validation
-uv run vedalang validate vedalang/examples/mini_plant.veda.yaml
+uv run vedalang validate vedalang/examples/quickstart/mini_plant.veda.yaml
 ```
 
 ---

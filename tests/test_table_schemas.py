@@ -458,7 +458,7 @@ class TestIntegrationWithCompiler:
     """Integration tests with actual compiled output."""
 
     def test_mini_plant_tableir_validates(self):
-        """TableIR from mini_plant.veda.yaml should validate with canonical names."""
+        """TableIR from quickstart/mini_plant.veda.yaml validates."""
         from vedalang.compiler.compiler import (
             compile_vedalang_to_tableir,
             load_vedalang,
@@ -469,7 +469,7 @@ class TestIntegrationWithCompiler:
             Path(__file__).parent.parent
             / "vedalang"
             / "examples"
-            / "mini_plant.veda.yaml"
+            / "quickstart/mini_plant.veda.yaml"
         )
         source = load_vedalang(vedalang_path)
         tableir = compile_vedalang_to_tableir(source)

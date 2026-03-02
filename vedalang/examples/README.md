@@ -26,8 +26,8 @@ Use these subfolders for new examples:
   - `component_library/assemblies/`
   - `component_library/studies/`
 
-## Transition Note
+## Migration Status
 
-Existing flat files are intentionally left in place for now to avoid breaking
-tests and docs that reference current paths. New examples should be added under
-the folder structure above.
+Examples have been moved into the folder layout above. Use subfolder paths in
+docs/tests/commands (for example
+`vedalang/examples/quickstart/mini_plant.veda.yaml`).

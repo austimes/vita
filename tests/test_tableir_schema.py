@@ -164,14 +164,14 @@ def test_row_nested_object_rejected(tableir_schema):
 
 def test_tableir_minimal_yaml_validates(tableir_schema):
     """The minimal example should pass schema validation."""
-    with open(EXAMPLES_DIR / "tableir_minimal.yaml") as f:
+    with open(EXAMPLES_DIR / "tableir/tableir_minimal.yaml") as f:
         data = yaml.safe_load(f)
     jsonschema.validate(data, tableir_schema)
 
 
 def test_tableir_invalid_yaml_rejected(tableir_schema):
     """The invalid example should fail schema validation."""
-    with open(EXAMPLES_DIR / "tableir_invalid.yaml") as f:
+    with open(EXAMPLES_DIR / "tableir/tableir_invalid.yaml") as f:
         data = yaml.safe_load(f)
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(data, tableir_schema)

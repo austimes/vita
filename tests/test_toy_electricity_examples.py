@@ -6,6 +6,10 @@ from vedalang.compiler import compile_vedalang_to_tableir, load_vedalang
 
 PROJECT_ROOT = Path(__file__).parent.parent
 EXAMPLES_DIR = PROJECT_ROOT / "vedalang" / "examples"
+TOY_ELECTRICITY_FILES = (
+    "toy_sectors/toy_electricity_2ts.veda.yaml",
+    "toy_sectors/toy_electricity_4ts.veda.yaml",
+)
 
 
 def _load_example(filename: str) -> dict:
@@ -14,7 +18,7 @@ def _load_example(filename: str) -> dict:
 
 def test_toy_electricity_examples_separate_delivery_and_end_use_roles():
     """Both toy electricity variants keep delivery and end-use boundaries explicit."""
-    for filename in ("toy_electricity_2ts.veda.yaml", "toy_electricity_4ts.veda.yaml"):
+    for filename in TOY_ELECTRICITY_FILES:
         source = _load_example(filename)
         roles = {role["id"]: role for role in source["process_roles"]}
 
@@ -44,8 +48,8 @@ def test_toy_electricity_examples_separate_delivery_and_end_use_roles():
 
 def test_toy_electricity_timeslice_variants_remain_separate_files():
     """2TS and 4TS examples keep distinct timeslice structures by design."""
-    source_2ts = _load_example("toy_electricity_2ts.veda.yaml")
-    source_4ts = _load_example("toy_electricity_4ts.veda.yaml")
+    source_2ts = _load_example("toy_sectors/toy_electricity_2ts.veda.yaml")
+    source_4ts = _load_example("toy_sectors/toy_electricity_4ts.veda.yaml")
 
     assert "season" not in source_2ts["model"]["timeslices"]
     assert set(source_2ts["model"]["timeslices"]["fractions"]) == {"D", "N"}
@@ -61,7 +65,7 @@ def test_toy_electricity_timeslice_variants_remain_separate_files():
 
 def test_toy_electricity_single_generation_role():
     """Both models use a single generate_electricity role with variant-level inputs."""
-    for filename in ("toy_electricity_2ts.veda.yaml", "toy_electricity_4ts.veda.yaml"):
+    for filename in TOY_ELECTRICITY_FILES:
         source = _load_example(filename)
         roles = {role["id"]: role for role in source["process_roles"]}
 
@@ -84,7 +88,7 @@ def test_toy_electricity_single_generation_role():
 
 def test_toy_electricity_renewable_resource_supply():
     """Renewables consume explicit resource commodities from supply roles."""
-    for filename in ("toy_electricity_2ts.veda.yaml", "toy_electricity_4ts.veda.yaml"):
+    for filename in TOY_ELECTRICITY_FILES:
         source = _load_example(filename)
         roles = {role["id"]: role for role in source["process_roles"]}
 

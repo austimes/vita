@@ -18,7 +18,7 @@ def load_schema():
 def test_mini_plant_validates():
     """The mini_plant example should pass validation."""
     schema = load_schema()
-    with open(EXAMPLES_DIR / "mini_plant.veda.yaml") as f:
+    with open(EXAMPLES_DIR / "quickstart/mini_plant.veda.yaml") as f:
         data = yaml.safe_load(f)
     jsonschema.validate(data, schema)
 
@@ -409,9 +409,9 @@ def test_timeslices_validates():
 
 
 def test_timeslices_example_validates():
-    """The example_with_timeslices.veda.yaml should pass validation."""
+    """The feature_demos/example_with_timeslices.veda.yaml should pass validation."""
     schema = load_schema()
-    with open(EXAMPLES_DIR / "example_with_timeslices.veda.yaml") as f:
+    with open(EXAMPLES_DIR / "feature_demos/example_with_timeslices.veda.yaml") as f:
         data = yaml.safe_load(f)
     jsonschema.validate(data, schema)
 
@@ -541,9 +541,9 @@ def test_constraints_activity_share_validates():
 
 
 def test_constraints_example_validates():
-    """The example_with_constraints.veda.yaml should pass validation."""
+    """The feature_demos/example_with_constraints.veda.yaml should pass validation."""
     schema = load_schema()
-    with open(EXAMPLES_DIR / "example_with_constraints.veda.yaml") as f:
+    with open(EXAMPLES_DIR / "feature_demos/example_with_constraints.veda.yaml") as f:
         data = yaml.safe_load(f)
     jsonschema.validate(data, schema)
 

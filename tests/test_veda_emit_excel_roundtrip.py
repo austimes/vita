@@ -102,7 +102,7 @@ class TestRoundtrip:
         (BookRegions_Map, TimeSlices, etc.) which are complex. This test
         validates the emitter itself works correctly.
         """
-        tableir = load_tableir(EXAMPLES_DIR / "tableir_minimal.yaml")
+        tableir = load_tableir(EXAMPLES_DIR / "tableir/tableir_minimal.yaml")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             tmpdir = Path(tmpdir)
@@ -182,7 +182,7 @@ class TestExcelStructure:
 
     def test_emitted_excel_structure(self):
         """Verify sheet names, tags, and columns match TableIR."""
-        tableir = load_tableir(EXAMPLES_DIR / "tableir_minimal.yaml")
+        tableir = load_tableir(EXAMPLES_DIR / "tableir/tableir_minimal.yaml")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             tmpdir = Path(tmpdir)

@@ -7,8 +7,8 @@ from pathlib import Path
 import pytest
 
 EXAMPLES_DIR = Path(__file__).parent.parent / "vedalang" / "examples"
-MINI_PLANT = EXAMPLES_DIR / "mini_plant.veda.yaml"
-TABLEIR_MINIMAL = EXAMPLES_DIR / "tableir_minimal.yaml"
+MINI_PLANT = EXAMPLES_DIR / "quickstart/mini_plant.veda.yaml"
+TABLEIR_MINIMAL = EXAMPLES_DIR / "tableir/tableir_minimal.yaml"
 
 
 def run_vedalang_dev(*args: str) -> subprocess.CompletedProcess:

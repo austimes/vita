@@ -197,7 +197,7 @@ commodities:
 
 ### 4. New Example File ✅
 
-Added `vedalang/examples/mini_plant_shorthand.veda.yaml` demonstrating all new features.
+Added `vedalang/examples/quickstart/mini_plant_shorthand.veda.yaml` demonstrating all new features.
 
 ## Backward Compatibility
 

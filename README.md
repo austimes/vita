@@ -190,7 +190,7 @@ bun run format:veda:check
 uv run ruff check .
 
 # Validate the mini_plant example
-uv run vedalang validate vedalang/examples/mini_plant.veda.yaml
+uv run vedalang validate vedalang/examples/quickstart/mini_plant.veda.yaml
 ```
 
 ---

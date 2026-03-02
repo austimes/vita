@@ -23,7 +23,7 @@ EXAMPLES_DIR = Path(__file__).parent.parent / "vedalang" / "examples"
 
 @pytest.fixture
 def toy_buildings_source():
-    return load_vedalang(EXAMPLES_DIR / "toy_buildings.veda.yaml")
+    return load_vedalang(EXAMPLES_DIR / "toy_sectors/toy_buildings.veda.yaml")
 
 
 @pytest.fixture
@@ -33,7 +33,7 @@ def toy_buildings_graph(toy_buildings_source):
 
 @pytest.fixture
 def toy_electricity_source():
-    return load_vedalang(EXAMPLES_DIR / "toy_electricity_2ts.veda.yaml")
+    return load_vedalang(EXAMPLES_DIR / "toy_sectors/toy_electricity_2ts.veda.yaml")
 
 
 @pytest.fixture
@@ -304,7 +304,7 @@ class TestCLI:
         subprocess.run(
             [
                 "uv", "run", "vedalang", "lint",
-                str(EXAMPLES_DIR / "toy_buildings.veda.yaml"),
+                str(EXAMPLES_DIR / "toy_sectors/toy_buildings.veda.yaml"),
                 "--res-json", str(json_path),
             ],
             capture_output=True,
@@ -322,7 +322,7 @@ class TestCLI:
         subprocess.run(
             [
                 "uv", "run", "vedalang", "lint",
-                str(EXAMPLES_DIR / "toy_buildings.veda.yaml"),
+                str(EXAMPLES_DIR / "toy_sectors/toy_buildings.veda.yaml"),
                 "--res-mermaid", str(mermaid_path),
             ],
             capture_output=True,
@@ -338,7 +338,7 @@ class TestCLI:
         subprocess.run(
             [
                 "uv", "run", "vedalang", "lint",
-                str(EXAMPLES_DIR / "toy_buildings.veda.yaml"),
+                str(EXAMPLES_DIR / "toy_sectors/toy_buildings.veda.yaml"),
                 "--res-json", str(json_path),
                 "--res-mermaid", str(mermaid_path),
             ],

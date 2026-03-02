@@ -22,7 +22,7 @@ class TestDiagnosticFeedbackLoop:
     def test_veda_check_captures_diagnostics(self):
         """veda_check should capture diagnostics from xl2times."""
         result = run_check(
-            EXAMPLES_DIR / "mini_plant.veda.yaml",
+            EXAMPLES_DIR / "quickstart/mini_plant.veda.yaml",
             from_vedalang=True,
         )
 
@@ -40,7 +40,7 @@ class TestDiagnosticFeedbackLoop:
 
     def test_diagnostics_json_is_valid(self):
         """diagnostics.json should be valid JSON with expected structure."""
-        source = load_vedalang(EXAMPLES_DIR / "mini_plant.veda.yaml")
+        source = load_vedalang(EXAMPLES_DIR / "quickstart/mini_plant.veda.yaml")
         ir = compile_vedalang_to_tableir(source)
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -81,7 +81,7 @@ class TestDiagnosticFeedbackLoop:
 
     def test_internal_error_has_traceback(self):
         """INTERNAL_ERROR diagnostics should include traceback context."""
-        source = load_vedalang(EXAMPLES_DIR / "mini_plant.veda.yaml")
+        source = load_vedalang(EXAMPLES_DIR / "quickstart/mini_plant.veda.yaml")
         ir = compile_vedalang_to_tableir(source)
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -117,7 +117,7 @@ class TestDiagnosticFeedbackLoop:
     def test_error_messages_propagated_to_result(self):
         """Error messages should be available in CheckResult."""
         result = run_check(
-            EXAMPLES_DIR / "mini_plant.veda.yaml",
+            EXAMPLES_DIR / "quickstart/mini_plant.veda.yaml",
             from_vedalang=True,
         )
 
@@ -131,7 +131,7 @@ class TestDiagnosticCodes:
 
     def test_missing_table_warnings_logged(self):
         """Missing optional elements should be logged as warnings."""
-        source = load_vedalang(EXAMPLES_DIR / "mini_plant.veda.yaml")
+        source = load_vedalang(EXAMPLES_DIR / "quickstart/mini_plant.veda.yaml")
         ir = compile_vedalang_to_tableir(source)
 
         with tempfile.TemporaryDirectory() as tmpdir:

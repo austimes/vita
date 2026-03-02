@@ -66,7 +66,7 @@ processes:
 
 ### Usage in DC Fixtures
 
-- **DC1:** Basic thermal plant (`vedalang/examples/dc1_thermal_from_patterns.veda.yaml`)
+- **DC1:** Basic thermal plant (`vedalang/examples/design_challenges/dc1_thermal_from_patterns.veda.yaml`)
 - **DC2-DC5:** Used as baseline thermal generation
 
 ---
@@ -250,7 +250,7 @@ The CLI currently does not support passing complex object parameters (like `pric
 
 ### Usage in DC Fixtures
 
-- **DC4:** `vedalang/examples/dc4_co2_price_scenario.veda.yaml` uses a VedaLang `scenarios` section that compiles to the same `~TFM_INS-TS` output.
+- **DC4:** `vedalang/examples/design_challenges/dc4_co2_price_scenario.veda.yaml` uses a VedaLang `scenarios` section that compiles to the same `~TFM_INS-TS` output.
 
 ---
 

@@ -370,7 +370,7 @@ FR17. Deterministic naming
 =====================================================================
 
 FR18. Update minisystem examples to stop encoding semantics in names.
-Example: `vedalang/examples/minisystem1.veda.yaml` currently uses:
+Example: `vedalang/examples/minisystem/minisystem1.veda.yaml` currently uses:
   - commodity name `C:ELC` (carrier) and `S:RSD:RES.ALL` (service with embedded segment)
   - process templates and instances with `technology`, `role`, and `sets`
 

@@ -8,7 +8,7 @@ EXAMPLES_DIR = Path(__file__).resolve().parent.parent / "vedalang" / "examples"
 
 
 def test_viz_server_health_and_files_and_query():
-    initial = EXAMPLES_DIR / "toy_buildings.veda.yaml"
+    initial = EXAMPLES_DIR / "toy_sectors/toy_buildings.veda.yaml"
     app = create_app(workspace_root=Path.cwd(), initial_file=initial)
     client = TestClient(app)
 

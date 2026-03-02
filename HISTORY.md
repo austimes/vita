@@ -10,7 +10,7 @@ Chronological record of major design decisions, schema changes, and milestone ev
 
 - Scaffolded repo directory structure (schema, compiler, emitter, tests)
 - Created `vedalang.schema.json` and `tableir.schema.json`
-- First example: `mini_plant.veda.yaml` — a single thermal plant
+- First example: `quickstart/mini_plant.veda.yaml` — a single thermal plant
 - Wired `vedalang compile`, `vedalang-dev emit-excel`, and `vedalang validate`
 - Added MiniVEDA2 fixture with xl2times integration test
 - Hardened xl2times diagnostics: graceful errors, structured JSON output

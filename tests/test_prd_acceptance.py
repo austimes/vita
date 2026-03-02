@@ -44,7 +44,7 @@ SKILL_PATH = (
     / "SKILL.md"
 )
 
-TOY_MODELS = sorted(EXAMPLES_DIR.glob("toy_*.veda.yaml"))
+TOY_MODELS = sorted((EXAMPLES_DIR / "toy_sectors").glob("toy_*.veda.yaml"))
 
 # Ensure the fixture list is non-empty so the parametrize never silently passes.
 assert len(TOY_MODELS) >= 6, f"Expected ≥6 toy models, found {len(TOY_MODELS)}"
@@ -173,13 +173,13 @@ class TestA3_NoZeroInputEndUse:
 
 class TestA4_CasesOverlay:
     def test_toy_resources_single_file_with_three_cases(self):
-        source = load_vedalang(EXAMPLES_DIR / "toy_resources.veda.yaml")
+        source = load_vedalang(EXAMPLES_DIR / "toy_sectors/toy_resources.veda.yaml")
         cases = source["model"]["cases"]
         case_names = sorted(c["name"] for c in cases)
         assert case_names == ["co2cap", "force_shift", "ref"]
 
     def test_toy_resources_compiles_to_tableir_with_cases(self):
-        source = load_vedalang(EXAMPLES_DIR / "toy_resources.veda.yaml")
+        source = load_vedalang(EXAMPLES_DIR / "toy_sectors/toy_resources.veda.yaml")
         tableir = compile_vedalang_to_tableir(source)
         assert "cases" in tableir
         compiled_names = sorted(c["name"] for c in tableir["cases"])
@@ -187,7 +187,9 @@ class TestA4_CasesOverlay:
 
     def test_no_duplicate_toy_resources_files(self):
         """Exactly one toy_resources file, not co2cap/forceshift splits."""
-        resource_files = list(EXAMPLES_DIR.glob("toy_resources*.veda.yaml"))
+        resource_files = list(
+            (EXAMPLES_DIR / "toy_sectors").glob("toy_resources*.veda.yaml")
+        )
         assert len(resource_files) == 1
 
 
@@ -195,20 +197,20 @@ class TestA4_CasesOverlay:
 
 class TestA5_DiagnosticsIndependentOfSolve:
     def test_res_export_is_deterministic_without_solver(self):
-        source = load_vedalang(EXAMPLES_DIR / "toy_buildings.veda.yaml")
+        source = load_vedalang(EXAMPLES_DIR / "toy_sectors/toy_buildings.veda.yaml")
         g1 = export_res_graph(source)
         g2 = export_res_graph(source)
         assert json.dumps(g1, sort_keys=True) == json.dumps(g2, sort_keys=True)
 
     def test_mermaid_export_is_deterministic_without_solver(self):
-        source = load_vedalang(EXAMPLES_DIR / "toy_buildings.veda.yaml")
+        source = load_vedalang(EXAMPLES_DIR / "toy_sectors/toy_buildings.veda.yaml")
         g = export_res_graph(source)
         m1 = res_graph_to_mermaid(g)
         m2 = res_graph_to_mermaid(g)
         assert m1 == m2
 
     def test_diagnostics_metadata_flag_present(self):
-        source = load_vedalang(EXAMPLES_DIR / "toy_buildings.veda.yaml")
+        source = load_vedalang(EXAMPLES_DIR / "toy_sectors/toy_buildings.veda.yaml")
         tableir = compile_vedalang_to_tableir(source)
         diag_export = tableir.get("diagnostics_export", {})
         assert diag_export.get("contract") == "diagnostics_are_solve_independent"
@@ -288,7 +290,7 @@ class TestA7_LLMLintStructuredAssessment:
         def mock_llm(system, user):
             return mock_response
 
-        source = load_vedalang(EXAMPLES_DIR / "toy_buildings.veda.yaml")
+        source = load_vedalang(EXAMPLES_DIR / "toy_sectors/toy_buildings.veda.yaml")
         result = run_llm_assessment(source, llm_callable=mock_llm)
         assert isinstance(result, AssessmentResult)
         assert not result.has_critical

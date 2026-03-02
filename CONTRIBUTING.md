@@ -38,7 +38,7 @@ uv run ruff check .
 You can validate VedaLang models without GAMS/TIMES installed:
 
 ```bash
-uv run vedalang validate vedalang/examples/mini_plant.veda.yaml
+uv run vedalang validate vedalang/examples/quickstart/mini_plant.veda.yaml
 ```
 
 This runs the full pipeline up to DD file generation, checking that your model compiles correctly.
@@ -55,7 +55,7 @@ To run models through the TIMES solver:
 
 2. Run the full pipeline:
    ```bash
-   uv run vedalang-dev pipeline vedalang/examples/mini_plant.veda.yaml --case base
+   uv run vedalang-dev pipeline vedalang/examples/quickstart/mini_plant.veda.yaml --case base
    ```
 
 ## Project Structure

@@ -273,18 +273,18 @@ When schema extension is justified:
 
 ### 5.1. Thermal Generation
 - **Intent:** Fuel-based power plant with efficiency
-- **Baseline:** Reproduce `dc1_thermal_from_patterns.veda.yaml`
+- **Baseline:** Reproduce `design_challenges/dc1_thermal_from_patterns.veda.yaml`
 - **Variations:** Multiple plants, multi-region
 - **Expected:** No schema changes needed
 
 ### 5.2. Renewable Generation
 - **Intent:** No fuel input, capacity-factor behavior
-- **Baseline:** Adapt `dc2_thermal_renewable.veda.yaml`
+- **Baseline:** Adapt `design_challenges/dc2_thermal_renewable.veda.yaml`
 - **Expected:** Fully expressible with current schema
 
 ### 5.3. Emissions & Emission Pricing
 - **Intent:** Emission commodities, factors, price trajectories
-- **Baseline:** Study `dc3_with_emissions.veda.yaml`, `dc4_co2_price_scenario.veda.yaml`
+- **Baseline:** Study `design_challenges/dc3_with_emissions.veda.yaml`, `design_challenges/dc4_co2_price_scenario.veda.yaml`
 - **Variations:** Multiple emission types, multiple price scenarios
 - **Watch for:** Multi-emission support gaps
 
@@ -327,7 +327,7 @@ When schema extension is justified:
 
 ### 5.11. Trade Between Regions
 - **Intent:** Inter-region energy exchange
-- **Baseline:** Extend `dc5_two_regions.veda.yaml`
+- **Baseline:** Extend `design_challenges/dc5_two_regions.veda.yaml`
 - **Watch for:** IRE-related failures
 - **Schema signal:** Explicit trade/IRE construct
 

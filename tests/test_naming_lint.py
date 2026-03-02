@@ -392,7 +392,7 @@ class TestLintNamingConventions:
                 Path(__file__).resolve().parents[1]
                 / "vedalang"
                 / "examples"
-                / "toy_agriculture.veda.yaml"
+                / "toy_sectors/toy_agriculture.veda.yaml"
             ).read_text(encoding="utf-8")
         )
         diagnostics = lint_naming_conventions(source)

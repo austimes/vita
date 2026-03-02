@@ -101,7 +101,7 @@ Key test files:
 
 ## What VedaLang Can Currently Express
 
-From `mini_plant.veda.yaml`:
+From `quickstart/mini_plant.veda.yaml`:
 
 ```yaml
 model:
@@ -151,7 +151,7 @@ Required columns in existing tables:
 ```json
 {
   "success": false,
-  "source": "vedalang/examples/mini_plant.veda.yaml",
+  "source": "vedalang/examples/quickstart/mini_plant.veda.yaml",
   "tables": ["~FI_COMM", "~FI_PROCESS", "~FI_T"],
   "total_rows": 6,
   "warnings": 0,
