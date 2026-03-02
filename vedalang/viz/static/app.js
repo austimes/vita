@@ -22,6 +22,7 @@ const LENS_OPTIONS = [
 const STAGE_ORDER = ["supply", "conversion", "distribution", "storage", "end_use", "sink"];
 const STAGE_RANK = new Map(STAGE_ORDER.map((stage, index) => [stage, index]));
 const PROCESS_NODE_TYPES = new Set(["role", "variant", "instance"]);
+const MAX_AUTO_FIT_ZOOM = 1.6;
 
 const state = {
   file: "",
@@ -449,6 +450,14 @@ function buildAlternatingColumnPositions(nodes, graphEdges) {
   return positions;
 }
 
+function fitViewportWithZoomCap() {
+  cy.fit(cy.elements(), 40);
+  if (cy.zoom() > MAX_AUTO_FIT_ZOOM) {
+    cy.zoom(MAX_AUTO_FIT_ZOOM);
+    cy.center();
+  }
+}
+
 function initCy() {
   cy = cytoscape({
     container: document.getElementById("graph"),
@@ -560,10 +569,10 @@ function renderGraph(response) {
     cy.layout({
       name: "preset",
       positions: (ele) => stagePositions[ele.id()] || { x: 0, y: 0 },
-      fit: true,
-      padding: 40,
+      fit: false,
       animate: false,
     }).run();
+    fitViewportWithZoomCap();
   } else {
     cy.layout({
       name: "dagre",
@@ -571,10 +580,10 @@ function renderGraph(response) {
       nodeSep: 60,
       rankSep: 100,
       edgeSep: 25,
-      fit: true,
-      padding: 40,
+      fit: false,
       animate: false,
     }).run();
+    fitViewportWithZoomCap();
   }
 
   document.getElementById("diagnostics").textContent = JSON.stringify(response.diagnostics || [], null, 2);
