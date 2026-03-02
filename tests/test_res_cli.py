@@ -1,5 +1,7 @@
 import argparse
 import json
+import sys
+import types
 from pathlib import Path
 
 import vedalang.cli as cli
@@ -108,3 +110,75 @@ def test_cmd_viz_stop_falls_back_to_viz_like_listener(monkeypatch, capsys):
     assert exit_code == 0
     output = capsys.readouterr().out
     assert "Stopped viz-like process on port 8765 (pid 2222)." in output
+
+
+def test_open_viz_browser_when_ready_opens_browser(monkeypatch):
+    calls: list[str] = []
+
+    monkeypatch.setattr(cli, "_wait_for_viz_listener", lambda *args, **kwargs: True)
+
+    webbrowser_stub = types.SimpleNamespace(open=lambda url: calls.append(url))
+    monkeypatch.setitem(sys.modules, "webbrowser", webbrowser_stub)
+
+    cli._open_viz_browser_when_ready(8765)
+
+    assert calls == ["http://localhost:8765"]
+
+
+def test_open_viz_browser_when_ready_skips_when_not_ready(monkeypatch):
+    calls: list[str] = []
+
+    monkeypatch.setattr(cli, "_wait_for_viz_listener", lambda *args, **kwargs: False)
+
+    webbrowser_stub = types.SimpleNamespace(open=lambda url: calls.append(url))
+    monkeypatch.setitem(sys.modules, "webbrowser", webbrowser_stub)
+
+    cli._open_viz_browser_when_ready(8765)
+
+    assert calls == []
+
+
+def test_cmd_viz_launches_browser_via_readiness_thread(tmp_path, monkeypatch):
+    calls: list[int] = []
+
+    monkeypatch.setattr(cli, "_viz_pid_file", lambda _: tmp_path / "viz.pid")
+    monkeypatch.setattr(cli, "_find_listener_pid", lambda _: None)
+    monkeypatch.setattr(
+        cli,
+        "_open_viz_browser_when_ready",
+        lambda port: calls.append(port),
+    )
+
+    class FakeThread:
+        def __init__(self, target, args=(), daemon=None):
+            self._target = target
+            self._args = args
+            self._daemon = daemon
+
+        def start(self):
+            self._target(*self._args)
+
+    monkeypatch.setattr(cli.threading, "Thread", FakeThread)
+
+    class FakeConfig:
+        def __init__(self, app, host, port, log_level):
+            self.app = app
+            self.host = host
+            self.port = port
+            self.log_level = log_level
+
+    class FakeServer:
+        def __init__(self, config):
+            self.config = config
+
+        def run(self):
+            return None
+
+    uvicorn_stub = types.SimpleNamespace(Config=FakeConfig, Server=FakeServer)
+    monkeypatch.setitem(sys.modules, "uvicorn", uvicorn_stub)
+    monkeypatch.setattr("vedalang.viz.server.create_app", lambda **kwargs: object())
+
+    exit_code = cli.cmd_viz(_viz_args(no_browser=False))
+
+    assert exit_code == 0
+    assert calls == [8765]

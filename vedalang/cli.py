@@ -12,9 +12,11 @@ import os
 import re
 import shutil
 import signal
+import socket
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 from pathlib import Path
 from typing import Any
@@ -2088,6 +2090,30 @@ def _terminate_pid(pid: int, timeout_seconds: float = 3.0) -> bool:
     return not _pid_is_running(pid)
 
 
+def _wait_for_viz_listener(
+    host: str,
+    port: int,
+    *,
+    timeout_seconds: float = 3.0,
+    poll_seconds: float = 0.05,
+) -> bool:
+    deadline = time.monotonic() + timeout_seconds
+    while time.monotonic() < deadline:
+        try:
+            with socket.create_connection((host, port), timeout=poll_seconds):
+                return True
+        except OSError:
+            time.sleep(poll_seconds)
+    return False
+
+
+def _open_viz_browser_when_ready(port: int) -> None:
+    import webbrowser
+
+    if _wait_for_viz_listener("127.0.0.1", port):
+        webbrowser.open(f"http://localhost:{port}")
+
+
 def _cmd_viz_status(port: int) -> int:
     pid_file = _viz_pid_file(port)
     tracked_pid = _read_viz_pid(pid_file)
@@ -2207,8 +2233,6 @@ def cmd_viz(args) -> int:
             return 1
         return 2
 
-    import webbrowser
-
     import uvicorn
 
     from vedalang.viz.server import create_app
@@ -2257,7 +2281,12 @@ def cmd_viz(args) -> int:
     print()
 
     if not no_browser:
-        webbrowser.open(f"http://localhost:{port}")
+        browser_thread = threading.Thread(
+            target=_open_viz_browser_when_ready,
+            args=(port,),
+            daemon=True,
+        )
+        browser_thread.start()
 
     config = uvicorn.Config(
         app,
