@@ -74,9 +74,9 @@
         }
       }
     },
-    "segments": {
-      "$ref": "#/$defs/segments",
-      "description": "Sector/end_use segmentation for demand-side modeling"
+    "scoping": {
+      "$ref": "#/$defs/scoping",
+      "description": "Sector/end_use scoping for demand-side modeling"
     },
     "process_roles": {
       "type": "array",
@@ -91,7 +91,7 @@
     "availability": {
       "type": "array",
       "items": { "$ref": "#/$defs/availability_entry" },
-      "description": "Where variants are available (regions/sectors/segments)"
+      "description": "Where variants are available (regions/sectors/scopes)"
     },
     "process_parameters": {
       "type": "array",
@@ -101,7 +101,7 @@
     "demands": {
       "type": "array",
       "items": { "$ref": "#/$defs/demand" },
-      "description": "Service commodity demands by region/sector/segment"
+      "description": "Service commodity demands by region/sector/scope"
     },
     "diagnostics": {
       "$ref": "#/$defs/diagnostics_spec",
@@ -109,9 +109,9 @@
     }
   },
   "$defs": {
-    "segments": {
+    "scoping": {
       "type": "object",
-      "description": "Sector/end_use segmentation configuration",
+      "description": "Sector/end_use scoping configuration",
       "required": ["sectors"],
       "properties": {
         "sectors": {
@@ -517,12 +517,12 @@
         "sectors": {
           "type": "array",
           "items": { "type": "string" },
-          "description": "Optional sector filter (from segments.sectors)"
+          "description": "Optional sector filter (from scoping.sectors)"
         },
-        "segments": {
+        "scopes": {
           "type": "array",
           "items": { "type": "string" },
-          "description": "Optional segment filter (sector.end_use keys)"
+          "description": "Optional scope filter (sector.end_use keys)"
         }
       },
       "additionalProperties": false
@@ -580,9 +580,9 @@
           "type": "string",
           "description": "Optional sector filter"
         },
-        "segment": {
+        "scope": {
           "type": "string",
-          "description": "Optional segment filter (sector.end_use)"
+          "description": "Optional scope filter (sector.end_use)"
         }
       },
       "additionalProperties": false
@@ -602,11 +602,11 @@
         },
         "sector": {
           "type": "string",
-          "description": "Optional sector (from segments.sectors)"
+          "description": "Optional sector (from scoping.sectors)"
         },
-        "segment": {
+        "scope": {
           "type": "string",
-          "description": "Optional segment (sector.end_use)"
+          "description": "Optional scope (sector.end_use)"
         },
         "values": {
           "type": "object",
@@ -1005,7 +1005,7 @@
         "commodity": { "type": "string" },
         "region": { "type": "string" },
         "sector": { "type": "string" },
-        "segment": { "type": "string" },
+        "scope": { "type": "string" },
         "scale": { "type": "number", "minimum": 0 },
         "values": {
           "type": "object",

@@ -45,7 +45,7 @@ class TestCompileDemandsBasic:
         assert param["region"] == "SINGLE"
         assert param["values"] == {"2020": 10, "2030": 15}
         assert param["interpolation"] == "interp_extrap"
-        assert param["segment"] == "RES"
+        assert param["scope"] == "RES"
 
     def test_demand_with_segment_field(self):
         """Demand using 'segment' field (fine granularity)."""
@@ -54,7 +54,7 @@ class TestCompileDemandsBasic:
                 {
                     "commodity": "lighting",
                     "region": "R1",
-                    "segment": "RES.lighting",
+                    "scope": "RES.lighting",
                     "values": {"2020": 5},
                 }
             ]
@@ -69,7 +69,7 @@ class TestCompileDemandsBasic:
         param = result[0]
         assert param["name"] == "demand_lighting_R1_RES_lighting"
         assert param["commodity"] == "lighting@RES.lighting"
-        assert param["segment"] == "RES.lighting"
+        assert param["scope"] == "RES.lighting"
 
     def test_demand_no_segment_flat_model(self):
         """Demand without segment in flat model (no segments)."""
@@ -92,7 +92,7 @@ class TestCompileDemandsBasic:
         param = result[0]
         assert param["name"] == "demand_lighting_SINGLE_ALL"
         assert param["commodity"] == "lighting"
-        assert "segment" not in param
+        assert "scope" not in param
 
     def test_custom_interpolation(self):
         """Demand with custom interpolation mode."""
@@ -273,7 +273,7 @@ class TestCompileDemandsSegmentScoping:
                 {
                     "commodity": "lighting",
                     "region": "R1",
-                    "segment": "RES",
+                    "scope": "RES",
                     "values": {},
                 }
             ]
@@ -292,7 +292,7 @@ class TestCompileDemandsSegmentScoping:
                     "commodity": "lighting",
                     "region": "R1",
                     "sector": "RES",
-                    "segment": "RES.lighting",
+                    "scope": "RES.lighting",
                     "values": {},
                 }
             ]
@@ -303,4 +303,4 @@ class TestCompileDemandsSegmentScoping:
         result = compile_demands(model, commodities, segment_keys)
 
         assert result[0]["commodity"] == "lighting@RES.lighting"
-        assert result[0]["segment"] == "RES.lighting"
+        assert result[0]["scope"] == "RES.lighting"

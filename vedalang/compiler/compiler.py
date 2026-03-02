@@ -3196,7 +3196,7 @@ def validate_cross_references(
             selector = (
                 commodity,
                 region or "",
-                override.get("segment") or override.get("sector") or "",
+                override.get("scope") or override.get("sector") or "",
             )
             if selector in demand_selectors_seen:
                 errors.append(
@@ -3415,7 +3415,7 @@ def _compile_new_syntax(
     This is the new compilation pipeline that uses:
     - process_roles: abstract transformations (topology)
     - process_variants: concrete technologies with parameters
-    - availability: where variants exist (region/sector/segment)
+    - availability: where variants exist (region/sector/scope)
     - process_parameters: selector-based parameter overrides
     - demands: service commodity demands
 
@@ -3441,9 +3441,9 @@ def _compile_new_syntax(
     # Build normalized commodities dict
     commodities = _normalize_commodities_for_new_syntax(model.get("commodities", []))
 
-    # Build segment keys
-    seg_cfg = source.get("segments") or {}
-    segment_keys = build_segments({"segments": seg_cfg})
+    # Build scope keys
+    scoping_cfg = source.get("scoping") or {}
+    segment_keys = build_segments({"scoping": scoping_cfg})
 
     # Build roles from process_roles
     roles = build_roles(source, commodities)
@@ -3494,7 +3494,7 @@ def _compile_new_syntax(
             "commodity": registry.get_commodity_symbol(comm_id, None),
             "unit": comm.get("unit", "PJ"),
         })
-        # For non-tradable commodities with segments, emit scoped versions
+        # For non-tradable commodities with scopes, emit scoped versions
         if not comm.get("tradable", True) and segment_keys:
             for seg in segment_keys:
                 scoped_sym = registry.get_commodity_symbol(comm_id, seg)
@@ -4064,7 +4064,7 @@ def _build_metadata_map(
         metadata[symbol] = {
             "variant": key.variant_id,
             "region": key.region,
-            "segment": key.segment,
+            "scope": key.segment,
             "stage": role.stage,
             "sector": sector,
             "service": service,
@@ -5017,9 +5017,9 @@ def _apply_case_parameter_overrides(
 
     seen_demand_selectors: set[tuple[str, str, str]] = set()
     for idx, override in enumerate(case.get("demand_overrides", [])):
-        selector_segment = override.get("segment") or override.get("sector") or ""
+        selector_scope = override.get("scope") or override.get("sector") or ""
         selector_region = override.get("region", "")
-        selector = (override["commodity"], selector_region, selector_segment)
+        selector = (override["commodity"], selector_region, selector_scope)
         if selector in seen_demand_selectors:
             raise VedaLangError(
                 "Conflicting demand_overrides in "
@@ -5040,8 +5040,8 @@ def _apply_case_parameter_overrides(
                 continue
             if override.get("region") and param.get("region") != override["region"]:
                 continue
-            param_segment = param.get("segment") or param.get("sector")
-            if selector_segment and param_segment != selector_segment:
+            param_scope = param.get("scope") or param.get("sector")
+            if selector_scope and param_scope != selector_scope:
                 continue
             matching_indices.append(param_idx)
 
@@ -5088,7 +5088,7 @@ def _apply_case_parameter_overrides(
         parts = [
             override.get("region"),
             override.get("sector"),
-            override.get("segment"),
+            override.get("scope"),
         ]
         scope = "_".join([p for p in parts if p])
         param_name = f"{case_name}_demand_override_{override['commodity']}_{idx}"
@@ -5108,8 +5108,8 @@ def _apply_case_parameter_overrides(
             "type": "demand_projection",
             "category": "demands",
             "commodity": (
-                f"{override['commodity']}@{selector_segment}"
-                if selector_segment and "@" not in override["commodity"]
+                f"{override['commodity']}@{selector_scope}"
+                if selector_scope and "@" not in override["commodity"]
                 else override["commodity"]
             ),
             "values": merged_values,
@@ -5117,8 +5117,8 @@ def _apply_case_parameter_overrides(
         }
         if override.get("region"):
             new_param["region"] = override["region"]
-        if selector_segment:
-            new_param["segment"] = selector_segment
+        if selector_scope:
+            new_param["scope"] = selector_scope
         merged_params.append(new_param)
 
     seen_price_commodities: set[str] = set()

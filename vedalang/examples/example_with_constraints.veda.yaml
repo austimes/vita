@@ -59,10 +59,10 @@ model:
         - solar_generation
         - wind_generation
 
-# Scoping (current key name: segments): defines demand-side namespaces for instantiation/scoping.
+# Scoping: defines demand-side namespaces for instantiation/scoping.
 # sectors: required enum values = RES, COM, IND, TRN, AGR, NE, OTH.
 # end_uses: optional non-enum lowercase tokens (e.g., heating) to create scopes like RES.heating.
-segments:
+scoping:
   sectors:
     - IND
 

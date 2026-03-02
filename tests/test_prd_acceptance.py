@@ -137,7 +137,7 @@ class TestA3_NoZeroInputEndUse:
                 ],
                 "constraints": [],
             },
-            "segments": {"sectors": ["RES"]},
+            "scoping": {"sectors": ["RES"]},
             "process_roles": [
                 {
                     "id": "provide_space_heat",
@@ -313,7 +313,7 @@ class TestA8_CompilerStructuralInvariants:
                      "commodity": "co2", "limit": 100, "limtype": "up"},
                 ],
             },
-            "segments": {"sectors": ["RES"]},
+            "scoping": {"sectors": ["RES"]},
             "process_roles": [
                 {
                     "id": "provide_space_heat",

@@ -176,7 +176,7 @@ def test_demand_projection_scenario():
                 {"id": "residential_demand", "type": "service"},
             ],
         },
-        "segments": {"sectors": ["RES"]},
+        "scoping": {"sectors": ["RES"]},
         "process_roles": [
             {"id": "deliver_residential",
              "activity_unit": "PJ",
@@ -411,7 +411,7 @@ def test_demand_projection_creates_scenario_file():
                 {"id": "residential_demand", "type": "service"},
             ],
         },
-        "segments": {"sectors": ["RES"]},
+        "scoping": {"sectors": ["RES"]},
         "process_roles": [
             {
                 "id": "deliver_residential",
@@ -2656,7 +2656,7 @@ def test_default_commodity_units_demand():
                 {"id": "residential_demand", "type": "service"},  # No unit specified
             ],
         },
-        "segments": {"sectors": ["RES"]},
+        "scoping": {"sectors": ["RES"]},
         "process_roles": [
             {
                 "id": "deliver_residential",
@@ -3206,7 +3206,7 @@ def _base_new_syntax_source() -> dict:
                 }
             ],
         },
-        "segments": {"sectors": ["RES"]},
+        "scoping": {"sectors": ["RES"]},
         "process_roles": [
             {
                 "id": "provide_space_heat",
@@ -3269,7 +3269,7 @@ def _new_syntax_conversion_source() -> dict:
                 },
             ],
         },
-        "segments": {"sectors": ["RES"]},
+        "scoping": {"sectors": ["RES"]},
         "process_roles": [
             {
                 "id": "generate_electricity",
@@ -3552,7 +3552,7 @@ def test_new_syntax_heating_basis_values_are_normalized_to_hhv():
             ],
             "cases": [{"name": "baseline", "is_baseline": True}],
         },
-        "segments": {"sectors": ["RES"]},
+        "scoping": {"sectors": ["RES"]},
         "process_roles": [
             {
                 "id": "generate_power",

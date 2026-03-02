@@ -44,7 +44,7 @@ def test_viz_server_health_and_files_and_query():
                 "regions": [],
                 "case": None,
                 "sectors": [],
-                "segments": [],
+                "scopes": [],
             },
             "compiled": {
                 "truth": "auto",

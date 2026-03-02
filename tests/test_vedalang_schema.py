@@ -604,7 +604,7 @@ def test_segments_validates():
             "regions": ["R1"],
             "commodities": [{"id": "electricity", "type": "energy"}],
         },
-        "segments": {
+        "scoping": {
             "sectors": ["RES", "COM"],
             "end_uses": ["lighting", "heating"],
         },
@@ -621,7 +621,7 @@ def test_segments_requires_sectors():
             "regions": ["R1"],
             "commodities": [],
         },
-        "segments": {
+        "scoping": {
             "end_uses": ["lighting"],  # Missing required sectors
         },
     }
@@ -638,7 +638,7 @@ def test_segments_invalid_sector_rejected():
             "regions": ["R1"],
             "commodities": [],
         },
-        "segments": {
+        "scoping": {
             "sectors": ["INVALID"],  # Not in enum
         },
     }
@@ -987,7 +987,7 @@ def test_full_roles_variants_model_validates():
                 {"id": "lighting", "type": "service", "unit": "PJ"},
             ],
         },
-        "segments": {
+        "scoping": {
             "sectors": ["RES", "COM"],
         },
         "process_roles": [

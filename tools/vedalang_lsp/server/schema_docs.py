@@ -1072,19 +1072,19 @@ Functional role of the template:
 - `CAP` – capture (e.g., CO2 capture).
 - `SEQ` – sequestration (e.g., CO2 storage).
 
-Some roles impose additional requirements (e.g., `EUS` often needs `segment`/`context`).
+Some roles impose additional requirements (e.g., `EUS` often needs `scope`/`context`).
 """,
-    "segment": """\
-## VedaLang: `segment`
+    "scope": """\
+## VedaLang: `scope`
 
 **Type**:
 - In `process_template`: string (`^[A-Z]{3}$`) – sector code
-- In `process_instance`: string (`^[A-Z]{3}\\.[A-Z0-9_]+(\\.[A-Z0-9_]+)?$`) – sector.segment[.subsegment]
+- In `process_instance`: string (`^[A-Z]{3}\\.[A-Z0-9_]+(\\.[A-Z0-9_]+)?$`) – sector.scope[.subscope]
 
 **Usage**:
 
-- `process_template.segment` – sector code only (e.g., `RES`, `COM`, `IND`).
-- `process_instance.segment` – full sectoral context, REQUIRED when `template.role = EUS`.
+- `process_template.scope` – sector code only (e.g., `RES`, `COM`, `IND`).
+- `process_instance.scope` – full sectoral context, REQUIRED when `template.role = EUS`.
 
 Examples:
 
@@ -1092,13 +1092,13 @@ Examples:
 process_templates:
   - name: RES_BOILER
     role: EUS
-    segment: RES
+    scope: RES
 
 processes:
   - name: R1_RES_BOILER_1
     template: RES_BOILER
     region: R1
-    segment: RES.ALL
+    scope: RES.ALL
 ```
 """,
     "sankey_stage": """\

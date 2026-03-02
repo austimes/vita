@@ -4,7 +4,7 @@ Schema Compatibility Tests
 These tests verify the VedaLang schema structure.
 
 Note: As of January 2026, VedaLang underwent a breaking change to introduce
-roles/variants/segments syntax. The old process/process_template constructs
+roles/variants/scoping syntax. The old process/process_template constructs
 were removed. See docs/reference/vedalang-syntax.prd.txt for details.
 """
 
@@ -25,7 +25,7 @@ def load_schema() -> dict:
 
 
 # =============================================================================
-# Current Schema Definitions (January 2026 roles/variants/segments syntax)
+# Current Schema Definitions (January 2026 roles/variants/scoping syntax)
 # =============================================================================
 
 REQUIRED_ROOT_FIELDS = ["model"]
@@ -273,16 +273,16 @@ class TestSchemaStructure:
 
 
 class TestNewSchemaConstructs:
-    """Verify new roles/variants/segments constructs exist."""
+    """Verify new roles/variants/scoping constructs exist."""
 
     @pytest.fixture
     def schema(self) -> dict:
         return load_schema()
 
-    def test_segments_def_exists(self, schema: dict):
-        """Segments definition must exist."""
-        assert "segments" in schema.get("$defs", {}), (
-            "Segments type definition is missing!"
+    def test_scoping_def_exists(self, schema: dict):
+        """Scoping definition must exist."""
+        assert "scoping" in schema.get("$defs", {}), (
+            "Scoping type definition is missing!"
         )
 
     def test_availability_entry_def_exists(self, schema: dict):
@@ -303,10 +303,10 @@ class TestNewSchemaConstructs:
             "Demand type definition is missing!"
         )
 
-    def test_top_level_segments_property_exists(self, schema: dict):
-        """Top-level segments property must exist."""
-        assert "segments" in schema.get("properties", {}), (
-            "Top-level segments property is missing!"
+    def test_top_level_scoping_property_exists(self, schema: dict):
+        """Top-level scoping property must exist."""
+        assert "scoping" in schema.get("properties", {}), (
+            "Top-level scoping property is missing!"
         )
 
     def test_top_level_process_roles_property_exists(self, schema: dict):

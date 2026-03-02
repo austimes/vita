@@ -15,7 +15,7 @@ def test_source_query_returns_graph():
             "mode": "source",
             "granularity": "role",
             "lens": "system",
-            "filters": {"regions": [], "case": None, "sectors": [], "segments": []},
+            "filters": {"regions": [], "case": None, "sectors": [], "scopes": []},
             "compiled": {"truth": "auto", "cache": True, "allow_partial": True},
         }
     )
@@ -40,7 +40,7 @@ def test_compiled_instance_query_has_segment_scoped_entities():
                 "regions": ["SINGLE"],
                 "case": None,
                 "sectors": ["RES"],
-                "segments": [],
+                "scopes": [],
             },
             "compiled": {"truth": "auto", "cache": True, "allow_partial": True},
         }
@@ -68,7 +68,7 @@ def test_compiled_trade_query_exposes_trade_edges_and_details():
                 "regions": ["REG1", "REG2"],
                 "case": "baseline",
                 "sectors": [],
-                "segments": [],
+                "scopes": [],
             },
             "compiled": {"truth": "auto", "cache": True, "allow_partial": True},
         }

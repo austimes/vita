@@ -1,7 +1,7 @@
-"""Segments and commodity semantics helpers for VedaLang IR.
+"""Scope and commodity semantics helpers for VedaLang IR.
 
 This module provides utilities for:
-- Building segment keys from model segments configuration
+- Building scope keys from model scoping configuration
 - Mapping VedaLang commodity kinds to TIMES COM_TYPE
 - Scoping non-tradable commodities (services) by segment
 - Normalizing commodity definitions to canonical form
@@ -16,7 +16,7 @@ VALID_COMMODITY_NAMESPACES = set(commodity_namespace_enum())
 
 
 def build_segments(model: dict) -> list[str]:
-    """Build segment keys from model segments config.
+    """Build scope keys from model scoping config.
 
     Segments provide demand-side context for service commodities and end-use
     processes. The granularity depends on configuration:
@@ -33,7 +33,7 @@ def build_segments(model: dict) -> list[str]:
         - ["RES", "COM"] for coarse (sectors only)
         - ["RES.lighting", "RES.heating", ...] for fine (sector.end_use)
     """
-    seg_cfg = model.get("segments") or {}
+    seg_cfg = model.get("scoping") or {}
     sectors = seg_cfg.get("sectors", [])
     end_uses = seg_cfg.get("end_uses")
 

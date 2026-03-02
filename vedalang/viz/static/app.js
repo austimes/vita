@@ -27,11 +27,11 @@ const state = {
   caseName: "",
   regions: [],
   sectors: [],
-  segments: [],
+  scopes: [],
   availableCases: [],
   availableRegions: [],
   availableSectors: [],
-  availableSegments: [],
+  availableScopes: [],
   workspaceRoot: "",
   currentDir: "",
   parentDir: null,
@@ -103,7 +103,7 @@ function getRequest() {
       regions: state.regions,
       case: state.caseName || null,
       sectors: state.sectors,
-      segments: state.segments,
+      scopes: state.scopes,
     },
     compiled: {
       truth: "auto",
@@ -487,12 +487,12 @@ function renderControls() {
   });
 
   renderFacetMultiGroup({
-    containerId: "segmentButtons",
-    available: state.availableSegments,
-    selected: state.segments,
-    anyLabel: "(any segment)",
+    containerId: "scopeButtons",
+    available: state.availableScopes,
+    selected: state.scopes,
+    anyLabel: "(any scope)",
     onSelect: (values) => {
-      state.segments = values;
+      state.scopes = values;
     },
   });
 }
@@ -501,7 +501,7 @@ function reconcileStateWithFacets() {
   state.availableCases = [...state.availableCases];
   state.availableRegions = [...state.availableRegions];
   state.availableSectors = [...state.availableSectors];
-  state.availableSegments = [...state.availableSegments];
+  state.availableScopes = [...state.availableScopes];
 
   if (state.caseName && !state.availableCases.includes(state.caseName)) {
     state.caseName = "";
@@ -517,9 +517,9 @@ function reconcileStateWithFacets() {
     state.sectors = [];
   }
 
-  state.segments = normalizeToKnown(state.segments, state.availableSegments);
-  if (state.segments.length === state.availableSegments.length) {
-    state.segments = [];
+  state.scopes = normalizeToKnown(state.scopes, state.availableScopes);
+  if (state.scopes.length === state.availableScopes.length) {
+    state.scopes = [];
   }
 }
 
@@ -528,7 +528,7 @@ function updateFacetControls(response) {
   state.availableCases = facets.cases || [];
   state.availableRegions = facets.regions || [];
   state.availableSectors = facets.sectors || [];
-  state.availableSegments = facets.segments || [];
+  state.availableScopes = facets.scopes || [];
 
   reconcileStateWithFacets();
   renderControls();

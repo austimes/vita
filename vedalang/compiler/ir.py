@@ -307,7 +307,7 @@ def expand_availability(
     """Expand availability entries into concrete process instances.
 
     Rules:
-    - If availability.segments specified: use those exact segment keys
+    - If availability.scopes specified: use those exact segment keys
     - If availability.sectors specified:
       - If model has end_uses: expand to all matching sector.end_use combinations
       - Else: use sector as segment key
@@ -327,7 +327,7 @@ def expand_availability(
     instances: dict[InstanceKey, ProcessInstance] = {}
     availability = model.get("availability") or []
 
-    seg_cfg = model.get("segments") or {}
+    seg_cfg = model.get("scoping") or {}
     has_end_uses = bool(seg_cfg.get("end_uses"))
 
     for entry in availability:
@@ -341,8 +341,8 @@ def expand_availability(
         variant = variants[variant_id]
         regions = entry["regions"]
 
-        if "segments" in entry and entry["segments"]:
-            segments_to_use = entry["segments"]
+        if "scopes" in entry and entry["scopes"]:
+            segments_to_use = entry["scopes"]
         elif "sectors" in entry and entry["sectors"]:
             segments_to_use = _expand_sectors_to_segments(
                 entry["sectors"], segment_keys, has_end_uses
@@ -373,11 +373,11 @@ def _selector_matches(
 
     Matching rules:
     - Must match variant and region exactly
-    - If selector.segment: exact match with key.segment
+    - If selector.scope: exact match with key.segment
     - If selector.sector: match any segment starting with that sector
 
     Args:
-        selector: Parameter selector dict (variant, region, sector?, segment?)
+        selector: Parameter selector dict (variant, region, sector?, scope?)
         key: InstanceKey to check
         segment_keys: List of segment keys for context
 
@@ -389,8 +389,8 @@ def _selector_matches(
     if selector["region"] != key.region:
         return False
 
-    if "segment" in selector:
-        return selector["segment"] == key.segment
+    if "scope" in selector:
+        return selector["scope"] == key.segment
 
     if "sector" in selector:
         if key.segment is None:
@@ -597,7 +597,7 @@ def validate_demand_feasibility(
     for demand in demands:
         comm_id = demand["commodity"]
         region = demand["region"]
-        segment = demand.get("segment") or demand.get("sector")
+        segment = demand.get("scope") or demand.get("sector")
 
         map_key = (region, segment, comm_id)
         if map_key not in producer_map:

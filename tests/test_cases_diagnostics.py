@@ -65,7 +65,7 @@ def _minimal_new_syntax_source() -> dict:
                 },
             ],
         },
-        "segments": {"sectors": ["RES"]},
+        "scoping": {"sectors": ["RES"]},
         "process_roles": [
             {
                 "id": "deliver_heat",

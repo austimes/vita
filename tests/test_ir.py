@@ -367,7 +367,7 @@ class TestExpandAvailability:
             )
         }
         model = {
-            "segments": {"sectors": ["RES", "COM"]},
+            "scoping": {"sectors": ["RES", "COM"]},
             "availability": [
                 {"variant": "heat_pump", "regions": ["REG"], "sectors": ["RES", "COM"]}
             ],
@@ -385,7 +385,7 @@ class TestExpandAvailability:
         role = Role(id="deliver", required_inputs=[], required_outputs=[])
         variants = {"var": Variant(id="var", role=role, inputs=[], outputs=[])}
         model = {
-            "segments": {
+            "scoping": {
                 "sectors": ["RES", "COM"],
                 "end_uses": ["lighting", "heating"],
             },
@@ -405,7 +405,7 @@ class TestExpandAvailability:
         role = Role(id="deliver", required_inputs=[], required_outputs=[])
         variants = {"var": Variant(id="var", role=role, inputs=[], outputs=[])}
         model = {
-            "segments": {
+            "scoping": {
                 "sectors": ["RES", "COM"],
                 "end_uses": ["lighting", "heating"],
             },
@@ -413,7 +413,7 @@ class TestExpandAvailability:
                 {
                     "variant": "var",
                     "regions": ["R1"],
-                    "segments": ["RES.lighting", "COM.heating"],
+                    "scopes": ["RES.lighting", "COM.heating"],
                 }
             ],
         }
@@ -517,7 +517,7 @@ class TestApplyProcessParameters:
         model = {
             "process_parameters": [
                 {
-                    "selector": {"variant": "v", "region": "R1", "segment": "RES"},
+                    "selector": {"variant": "v", "region": "R1", "scope": "RES"},
                     "stock": 50,
                 }
             ]
@@ -541,7 +541,7 @@ class TestApplyProcessParameters:
         }
 
         model = {
-            "segments": {
+            "scoping": {
                 "sectors": ["RES", "COM"],
                 "end_uses": ["lighting", "heating"],
             },
@@ -760,7 +760,7 @@ class TestValidateDemandFeasibility:
         instances = {
             key: ProcessInstance(key=key, role=role, variant=variant, attrs={})
         }
-        demands = [{"commodity": "heat", "region": "R1", "segment": "RES.heating"}]
+        demands = [{"commodity": "heat", "region": "R1", "scope": "RES.heating"}]
 
         errors = validate_demand_feasibility(demands, instances, {})
 

@@ -63,7 +63,7 @@ def _normalize_request(request: dict[str, Any]) -> dict[str, Any]:
             "regions": list(filters.get("regions", []) or []),
             "case": filters.get("case"),
             "sectors": list(filters.get("sectors", []) or []),
-            "segments": list(filters.get("segments", []) or []),
+            "scopes": list(filters.get("scopes", []) or []),
         },
         "compiled": {
             "truth": str(compiled.get("truth", "auto")),
@@ -93,7 +93,7 @@ def _filters_from_request(
         regions = regions - set(unknown_regions)
 
     sectors = set(req["filters"]["sectors"])
-    segments = set(req["filters"]["segments"])
+    scopes = set(req["filters"]["scopes"])
 
     case_name = req["filters"].get("case")
     if case_name:
@@ -112,7 +112,7 @@ def _filters_from_request(
                 )
             )
 
-    return FilterSpec(regions=regions, sectors=sectors, segments=segments), diagnostics
+    return FilterSpec(regions=regions, sectors=sectors, scopes=scopes), diagnostics
 
 
 def _empty_response(mode: str, diagnostics: list[dict[str, str]]) -> dict[str, Any]:
@@ -126,7 +126,7 @@ def _empty_response(mode: str, diagnostics: list[dict[str, str]]) -> dict[str, A
             "regions": [],
             "cases": [],
             "sectors": [],
-            "segments": [],
+            "scopes": [],
             "granularities": ["role", "variant", "instance"],
             "lenses": ["system", "trade"],
         },

@@ -1452,7 +1452,7 @@ def res_graph(ls: VedaLangServer, params) -> dict:
     regions: list[str] = []
     case_name = None
     sectors: list[str] = []
-    segments: list[str] = []
+    scopes: list[str] = []
     if hasattr(params, "textDocument"):
         td = params.textDocument
         uri = td.get("uri") if isinstance(td, dict) else td.uri
@@ -1463,7 +1463,7 @@ def res_graph(ls: VedaLangServer, params) -> dict:
         regions = list(getattr(params, "regions", regions) or [])
         case_name = getattr(params, "case", case_name)
         sectors = list(getattr(params, "sectors", sectors) or [])
-        segments = list(getattr(params, "segments", segments) or [])
+        scopes = list(getattr(params, "scopes", scopes) or [])
     elif hasattr(params, "uri"):
         uri = params.uri
         include_variants = getattr(params, "includeVariants", False)
@@ -1473,7 +1473,7 @@ def res_graph(ls: VedaLangServer, params) -> dict:
         regions = list(getattr(params, "regions", regions) or [])
         case_name = getattr(params, "case", case_name)
         sectors = list(getattr(params, "sectors", sectors) or [])
-        segments = list(getattr(params, "segments", segments) or [])
+        scopes = list(getattr(params, "scopes", scopes) or [])
     elif isinstance(params, dict):
         uri = params.get("textDocument", {}).get("uri") or params.get("uri")
         include_variants = params.get("includeVariants", False)
@@ -1483,7 +1483,7 @@ def res_graph(ls: VedaLangServer, params) -> dict:
         regions = list(params.get("regions", regions) or [])
         case_name = params.get("case", case_name)
         sectors = list(params.get("sectors", sectors) or [])
-        segments = list(params.get("segments", segments) or [])
+        scopes = list(params.get("scopes", scopes) or [])
     else:
         return {
             "graph": {"nodes": [], "edges": []},
@@ -1512,7 +1512,7 @@ def res_graph(ls: VedaLangServer, params) -> dict:
             "regions": regions,
             "case": case_name,
             "sectors": sectors,
-            "segments": segments,
+            "scopes": scopes,
         },
         "compiled": {
             "truth": "auto",

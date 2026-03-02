@@ -20,7 +20,7 @@ from vedalang.compiler.segments import build_segments
 class FilterSpec:
     regions: set[str]
     sectors: set[str]
-    segments: set[str]
+    scopes: set[str]
 
 
 def _is_truthy_trade_cell(value: Any) -> bool:
@@ -42,8 +42,8 @@ def _sector_of(segment: str | None) -> str | None:
     return segment.split(".")[0]
 
 
-def _include_segment(segment: str | None, filters: FilterSpec) -> bool:
-    if filters.segments and segment not in filters.segments:
+def _include_scope(segment: str | None, filters: FilterSpec) -> bool:
+    if filters.scopes and segment not in filters.scopes:
         return False
     if filters.sectors:
         sector = _sector_of(segment)
@@ -92,12 +92,12 @@ def _ensure_node(
 
 def _build_facets(source: dict, segment_keys: list[str]) -> dict[str, list[str]]:
     model = source.get("model", {})
-    seg_cfg = source.get("segments") or {}
+    seg_cfg = source.get("scoping") or {}
     return {
         "regions": sorted(model.get("regions", [])),
         "cases": sorted(c["name"] for c in model.get("cases", []) if "name" in c),
         "sectors": sorted(seg_cfg.get("sectors", [])),
-        "segments": sorted(segment_keys),
+        "scopes": sorted(segment_keys),
         "granularities": ["role", "variant", "instance"],
         "lenses": ["system", "trade"],
     }
@@ -111,7 +111,7 @@ def build_source_system_graph(
 ) -> dict[str, Any]:
     """Build source-mode graph using role/variant/availability expansion."""
     model = source.get("model", {})
-    segment_keys = build_segments({"segments": source.get("segments") or {}})
+    segment_keys = build_segments({"scoping": source.get("scoping") or {}})
     commodities = _normalize_commodities_for_new_syntax(model.get("commodities", []))
     commodity_types = {k: v.get("type", "energy") for k, v in commodities.items()}
 
@@ -137,7 +137,7 @@ def build_source_system_graph(
     for key, instance in sorted(instances.items()):
         if not _include_region(key.region, filters):
             continue
-        if not _include_segment(key.segment, filters):
+        if not _include_scope(key.segment, filters):
             continue
 
         process_symbol = registry.get_process_symbol(
@@ -168,7 +168,7 @@ def build_source_system_graph(
                 "variant": key.variant_id,
                 "role": role_id,
                 "region": key.region,
-                "segment": key.segment,
+                "scope": key.segment,
                 "sector": _sector_of(key.segment),
                 "stage": instance.role.stage,
                 "processes": set(),
@@ -195,7 +195,7 @@ def build_source_system_graph(
                     "direction": "input",
                     "process": process_symbol,
                     "region": key.region,
-                    "segment": key.segment,
+                    "scope": key.segment,
                 }
                 seen_edges.add(edge_key)
 
@@ -214,7 +214,7 @@ def build_source_system_graph(
                     "direction": edge_type,
                     "process": process_symbol,
                     "region": key.region,
-                    "segment": key.segment,
+                    "scope": key.segment,
                 }
                 seen_edges.add(edge_key)
 
@@ -254,7 +254,7 @@ def build_compiled_system_graph(
 ) -> dict[str, Any]:
     """Build compiled-mode system graph from FI_* tables and metadata."""
     model = source.get("model", {})
-    segment_keys = build_segments({"segments": source.get("segments") or {}})
+    segment_keys = build_segments({"scoping": source.get("scoping") or {}})
     commodity_types = {
         c.get("id") or c.get("name"): c.get("type", "energy")
         for c in model.get("commodities", [])
@@ -290,10 +290,10 @@ def build_compiled_system_graph(
             continue
 
         meta = metadata_map.get(process, {}) if isinstance(metadata_map, dict) else {}
-        segment = meta.get("segment")
+        segment = meta.get("scope")
         if not _include_region(region, filters):
             continue
-        if not _include_segment(segment, filters):
+        if not _include_scope(segment, filters):
             continue
 
         selected_processes.add(process)
@@ -323,7 +323,7 @@ def build_compiled_system_graph(
                 "type": group_type,
                 "processes": set(),
                 "regions": set(),
-                "segments": set(),
+                "scopes": set(),
                 "variants": set(),
                 "roles": set(),
                 "sets": set(),
@@ -333,7 +333,7 @@ def build_compiled_system_graph(
         if region:
             detail["regions"].add(region)
         if segment:
-            detail["segments"].add(segment)
+            detail["scopes"].add(segment)
         variant_name = meta.get("variant")
         if variant_name:
             detail["variants"].add(variant_name)
@@ -360,7 +360,7 @@ def build_compiled_system_graph(
         details_nodes[group_id] = {
             "processes": sorted(detail["processes"]),
             "regions": sorted(detail["regions"]),
-            "segments": sorted(detail["segments"]),
+            "scopes": sorted(detail["scopes"]),
             "variants": sorted(detail["variants"]),
             "roles": sorted(detail["roles"]),
             "sets": sorted(detail["sets"]),
@@ -472,7 +472,7 @@ def build_trade_graph(
 ) -> dict[str, Any]:
     """Build commodity-region trade lens graph."""
     model = source.get("model", {})
-    segment_keys = build_segments({"segments": source.get("segments") or {}})
+    segment_keys = build_segments({"scoping": source.get("scoping") or {}})
 
     nodes: list[dict[str, str]] = []
     node_map: dict[str, dict[str, str]] = {}

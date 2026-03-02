@@ -4,7 +4,7 @@ This module compiles VedaLang demand blocks into scenario parameters that
 can be emitted as TableIR (and ultimately VEDA Excel).
 
 Per FR7: Demands are specified against service commodities (kind=service)
-and segments. Demands are declared independently of which variants exist;
+and scopes. Demands are declared independently of which variants exist;
 feasibility is validated by the linter.
 """
 
@@ -21,21 +21,21 @@ class DemandError(Exception):
 def compile_demands(
     model: dict,
     commodities: dict[str, dict],
-    segment_keys: list[str],
+    scope_keys: list[str],
     registry: NamingRegistry | None = None,
 ) -> list[dict]:
     """Convert demands block to scenario parameters format.
 
     For each demand:
     1. Resolve commodity (must be service kind)
-    2. Determine segment key from sector/segment fields
+    2. Determine scope key from sector/scope fields
     3. Get scoped commodity ID (lighting@RES)
     4. Create scenario parameter with type=demand_projection
 
     Args:
         model: Model dict (may have 'demands' key at top level)
         commodities: Dict mapping commodity id to normalized commodity dict
-        segment_keys: List of segment keys from build_segments()
+        scope_keys: List of scope keys from build_scopes()
         registry: Optional NamingRegistry for symbol generation
 
     Returns:
@@ -64,17 +64,17 @@ def compile_demands(
             )
 
         region = d["region"]
-        segment_key = d.get("segment") or d.get("sector")
+        scope_key = d.get("scope") or d.get("sector")
 
         tradable = comm_info.get("tradable", False)
-        scoped_id = get_scoped_commodity_id(commodity, segment_key, tradable, kind)
+        scoped_id = get_scoped_commodity_id(commodity, scope_key, tradable, kind)
 
         if registry:
-            scoped_id = registry.get_commodity_symbol(commodity, segment_key)
+            scoped_id = registry.get_commodity_symbol(commodity, scope_key)
 
         name_parts = ["demand", commodity, region]
-        if segment_key:
-            name_parts.append(segment_key.replace(".", "_"))
+        if scope_key:
+            name_parts.append(scope_key.replace(".", "_"))
         else:
             name_parts.append("ALL")
         param_name = "_".join(name_parts)
@@ -88,8 +88,8 @@ def compile_demands(
             "interpolation": d.get("interpolation", "interp_extrap"),
         }
 
-        if segment_key:
-            param["segment"] = segment_key
+        if scope_key:
+            param["scope"] = scope_key
 
         result.append(param)
 

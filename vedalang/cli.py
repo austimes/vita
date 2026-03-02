@@ -313,10 +313,10 @@ def _add_res_parser(subparsers):
         help="Sector filter (repeatable)",
     )
     common.add_argument(
-        "--segment",
+        "--scope",
         action="append",
         default=[],
-        help="Segment filter (repeatable)",
+        help="Scope filter (repeatable)",
     )
     common.add_argument(
         "--no-cache",
@@ -1309,7 +1309,7 @@ def _is_yaml_file(path: Path) -> bool:
 
 FMT_ROOT_KEY_ORDER = (
     "model",
-    "segments",
+    "scoping",
     "process_roles",
     "process_variants",
     "availability",
@@ -1906,7 +1906,7 @@ def _res_request_from_args(args) -> dict[str, Any]:
             "regions": list(args.region or []),
             "case": args.case,
             "sectors": list(args.sector or []),
-            "segments": list(args.segment or []),
+            "scopes": list(args.scope or []),
         },
         "compiled": {
             "truth": "auto",
@@ -1998,7 +1998,7 @@ def cmd_viz(args) -> int:
             "mode": "source",
             "granularity": "variant" if getattr(args, "variants", False) else "role",
             "lens": "system",
-            "filters": {"regions": [], "case": None, "sectors": [], "segments": []},
+            "filters": {"regions": [], "case": None, "sectors": [], "scopes": []},
             "compiled": {"truth": "auto", "cache": True, "allow_partial": True},
         }
         response = query_res_graph(request)

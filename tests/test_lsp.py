@@ -105,7 +105,7 @@ class TestHoverFormatting:
         assert "context" in SCHEMA_FIELD_DOCS
         assert "kind" in SCHEMA_FIELD_DOCS
         assert "role" in SCHEMA_FIELD_DOCS
-        assert "segment" in SCHEMA_FIELD_DOCS
+        assert "scope" in SCHEMA_FIELD_DOCS
         assert "interpolation" in SCHEMA_FIELD_DOCS
 
     def test_schema_field_docs_context_content(self):
@@ -113,7 +113,7 @@ class TestHoverFormatting:
         context_doc = SCHEMA_FIELD_DOCS.get("context")
         assert context_doc is not None
         assert "SERVICE" in context_doc
-        assert "sector" in context_doc.lower() or "segment" in context_doc.lower()
+        assert "sector" in context_doc.lower() or "scope" in context_doc.lower()
 
     def test_format_times_attribute_hover(self):
         """TIMES attribute hover should include description."""

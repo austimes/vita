@@ -21,27 +21,27 @@ class TestBuildSegments:
     def test_no_segments_defined(self):
         """Empty model returns empty list."""
         assert build_segments({}) == []
-        assert build_segments({"segments": None}) == []
-        assert build_segments({"segments": {}}) == []
+        assert build_segments({"scoping": None}) == []
+        assert build_segments({"scoping": {}}) == []
 
     def test_empty_sectors(self):
         """Empty sectors list returns empty list."""
-        assert build_segments({"segments": {"sectors": []}}) == []
+        assert build_segments({"scoping": {"sectors": []}}) == []
 
     def test_coarse_sectors_only(self):
         """Sectors without end_uses returns sector keys."""
-        model = {"segments": {"sectors": ["RES", "COM"]}}
+        model = {"scoping": {"sectors": ["RES", "COM"]}}
         assert build_segments(model) == ["RES", "COM"]
 
     def test_single_sector(self):
         """Single sector returns single key."""
-        model = {"segments": {"sectors": ["RES"]}}
+        model = {"scoping": {"sectors": ["RES"]}}
         assert build_segments(model) == ["RES"]
 
     def test_fine_with_end_uses(self):
         """Sectors + end_uses returns sector.end_use keys."""
         model = {
-            "segments": {
+            "scoping": {
                 "sectors": ["RES", "COM"],
                 "end_uses": ["lighting", "heating"],
             }
@@ -57,7 +57,7 @@ class TestBuildSegments:
     def test_many_sectors_many_end_uses(self):
         """Cross product of many sectors and end_uses."""
         model = {
-            "segments": {
+            "scoping": {
                 "sectors": ["RES", "COM", "IND"],
                 "end_uses": ["lighting", "heating", "cooling"],
             }
@@ -70,7 +70,7 @@ class TestBuildSegments:
 
     def test_empty_end_uses_treated_as_none(self):
         """Empty end_uses list treated as coarse mode."""
-        model = {"segments": {"sectors": ["RES", "COM"], "end_uses": []}}
+        model = {"scoping": {"sectors": ["RES", "COM"], "end_uses": []}}
         # Empty list is falsy, so should return sectors only
         assert build_segments(model) == ["RES", "COM"]
 

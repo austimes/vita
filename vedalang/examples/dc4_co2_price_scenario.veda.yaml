@@ -53,10 +53,10 @@ model:
         "2050": 200
       interpolation: interp_extrap
 
-# Scoping (current key name: segments): defines demand-side namespaces for instantiation/scoping.
+# Scoping: defines demand-side namespaces for instantiation/scoping.
 # sectors: required enum values = RES, COM, IND, TRN, AGR, NE, OTH.
 # end_uses: optional non-enum lowercase tokens (e.g., heating) to create scopes like RES.heating.
-segments:
+scoping:
   sectors:
     - RES
 
@@ -203,7 +203,7 @@ process_parameters:
       region: REG1
     stock: 1
 
-# Demands: service demand trajectories by region and optional scope (sector/segment).
+# Demands: service demand trajectories by region and optional scope (sector/scope).
 demands:
   - commodity: service:electricity_demand
     region: REG1
