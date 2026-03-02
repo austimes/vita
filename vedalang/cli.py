@@ -8,11 +8,14 @@ This CLI provides intuitive commands for:
 
 import argparse
 import json
+import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 from typing import Any
 
@@ -360,8 +363,19 @@ def _add_viz_parser(subparsers):
     p.add_argument(
         "--no-browser", action="store_true", help="Don't auto-open browser"
     )
-    p.add_argument(
+    mode_group = p.add_mutually_exclusive_group()
+    mode_group.add_argument(
         "--mermaid", action="store_true", help="Output Mermaid syntax instead of web UI"
+    )
+    mode_group.add_argument(
+        "--stop",
+        action="store_true",
+        help="Stop a running viz server on the selected port and exit",
+    )
+    mode_group.add_argument(
+        "--status",
+        action="store_true",
+        help="Print viz server status for the selected port and exit",
     )
     p.add_argument(
         "--variants", action="store_true", help="Include process variants in diagram"
@@ -1970,18 +1984,194 @@ def _error(message: str, as_json: bool, source: str):
         print(f"Error: {message}", file=sys.stderr)
 
 
+def _viz_pid_file(port: int) -> Path:
+    return Path(tempfile.gettempdir()) / f"vedalang-viz-{port}.pid"
+
+
+def _read_viz_pid(pid_file: Path) -> int | None:
+    if not pid_file.exists():
+        return None
+    try:
+        raw = pid_file.read_text(encoding="utf-8").strip()
+        pid = int(raw)
+        if pid > 0:
+            return pid
+    except (OSError, ValueError):
+        return None
+    return None
+
+
+def _write_viz_pid(pid_file: Path, pid: int) -> None:
+    pid_file.write_text(f"{pid}\n", encoding="utf-8")
+
+
+def _pid_is_running(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def _pid_command(pid: int) -> str | None:
+    try:
+        result = subprocess.run(
+            ["ps", "-p", str(pid), "-o", "command="],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError:
+        return None
+    if result.returncode != 0:
+        return None
+    cmd = result.stdout.strip()
+    return cmd or None
+
+
+def _pid_looks_like_viz(pid: int) -> bool:
+    cmd = (_pid_command(pid) or "").lower()
+    return "vedalang" in cmd and "viz" in cmd
+
+
+def _find_listener_pid(port: int) -> int | None:
+    if shutil.which("lsof") is None:
+        return None
+    try:
+        result = subprocess.run(
+            ["lsof", "-nP", f"-iTCP:{port}", "-sTCP:LISTEN", "-t"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except OSError:
+        return None
+    if result.returncode != 0:
+        return None
+    for line in result.stdout.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            pid = int(line)
+        except ValueError:
+            continue
+        if pid > 0:
+            return pid
+    return None
+
+
+def _terminate_pid(pid: int, timeout_seconds: float = 3.0) -> bool:
+    try:
+        os.kill(pid, signal.SIGTERM)
+    except ProcessLookupError:
+        return True
+    except PermissionError:
+        return False
+
+    deadline = time.monotonic() + timeout_seconds
+    while time.monotonic() < deadline:
+        if not _pid_is_running(pid):
+            return True
+        time.sleep(0.05)
+
+    try:
+        os.kill(pid, signal.SIGKILL)
+    except ProcessLookupError:
+        return True
+    except PermissionError:
+        return False
+
+    time.sleep(0.05)
+    return not _pid_is_running(pid)
+
+
+def _cmd_viz_status(port: int) -> int:
+    pid_file = _viz_pid_file(port)
+    tracked_pid = _read_viz_pid(pid_file)
+    listener_pid = _find_listener_pid(port)
+
+    if tracked_pid and _pid_is_running(tracked_pid):
+        print(f"viz server is running on port {port} (pid {tracked_pid}).")
+        print(f"pid file: {pid_file}")
+        return 0
+
+    if tracked_pid and not _pid_is_running(tracked_pid):
+        try:
+            pid_file.unlink()
+        except OSError:
+            pass
+        print(f"Removed stale viz pid file: {pid_file}")
+
+    if listener_pid:
+        if _pid_looks_like_viz(listener_pid):
+            print(
+                f"viz-like process is listening on port {port} (pid {listener_pid}),"
+            )
+            print("but no matching pid file is present.")
+            return 1
+        print(f"Port {port} is in use by pid {listener_pid} (not identified as viz).")
+        return 2
+
+    print(f"No viz server is running on port {port}.")
+    return 0
+
+
+def _cmd_viz_stop(port: int) -> int:
+    pid_file = _viz_pid_file(port)
+    tracked_pid = _read_viz_pid(pid_file)
+
+    if tracked_pid and _pid_is_running(tracked_pid):
+        if _terminate_pid(tracked_pid):
+            try:
+                pid_file.unlink()
+            except OSError:
+                pass
+            print(f"Stopped viz server on port {port} (pid {tracked_pid}).")
+            return 0
+        print(f"Failed to stop viz server pid {tracked_pid}.", file=sys.stderr)
+        return 2
+
+    if tracked_pid and not _pid_is_running(tracked_pid):
+        try:
+            pid_file.unlink()
+        except OSError:
+            pass
+
+    listener_pid = _find_listener_pid(port)
+    if listener_pid is None:
+        print(f"No viz server is running on port {port}.")
+        return 0
+
+    if not _pid_looks_like_viz(listener_pid):
+        print(
+            f"Refusing to stop pid {listener_pid} on port {port} "
+            "(not identified as vedalang viz).",
+            file=sys.stderr,
+        )
+        return 2
+
+    if _terminate_pid(listener_pid):
+        print(f"Stopped viz-like process on port {port} (pid {listener_pid}).")
+        return 0
+
+    print(f"Failed to stop viz-like process pid {listener_pid}.", file=sys.stderr)
+    return 2
+
+
 def cmd_viz(args) -> int:
     """Run viz command: standalone web UI backed by unified query engine."""
-    import webbrowser
-
-    import uvicorn
-
-    from vedalang.viz.query_engine import query_res_graph, response_to_mermaid
-    from vedalang.viz.server import create_app
-
     port: int = args.port
     no_browser: bool = args.no_browser
     file_path: Path | None = args.file
+
+    if getattr(args, "stop", False):
+        return _cmd_viz_stop(port)
+
+    if getattr(args, "status", False):
+        return _cmd_viz_status(port)
 
     if file_path is not None and not file_path.exists():
         print(f"Error: File not found: {file_path}", file=sys.stderr)
@@ -1989,6 +2179,8 @@ def cmd_viz(args) -> int:
 
     # Mermaid mode: output a projection from the unified query engine
     if getattr(args, "mermaid", False):
+        from vedalang.viz.query_engine import query_res_graph, response_to_mermaid
+
         if file_path is None:
             print("Error: file is required when using --mermaid", file=sys.stderr)
             return 2
@@ -2013,6 +2205,40 @@ def cmd_viz(args) -> int:
             return 0
         if status == "partial":
             return 1
+        return 2
+
+    import webbrowser
+
+    import uvicorn
+
+    from vedalang.viz.server import create_app
+
+    pid_file = _viz_pid_file(port)
+    tracked_pid = _read_viz_pid(pid_file)
+    if tracked_pid and _pid_is_running(tracked_pid):
+        print(
+            f"Error: viz server already running on port {port} (pid {tracked_pid}).",
+            file=sys.stderr,
+        )
+        print(f"Stop it with: vedalang viz --stop --port {port}", file=sys.stderr)
+        return 2
+    if tracked_pid and not _pid_is_running(tracked_pid):
+        try:
+            pid_file.unlink()
+        except OSError:
+            pass
+
+    listener_pid = _find_listener_pid(port)
+    if listener_pid and listener_pid != tracked_pid:
+        print(
+            f"Error: port {port} is already in use by pid {listener_pid}.",
+            file=sys.stderr,
+        )
+        if _pid_looks_like_viz(listener_pid):
+            print(
+                f"Try stopping it with: vedalang viz --stop --port {port}",
+                file=sys.stderr,
+            )
         return 2
 
     app = create_app(
@@ -2041,10 +2267,19 @@ def cmd_viz(args) -> int:
     )
     uvicorn_server = uvicorn.Server(config)
 
+    _write_viz_pid(pid_file, os.getpid())
+
     try:
         uvicorn_server.run()
     except KeyboardInterrupt:
         pass
+    finally:
+        tracked_pid = _read_viz_pid(pid_file)
+        if tracked_pid == os.getpid():
+            try:
+                pid_file.unlink()
+            except OSError:
+                pass
 
     return 0
 

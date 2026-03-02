@@ -1,6 +1,6 @@
 # VedaLang Project Status
 
-**Last updated:** 2026-03-01
+**Last updated:** 2026-03-02
 
 ## Executive Summary
 
@@ -12,7 +12,7 @@ VedaLang is a typed DSL that compiles to VEDA Excel tables for TIMES energy mode
 | xl2times diagnostics | ✅ Hardened |
 | Design challenges (DC1-DC5) | ✅ All passing |
 | Schema evolution policy | ✅ In place |
-| Test coverage | ✅ 990 tests passing, 18 skipped |
+| Test coverage | ✅ 1014 tests passing, 18 skipped |
 | Primitives Exploration | ✅ Complete |
 | Schema Extensions | ✅ All implemented |
 | MiniSystem Stress Test | ✅ Complete |
@@ -40,6 +40,7 @@ All core design phases remain complete.
 
 | Issue | Priority | Description | Status |
 |-------|----------|-------------|--------|
+| `vedalang-4d6` | P2 | Add explicit stop command for `vedalang viz` server | ✓ Closed |
 | `vedalang-3v2` | P1 | Keep negative-emission docs in `emissions` and add deterministic `units` check for emission-intensity numerator units | ✓ Closed |
 | `vedalang-1wk` | P2 | Route negative-emission unit guidance through deterministic `units` lint category | ✓ Closed |
 | `vedalang-a19` | P1 | Deterministic lint unit-cost denominator checks, all-category default lint, and legacy-syntax guard | ✓ Closed |
