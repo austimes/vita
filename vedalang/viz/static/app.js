@@ -153,43 +153,86 @@ function stageRank(stage) {
   return rank === undefined ? STAGE_ORDER.length : rank;
 }
 
-function inferCommodityRank(nodeId, graphEdges, processRanks) {
-  let inputBound = Number.POSITIVE_INFINITY;
-  let outputBound = Number.NEGATIVE_INFINITY;
-  let hasInputBound = false;
-  let hasOutputBound = false;
+function isCommodityNodeType(nodeType) {
+  return nodeType === "commodity" || nodeType === "trade_commodity";
+}
 
-  for (const edge of graphEdges) {
-    if (edge.source === nodeId) {
-      const processRank = processRanks.get(edge.target);
-      if (Number.isFinite(processRank)) {
-        inputBound = Math.min(inputBound, processRank - 0.5);
-        hasInputBound = true;
+function mod2(value) {
+  return ((value % 2) + 2) % 2;
+}
+
+function snapToParity(value, parity) {
+  if (!Number.isFinite(value)) {
+    return parity === 0 ? 0 : 1;
+  }
+  let lower = Math.floor(value);
+  while (mod2(lower) !== parity) {
+    lower -= 1;
+  }
+  let upper = Math.ceil(value);
+  while (mod2(upper) !== parity) {
+    upper += 1;
+  }
+  return Math.abs(value - lower) <= Math.abs(upper - value) ? lower : upper;
+}
+
+function median(values) {
+  if (!values.length) {
+    return null;
+  }
+  const ordered = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(ordered.length / 2);
+  if (ordered.length % 2 === 0) {
+    return (ordered[mid - 1] + ordered[mid]) / 2;
+  }
+  return ordered[mid];
+}
+
+function chooseCommodityColumn(producerColumns, consumerColumns) {
+  if (producerColumns.length && consumerColumns.length) {
+    const low = Math.max(...producerColumns);
+    const high = Math.min(...consumerColumns);
+
+    if (low <= high) {
+      let bestColumn = null;
+      let bestScore = Number.POSITIVE_INFINITY;
+      const firstOdd = mod2(low) === 1 ? low : low + 1;
+      for (let col = firstOdd; col <= high; col += 2) {
+        let score = 0;
+        for (const anchor of producerColumns) {
+          const diff = col - anchor;
+          score += diff * diff;
+        }
+        for (const anchor of consumerColumns) {
+          const diff = col - anchor;
+          score += diff * diff;
+        }
+        if (score < bestScore) {
+          bestScore = score;
+          bestColumn = col;
+        }
       }
+      if (Number.isFinite(bestColumn)) {
+        return bestColumn;
+      }
+      return snapToParity((low + high) / 2, 1);
     }
 
-    if (edge.target === nodeId) {
-      const processRank = processRanks.get(edge.source);
-      if (Number.isFinite(processRank)) {
-        outputBound = Math.max(outputBound, processRank + 0.5);
-        hasOutputBound = true;
-      }
-    }
+    const medianAnchor = median([...producerColumns, ...consumerColumns]);
+    return snapToParity(medianAnchor, 1);
   }
 
-  if (hasInputBound && hasOutputBound) {
-    return (inputBound + outputBound) / 2;
+  if (producerColumns.length) {
+    return Math.max(...producerColumns);
   }
-  if (hasInputBound) {
-    return inputBound;
+  if (consumerColumns.length) {
+    return Math.min(...consumerColumns);
   }
-  if (hasOutputBound) {
-    return outputBound;
-  }
+
   return null;
 }
 
-function buildStageLanePositions(nodes) {
+function buildAlternatingColumnPositions(nodes, graphEdges) {
   const processNodesWithStage = nodes.filter(
     (node) => isProcessNodeType(node.data.type) && Number.isFinite(node.data.stageRank),
   );
@@ -197,43 +240,199 @@ function buildStageLanePositions(nodes) {
     return null;
   }
 
-  const columns = new Map();
-  for (const node of nodes) {
-    if (!Number.isFinite(node.data.stageRank)) {
-      continue;
-    }
-    const bucket = columns.get(node.data.stageRank) || [];
-    bucket.push(node);
-    columns.set(node.data.stageRank, bucket);
+  const nodeById = new Map(nodes.map((node) => [node.data.id, node]));
+  const nodeColumns = new Map();
+  const producerAnchors = new Map();
+  const consumerAnchors = new Map();
+  const neighbors = new Map();
+
+  for (const node of processNodesWithStage) {
+    nodeColumns.set(node.data.id, node.data.stageRank * 2);
   }
 
+  for (const edge of graphEdges) {
+    const sourceNode = nodeById.get(edge.source);
+    const targetNode = nodeById.get(edge.target);
+    if (!sourceNode || !targetNode) {
+      continue;
+    }
+
+    if (!neighbors.has(edge.source)) {
+      neighbors.set(edge.source, new Set());
+    }
+    if (!neighbors.has(edge.target)) {
+      neighbors.set(edge.target, new Set());
+    }
+    neighbors.get(edge.source).add(edge.target);
+    neighbors.get(edge.target).add(edge.source);
+
+    const sourceProcessCol = nodeColumns.get(edge.source);
+    const targetProcessCol = nodeColumns.get(edge.target);
+
+    if (Number.isFinite(sourceProcessCol) && isCommodityNodeType(targetNode.data.type)) {
+      const list = producerAnchors.get(edge.target) || [];
+      list.push(sourceProcessCol + 1);
+      producerAnchors.set(edge.target, list);
+    }
+
+    if (isCommodityNodeType(sourceNode.data.type) && Number.isFinite(targetProcessCol)) {
+      const list = consumerAnchors.get(edge.source) || [];
+      list.push(targetProcessCol - 1);
+      consumerAnchors.set(edge.source, list);
+    }
+  }
+
+  for (const node of nodes) {
+    if (!isCommodityNodeType(node.data.type)) {
+      continue;
+    }
+    const selectedColumn = chooseCommodityColumn(
+      producerAnchors.get(node.data.id) || [],
+      consumerAnchors.get(node.data.id) || [],
+    );
+    if (Number.isFinite(selectedColumn)) {
+      nodeColumns.set(node.data.id, selectedColumn);
+    }
+  }
+
+  for (let iteration = 0; iteration < 3; iteration += 1) {
+    let changed = false;
+    for (const node of nodes) {
+      if (nodeColumns.has(node.data.id)) {
+        continue;
+      }
+      const near = neighbors.get(node.data.id);
+      if (!near || near.size === 0) {
+        continue;
+      }
+
+      const assigned = [];
+      for (const otherId of near) {
+        const col = nodeColumns.get(otherId);
+        if (Number.isFinite(col)) {
+          assigned.push(col);
+        }
+      }
+      if (!assigned.length) {
+        continue;
+      }
+
+      const avg = assigned.reduce((acc, value) => acc + value, 0) / assigned.length;
+      const parity = isCommodityNodeType(node.data.type) ? 1 : 0;
+      nodeColumns.set(node.data.id, snapToParity(avg, parity));
+      changed = true;
+    }
+
+    if (!changed) {
+      break;
+    }
+  }
+
+  const assignedColumns = [...nodeColumns.values()].filter((value) => Number.isFinite(value));
+  let fallbackColumn = assignedColumns.length ? Math.max(...assignedColumns) + 1 : 0;
+  const unresolved = nodes.filter((node) => !nodeColumns.has(node.data.id));
+  unresolved.sort((left, right) => {
+    const leftLabel = String(left.data.label || left.data.id);
+    const rightLabel = String(right.data.label || right.data.id);
+    return leftLabel.localeCompare(rightLabel);
+  });
+  for (const node of unresolved) {
+    const parity = isCommodityNodeType(node.data.type) ? 1 : 0;
+    fallbackColumn = snapToParity(fallbackColumn, parity);
+    nodeColumns.set(node.data.id, fallbackColumn);
+    fallbackColumn += 1;
+  }
+
+  const columns = new Map();
+  for (const node of nodes) {
+    const col = nodeColumns.get(node.data.id);
+    if (!Number.isFinite(col)) {
+      continue;
+    }
+    const bucket = columns.get(col) || [];
+    bucket.push(node);
+    columns.set(col, bucket);
+  }
   if (columns.size === 0) {
     return null;
   }
 
-  const xGap = 260;
-  const yGap = 90;
-  const positions = {};
-  const sortedRanks = [...columns.keys()].sort((a, b) => a - b);
-
-  for (const rank of sortedRanks) {
-    const bucket = columns.get(rank) || [];
+  const sortedColumns = [...columns.keys()].sort((a, b) => a - b);
+  for (const col of sortedColumns) {
+    const bucket = columns.get(col) || [];
     bucket.sort((left, right) => {
-      const leftProcess = isProcessNodeType(left.data.type) ? 0 : 1;
-      const rightProcess = isProcessNodeType(right.data.type) ? 0 : 1;
-      if (leftProcess !== rightProcess) {
-        return leftProcess - rightProcess;
-      }
-      return String(left.data.label || left.data.id).localeCompare(
-        String(right.data.label || right.data.id),
-      );
+      const leftLabel = String(left.data.label || left.data.id);
+      const rightLabel = String(right.data.label || right.data.id);
+      return leftLabel.localeCompare(rightLabel);
     });
+  }
 
-    const columnCenterOffset = ((bucket.length - 1) * yGap) / 2;
+  const yIndexByNode = new Map();
+  const refreshYIndex = () => {
+    yIndexByNode.clear();
+    for (const col of sortedColumns) {
+      const bucket = columns.get(col) || [];
+      bucket.forEach((node, index) => {
+        yIndexByNode.set(node.data.id, index);
+      });
+    }
+  };
+  refreshYIndex();
+
+  const barycenter = (nodeId) => {
+    const near = neighbors.get(nodeId);
+    if (!near || near.size === 0) {
+      return null;
+    }
+    const ys = [];
+    for (const otherId of near) {
+      if (yIndexByNode.has(otherId)) {
+        ys.push(yIndexByNode.get(otherId));
+      }
+    }
+    if (!ys.length) {
+      return null;
+    }
+    return ys.reduce((acc, value) => acc + value, 0) / ys.length;
+  };
+
+  for (let sweep = 0; sweep < 2; sweep += 1) {
+    const forward = [...sortedColumns];
+    const backward = [...sortedColumns].reverse();
+    for (const passColumns of [forward, backward]) {
+      for (const col of passColumns) {
+        const bucket = columns.get(col) || [];
+        bucket.sort((left, right) => {
+          const leftBary = barycenter(left.data.id);
+          const rightBary = barycenter(right.data.id);
+          if (Number.isFinite(leftBary) && Number.isFinite(rightBary)) {
+            if (leftBary !== rightBary) {
+              return leftBary - rightBary;
+            }
+          } else if (Number.isFinite(leftBary)) {
+            return -1;
+          } else if (Number.isFinite(rightBary)) {
+            return 1;
+          }
+          const leftLabel = String(left.data.label || left.data.id);
+          const rightLabel = String(right.data.label || right.data.id);
+          return leftLabel.localeCompare(rightLabel);
+        });
+      }
+      refreshYIndex();
+    }
+  }
+
+  const columnGap = 170;
+  const yGap = 88;
+  const positions = {};
+  for (const col of sortedColumns) {
+    const bucket = columns.get(col) || [];
+    const yOffset = ((bucket.length - 1) * yGap) / 2;
     bucket.forEach((node, index) => {
       positions[node.data.id] = {
-        x: rank * xGap,
-        y: index * yGap - columnCenterOffset,
+        x: col * columnGap,
+        y: index * yGap - yOffset,
       };
     });
   }
@@ -312,7 +511,6 @@ function renderGraph(response) {
   lastResponse = response;
   const detailNodes = (response.details && response.details.nodes) || {};
   const graphEdges = response.graph.edges || [];
-  const processRanks = new Map();
 
   const nodes = (response.graph.nodes || []).map((node) => {
     const style = styleForNode(node.type);
@@ -322,9 +520,6 @@ function renderGraph(response) {
     const label = isProcessNodeType(node.type) && stage
       ? `${node.label}\n[${formatStageLabel(stage)}]`
       : node.label;
-    if (Number.isFinite(stageRankValue)) {
-      processRanks.set(node.id, stageRankValue);
-    }
 
     return {
       data: {
@@ -339,16 +534,6 @@ function renderGraph(response) {
     };
   });
 
-  nodes.forEach((node) => {
-    if (node.data.type !== "commodity" && node.data.type !== "trade_commodity") {
-      return;
-    }
-    const rank = inferCommodityRank(node.data.id, graphEdges, processRanks);
-    if (Number.isFinite(rank)) {
-      node.data.stageRank = rank;
-    }
-  });
-
   const edges = (response.graph.edges || []).map((edge) => ({
     data: {
       id: edge.id,
@@ -361,7 +546,7 @@ function renderGraph(response) {
   cy.elements().remove();
   cy.add(nodes);
   cy.add(edges);
-  const stagePositions = buildStageLanePositions(nodes);
+  const stagePositions = buildAlternatingColumnPositions(nodes, graphEdges);
   if (stagePositions) {
     cy.layout({
       name: "preset",
