@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from vedalang.compiler.compiler import load_vedalang
+from vedalang.conventions import stage_label
 
 from .compiled_artifacts import resolve_compiled_artifacts
 from .graph_models import (
@@ -262,11 +263,26 @@ def _sanitize_mermaid_id(node_id: str) -> str:
 def response_to_mermaid(response: dict[str, Any]) -> str:
     """Render a query response graph as Mermaid flowchart syntax."""
     lines = ["flowchart LR"]
+    details_nodes = response.get("details", {}).get("nodes", {})
 
     for node in response.get("graph", {}).get("nodes", []):
+        node_raw_id = str(node.get("id", ""))
         node_id = _sanitize_mermaid_id(str(node.get("id", "")))
-        label = str(node.get("label", node.get("id", ""))).replace('"', "\\\"")
         node_type = str(node.get("type", ""))
+        label = str(node.get("label", node.get("id", "")))
+        detail = (
+            details_nodes.get(node_raw_id, {})
+            if isinstance(details_nodes, dict)
+            else {}
+        )
+        stage = detail.get("stage") if isinstance(detail, dict) else None
+        if (
+            node_type in {"role", "variant", "instance"}
+            and isinstance(stage, str)
+            and stage
+        ):
+            label = f"{label}\\n[{stage_label(stage)}]"
+        label = label.replace('"', "\\\"")
         if node_type.startswith("commodity") or node_type == "trade_commodity":
             lines.append(f"    N_{node_id}((\"{label}\"))")
         else:

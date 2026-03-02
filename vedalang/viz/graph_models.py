@@ -327,9 +327,13 @@ def build_compiled_system_graph(
                 "variants": set(),
                 "roles": set(),
                 "sets": set(),
+                "stages": set(),
             }
         detail = process_group_detail[group_id]
         detail["processes"].add(process)
+        stage_name = meta.get("stage")
+        if isinstance(stage_name, str) and stage_name:
+            detail["stages"].add(stage_name)
         if region:
             detail["regions"].add(region)
         if segment:
@@ -354,6 +358,7 @@ def build_compiled_system_graph(
 
     for group_id in sorted(process_group_detail.keys()):
         detail = process_group_detail[group_id]
+        stages_sorted = sorted(detail["stages"])
         node = _node(group_id, detail["label"], detail["type"])
         nodes.append(node)
         node_map[group_id] = node
@@ -364,6 +369,8 @@ def build_compiled_system_graph(
             "variants": sorted(detail["variants"]),
             "roles": sorted(detail["roles"]),
             "sets": sorted(detail["sets"]),
+            "stages": stages_sorted,
+            "stage": stages_sorted[0] if len(stages_sorted) == 1 else None,
         }
 
     edges: list[dict[str, str]] = []

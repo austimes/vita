@@ -19,6 +19,10 @@ const LENS_OPTIONS = [
   { value: "trade", label: "trade" },
 ];
 
+const STAGE_ORDER = ["supply", "conversion", "distribution", "storage", "end_use", "sink"];
+const STAGE_RANK = new Map(STAGE_ORDER.map((stage, index) => [stage, index]));
+const PROCESS_NODE_TYPES = new Set(["role", "variant", "instance"]);
+
 const state = {
   file: "",
   mode: "compiled",
@@ -126,6 +130,117 @@ function styleForNode(nodeType) {
   return { shape: "round-rectangle", color: "#16a34a" };
 }
 
+function isProcessNodeType(nodeType) {
+  return PROCESS_NODE_TYPES.has(nodeType);
+}
+
+function formatStageLabel(stage) {
+  if (stage === "end_use") {
+    return "End Use";
+  }
+  return String(stage || "")
+    .split("_")
+    .filter((part) => part.length > 0)
+    .map((part) => part[0].toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function stageRank(stage) {
+  if (typeof stage !== "string" || stage.length === 0) {
+    return null;
+  }
+  const rank = STAGE_RANK.get(stage);
+  return rank === undefined ? STAGE_ORDER.length : rank;
+}
+
+function inferCommodityRank(nodeId, graphEdges, processRanks) {
+  let inputBound = Number.POSITIVE_INFINITY;
+  let outputBound = Number.NEGATIVE_INFINITY;
+  let hasInputBound = false;
+  let hasOutputBound = false;
+
+  for (const edge of graphEdges) {
+    if (edge.source === nodeId) {
+      const processRank = processRanks.get(edge.target);
+      if (Number.isFinite(processRank)) {
+        inputBound = Math.min(inputBound, processRank - 0.5);
+        hasInputBound = true;
+      }
+    }
+
+    if (edge.target === nodeId) {
+      const processRank = processRanks.get(edge.source);
+      if (Number.isFinite(processRank)) {
+        outputBound = Math.max(outputBound, processRank + 0.5);
+        hasOutputBound = true;
+      }
+    }
+  }
+
+  if (hasInputBound && hasOutputBound) {
+    return (inputBound + outputBound) / 2;
+  }
+  if (hasInputBound) {
+    return inputBound;
+  }
+  if (hasOutputBound) {
+    return outputBound;
+  }
+  return null;
+}
+
+function buildStageLanePositions(nodes) {
+  const processNodesWithStage = nodes.filter(
+    (node) => isProcessNodeType(node.data.type) && Number.isFinite(node.data.stageRank),
+  );
+  if (processNodesWithStage.length === 0) {
+    return null;
+  }
+
+  const columns = new Map();
+  for (const node of nodes) {
+    if (!Number.isFinite(node.data.stageRank)) {
+      continue;
+    }
+    const bucket = columns.get(node.data.stageRank) || [];
+    bucket.push(node);
+    columns.set(node.data.stageRank, bucket);
+  }
+
+  if (columns.size === 0) {
+    return null;
+  }
+
+  const xGap = 260;
+  const yGap = 90;
+  const positions = {};
+  const sortedRanks = [...columns.keys()].sort((a, b) => a - b);
+
+  for (const rank of sortedRanks) {
+    const bucket = columns.get(rank) || [];
+    bucket.sort((left, right) => {
+      const leftProcess = isProcessNodeType(left.data.type) ? 0 : 1;
+      const rightProcess = isProcessNodeType(right.data.type) ? 0 : 1;
+      if (leftProcess !== rightProcess) {
+        return leftProcess - rightProcess;
+      }
+      return String(left.data.label || left.data.id).localeCompare(
+        String(right.data.label || right.data.id),
+      );
+    });
+
+    const columnCenterOffset = ((bucket.length - 1) * yGap) / 2;
+    bucket.forEach((node, index) => {
+      positions[node.data.id] = {
+        x: rank * xGap,
+        y: index * yGap - columnCenterOffset,
+      };
+    });
+  }
+
+  return positions;
+}
+
 function initCy() {
   cy = cytoscape({
     container: document.getElementById("graph"),
@@ -195,17 +310,43 @@ function initCy() {
 
 function renderGraph(response) {
   lastResponse = response;
+  const detailNodes = (response.details && response.details.nodes) || {};
+  const graphEdges = response.graph.edges || [];
+  const processRanks = new Map();
+
   const nodes = (response.graph.nodes || []).map((node) => {
     const style = styleForNode(node.type);
+    const details = detailNodes[node.id] || {};
+    const stage = typeof details.stage === "string" ? details.stage : null;
+    const stageRankValue = isProcessNodeType(node.type) ? stageRank(stage) : null;
+    const label = isProcessNodeType(node.type) && stage
+      ? `${node.label}\n[${formatStageLabel(stage)}]`
+      : node.label;
+    if (Number.isFinite(stageRankValue)) {
+      processRanks.set(node.id, stageRankValue);
+    }
+
     return {
       data: {
         id: node.id,
-        label: node.label,
+        label,
         type: node.type,
         shape: style.shape,
         color: style.color,
+        stage,
+        stageRank: stageRankValue,
       },
     };
+  });
+
+  nodes.forEach((node) => {
+    if (node.data.type !== "commodity" && node.data.type !== "trade_commodity") {
+      return;
+    }
+    const rank = inferCommodityRank(node.data.id, graphEdges, processRanks);
+    if (Number.isFinite(rank)) {
+      node.data.stageRank = rank;
+    }
   });
 
   const edges = (response.graph.edges || []).map((edge) => ({
@@ -220,17 +361,27 @@ function renderGraph(response) {
   cy.elements().remove();
   cy.add(nodes);
   cy.add(edges);
-
-  cy.layout({
-    name: "dagre",
-    rankDir: "LR",
-    nodeSep: 60,
-    rankSep: 100,
-    edgeSep: 25,
-    fit: true,
-    padding: 40,
-    animate: false,
-  }).run();
+  const stagePositions = buildStageLanePositions(nodes);
+  if (stagePositions) {
+    cy.layout({
+      name: "preset",
+      positions: (ele) => stagePositions[ele.id()] || { x: 0, y: 0 },
+      fit: true,
+      padding: 40,
+      animate: false,
+    }).run();
+  } else {
+    cy.layout({
+      name: "dagre",
+      rankDir: "LR",
+      nodeSep: 60,
+      rankSep: 100,
+      edgeSep: 25,
+      fit: true,
+      padding: 40,
+      animate: false,
+    }).run();
+  }
 
   document.getElementById("diagnostics").textContent = JSON.stringify(response.diagnostics || [], null, 2);
 }
