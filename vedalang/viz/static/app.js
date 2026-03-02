@@ -245,9 +245,18 @@ function buildAlternatingColumnPositions(nodes, graphEdges) {
   const producerAnchors = new Map();
   const consumerAnchors = new Map();
   const neighbors = new Map();
+  const usedStageRanks = [...new Set(
+    processNodesWithStage.map((node) => Number(node.data.stageRank)),
+  )].sort((a, b) => a - b);
+  const denseProcessColumns = new Map(
+    usedStageRanks.map((rank, index) => [rank, index * 2]),
+  );
 
   for (const node of processNodesWithStage) {
-    nodeColumns.set(node.data.id, node.data.stageRank * 2);
+    const denseColumn = denseProcessColumns.get(Number(node.data.stageRank));
+    if (Number.isFinite(denseColumn)) {
+      nodeColumns.set(node.data.id, denseColumn);
+    }
   }
 
   for (const edge of graphEdges) {
