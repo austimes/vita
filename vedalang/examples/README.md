@@ -10,3 +10,24 @@ This directory holds example VedaLang source files and TableIR files for:
 
 - `*.veda.yaml` - VedaLang source files
 - `*.tableir.yaml` - TableIR intermediate representation files
+
+## Folder Layout
+
+Use these subfolders for new examples:
+
+- `quickstart/` - Minimal end-to-end examples for first use
+- `design_challenges/` - `dc*` style language-design challenge examples
+- `minisystem/` - MiniSystem progression and stress-test examples
+- `toy_sectors/` - Small sector-specific models
+- `feature_demos/` - Focused demos for single features
+- `tableir/` - Raw TableIR fixtures (valid and invalid)
+- `component_library/` - Component-library-based examples:
+  - `component_library/components/`
+  - `component_library/assemblies/`
+  - `component_library/studies/`
+
+## Transition Note
+
+Existing flat files are intentionally left in place for now to avoid breaking
+tests and docs that reference current paths. New examples should be added under
+the folder structure above.

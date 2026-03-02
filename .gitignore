@@ -20,6 +20,7 @@ output/
 output_invalid/
 tmp/
 *.log
+vedalang/examples/.cache/
 
 # Embedded repos (use submodule if needed)
 experiments/trade/dd_output/
