@@ -1,3 +1,4 @@
+# Model: core system definition (regions, years, commodities, cases).
 model:
   name: ConstraintDemo
   description: Model with CO2 cap and renewable energy target
@@ -58,10 +59,14 @@ model:
         - solar_generation
         - wind_generation
 
+# Scoping (current key name: segments): defines demand-side namespaces for instantiation/scoping.
+# sectors: required enum values = RES, COM, IND, TRN, AGR, NE, OTH.
+# end_uses: optional non-enum lowercase tokens (e.g., heating) to create scopes like RES.heating.
 segments:
   sectors:
     - IND
 
+# Process roles: reusable contracts (required I/O + units) shared by multiple variants.
 process_roles:
   - id: import_natural_gas
     activity_unit: PJ
@@ -95,6 +100,7 @@ process_roles:
     required_outputs:
       - commodity: resource:wind_resource
 
+# Process variants: concrete technology definitions bound to roles.
 process_variants:
   - id: ccgt_generation
     role: provide_electricity
@@ -152,6 +158,7 @@ process_variants:
     efficiency: 1.0
     lifetime: 100
 
+# Availability: expands each variant into region/scope-specific process instances in the RES.
 availability:
   - variant: ccgt_generation
     regions:
@@ -183,6 +190,7 @@ availability:
     regions:
       - REG1
 
+# Process parameters: selector-based overrides applied to matching instantiated process copies.
 process_parameters:
   - selector:
       variant: ccgt_generation

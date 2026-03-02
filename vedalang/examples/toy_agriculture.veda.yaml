@@ -1,3 +1,4 @@
+# Model: core system definition (regions, years, commodities, cases).
 model:
   name: ToyAgriculture
   description: Agricultural emissions reduction with sequestration
@@ -39,10 +40,14 @@ model:
       interpolation: interp_extrap
       limtype: up
 
+# Scoping (current key name: segments): defines demand-side namespaces for instantiation/scoping.
+# sectors: required enum values = RES, COM, IND, TRN, AGR, NE, OTH.
+# end_uses: optional non-enum lowercase tokens (e.g., heating) to create scopes like RES.heating.
 segments:
   sectors:
     - AGR
 
+# Process roles: reusable contracts (required I/O + units) shared by multiple variants.
 process_roles:
   - id: provide_ag_output
     activity_unit: PJ
@@ -68,6 +73,7 @@ process_roles:
     required_outputs:
       - commodity: material:ag_inputs
 
+# Process variants: concrete technology definitions bound to roles.
 process_variants:
   - id: primary_supply
     role: supply_ag_inputs
@@ -136,6 +142,7 @@ process_variants:
     investment_cost: 10 MUSD24/GW
     lifetime: 50
 
+# Availability: expands each variant into region/scope-specific process instances in the RES.
 availability:
   - variant: primary_supply
     regions:
@@ -167,6 +174,7 @@ availability:
     sectors:
       - AGR
 
+# Process parameters: selector-based overrides applied to matching instantiated process copies.
 process_parameters:
   - selector:
       variant: primary_supply
@@ -209,6 +217,7 @@ process_parameters:
       sector: AGR
     stock: 0.5
 
+# Demands: service demand trajectories by region and optional scope (sector/segment).
 demands:
   - commodity: service:agricultural_output
     region: SINGLE

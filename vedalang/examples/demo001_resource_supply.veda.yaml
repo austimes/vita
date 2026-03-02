@@ -1,3 +1,4 @@
+# Model: core system definition (regions, years, commodities, cases).
 model:
   name: DemoS001
   description: "Coal resource supply system — domestic mining (3-step supply curve),
@@ -24,10 +25,14 @@ model:
       unit: PJ
       combustible: false
 
+# Scoping (current key name: segments): defines demand-side namespaces for instantiation/scoping.
+# sectors: required enum values = RES, COM, IND, TRN, AGR, NE, OTH.
+# end_uses: optional non-enum lowercase tokens (e.g., heating) to create scopes like RES.heating.
 segments:
   sectors:
     - IND
 
+# Process roles: reusable contracts (required I/O + units) shared by multiple variants.
 process_roles:
   - id: deliver_coal_supply
     description: Demand technology — delivers coal to meet supply demand
@@ -66,6 +71,7 @@ process_roles:
     required_outputs:
       - commodity: primary:coal
 
+# Process variants: concrete technology definitions bound to roles.
 process_variants:
   - id: coal_demand_device
     description: Generic demand technology consuming coal
@@ -140,6 +146,7 @@ process_variants:
     variable_om_cost: 3 MUSD24/PJ
     variable_om_cost_basis: HHV
 
+# Availability: expands each variant into region/scope-specific process instances in the RES.
 availability:
   - variant: coal_demand_device
     regions:
@@ -167,6 +174,7 @@ availability:
     regions:
       - REG1
 
+# Process parameters: selector-based overrides applied to matching instantiated process copies.
 process_parameters:
   - cap_bound:
       up: 100000
@@ -207,6 +215,7 @@ process_parameters:
       region: REG1
     stock: 10000
 
+# Demands: service demand trajectories by region and optional scope (sector/segment).
 demands:
   - commodity: service:coal_supply
     region: REG1

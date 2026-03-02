@@ -1,3 +1,4 @@
+# Model: core system definition (regions, years, commodities, cases).
 model:
   name: MiniModel
   description: Thermal and renewable plants sharing electricity output
@@ -33,10 +34,14 @@ model:
       unit: PJ
       combustible: false
 
+# Scoping (current key name: segments): defines demand-side namespaces for instantiation/scoping.
+# sectors: required enum values = RES, COM, IND, TRN, AGR, NE, OTH.
+# end_uses: optional non-enum lowercase tokens (e.g., heating) to create scopes like RES.heating.
 segments:
   sectors:
     - IND
 
+# Process roles: reusable contracts (required I/O + units) shared by multiple variants.
 process_roles:
   - id: generate_electricity
     activity_unit: PJ
@@ -71,6 +76,7 @@ process_roles:
     required_outputs:
       - commodity: resource:wind_resource
 
+# Process variants: concrete technology definitions bound to roles.
 process_variants:
   - id: ccgt
     role: generate_electricity
@@ -114,6 +120,7 @@ process_variants:
       - commodity: secondary:electricity
     efficiency: 1.0
 
+# Availability: expands each variant into region/scope-specific process instances in the RES.
 availability:
   - variant: ccgt
     regions:
@@ -141,6 +148,7 @@ availability:
     sectors:
       - IND
 
+# Demands: service demand trajectories by region and optional scope (sector/segment).
 demands:
   - commodity: service:useful_electricity
     region: REG1

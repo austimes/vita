@@ -1,3 +1,4 @@
+# Model: core system definition (regions, years, commodities, cases).
 model:
   name: ToyElectricity4TS
   description:
@@ -96,10 +97,14 @@ model:
       interpolation: interp_extrap
       limtype: up
 
+# Scoping (current key name: segments): defines demand-side namespaces for instantiation/scoping.
+# sectors: required enum values = RES, COM, IND, TRN, AGR, NE, OTH.
+# end_uses: optional non-enum lowercase tokens (e.g., heating) to create scopes like RES.heating.
 segments:
   sectors:
     - RES
 
+# Process roles: reusable contracts (required I/O + units) shared by multiple variants.
 process_roles:
   - id: deliver_electricity_grid
     activity_unit: PJ
@@ -160,6 +165,7 @@ process_roles:
     required_outputs:
       - commodity: resource:wind_resource
 
+# Process variants: concrete technology definitions bound to roles.
 process_variants:
   - id: battery
     role: store_electricity
@@ -276,6 +282,7 @@ process_variants:
     efficiency: 1.0
     lifetime: 100
 
+# Availability: expands each variant into region/scope-specific process instances in the RES.
 availability:
   - variant: battery
     regions:
@@ -319,6 +326,7 @@ availability:
     regions:
       - SINGLE
 
+# Process parameters: selector-based overrides applied to matching instantiated process copies.
 process_parameters:
   - cap_bound:
       up: 200
@@ -381,6 +389,7 @@ process_parameters:
       region: SINGLE
     stock: 1000
 
+# Demands: service demand trajectories by region and optional scope (sector/segment).
 demands:
   - commodity: service:electricity_service
     region: SINGLE

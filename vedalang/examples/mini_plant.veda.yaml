@@ -1,3 +1,4 @@
+# Model: core system definition (regions, years, commodities, cases).
 model:
   name: MiniModel
   description: A minimal test model with one power plant
@@ -21,6 +22,7 @@ model:
       unit: PJ
       combustible: false
 
+# Process roles: reusable contracts (required I/O + units) shared by multiple variants.
 process_roles:
   - id: generate_electricity
     activity_unit: PJ
@@ -31,6 +33,7 @@ process_roles:
     required_outputs:
       - commodity: secondary:electricity
 
+# Process variants: concrete technology definitions bound to roles.
 process_variants:
   - id: ccgt
     role: generate_electricity
@@ -41,6 +44,7 @@ process_variants:
       - commodity: secondary:electricity
     efficiency: 0.55
 
+# Availability: expands each variant into region/scope-specific process instances in the RES.
 availability:
   - variant: ccgt
     regions:

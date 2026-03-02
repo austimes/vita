@@ -1,3 +1,4 @@
+# Model: core system definition (regions, years, commodities, cases).
 model:
   name: MiniSystem4
   description: Emission tracking and carbon pricing
@@ -45,10 +46,14 @@ model:
         "2050": 100
       interpolation: interp_extrap
 
+# Scoping (current key name: segments): defines demand-side namespaces for instantiation/scoping.
+# sectors: required enum values = RES, COM, IND, TRN, AGR, NE, OTH.
+# end_uses: optional non-enum lowercase tokens (e.g., heating) to create scopes like RES.heating.
 segments:
   sectors:
     - RES
 
+# Process roles: reusable contracts (required I/O + units) shared by multiple variants.
 process_roles:
   - id: deliver_residential
     activity_unit: PJ
@@ -76,6 +81,7 @@ process_roles:
     required_outputs:
       - commodity: primary:natural_gas
 
+# Process variants: concrete technology definitions bound to roles.
 process_variants:
   - id: ccgt
     role: generate_electricity
@@ -112,6 +118,7 @@ process_variants:
     efficiency: 1.0
     lifetime: 100
 
+# Availability: expands each variant into region/scope-specific process instances in the RES.
 availability:
   - variant: ccgt
     regions:
@@ -127,6 +134,7 @@ availability:
     sectors:
       - RES
 
+# Process parameters: selector-based overrides applied to matching instantiated process copies.
 process_parameters:
   - cap_bound:
       up: 100
@@ -148,6 +156,7 @@ process_parameters:
       sector: RES
     stock: 1000
 
+# Demands: service demand trajectories by region and optional scope (sector/segment).
 demands:
   - commodity: service:residential_demand
     region: SINGLE

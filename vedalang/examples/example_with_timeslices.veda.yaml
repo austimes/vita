@@ -1,3 +1,4 @@
+# Model: core system definition (regions, years, commodities, cases).
 model:
   name: TimesliceModel
   description: A model with 4 timeslices (2 seasons × 2 daynite) in role/variant syntax
@@ -45,10 +46,14 @@ model:
       unit: PJ
       combustible: false
 
+# Scoping (current key name: segments): defines demand-side namespaces for instantiation/scoping.
+# sectors: required enum values = RES, COM, IND, TRN, AGR, NE, OTH.
+# end_uses: optional non-enum lowercase tokens (e.g., heating) to create scopes like RES.heating.
 segments:
   sectors:
     - RES
 
+# Process roles: reusable contracts (required I/O + units) shared by multiple variants.
 process_roles:
   - id: generate_electricity
     activity_unit: PJ
@@ -76,6 +81,7 @@ process_roles:
     required_outputs:
       - commodity: primary:natural_gas
 
+# Process variants: concrete technology definitions bound to roles.
 process_variants:
   - id: ccgt
     role: generate_electricity
@@ -105,6 +111,7 @@ process_variants:
     efficiency: 1.0
     lifetime: 100
 
+# Availability: expands each variant into region/scope-specific process instances in the RES.
 availability:
   - variant: ccgt
     regions:
@@ -120,6 +127,7 @@ availability:
     regions:
       - REG1
 
+# Process parameters: selector-based overrides applied to matching instantiated process copies.
 process_parameters:
   - selector:
       variant: ccgt
@@ -137,6 +145,7 @@ process_parameters:
       region: REG1
     stock: 1000
 
+# Demands: service demand trajectories by region and optional scope (sector/segment).
 demands:
   - commodity: service:electricity_demand
     region: REG1

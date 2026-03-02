@@ -1,3 +1,4 @@
+# Model: core system definition (regions, years, commodities, cases).
 model:
   name: ToyIndustry
   description: Industrial heat decarbonisation with gas, electricity, and hydrogen
@@ -55,10 +56,14 @@ model:
       interpolation: interp_extrap
       limtype: up
 
+# Scoping (current key name: segments): defines demand-side namespaces for instantiation/scoping.
+# sectors: required enum values = RES, COM, IND, TRN, AGR, NE, OTH.
+# end_uses: optional non-enum lowercase tokens (e.g., heating) to create scopes like RES.heating.
 segments:
   sectors:
     - IND
 
+# Process roles: reusable contracts (required I/O + units) shared by multiple variants.
 process_roles:
   - id: import_electricity
     activity_unit: PJ
@@ -92,6 +97,7 @@ process_roles:
     required_outputs:
       - commodity: service:industrial_heat
 
+# Process variants: concrete technology definitions bound to roles.
 process_variants:
   - id: electric_heater
     role: provide_industrial_heat
@@ -165,6 +171,7 @@ process_variants:
       interpolation: interp_extrap
     variable_om_cost_basis: HHV
 
+# Availability: expands each variant into region/scope-specific process instances in the RES.
 availability:
   - variant: electric_heater
     regions:
@@ -196,6 +203,7 @@ availability:
     regions:
       - SINGLE
 
+# Process parameters: selector-based overrides applied to matching instantiated process copies.
 process_parameters:
   - cap_bound:
       up: 100
@@ -236,6 +244,7 @@ process_parameters:
       region: SINGLE
     stock: 1000
 
+# Demands: service demand trajectories by region and optional scope (sector/segment).
 demands:
   - commodity: service:industrial_heat
     region: SINGLE
