@@ -24,6 +24,10 @@
           "minItems": 1,
           "description": "List of region codes"
         },
+        "region_scheme": {
+          "type": "string",
+          "description": "Region scheme identifier used to resolve facility location mappings"
+        },
         "milestone_years": {
           "type": "array",
           "items": { "type": "integer", "minimum": 1900 },
@@ -106,6 +110,30 @@
     "diagnostics": {
       "$ref": "#/$defs/diagnostics_spec",
       "description": "Solve-independent diagnostics boundaries and metric definitions"
+    },
+    "commodity_groups": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/commodity_group" },
+      "description": "Reusable commodity groups for facility input mix constraints"
+    },
+    "facility_templates": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/facility_template" },
+      "description": "Reusable facility templates bound to process roles and candidate variants"
+    },
+    "facilities": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/facility" },
+      "description": "Facility instances with location, installed state, and optional safeguard metadata"
+    },
+    "facility_selection": {
+      "$ref": "#/$defs/facility_selection",
+      "description": "Selection and aggregation policy for individual facilities vs archetypes"
+    },
+    "spatial_mappings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/spatial_mapping" },
+      "description": "Mappings from facility location references to model regions by region scheme"
     }
   },
   "$defs": {
@@ -130,6 +158,286 @@
             "pattern": "^[a-z][a-z0-9_-]*$"
           },
           "description": "Optional end-use types for finer granularity (e.g., lighting, heating)"
+        }
+      },
+      "additionalProperties": false
+    },
+    "commodity_group": {
+      "type": "object",
+      "required": ["id", "members", "unit", "dimension"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]*$"
+        },
+        "members": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" },
+          "uniqueItems": true
+        },
+        "unit": {
+          "$ref": "#/$defs/unit_symbol"
+        },
+        "dimension": {
+          "type": "string",
+          "enum": ["energy", "mass", "service"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "facility_class": {
+      "type": "string",
+      "enum": ["safeguard", "generator", "generic"]
+    },
+    "facility_transition_edge": {
+      "type": "object",
+      "required": ["from", "to"],
+      "properties": {
+        "from": { "type": "string" },
+        "to": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "facility_template_input_group": {
+      "type": "object",
+      "required": ["id", "commodity_group"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]*$"
+        },
+        "commodity_group": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "facility_template": {
+      "type": "object",
+      "required": [
+        "id",
+        "class",
+        "role",
+        "sector",
+        "primary_output_commodity",
+        "candidate_variants"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]*$"
+        },
+        "class": {
+          "$ref": "#/$defs/facility_class"
+        },
+        "role": { "type": "string" },
+        "sector": {
+          "type": "string",
+          "enum": ["RES", "COM", "IND", "TRN", "AGR", "NE", "OTH"]
+        },
+        "primary_output_commodity": { "type": "string" },
+        "candidate_variants": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "transition_graph": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/facility_transition_edge" }
+        },
+        "input_groups": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/facility_template_input_group" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "facility_installed_state": {
+      "type": "object",
+      "required": ["variant"],
+      "properties": {
+        "variant": { "type": "string" },
+        "stock": {
+          "oneOf": [
+            { "type": "number", "minimum": 0 },
+            { "$ref": "#/$defs/time_varying_value" }
+          ]
+        },
+        "existing_capacity": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/past_investment" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "facility_variant_policy": {
+      "type": "object",
+      "required": ["variant", "from_year"],
+      "properties": {
+        "variant": { "type": "string" },
+        "from_year": { "type": "integer", "minimum": 1900 },
+        "to_year": { "type": "integer", "minimum": 1900 },
+        "max_new_capacity_per_period": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "facility_input_mix_target": {
+      "type": "object",
+      "required": ["year", "shares"],
+      "properties": {
+        "year": { "type": "integer", "minimum": 1900 },
+        "shares": {
+          "type": "object",
+          "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 }
+        },
+        "hard": { "type": "boolean", "default": false },
+        "tolerance": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.05 }
+      },
+      "additionalProperties": false
+    },
+    "facility_input_mix": {
+      "type": "object",
+      "required": ["group", "baseline_shares"],
+      "properties": {
+        "group": { "type": "string" },
+        "baseline_shares": {
+          "type": "object",
+          "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 }
+        },
+        "targets": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/facility_input_mix_target" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "facility_safeguard_decline_block": {
+      "type": "object",
+      "required": ["from_year", "to_year", "annual_decline_pct"],
+      "properties": {
+        "from_year": { "type": "integer", "minimum": 1900 },
+        "to_year": { "type": "integer", "minimum": 1900 },
+        "annual_decline_pct": { "type": "number", "minimum": 0, "maximum": 100 }
+      },
+      "additionalProperties": false
+    },
+    "facility_safeguard": {
+      "type": "object",
+      "required": ["baseline_intensity", "baseline_year", "intensity_decline_blocks"],
+      "properties": {
+        "baseline_intensity": { "type": "number", "minimum": 0 },
+        "baseline_year": { "type": "integer", "minimum": 1900 },
+        "intensity_decline_blocks": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/facility_safeguard_decline_block" },
+          "minItems": 1
+        },
+        "explicit_intensity_overrides": {
+          "type": "object",
+          "additionalProperties": { "type": "number", "minimum": 0 },
+          "propertyNames": { "pattern": "^[12][0-9]{3}$" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "facility": {
+      "type": "object",
+      "required": [
+        "id",
+        "template",
+        "class",
+        "location_ref",
+        "output_series",
+        "installed_state"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]*$"
+        },
+        "template": { "type": "string" },
+        "class": { "$ref": "#/$defs/facility_class" },
+        "location_ref": { "type": "string" },
+        "representation": {
+          "type": "string",
+          "enum": ["individual", "archetype"],
+          "default": "individual"
+        },
+        "output_series": { "$ref": "#/$defs/time_series" },
+        "installed_state": { "$ref": "#/$defs/facility_installed_state" },
+        "variant_policies": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/facility_variant_policy" }
+        },
+        "input_mix": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/facility_input_mix" }
+        },
+        "safeguard": { "$ref": "#/$defs/facility_safeguard" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "class": { "const": "safeguard" } } },
+          "then": { "required": ["safeguard"] }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "facility_selection": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["top_n_by_baseline_emissions"],
+          "default": "top_n_by_baseline_emissions"
+        },
+        "n_individual": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "ranking_metric": {
+          "type": "string",
+          "enum": ["baseline_emissions"],
+          "default": "baseline_emissions"
+        },
+        "aggregation_keys": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "spatial_mapping_entry": {
+      "type": "object",
+      "required": ["region"],
+      "properties": {
+        "region": { "type": "string" },
+        "share": { "type": "number", "minimum": 0, "maximum": 1, "default": 1.0 }
+      },
+      "additionalProperties": false
+    },
+    "spatial_mapping": {
+      "type": "object",
+      "required": ["scheme", "from", "map"],
+      "properties": {
+        "scheme": { "type": "string" },
+        "from": {
+          "type": "string",
+          "enum": ["facility_location_ref"]
+        },
+        "map": {
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^[A-Za-z0-9_./:-]+$"
+          },
+          "additionalProperties": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "$ref": "#/$defs/spatial_mapping_entry" }
+          }
         }
       },
       "additionalProperties": false

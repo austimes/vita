@@ -1,0 +1,189 @@
+model:
+  name: FacilitySafeguardDemo
+  regions:
+    - QLD
+    - NSW
+  region_scheme: au_state_v1
+  milestone_years:
+    - 2025
+    - 2030
+    - 2035
+  commodities:
+    - id: primary:coal
+      type: fuel
+      combustible: false
+    - id: primary:natural_gas
+      type: fuel
+      combustible: false
+    - id: service:alumina_output
+      type: service
+      unit: PJ
+    - id: emission:co2
+      type: emission
+      unit: Mt
+  cases:
+    - name: baseline
+      is_baseline: true
+
+process_roles:
+  - id: produce_alumina
+    stage: conversion
+    activity_unit: PJ
+    capacity_unit: GW
+    required_inputs: []
+    required_outputs:
+      - commodity: service:alumina_output
+
+process_variants:
+  - id: alumina_coal
+    role: produce_alumina
+    efficiency: 0.9
+    inputs:
+      - commodity: primary:coal
+    outputs:
+      - commodity: service:alumina_output
+    emission_factors:
+      emission:co2: 0.12
+
+  - id: alumina_gas
+    role: produce_alumina
+    efficiency: 0.95
+    inputs:
+      - commodity: primary:natural_gas
+    outputs:
+      - commodity: service:alumina_output
+    emission_factors:
+      emission:co2: 0.08
+
+  - id: alumina_h2
+    role: produce_alumina
+    efficiency: 0.98
+    inputs:
+      - commodity: primary:natural_gas
+    outputs:
+      - commodity: service:alumina_output
+    emission_factors:
+      emission:co2: 0.02
+
+commodity_groups:
+  - id: high_temp_heat
+    members:
+      - primary:coal
+      - primary:natural_gas
+    unit: PJ
+    dimension: energy
+
+facility_templates:
+  - id: alumina_template
+    class: safeguard
+    role: produce_alumina
+    sector: IND
+    primary_output_commodity: service:alumina_output
+    candidate_variants:
+      - alumina_coal
+      - alumina_gas
+      - alumina_h2
+    transition_graph:
+      - from: alumina_coal
+        to: alumina_gas
+      - from: alumina_gas
+        to: alumina_h2
+    input_groups:
+      - id: heat_input
+        commodity_group: high_temp_heat
+
+facility_selection:
+  mode: top_n_by_baseline_emissions
+  n_individual: 1
+  ranking_metric: baseline_emissions
+  aggregation_keys:
+    - template
+    - class
+    - region
+    - primary_output_commodity
+    - installed_variant
+
+spatial_mappings:
+  - scheme: au_state_v1
+    from: facility_location_ref
+    map:
+      aus/qld/gladstone_lga:
+        - region: QLD
+          share: 1.0
+      aus/nsw/newcastle_lga:
+        - region: NSW
+          share: 1.0
+
+facilities:
+  - id: sgf_alumina_gladstone
+    template: alumina_template
+    class: safeguard
+    location_ref: aus/qld/gladstone_lga
+    representation: individual
+    output_series:
+      interpolation: interp_extrap
+      values:
+        2025: 100
+        2030: 95
+        2035: 90
+    installed_state:
+      variant: alumina_coal
+      existing_capacity:
+        - vintage: 2018
+          capacity: 8.0
+    variant_policies:
+      - variant: alumina_gas
+        from_year: 2030
+        max_new_capacity_per_period: 2.0
+      - variant: alumina_h2
+        from_year: 2035
+        max_new_capacity_per_period: 1.5
+    input_mix:
+      - group: heat_input
+        baseline_shares:
+          "primary:coal": 0.8
+          "primary:natural_gas": 0.2
+        targets:
+          - year: 2035
+            shares:
+              "primary:coal": 0.2
+              "primary:natural_gas": 0.8
+            hard: false
+            tolerance: 0.1
+    safeguard:
+      baseline_intensity: 0.1
+      baseline_year: 2025
+      intensity_decline_blocks:
+        - from_year: 2025
+          to_year: 2030
+          annual_decline_pct: 4.9
+        - from_year: 2031
+          to_year: 2040
+          annual_decline_pct: 3.0
+
+  - id: sgf_alumina_newcastle
+    template: alumina_template
+    class: safeguard
+    location_ref: aus/nsw/newcastle_lga
+    representation: individual
+    output_series:
+      interpolation: interp_extrap
+      values:
+        2025: 40
+        2030: 38
+        2035: 35
+    installed_state:
+      variant: alumina_coal
+      existing_capacity:
+        - vintage: 2016
+          capacity: 3.5
+    safeguard:
+      baseline_intensity: 0.11
+      baseline_year: 2025
+      intensity_decline_blocks:
+        - from_year: 2025
+          to_year: 2030
+          annual_decline_pct: 4.9
+        - from_year: 2031
+          to_year: 2040
+          annual_decline_pct: 3.0
