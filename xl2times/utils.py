@@ -495,13 +495,26 @@ def _case_insensitive_match(path: str, pattern: str) -> bool:
     return PurePath(path.lower()).match(pattern.lower())
 
 
-def is_veda_based(files: list[str]) -> bool:
+def is_veda_based(files: list[str], force: bool = False) -> bool:
     """Determine whether the model follows Veda file structure.
     This function does not verify file extensions.
     """
     marker = "SysSettings.*"
 
     matches = [file for file in files if _case_insensitive_match(file, marker)]
+
+    if force:
+        if len(matches) == 1:
+            return True
+        if len(matches) > 1:
+            raise ValueError(
+                "--force-veda requires exactly one SysSettings.* file at model root. "
+                f"Multiple detected: {matches}"
+            )
+        raise ValueError(
+            "--force-veda requires exactly one SysSettings.* file at model root. "
+            "None detected."
+        )
 
     if len(matches) == 1:
         return True

@@ -1048,6 +1048,18 @@ def generate_facility_artifacts(
             if not variants_total:
                 continue
 
+            member_signatures = {
+                tuple(sorted(variants_by_member.get(member, set())))
+                for member in members
+            }
+            if len(members) > 1 and len(member_signatures) <= 1:
+                raise VedaLangError(
+                    "Facility input_mix requires fuel-distinguishable variants. "
+                    "All commodity_group members map to the same variant set, "
+                    "so share/no-backslide constraints are not identifiable. "
+                    "Define separate process_variants per alternate fuel."
+                )
+
             def add_mix_constraint(
                 member: str, share: float, year: int, limtype: str, suffix: str
             ) -> None:

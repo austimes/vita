@@ -12,6 +12,7 @@ This file tracks all local modifications made to the xl2times library, which is 
 | 2025-12-26 | b9ef966 | gams_scaffold/runmodel.gms | Changed GAMS call: `action=c` → `action=ce`, added `optfile=1` | Enable IIS/Conflict Refiner support for CPLEX to diagnose infeasible models |
 | 2026-01-09 | (pending) | transforms.py | Added support for `~MILESTONEYEARS` tag in `process_time_periods()` | VedaLang emits explicit milestone years; xl2times had the tag defined but unimplemented |
 | 2026-01-27 | (pending) | transforms.py | Fixed pandas 3.0 compatibility issues | Two bugs caused by pandas 3.0 breaking changes |
+| 2026-03-04 | (pending) | main.py, utils.py | Added `--force-veda` flag to force VEDA filename filtering and require exactly one `SysSettings.*` root file | Needed strict VEDA-structure validation mode for VedaLang output checks |
 
 ## Details
 
@@ -52,3 +53,13 @@ Modified `xl2times/transforms.py` with two fixes for pandas 3.0 breaking changes
    - Added early return guard when merge produces empty result
    - Preserves original topology columns with added nullable columns
    - Defensive measure to prevent downstream crashes with minimal models
+
+
+### (pending) - `--force-veda` CLI mode (2026-03-04)
+
+Modified `xl2times/main.py` and `xl2times/utils.py`:
+- Added CLI flag `--force-veda` and threaded it into `read_xl()`
+- `is_veda_based(..., force=True)` now enforces exactly one root `SysSettings.*` file
+- In force mode, VEDA filename filtering is always applied
+
+This was added to support strict structure validation when testing VedaLang-emitted model directories.

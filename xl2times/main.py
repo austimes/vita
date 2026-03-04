@@ -88,6 +88,7 @@ def read_xl(
     no_cache: bool = False,
     stop_after_read: bool = False,
     stop_after_validate: bool = False,
+    force_veda: bool = False,
     manifest_builder: ManifestBuilder | None = None,
 ) -> tuple[TimesModel, Config]:
     start_time = datetime.now()
@@ -111,7 +112,7 @@ def read_xl(
             for path in Path(inputs[0]).rglob("*")
             if path.suffix in [".xlsx", ".xlsm"] and not path.name.startswith("~")
         ]
-        if utils.is_veda_based(input_files):
+        if utils.is_veda_based(input_files, force=force_veda):
             input_files = utils.filter_veda_filename_patterns(input_files)
         logger.info(f"Loading {len(input_files)} files from {inputs[0]}")
     else:
@@ -628,6 +629,7 @@ def run(args: argparse.Namespace) -> str | None:
             output_dir=args.output_dir,
             no_cache=args.no_cache,
             stop_after_read=True,
+            force_veda=args.force_veda,
             manifest_builder=manifest_builder,
         )
         # Write outputs before exit
@@ -645,6 +647,7 @@ def run(args: argparse.Namespace) -> str | None:
         output_dir=args.output_dir,
         no_cache=args.no_cache,
         stop_after_validate=args.stop_after_validate,
+        force_veda=args.force_veda,
         manifest_builder=manifest_builder,
     )
 
@@ -743,6 +746,16 @@ def parse_args(arg_list: None | list[str]) -> argparse.Namespace:
         "--no_cache",
         action="store_true",
         help="Ignore cache and re-extract tables from XLSX files",
+    )
+    args_parser.add_argument(
+        "--force-veda",
+        action="store_true",
+        dest="force_veda",
+        help=(
+            "Treat the input directory as VEDA-structured and strictly apply "
+            "VEDA filename filtering. Requires exactly one SysSettings.* file at "
+            "model root."
+        ),
     )
     args_parser.add_argument(
         "--diagnostics-json",

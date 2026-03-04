@@ -311,3 +311,27 @@ def test_facility_scopes_do_not_expand_existing_sector_availability():
         if row["process"].startswith("alumina_generic_AUS_")
     ]
     assert generic_processes == ["alumina_generic_AUS_IND_existing_scope"]
+
+
+def test_facility_input_mix_requires_fuel_distinguishable_variants():
+    source = _base_source()
+    source["process_variants"] = [
+        {
+            "id": "alumina_multi_fuel",
+            "role": "produce_alumina",
+            "inputs": [
+                {"commodity": "primary:coal"},
+                {"commodity": "primary:natural_gas"},
+            ],
+            "outputs": [{"commodity": "service:alumina_output"}],
+            "efficiency": 0.9,
+            "emission_factors": {"emission:co2": 0.1},
+        }
+    ]
+    source["facility_templates"][0]["candidate_variants"] = ["alumina_multi_fuel"]
+    source["facility_templates"][0].pop("transition_graph", None)
+    source["facilities"][0]["installed_state"]["variant"] = "alumina_multi_fuel"
+    source["facilities"][0].pop("variant_policies", None)
+
+    with pytest.raises(VedaLangError, match="fuel-distinguishable variants"):
+        compile_vedalang_to_tableir(source)
