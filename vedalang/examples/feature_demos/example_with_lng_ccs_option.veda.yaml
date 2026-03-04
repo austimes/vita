@@ -1,0 +1,169 @@
+model:
+  name: LngCcsOptionDemo
+  description: LNG decarbonisation with a baseline pathway and an optional CCS pathway
+  regions:
+    - SINGLE
+  milestone_years:
+    - 2020
+    - 2025
+    - 2030
+    - 2040
+    - 2050
+  commodities:
+    - id: emission:co2
+      description: Carbon dioxide emissions ledger
+      type: emission
+      unit: Mt
+      combustible: false
+
+    - id: primary:lng
+      description: Liquefied natural gas
+      type: fuel
+      unit: PJ
+      combustible: true
+      hhv_mj_per_unit: 55.0
+      lhv_mj_per_unit: 50.0
+
+    - id: service:industrial_heat
+      description: Industrial heat demand
+      type: service
+      unit: PJ
+      combustible: false
+  constraints:
+    - name: co2_cap
+      type: emission_cap
+      commodity: emission:co2
+      years:
+        "2030": 4.0
+        "2040": 3.0
+        "2050": 2.0
+      interpolation: interp_extrap
+      limtype: up
+  cases:
+    - name: baseline
+      description: Reference case with no explicit CO2 cap
+      constraint_overrides:
+        - name: co2_cap
+          enabled: false
+      is_baseline: true
+
+    - name: decarbonise_lng
+      description: CO2 cap drives uptake of the CCS LNG pathway
+      variant_overrides:
+        - variant: lng_boiler_with_ccs
+          investment_cost: 45 MUSD24/GW
+
+scoping:
+  sectors:
+    - IND
+
+process_roles:
+  - id: provide_industrial_heat
+    activity_unit: PJ
+    capacity_unit: GW
+    stage: end_use
+    required_inputs: []
+    required_outputs:
+      - commodity: service:industrial_heat
+
+  - id: supply_lng
+    activity_unit: PJ
+    capacity_unit: GW
+    stage: supply
+    required_inputs: []
+    required_outputs:
+      - commodity: primary:lng
+
+process_variants:
+  - id: lng_boiler_baseline
+    role: provide_industrial_heat
+    inputs:
+      - commodity: primary:lng
+        basis: HHV
+    outputs:
+      - commodity: service:industrial_heat
+    emission_factors:
+      emission:co2: 0.056
+    efficiency: 0.9
+    emission_factor_basis: HHV
+    fixed_om_cost: 2 MUSD24/GW/yr
+    investment_cost: 30 MUSD24/GW
+    lifetime: 25
+
+  - id: lng_boiler_with_ccs
+    role: provide_industrial_heat
+    inputs:
+      - commodity: primary:lng
+        basis: HHV
+    outputs:
+      - commodity: service:industrial_heat
+    emission_factors:
+      emission:co2: 0.01
+    efficiency: 0.82
+    emission_factor_basis: HHV
+    fixed_om_cost: 4 MUSD24/GW/yr
+    investment_cost: 55 MUSD24/GW
+    lifetime: 25
+    variable_om_cost: 1.2 MUSD24/PJ
+    variable_om_cost_basis: HHV
+
+  - id: lng_import_terminal
+    role: supply_lng
+    inputs: []
+    outputs:
+      - commodity: primary:lng
+        basis: HHV
+    efficiency: 1.0
+    lifetime: 100
+    variable_om_cost: 9 MUSD24/PJ
+    variable_om_cost_basis: HHV
+
+availability:
+  - variant: lng_boiler_baseline
+    regions:
+      - SINGLE
+    sectors:
+      - IND
+
+  - variant: lng_boiler_with_ccs
+    regions:
+      - SINGLE
+    sectors:
+      - IND
+
+  - variant: lng_import_terminal
+    regions:
+      - SINGLE
+
+process_parameters:
+  - cap_bound:
+      up: 250
+    selector:
+      variant: lng_boiler_baseline
+      region: SINGLE
+      sector: IND
+    stock: 60
+
+  - cap_bound:
+      up: 250
+    selector:
+      variant: lng_boiler_with_ccs
+      region: SINGLE
+      sector: IND
+    stock: 5
+
+  - selector:
+      variant: lng_import_terminal
+      region: SINGLE
+    stock: 1000
+
+demands:
+  - commodity: service:industrial_heat
+    region: SINGLE
+    values:
+      "2020": 90
+      "2030": 110
+      "2040": 125
+      "2050": 140
+    interpolation: interp_extrap
+    sector: IND

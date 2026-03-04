@@ -1,0 +1,212 @@
+model:
+  name: Article6AbatedLngAssessment
+  description: Compare no_deal vs abated_lng_deal outcomes for Australia and a trade
+    partner
+  regions:
+    - AU
+    - PARTNER
+  milestone_years:
+    - 2025
+    - 2030
+    - 2040
+    - 2050
+  commodities:
+    - id: emission:co2
+      description: Carbon dioxide emissions ledger
+      type: emission
+      unit: Mt
+      combustible: false
+
+    - id: material:co2_storage_integrity_token
+      description: Certified sequestration integrity token supplied by Australia
+      type: material
+      unit: PJ
+      combustible: false
+
+    - id: primary:lng
+      description: Liquefied natural gas exported from Australia
+      type: fuel
+      unit: PJ
+      combustible: true
+      hhv_mj_per_unit: 55.0
+      lhv_mj_per_unit: 50.0
+
+    - id: service:partner_power
+      description: Partner-country power service supplied from LNG generation
+      type: service
+      unit: PJ
+      combustible: false
+  trade_links:
+    - commodity: material:co2_storage_integrity_token
+      origin: AU
+      destination: PARTNER
+      bidirectional: false
+      efficiency: 1.0
+
+    - commodity: primary:lng
+      origin: AU
+      destination: PARTNER
+      bidirectional: false
+      efficiency: 0.99
+  cases:
+    - name: abated_lng_deal
+      description: Bilateral deal with CCS-integrity service and lower residual emissions
+      variant_overrides:
+        - variant: au_lng_export_terminal
+          variable_om_cost: 6 MUSD24/PJ
+          variable_om_cost_basis: HHV
+
+        - variant: partner_lng_power_no_ccs
+          enabled: false
+
+    - name: no_deal
+      description: Traditional LNG trade with no CCS-integrity requirement and no deal
+        cap
+      is_baseline: true
+      variant_overrides:
+        - variant: au_storage_integrity_hub
+          enabled: false
+
+        - variant: partner_lng_power_with_ccs
+          enabled: false
+  studies:
+    - name: article6_bilateral_assessment
+      description: Head-to-head comparison of no_deal and abated_lng_deal
+      cases:
+        - abated_lng_deal
+        - no_deal
+
+process_roles:
+  - id: provide_partner_power
+    activity_unit: PJ
+    capacity_unit: GW
+    stage: end_use
+    required_inputs:
+      - commodity: primary:lng
+    required_outputs:
+      - commodity: service:partner_power
+
+  - id: supply_lng_exports
+    activity_unit: PJ
+    capacity_unit: GW
+    stage: supply
+    required_inputs: []
+    required_outputs:
+      - commodity: primary:lng
+
+  - id: supply_storage_integrity
+    activity_unit: PJ
+    capacity_unit: GW
+    stage: supply
+    required_inputs: []
+    required_outputs:
+      - commodity: material:co2_storage_integrity_token
+
+process_variants:
+  - id: au_lng_export_terminal
+    role: supply_lng_exports
+    inputs: []
+    outputs:
+      - commodity: primary:lng
+        basis: HHV
+    efficiency: 1.0
+    lifetime: 100
+    variable_om_cost: 8 MUSD24/PJ
+    variable_om_cost_basis: HHV
+
+  - id: au_storage_integrity_hub
+    role: supply_storage_integrity
+    inputs: []
+    outputs:
+      - commodity: material:co2_storage_integrity_token
+    efficiency: 1.0
+    lifetime: 100
+    variable_om_cost: 3 MUSD24/PJ
+
+  - id: partner_lng_power_no_ccs
+    role: provide_partner_power
+    inputs:
+      - commodity: primary:lng
+        basis: HHV
+    outputs:
+      - commodity: service:partner_power
+    emission_factors:
+      emission:co2: 1.0
+    efficiency: 1.0
+    emission_factor_basis: HHV
+    fixed_om_cost: 1 MUSD24/GW/yr
+    investment_cost: 25 MUSD24/GW
+    lifetime: 30
+    variable_om_cost: 15 MUSD24/PJ
+    variable_om_cost_basis: HHV
+
+  - id: partner_lng_power_with_ccs
+    role: provide_partner_power
+    inputs:
+      - commodity: material:co2_storage_integrity_token
+
+      - commodity: primary:lng
+        basis: HHV
+    outputs:
+      - commodity: service:partner_power
+    emission_factors:
+      emission:co2: 0.15
+    efficiency: 1.0
+    emission_factor_basis: HHV
+    fixed_om_cost: 2 MUSD24/GW/yr
+    investment_cost: 40 MUSD24/GW
+    lifetime: 30
+    variable_om_cost: 22 MUSD24/PJ
+    variable_om_cost_basis: HHV
+
+availability:
+  - variant: au_lng_export_terminal
+    regions:
+      - AU
+
+  - variant: au_storage_integrity_hub
+    regions:
+      - AU
+
+  - variant: partner_lng_power_no_ccs
+    regions:
+      - PARTNER
+
+  - variant: partner_lng_power_with_ccs
+    regions:
+      - PARTNER
+
+process_parameters:
+  - selector:
+      variant: au_lng_export_terminal
+      region: AU
+    stock: 500
+
+  - selector:
+      variant: au_storage_integrity_hub
+      region: AU
+    stock: 500
+
+  - cap_bound:
+      up: 200
+    selector:
+      variant: partner_lng_power_no_ccs
+      region: PARTNER
+    stock: 150
+
+  - cap_bound:
+      up: 200
+    selector:
+      variant: partner_lng_power_with_ccs
+      region: PARTNER
+    stock: 150
+
+demands:
+  - commodity: service:partner_power
+    region: PARTNER
+    values:
+      "2025": 100
+      "2030": 100
+      "2040": 100
+      "2050": 100
+    interpolation: interp_extrap
