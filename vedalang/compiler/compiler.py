@@ -23,6 +23,7 @@ from vedalang.conventions import (
 )
 
 from .demands import compile_demands
+from .facilities import generate_facility_artifacts, prepare_facilities
 from .ir import (
     apply_process_parameters,
     build_roles,
@@ -3441,10 +3442,6 @@ def _compile_new_syntax(
     # Build normalized commodities dict
     commodities = _normalize_commodities_for_new_syntax(model.get("commodities", []))
 
-    # Build scope keys
-    scoping_cfg = source.get("scoping") or {}
-    segment_keys = build_segments({"scoping": scoping_cfg})
-
     # Build roles from process_roles
     roles = build_roles(source, commodities)
     convention_warnings = _validate_new_syntax_structural_invariants(
@@ -3455,6 +3452,19 @@ def _compile_new_syntax(
 
     # Build variants from process_variants
     variants = build_variants(source, roles, commodities)
+
+    # Expand facility primitives into existing demands/availability/parameters.
+    source, facility_context = prepare_facilities(
+        source,
+        commodities,
+        variants,
+        milestone_years,
+    )
+    model = source["model"]
+
+    # Build scope keys (after facility expansion so generated scopes are included)
+    scoping_cfg = source.get("scoping") or {}
+    segment_keys = build_segments({"scoping": scoping_cfg})
 
     # Expand availability to process instances
     instances = expand_availability(source, variants, segment_keys)
@@ -3475,6 +3485,16 @@ def _compile_new_syntax(
                 "region": meta["region"],
             }
         )
+    process_symbol_map: dict[tuple[str, str, str | None], str] = {}
+    for process_symbol, meta in metadata_map.items():
+        process_symbol_map[(meta["variant"], meta["region"], meta.get("scope"))] = (
+            process_symbol
+        )
+    facility_tfm_rows, facility_constraints = generate_facility_artifacts(
+        facility_context,
+        variants,
+        process_symbol_map,
+    )
     diagnostics_export = _resolve_diagnostics_boundaries(
         source.get("diagnostics"), metadata_map
     )
@@ -3484,6 +3504,16 @@ def _compile_new_syntax(
 
     # Compile demands to scenario parameters
     demand_params = compile_demands(source, commodities, segment_keys, registry)
+
+    scoped_segments: set[str] = {seg for seg in segment_keys if seg}
+    scoped_segments.update(
+        key.segment for key in instances if key.segment is not None
+    )
+    for demand in source.get("demands") or []:
+        demand_scope = demand.get("scope") or demand.get("sector")
+        if demand_scope:
+            scoped_segments.add(demand_scope)
+    scoped_segments_sorted = sorted(scoped_segments)
 
     # Build commodity rows for ~FI_COMM
     comm_rows = []
@@ -3495,8 +3525,8 @@ def _compile_new_syntax(
             "unit": comm.get("unit", "PJ"),
         })
         # For non-tradable commodities with scopes, emit scoped versions
-        if not comm.get("tradable", True) and segment_keys:
-            for seg in segment_keys:
+        if not comm.get("tradable", True) and scoped_segments_sorted:
+            for seg in scoped_segments_sorted:
                 scoped_sym = registry.get_commodity_symbol(comm_id, seg)
                 if scoped_sym != comm_id:  # Only add if different
                     comm_rows.append({
@@ -3686,6 +3716,9 @@ def _compile_new_syntax(
                     "value": em_factor,
                 })
 
+    if facility_tfm_rows:
+        pasti_rows.extend(facility_tfm_rows)
+
     # Build system settings
     model_name = model.get("name", "Model")
     bookname = model_name.upper()
@@ -3760,9 +3793,12 @@ def _compile_new_syntax(
         cases = [{"name": "baseline", "is_baseline": True}]
     cases = _select_cases(cases, selected_cases)
 
+    all_constraints = list(model.get("constraints", []))
+    all_constraints.extend(facility_constraints)
+
     scenario_files, cases_json = _compile_scenario_files(
         all_scenario_params,
-        model.get("constraints", []),
+        all_constraints,
         cases,
         regions,
         milestone_years,
@@ -5539,10 +5575,15 @@ def _compile_scenario_files(
                     }
                 )
 
+            used_sheet_names = {sheet["name"] for sheet in sheets}
+
             # Build UC sheets - ONE ~UC_T per constraint (not merged)
             for uc_item in uc_items:
+                sheet_name = _safe_excel_sheet_name(
+                    uc_item["name"], used_sheet_names
+                )
                 sheets.append({
-                    "name": uc_item["name"],
+                    "name": sheet_name,
                     "tables": [{
                         "tag": "~UC_T",
                         "uc_sets": uc_item.get("uc_sets", {}),
@@ -5568,6 +5609,24 @@ def _compile_scenario_files(
         })
 
     return scenario_files, cases_json
+
+
+def _safe_excel_sheet_name(name: str, used_names: set[str]) -> str:
+    """Sanitize and deduplicate Excel sheet names."""
+    safe = re.sub(r"[:\\/?*\\[\\]]", "_", name).strip()
+    if not safe:
+        safe = "Sheet"
+    safe = safe[:31]
+
+    candidate = safe
+    index = 1
+    while candidate in used_names:
+        suffix = f"_{index}"
+        candidate = f"{safe[: max(1, 31 - len(suffix))]}{suffix}"
+        index += 1
+
+    used_names.add(candidate)
+    return candidate
 
 
 def _category_to_sheet_name(category: str) -> str:
@@ -5612,6 +5671,8 @@ def _compile_single_constraint(
         return _compile_activity_share(
             uc_name, commodity, constraint, region, model_years
         )
+    elif constraint_type == "__uc_rows__":
+        return list(constraint.get("rows", []))
 
     return []
 
