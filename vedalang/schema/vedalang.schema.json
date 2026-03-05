@@ -2558,6 +2558,28 @@
               }
             ]
           }
+        },
+        "variable_om_cost_basis": {
+          "$ref": "#/$defs/energy_basis",
+          "description": "Point-of-use heating-value basis for variable_om_cost when activity is energy-based and the variant uses combustible commodities."
+        },
+        "emission_factor_basis": {
+          "$ref": "#/$defs/energy_basis",
+          "description": "Point-of-use heating-value basis for emission_factors when variant has combustible inputs/outputs."
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "device",
+            "storage",
+            "generator",
+            "network"
+          ],
+          "description": "Optional semantic kind for diagnostics metadata. When omitted, compiler derives it."
+        },
+        "notes": {
+          "type": "string",
+          "description": "Optional implementation notes (recommended for negative emission factors)"
         }
       },
       "additionalProperties": false

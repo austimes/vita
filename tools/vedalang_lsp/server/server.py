@@ -1449,6 +1449,7 @@ def res_graph(ls: VedaLangServer, params) -> dict:
     mode = "source"
     granularity = "role"
     lens = "system"
+    commodity_view = "collapse_scope"
     regions: list[str] = []
     case_name = None
     sectors: list[str] = []
@@ -1460,6 +1461,7 @@ def res_graph(ls: VedaLangServer, params) -> dict:
         mode = getattr(params, "mode", mode)
         granularity = getattr(params, "granularity", granularity)
         lens = getattr(params, "lens", lens)
+        commodity_view = getattr(params, "commodityView", commodity_view)
         regions = list(getattr(params, "regions", regions) or [])
         case_name = getattr(params, "case", case_name)
         sectors = list(getattr(params, "sectors", sectors) or [])
@@ -1470,6 +1472,7 @@ def res_graph(ls: VedaLangServer, params) -> dict:
         mode = getattr(params, "mode", mode)
         granularity = getattr(params, "granularity", granularity)
         lens = getattr(params, "lens", lens)
+        commodity_view = getattr(params, "commodityView", commodity_view)
         regions = list(getattr(params, "regions", regions) or [])
         case_name = getattr(params, "case", case_name)
         sectors = list(getattr(params, "sectors", sectors) or [])
@@ -1480,6 +1483,7 @@ def res_graph(ls: VedaLangServer, params) -> dict:
         mode = params.get("mode", mode)
         granularity = params.get("granularity", granularity)
         lens = params.get("lens", lens)
+        commodity_view = params.get("commodityView", commodity_view)
         regions = list(params.get("regions", regions) or [])
         case_name = params.get("case", case_name)
         sectors = list(params.get("sectors", sectors) or [])
@@ -1492,7 +1496,7 @@ def res_graph(ls: VedaLangServer, params) -> dict:
         }
 
     if include_variants and granularity == "role":
-        granularity = "variant"
+        granularity = "provider_variant"
 
     parsed_uri = urlparse(uri)
     file_path = unquote(parsed_uri.path) if parsed_uri.path else ""
@@ -1508,6 +1512,7 @@ def res_graph(ls: VedaLangServer, params) -> dict:
         "mode": mode,
         "granularity": granularity,
         "lens": lens,
+        "commodity_view": commodity_view,
         "filters": {
             "regions": regions,
             "case": case_name,

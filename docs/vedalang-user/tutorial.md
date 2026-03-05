@@ -29,20 +29,33 @@ model:
 
 roles:
   - id: generate_electricity
+    activity_unit: PJ
+    capacity_unit: GW
     stage: conversion
-    inputs:
+    required_inputs:
       - commodity: primary:natural_gas
-    outputs:
+    required_outputs:
       - commodity: secondary:electricity
 
 variants:
   - id: gas_plant
     role: generate_electricity
-    efficiency: 0.50
+    modes:
+      - id: ng
+        inputs:
+          - commodity: primary:natural_gas
+        outputs:
+          - commodity: secondary:electricity
+        efficiency: 0.50
 
-availability:
-  - variant: gas_plant
-    regions: [REG1]
+providers:
+  - id: fleet.generate_electricity.REG1
+    kind: fleet
+    role: generate_electricity
+    region: REG1
+    offerings:
+      - variant: gas_plant
+        modes: [ng]
 ```
 
 ### What Each Section Does
@@ -50,9 +63,10 @@ availability:
 - **model.regions**: Geographic regions in your model
 - **model.milestone_years**: Time periods the model solves for
 - **model.commodities**: Energy carriers, services, and emissions — with namespace prefixes (e.g., `secondary:`, `service:`, `emission:`)
-- **roles**: Templates defining what a process does (inputs → outputs)
-- **variants**: Specific technologies that implement a role
-- **availability**: Where and when each variant is available
+- **roles**: Process type contracts (what service/transformation is provided)
+- **variants**: Technology pathways implementing each role
+- **modes**: Operating states nested under each variant
+- **providers**: Concrete facility/fleet objects that host role/variant/mode choices
 
 ## Step 2: Validate Your Model
 
@@ -121,16 +135,21 @@ roles:
       - commodity: secondary:electricity  # ← Must match exactly
 ```
 
-### Missing Availability
+### Missing Providers
 
 **Error**: Heuristic warning about unused process variants
 
-**Fix**: Add an `availability` entry for each variant:
+**Fix**: Add a `providers` entry that offers the variant and mode:
 
 ```yaml
-availability:
-  - variant: gas_plant
-    regions: [REG1]
+providers:
+  - id: fleet.generate_electricity.REG1
+    kind: fleet
+    role: generate_electricity
+    region: REG1
+    offerings:
+      - variant: gas_plant
+        modes: [ng]
 ```
 
 ## Next Steps

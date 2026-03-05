@@ -29,6 +29,7 @@ VALID_GRANULARITIES = {
     "facility",
 }
 VALID_LENSES = {"system", "trade"}
+VALID_COMMODITY_VIEWS = {"scoped", "collapse_scope"}
 
 
 def _diagnostic(code: str, severity: str, message: str) -> dict[str, str]:
@@ -53,6 +54,14 @@ def _sanitize_lens(value: str | None) -> str:
     return "system"
 
 
+def _sanitize_commodity_view(value: str | None, granularity: str) -> str:
+    if value in VALID_COMMODITY_VIEWS:
+        return str(value)
+    if granularity == "instance":
+        return "scoped"
+    return "collapse_scope"
+
+
 def _normalize_request(request: dict[str, Any]) -> dict[str, Any]:
     filters = (
         request.get("filters")
@@ -64,12 +73,17 @@ def _normalize_request(request: dict[str, Any]) -> dict[str, Any]:
         if isinstance(request.get("compiled"), dict)
         else {}
     )
+    granularity = _sanitize_granularity(request.get("granularity"))
     return {
         "version": str(request.get("version", "1")),
         "file": request.get("file", ""),
         "mode": _sanitize_mode(request.get("mode")),
-        "granularity": _sanitize_granularity(request.get("granularity")),
+        "granularity": granularity,
         "lens": _sanitize_lens(request.get("lens")),
+        "commodity_view": _sanitize_commodity_view(
+            request.get("commodity_view"),
+            granularity,
+        ),
         "filters": {
             "regions": list(filters.get("regions", []) or []),
             "case": filters.get("case"),
@@ -138,7 +152,17 @@ def _empty_response(mode: str, diagnostics: list[dict[str, str]]) -> dict[str, A
             "cases": [],
             "sectors": [],
             "scopes": [],
-            "granularities": ["role", "variant", "instance", "mode", "facility"],
+            "granularities": [
+                "role",
+                "provider",
+                "provider_variant",
+                "provider_variant_mode",
+                "instance",
+                "variant",
+                "mode",
+                "facility",
+            ],
+            "commodity_views": ["scoped", "collapse_scope"],
             "lenses": ["system", "trade"],
         },
         "diagnostics": diagnostics,
@@ -190,6 +214,7 @@ def query_res_graph(request: dict[str, Any]) -> dict[str, Any]:
             source,
             granularity=req["granularity"],
             filters=filters,
+            commodity_view=req["commodity_view"],
         )
 
     if req["mode"] == "source":
@@ -223,6 +248,7 @@ def query_res_graph(request: dict[str, Any]) -> dict[str, Any]:
                     compiled.manifest,
                     granularity=req["granularity"],
                     filters=filters,
+                    commodity_view=req["commodity_view"],
                 )
         elif req["compiled"].get("allow_partial", True):
             mode_used = "source"
@@ -301,7 +327,17 @@ def response_to_mermaid(response: dict[str, Any]) -> str:
                 label = facility_id
         stage = detail.get("stage") if isinstance(detail, dict) else None
         if (
-            node_type in {"role", "variant", "instance", "mode", "facility"}
+            node_type
+            in {
+                "role",
+                "provider",
+                "provider_variant",
+                "provider_variant_mode",
+                "instance",
+                "variant",
+                "mode",
+                "facility",
+            }
             and isinstance(stage, str)
             and stage
         ):

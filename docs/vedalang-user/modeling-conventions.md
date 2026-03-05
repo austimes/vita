@@ -22,6 +22,9 @@ schema/compiler are authoritative.
 
 - `role` = **what service/transformation is provided**
 - `variant` = **how the role is provided** (technology pathway)
+- `mode` = **operating state within a variant** (fuel/configuration)
+- `provider` = **facility/fleet reporting object** hosting variant/mode choices
+- `scope` = **commodity-only market partition** (not a process/type identity)
 <!-- GENERATED:canonical-enums:start -->
 - `stage` = one of `supply | conversion | distribution | storage | end_use | sink`
 - `commodity.type` = one of `fuel | energy | service | material | emission | money | other`
@@ -30,6 +33,11 @@ schema/compiler are authoritative.
 
 Keep these terms consistent in model docs, PRDs, lint narratives, and
 diagnostics specs.
+
+Hard hierarchy:
+- `role -> variant -> mode` is the type axis.
+- `provider` is the object axis.
+- `scope` belongs only to commodity symbols/markets.
 
 ## Core Conventions
 
@@ -42,21 +50,47 @@ Good:
 ```yaml
 roles:
   - id: provide_space_heat
+    activity_unit: PJ
+    capacity_unit: GW
     stage: end_use
-    inputs:
+    required_inputs:
       - commodity: primary:natural_gas
-    outputs:
+    required_outputs:
       - commodity: service:space_heat
 
 variants:
   - id: gas_boiler
     role: provide_space_heat
-    efficiency: 0.9
-    emission_factors:
-      emission:co2: 0.056
+    modes:
+      - id: ng
+        inputs:
+          - commodity: primary:natural_gas
+        outputs:
+          - commodity: service:space_heat
+        efficiency: 0.9
+        emission_factors:
+          emission:co2: 0.056
   - id: heat_pump
     role: provide_space_heat
-    efficiency: 3.2
+    modes:
+      - id: grid
+        inputs:
+          - commodity: secondary:electricity
+        outputs:
+          - commodity: service:space_heat
+        efficiency: 3.2
+
+providers:
+  - id: fleet.space_heat.VIC.residential
+    kind: fleet
+    role: provide_space_heat
+    region: VIC
+    scopes: [RES]
+    offerings:
+      - variant: gas_boiler
+        modes: [ng]
+      - variant: heat_pump
+        modes: [grid]
 ```
 
 Avoid:

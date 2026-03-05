@@ -159,3 +159,16 @@ Pre-compilation checks that catch modeling patterns causing solver infeasibility
   (`NCAP_COST`) on retrofit mode capacity.
 - **Removed old facility constraints:** `FAC_MIX_*` and `FAC_NB_*` no longer
   generated for facility fuel switching.
+
+## Core Abstraction v2 (2026-03-06)
+
+- **Breaking change:** Locked the new abstraction split:
+  - type axis: `role -> variant -> mode`
+  - object axis: `provider` (`facility` or `fleet`)
+  - commodity axis: `scope` (market partitioning only)
+- **Decision:** Hard cut prototype policy applied; no backward-compatibility layer retained for legacy mixed type/object semantics.
+- **Decision:** Roles remain process semantics (not commodity semantics).
+- **Schema direction:** `roles`/`variants` terminology is canonical; providers are first-class model objects; mode-level authoring is nested under variants.
+- **Compiler/reporting:** Added provider-centric reporting payloads so outputs can be audited by provider identity (`provider_id`, `provider_kind`, role/variant/mode membership, scope/region/process links).
+- **RES visualization/query:** Added independent commodity view controls (`scoped`, `collapse_scope`) decoupled from process granularity; preserved underlying scoped commodity provenance on collapsed nodes/edges.
+- **UX alignment:** CLI, web viz, and LSP request contract now expose provider hierarchy granularities with commodity-view controls for consistent behavior.

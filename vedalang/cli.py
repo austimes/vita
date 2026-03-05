@@ -294,9 +294,27 @@ def _add_res_parser(subparsers):
     )
     common.add_argument(
         "--granularity",
-        choices=["role", "variant", "instance", "mode", "facility"],
+        choices=[
+            "role",
+            "provider",
+            "provider_variant",
+            "provider_variant_mode",
+            "instance",
+            "variant",
+            "mode",
+            "facility",
+        ],
         default="role",
         help="Node granularity (default: role)",
+    )
+    common.add_argument(
+        "--commodity-view",
+        choices=["scoped", "collapse_scope"],
+        default=None,
+        help=(
+            "Commodity rendering mode (default: collapse_scope except "
+            "instance= scoped)"
+        ),
     )
     common.add_argument(
         "--lens",
@@ -384,9 +402,24 @@ def _add_viz_parser(subparsers):
     )
     p.add_argument(
         "--granularity",
-        choices=["role", "variant", "instance", "mode", "facility"],
+        choices=[
+            "role",
+            "provider",
+            "provider_variant",
+            "provider_variant_mode",
+            "instance",
+            "variant",
+            "mode",
+            "facility",
+        ],
         default=None,
         help="Node granularity for --mermaid output (default: role)",
+    )
+    p.add_argument(
+        "--commodity-view",
+        choices=["scoped", "collapse_scope"],
+        default=None,
+        help="Commodity rendering mode for --mermaid",
     )
     p.add_argument(
         "--debug", action="store_true", help="Print debug info about nodes and edges"
@@ -1924,6 +1957,7 @@ def _res_request_from_args(args) -> dict[str, Any]:
         "mode": args.mode,
         "granularity": args.granularity,
         "lens": args.lens,
+        "commodity_view": getattr(args, "commodity_view", None),
         "filters": {
             "regions": list(args.region or []),
             "case": args.case,
@@ -2225,6 +2259,7 @@ def cmd_viz(args) -> int:
             "mode": "source",
             "granularity": granularity,
             "lens": "system",
+            "commodity_view": getattr(args, "commodity_view", None),
             "filters": {"regions": [], "case": None, "sectors": [], "scopes": []},
             "compiled": {"truth": "auto", "cache": True, "allow_partial": True},
         }

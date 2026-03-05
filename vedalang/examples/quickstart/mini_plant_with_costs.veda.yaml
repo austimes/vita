@@ -66,68 +66,92 @@ roles:
 variants:
   - id: ccgt
     role: generate_electricity
-    inputs:
-      - commodity: primary:natural_gas
-        basis: HHV
-    outputs:
-      - commodity: secondary:electricity
-    efficiency: 0.55
-    fixed_om_cost: 20 MUSD24/GW/yr
-    investment_cost: 800 MUSD24/GW
-    lifetime: 30
-    variable_om_cost: 2 MUSD24/PJ
-    variable_om_cost_basis: HHV
+    modes:
+      - id: ng
+        inputs:
+          - commodity: primary:natural_gas
+            basis: HHV
+        outputs:
+          - commodity: secondary:electricity
+        efficiency: 0.55
+        fixed_om_cost: 20 MUSD24/GW/yr
+        investment_cost: 800 MUSD24/GW
+        lifetime: 30
+        variable_om_cost: 2 MUSD24/PJ
+        variable_om_cost_basis: HHV
 
   - id: gas_import
     role: import_gas
-    inputs: []
-    outputs:
-      - commodity: primary:natural_gas
-        basis: HHV
-    efficiency: 1.0
-    lifetime: 100
-    variable_om_cost: 5 MUSD24/PJ
-    variable_om_cost_basis: HHV
+    modes:
+      - id: steady
+        inputs: []
+        outputs:
+          - commodity: primary:natural_gas
+            basis: HHV
+        efficiency: 1.0
+        lifetime: 100
+        variable_om_cost: 5 MUSD24/PJ
+        variable_om_cost_basis: HHV
 
   - id: residential_device
     role: deliver_residential
-    inputs:
-      - commodity: secondary:electricity
-    outputs:
-      - commodity: service:residential_electricity_service
-    efficiency: 1.0
-    lifetime: 100
+    modes:
+      - id: direct
+        inputs:
+          - commodity: secondary:electricity
+        outputs:
+          - commodity: service:residential_electricity_service
+        efficiency: 1.0
+        lifetime: 100
 
-# Availability: expands each variant into region/scope-specific process instances in the RES.
-availability:
-  - variant: ccgt
-    regions:
-      - REG1
+# Providers: concrete reporting objects hosting role/variant/mode choices.
+providers:
+  - id: fleet.generate_electricity.REG1
+    kind: fleet
+    role: generate_electricity
+    region: REG1
+    offerings:
+      - variant: ccgt
+        modes: [ng]
 
-  - variant: gas_import
-    regions:
-      - REG1
+  - id: fleet.import_gas.REG1
+    kind: fleet
+    role: import_gas
+    region: REG1
+    offerings:
+      - variant: gas_import
+        modes: [steady]
 
-  - variant: residential_device
-    regions:
-      - REG1
-    sectors:
+  - id: fleet.deliver_residential.REG1.RES
+    kind: fleet
+    role: deliver_residential
+    region: REG1
+    scopes:
       - RES
+    offerings:
+      - variant: residential_device
+        modes: [direct]
 
-# Process parameters: selector-based overrides applied to matching instantiated process copies.
-process_parameters:
+# Provider parameters: selector-based overrides applied to provider instances.
+provider_parameters:
   - selector:
+      provider: fleet.generate_electricity.REG1
       variant: ccgt
+      mode: ng
       region: REG1
     stock: 10
 
   - selector:
+      provider: fleet.import_gas.REG1
       variant: gas_import
+      mode: steady
       region: REG1
     stock: 1000
 
   - selector:
+      provider: fleet.deliver_residential.REG1.RES
       variant: residential_device
+      mode: direct
       region: REG1
-      sector: RES
+      scope: RES
     stock: 1000

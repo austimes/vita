@@ -28,6 +28,9 @@ class FilterSpec:
     scopes: set[str]
 
 
+VALID_COMMODITY_VIEWS = {"scoped", "collapse_scope"}
+
+
 def _is_truthy_trade_cell(value: Any) -> bool:
     if value is None:
         return False
@@ -113,8 +116,15 @@ def _build_facets(source: dict, segment_keys: list[str]) -> dict[str, list[str]]
             "mode",
             "facility",
         ],
+        "commodity_views": ["scoped", "collapse_scope"],
         "lenses": ["system", "trade"],
     }
+
+
+def _display_commodity_symbol(symbol: str, commodity_view: str) -> str:
+    if commodity_view == "collapse_scope":
+        return symbol.split("@", 1)[0]
+    return symbol
 
 
 def _prepare_source_for_graph(
@@ -304,6 +314,7 @@ def build_source_system_graph(
     *,
     granularity: str,
     filters: FilterSpec,
+    commodity_view: str = "scoped",
 ) -> dict[str, Any]:
     """Build source-mode graph using role/variant/availability expansion."""
     model = source.get("model", {})
@@ -422,51 +433,74 @@ def build_source_system_graph(
             if ramp_rate is not None:
                 group["ramp_rates"].add(float(ramp_rate))
 
-        for inp in instance.variant.inputs:
-            comm_node_id = f"commodity:{inp}"
-            _ensure_node(nodes, node_map, comm_node_id, inp, "commodity")
+        inputs = instance.mode.inputs if instance.mode else instance.variant.inputs
+        outputs = instance.mode.outputs if instance.mode else instance.variant.outputs
+
+        for inp in inputs:
+            display_comm = _display_commodity_symbol(str(inp), commodity_view)
+            comm_node_id = f"commodity:{display_comm}"
+            _ensure_node(nodes, node_map, comm_node_id, display_comm, "commodity")
             details_nodes.setdefault(
                 comm_node_id,
                 {
-                    "commodity": inp,
-                    "type": commodity_types.get(inp, "energy"),
+                    "commodity": display_comm,
+                    "type": commodity_types.get(display_comm, "energy"),
+                    "underlying": [],
                 },
             )
+            detail = details_nodes[comm_node_id]
+            if inp not in detail["underlying"]:
+                detail["underlying"].append(inp)
             edge_key = (comm_node_id, current_node_id, "input")
             edge_id = f"edge:{comm_node_id}->{current_node_id}:input"
             if edge_key not in seen_edges:
                 edges.append(_edge(edge_id, comm_node_id, current_node_id, "input"))
                 details_edges[edge_id] = {
-                    "commodity": inp,
+                    "commodity": display_comm,
+                    "underlying": set(),
                     "direction": "input",
                     "processes": set(),
                     "regions": set(),
                     "scopes": set(),
                 }
                 seen_edges.add(edge_key)
+            details_edges[edge_id]["underlying"].add(inp)
             details_edges[edge_id]["processes"].add(process_symbol)
             details_edges[edge_id]["regions"].add(key.region)
             if key.segment:
                 details_edges[edge_id]["scopes"].add(key.segment)
 
-        for out in instance.variant.outputs:
-            comm_node_id = f"commodity:{out}"
-            _ensure_node(nodes, node_map, comm_node_id, out, "commodity")
-            ctype = commodity_types.get(out, "energy")
-            details_nodes.setdefault(comm_node_id, {"commodity": out, "type": ctype})
+        for out in outputs:
+            display_comm = _display_commodity_symbol(str(out), commodity_view)
+            comm_node_id = f"commodity:{display_comm}"
+            _ensure_node(nodes, node_map, comm_node_id, display_comm, "commodity")
+            ctype = commodity_types.get(display_comm, "energy")
+            details_nodes.setdefault(
+                comm_node_id,
+                {
+                    "commodity": display_comm,
+                    "type": ctype,
+                    "underlying": [],
+                },
+            )
+            detail = details_nodes[comm_node_id]
+            if out not in detail["underlying"]:
+                detail["underlying"].append(out)
             edge_type = "emission" if ctype == "emission" else "output"
             edge_key = (current_node_id, comm_node_id, edge_type)
             edge_id = f"edge:{current_node_id}->{comm_node_id}:{edge_type}"
             if edge_key not in seen_edges:
                 edges.append(_edge(edge_id, current_node_id, comm_node_id, edge_type))
                 details_edges[edge_id] = {
-                    "commodity": out,
+                    "commodity": display_comm,
+                    "underlying": set(),
                     "direction": edge_type,
                     "processes": set(),
                     "regions": set(),
                     "scopes": set(),
                 }
                 seen_edges.add(edge_key)
+            details_edges[edge_id]["underlying"].add(out)
             details_edges[edge_id]["processes"].add(process_symbol)
             details_edges[edge_id]["regions"].add(key.region)
             if key.segment:
@@ -478,6 +512,8 @@ def build_source_system_graph(
         details_nodes[group_id] = _finalize_group_detail(group)
 
     for edge_id, detail in details_edges.items():
+        if isinstance(detail.get("underlying"), set):
+            detail["underlying"] = sorted(detail["underlying"])
         if isinstance(detail.get("processes"), set):
             detail["processes"] = sorted(detail["processes"])
         if isinstance(detail.get("regions"), set):
@@ -519,6 +555,7 @@ def build_compiled_system_graph(
     *,
     granularity: str,
     filters: FilterSpec,
+    commodity_view: str = "scoped",
 ) -> dict[str, Any]:
     """Build compiled-mode system graph from FI_* tables and metadata."""
     model = source.get("model", {})
@@ -689,23 +726,32 @@ def build_compiled_system_graph(
 
         commodity_in = row.get("commodity-in")
         if commodity_in:
-            comm_node_id = f"commodity:{commodity_in}"
+            display_comm = _display_commodity_symbol(str(commodity_in), commodity_view)
+            comm_node_id = f"commodity:{display_comm}"
             if comm_node_id not in node_map:
-                ctype = _commodity_type(str(commodity_in), commodity_types)
+                ctype = _commodity_type(display_comm, commodity_types)
                 _ensure_node(
                     nodes,
                     node_map,
                     comm_node_id,
-                    str(commodity_in),
+                    display_comm,
                     "commodity",
                 )
-                details_nodes[comm_node_id] = {"commodity": commodity_in, "type": ctype}
+                details_nodes[comm_node_id] = {
+                    "commodity": display_comm,
+                    "type": ctype,
+                    "underlying": [],
+                }
+            node_detail = details_nodes[comm_node_id]
+            if commodity_in not in node_detail.get("underlying", []):
+                node_detail.setdefault("underlying", []).append(commodity_in)
             edge_key = (comm_node_id, group_id, "input")
             if edge_key not in seen_edges:
                 edge_id = f"edge:{comm_node_id}->{group_id}:input"
                 edges.append(_edge(edge_id, comm_node_id, group_id, "input"))
                 details_edges[edge_id] = {
-                    "commodity": commodity_in,
+                    "commodity": display_comm,
+                    "underlying": set(),
                     "direction": "input",
                     "processes": set(),
                     "regions": set(),
@@ -713,34 +759,43 @@ def build_compiled_system_graph(
                 }
                 seen_edges.add(edge_key)
             edge_id = f"edge:{comm_node_id}->{group_id}:input"
+            details_edges[edge_id]["underlying"].add(commodity_in)
             details_edges[edge_id]["processes"].add(process)
             details_edges[edge_id]["regions"].add(process_region.get(process))
             details_edges[edge_id]["scopes"].add(process_scope.get(process))
 
         commodity_out = row.get("commodity-out")
         if commodity_out:
-            comm_node_id = f"commodity:{commodity_out}"
+            display_comm = _display_commodity_symbol(
+                str(commodity_out), commodity_view
+            )
+            comm_node_id = f"commodity:{display_comm}"
             if comm_node_id not in node_map:
-                ctype = _commodity_type(str(commodity_out), commodity_types)
+                ctype = _commodity_type(display_comm, commodity_types)
                 _ensure_node(
                     nodes,
                     node_map,
                     comm_node_id,
-                    str(commodity_out),
+                    display_comm,
                     "commodity",
                 )
                 details_nodes[comm_node_id] = {
-                    "commodity": commodity_out,
+                    "commodity": display_comm,
                     "type": ctype,
+                    "underlying": [],
                 }
-            ctype = _commodity_type(str(commodity_out), commodity_types)
+            node_detail = details_nodes[comm_node_id]
+            if commodity_out not in node_detail.get("underlying", []):
+                node_detail.setdefault("underlying", []).append(commodity_out)
+            ctype = _commodity_type(display_comm, commodity_types)
             edge_type = "emission" if ctype == "emission" else "output"
             edge_key = (group_id, comm_node_id, edge_type)
             if edge_key not in seen_edges:
                 edge_id = f"edge:{group_id}->{comm_node_id}:{edge_type}"
                 edges.append(_edge(edge_id, group_id, comm_node_id, edge_type))
                 details_edges[edge_id] = {
-                    "commodity": commodity_out,
+                    "commodity": display_comm,
+                    "underlying": set(),
                     "direction": edge_type,
                     "processes": set(),
                     "regions": set(),
@@ -748,11 +803,14 @@ def build_compiled_system_graph(
                 }
                 seen_edges.add(edge_key)
             edge_id = f"edge:{group_id}->{comm_node_id}:{edge_type}"
+            details_edges[edge_id]["underlying"].add(commodity_out)
             details_edges[edge_id]["processes"].add(process)
             details_edges[edge_id]["regions"].add(process_region.get(process))
             details_edges[edge_id]["scopes"].add(process_scope.get(process))
 
     for edge_id, detail in details_edges.items():
+        if isinstance(detail.get("underlying"), set):
+            detail["underlying"] = sorted(detail["underlying"])
         if isinstance(detail.get("processes"), set):
             detail["processes"] = sorted(detail["processes"])
         if isinstance(detail.get("regions"), set):

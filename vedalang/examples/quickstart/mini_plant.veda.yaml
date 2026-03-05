@@ -37,15 +37,22 @@ roles:
 variants:
   - id: ccgt
     role: generate_electricity
-    inputs:
-      - commodity: primary:natural_gas
-        basis: HHV
-    outputs:
-      - commodity: secondary:electricity
-    efficiency: 0.55
+    modes:
+      - id: ng
+        inputs:
+          - commodity: primary:natural_gas
+            basis: HHV
+        outputs:
+          - commodity: secondary:electricity
+        efficiency: 0.55
 
-# Availability: expands each variant into region/scope-specific process instances in the RES.
-availability:
-  - variant: ccgt
-    regions:
-      - REG1
+# Providers: concrete reporting objects that host role/variant/mode choices.
+providers:
+  - id: fleet.generate_electricity.REG1
+    kind: fleet
+    role: generate_electricity
+    region: REG1
+    offerings:
+      - variant: ccgt
+        modes:
+          - ng

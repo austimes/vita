@@ -81,8 +81,13 @@ def test_processes_become_fi_process():
 
     assert len(proc_tables) >= 1
     tech_names = [r.get("process") for r in proc_tables[0]["rows"]]
-    # New P4 syntax: process name is {variant}_{region}
-    assert "ccgt_REG1" in tech_names
+    parsed = [parse_process_symbol(name) for name in tech_names]
+    assert any(
+        item
+        and item["variant_id"] == "ccgt"
+        and item["role_id"] == "generate_electricity"
+        for item in parsed
+    )
 
 
 def test_invalid_vedalang_rejected():
@@ -3922,3 +3927,11 @@ def test_provider_path_emits_parseable_provider_process_symbols():
     assert parsed["role_id"] == "provide_space_heat"
     assert parsed["variant_id"] == "gas_boiler"
     assert parsed["mode_id"] == "ng"
+    provider_report = tableir.get("provider_report", {}).get("providers", [])
+    assert provider_report
+    entry = provider_report[0]
+    assert entry["provider_id"] == "fleet.space_heat.VIC.residential"
+    assert entry["provider_kind"] == "fleet"
+    assert entry["role"] == "provide_space_heat"
+    assert entry["variants"] == ["gas_boiler"]
+    assert entry["modes"] == ["ng"]

@@ -14,7 +14,14 @@ interface ResGraphResponse {
 }
 
 type SourceMode = "source" | "compiled";
-type Granularity = "role" | "variant" | "instance";
+type Granularity =
+  | "role"
+  | "provider"
+  | "provider_variant"
+  | "provider_variant_mode"
+  | "instance"
+  | "variant";
+type CommodityView = "collapse_scope" | "scoped";
 
 export class ResPreviewPanel {
   public static currentPanel: ResPreviewPanel | undefined;
@@ -29,6 +36,7 @@ export class ResPreviewPanel {
 
   private mode: SourceMode = "source";
   private granularity: Granularity = "role";
+  private commodityView: CommodityView = "collapse_scope";
   private selectedRegions: string[] = [];
 
   public static createOrShow(
@@ -86,6 +94,9 @@ export class ResPreviewPanel {
           this.updateContent();
         } else if (message.command === "setGranularity") {
           this.granularity = message.granularity as Granularity;
+          this.updateContent();
+        } else if (message.command === "setCommodityView") {
+          this.commodityView = message.commodityView as CommodityView;
           this.updateContent();
         } else if (message.command === "setRegions") {
           const raw = String(message.regions || "");
@@ -162,9 +173,12 @@ export class ResPreviewPanel {
           },
           mode: this.mode,
           granularity: this.granularity,
+          commodityView: this.commodityView,
           lens: "system",
           regions: this.selectedRegions,
-          includeVariants: this.granularity === "variant",
+          includeVariants:
+            this.granularity === "variant" ||
+            this.granularity === "provider_variant",
         }
       );
 
@@ -200,8 +214,17 @@ export class ResPreviewPanel {
     const modeSourceSelected = this.mode === "source" ? "selected" : "";
     const modeCompiledSelected = this.mode === "compiled" ? "selected" : "";
     const roleSelected = this.granularity === "role" ? "selected" : "";
-    const variantSelected = this.granularity === "variant" ? "selected" : "";
+    const providerSelected = this.granularity === "provider" ? "selected" : "";
+    const variantSelected =
+      this.granularity === "provider_variant" || this.granularity === "variant"
+        ? "selected"
+        : "";
+    const modeSelected =
+      this.granularity === "provider_variant_mode" ? "selected" : "";
     const instanceSelected = this.granularity === "instance" ? "selected" : "";
+    const collapseScopeSelected =
+      this.commodityView === "collapse_scope" ? "selected" : "";
+    const scopedSelected = this.commodityView === "scoped" ? "selected" : "";
     const regionCsv = this.selectedRegions.join(",");
     const regionHint = regions.join(", ");
     const diagnosticsText = JSON.stringify(diagnostics, null, 2).replace(/</g, "&lt;");
@@ -233,6 +256,10 @@ export class ResPreviewPanel {
             vscode.postMessage({ command: 'setGranularity', granularity: value });
         }
 
+        function setCommodityView(value) {
+            vscode.postMessage({ command: 'setCommodityView', commodityView: value });
+        }
+
         function setRegions(value) {
             vscode.postMessage({ command: 'setRegions', regions: value });
         }
@@ -254,7 +281,7 @@ export class ResPreviewPanel {
         }
         .controls {
             display: grid;
-            grid-template-columns: repeat(3, minmax(140px, 1fr));
+            grid-template-columns: repeat(4, minmax(140px, 1fr));
             gap: 8px;
             margin-bottom: 12px;
         }
@@ -306,8 +333,16 @@ export class ResPreviewPanel {
         <label class="control">Granularity
             <select onchange="setGranularity(this.value)">
               <option value="role" ${roleSelected}>role</option>
-              <option value="variant" ${variantSelected}>variant</option>
+              <option value="provider" ${providerSelected}>provider</option>
+              <option value="provider_variant" ${variantSelected}>provider×variant</option>
+              <option value="provider_variant_mode" ${modeSelected}>provider×variant×mode</option>
               <option value="instance" ${instanceSelected}>instance</option>
+            </select>
+        </label>
+        <label class="control">Commodity view
+            <select onchange="setCommodityView(this.value)">
+              <option value="collapse_scope" ${collapseScopeSelected}>collapse scope</option>
+              <option value="scoped" ${scopedSelected}>scoped</option>
             </select>
         </label>
         <label class="control">Regions (CSV)

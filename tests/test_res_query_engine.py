@@ -180,3 +180,46 @@ def test_mermaid_mode_granularity_includes_facility_mode_label():
     mermaid = response_to_mermaid(response)
     assert "[Conversion]" in mermaid
     assert "retrofit_to_ng" in mermaid or "coal" in mermaid
+
+
+def test_compiled_commodity_view_collapse_scope_merges_scoped_nodes():
+    source_file = EXAMPLES_DIR / "toy_sectors/toy_buildings.veda.yaml"
+
+    scoped = query_res_graph(
+        {
+            "version": "1",
+            "file": str(source_file),
+            "mode": "compiled",
+            "granularity": "instance",
+            "lens": "system",
+            "commodity_view": "scoped",
+            "filters": {"regions": [], "case": None, "sectors": [], "scopes": []},
+            "compiled": {"truth": "auto", "cache": True, "allow_partial": True},
+        }
+    )
+    collapsed = query_res_graph(
+        {
+            "version": "1",
+            "file": str(source_file),
+            "mode": "compiled",
+            "granularity": "instance",
+            "lens": "system",
+            "commodity_view": "collapse_scope",
+            "filters": {"regions": [], "case": None, "sectors": [], "scopes": []},
+            "compiled": {"truth": "auto", "cache": True, "allow_partial": True},
+        }
+    )
+
+    scoped_commodities = [
+        n["label"]
+        for n in scoped["graph"]["nodes"]
+        if n["type"] == "commodity"
+    ]
+    collapsed_commodities = [
+        n["label"]
+        for n in collapsed["graph"]["nodes"]
+        if n["type"] == "commodity"
+    ]
+
+    assert any("@" in label for label in scoped_commodities)
+    assert all("@" not in label for label in collapsed_commodities)

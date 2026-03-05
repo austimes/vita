@@ -1,10 +1,10 @@
 # VedaLang Project Status
 
-**Last updated:** 2026-03-05
+**Last updated:** 2026-03-06
 
 ## Executive Summary
 
-VedaLang is a typed DSL that compiles to VEDA Excel tables for TIMES energy models. **All core phases (P0–P3) are complete.** The project has a mature toolchain, comprehensive test suite, and a progressive fixture series (minisystem1–8) validating end-to-end correctness.
+VedaLang is a typed DSL that compiles to VEDA Excel tables for TIMES energy models. **All core phases (P0–P3) are complete.** Current focus is the core abstraction v2 rollout (role/variant/mode type axis + provider object axis + scope-only commodity axis), with schema/compiler/viz/docs/test updates in flight.
 
 | Milestone | Status |
 |-----------|--------|
@@ -12,7 +12,7 @@ VedaLang is a typed DSL that compiles to VEDA Excel tables for TIMES energy mode
 | xl2times diagnostics | ✅ Hardened |
 | Design challenges (DC1-DC5) | ✅ All passing |
 | Schema evolution policy | ✅ In place |
-| Test coverage | ✅ 1012 tests passing, 38 skipped |
+| Test coverage | ✅ 1021 tests passing, 38 skipped |
 | Primitives Exploration | ✅ Complete |
 | Schema Extensions | ✅ All implemented |
 | MiniSystem Stress Test | ✅ Complete |
@@ -24,14 +24,25 @@ VedaLang is a typed DSL that compiles to VEDA Excel tables for TIMES energy mode
 
 ---
 
-## Current Status: Maintenance & Extension
+## Current Status: Core Abstraction v2 Rollout
 
-All core design phases remain complete.
+Core design phases remain complete. Active work is concentrated on abstraction-v2 completion and follow-on cleanup.
 
 ### Active Work
 
 | Issue | Priority | Description | Status |
 |-------|----------|-------------|--------|
+| `vedalang-cgl` | P1 | Core abstraction v2: role/variant/mode types + provider objects + scope-only commodities | In Progress |
+| `vedalang-3gm` | P1 | Compiler IR refactor: provider×role×variant×mode instance expansion | In Progress |
+| `vedalang-ezz` | P1 | Canonical naming v2 with provider tokens and parseability | In Progress |
+| `vedalang-hh4` | P1 | Schema v2 provider model + role/variant/mode separation | In Progress |
+| `vedalang-22a` | P1 | Docs/examples rollout for role/variant/mode/provider/scope concepts | Open |
+| `vedalang-2gz` | P1 | Regression test matrix expansion for v2 abstraction | Open |
+| `vedalang-4vt` | P1 | Governance sync (HISTORY + STATUS + doc pointers) | Open |
+| `vedalang-4y6` | P1 | Facility/fleet lowering rewrite to provider-native semantics | Open |
+| `vedalang-dy4` | P1 | Lint/identity rules for type vs object separation | Open |
+| `vedalang-ihm` | P1 | Provider-aware selector semantics for parameter/case overrides | Open |
+| `vedalang-rm5` | P2 | Trade lens empty-graph diagnostic or example alignment | Open |
 | `vedalang-1gf` | P2 | Phase 2: full deterministic parity with llm unit taxonomy | Open |
 | `vedalang-2kz` | P2 | Update LSP schema docs/examples to canonical namespace conventions | Open |
 | `vedalang-4k8` | P2 | Migrate remaining C/S/E runtime helpers to canonical commodity namespaces | Open |
@@ -40,6 +51,8 @@ All core design phases remain complete.
 
 | Issue | Priority | Description | Status |
 |-------|----------|-------------|--------|
+| `vedalang-dmn` | P1 | RES query/viz decoupled process grouping from commodity scope collapse | ✓ Closed |
+| `vedalang-8k9` | P1 | CLI/LSP/web UI parity for provider hierarchy + commodity aggregation | ✓ Closed |
 | `vedalang-26q` | P1 | Facility modes LP redesign (PRD 20260305) | ✓ Closed |
 | `vedalang-4d6` | P2 | Add explicit stop command for `vedalang viz` server | ✓ Closed |
 | `vedalang-3v2` | P1 | Keep negative-emission docs in `emissions` and add deterministic `units` check for emission-intensity numerator units | ✓ Closed |
@@ -57,6 +70,9 @@ All core design phases remain complete.
 
 | Issue | Description |
 |-------|-------------|
+| `vedalang-cgl` | Complete abstraction-v2 epic closure after remaining P1 subtasks land |
+| `vedalang-dy4` | Deterministic lint/identity rule completion for provider/type separation |
+| `vedalang-ihm` | Provider-aware override selectors and conflict detection |
 | `vedalang-1gf` | Full deterministic parity with llm unit-check taxonomy |
 | `vedalang-2kz` | LSP schema docs/examples canonical namespace migration |
 | `vedalang-4k8` | Runtime helper migration to canonical commodity namespaces |
@@ -237,7 +253,7 @@ vedalang/
 │   ├── veda_run_times/       # TIMES solver runner
 │   └── vedalang_lsp/         # Language server
 ├── rules/                    # Pattern library
-├── tests/                    # 755 tests
+├── tests/                    # 1021 tests (+ skipped)
 ├── fixtures/                 # MiniVEDA2 + golden fixtures
 └── xl2times/                 # Validation oracle (third-party)
 ```

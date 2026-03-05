@@ -21,6 +21,11 @@ const LENS_OPTIONS = [
   { value: "trade", label: "trade" },
 ];
 
+const COMMODITY_VIEW_OPTIONS = [
+  { value: "collapse_scope", label: "collapse scope" },
+  { value: "scoped", label: "scoped" },
+];
+
 const STAGE_ORDER = ["supply", "conversion", "distribution", "storage", "end_use", "sink"];
 const STAGE_RANK = new Map(STAGE_ORDER.map((stage, index) => [stage, index]));
 const PROCESS_NODE_TYPES = new Set([
@@ -37,6 +42,7 @@ const state = {
   mode: "compiled",
   granularity: "role",
   lens: "system",
+  commodityView: "collapse_scope",
   caseName: "",
   regions: [],
   sectors: [],
@@ -112,6 +118,7 @@ function getRequest() {
     mode: state.mode,
     granularity: state.granularity,
     lens: state.lens,
+    commodity_view: state.commodityView,
     filters: {
       regions: state.regions,
       case: state.caseName || null,
@@ -822,6 +829,11 @@ function renderControls() {
 
   renderSingleGroup("granularityButtons", GRANULARITY_OPTIONS, state.granularity, (value) => {
     state.granularity = value;
+    if (value === "instance" && state.commodityView !== "scoped") {
+      state.commodityView = "scoped";
+    } else if (value !== "instance" && state.commodityView === "scoped") {
+      state.commodityView = "collapse_scope";
+    }
     runQuery();
   });
 
@@ -829,6 +841,16 @@ function renderControls() {
     state.lens = value;
     runQuery();
   });
+
+  renderSingleGroup(
+    "commodityViewButtons",
+    COMMODITY_VIEW_OPTIONS,
+    state.commodityView,
+    (value) => {
+      state.commodityView = value;
+      runQuery();
+    },
+  );
 
   renderSingleGroup(
     "caseButtons",
@@ -897,6 +919,13 @@ function updateFacetControls(response) {
   state.availableRegions = facets.regions || [];
   state.availableSectors = facets.sectors || [];
   state.availableScopes = facets.scopes || [];
+  const availableCommodityViews = facets.commodity_views || [];
+  if (
+    availableCommodityViews.length > 0 &&
+    !availableCommodityViews.includes(state.commodityView)
+  ) {
+    state.commodityView = availableCommodityViews[0];
+  }
 
   reconcileStateWithFacets();
   renderControls();
