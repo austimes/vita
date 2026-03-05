@@ -76,7 +76,7 @@ model:
         - abated_lng_deal
         - no_deal
 
-process_roles:
+roles:
   - id: provide_partner_power
     activity_unit: PJ
     capacity_unit: GW
@@ -102,7 +102,7 @@ process_roles:
     required_outputs:
       - commodity: material:co2_storage_integrity_token
 
-process_variants:
+variants:
   - id: au_lng_export_terminal
     role: supply_lng_exports
     inputs: []

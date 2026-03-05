@@ -696,7 +696,7 @@ timeslices:
 ## VedaLang: `kind`
 
 **Type**: string enum (context-dependent)
-**Used in**: multiple sections (for example `process_variants.kind`)
+**Used in**: multiple sections (for example `variants.kind`)
 
 `kind` does not have one global enum. The valid values depend on where the field appears.
 Use schema-aware hover/completion in the LSP for the current location's allowed values.

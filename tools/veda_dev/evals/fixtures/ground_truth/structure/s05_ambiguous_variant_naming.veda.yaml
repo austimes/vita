@@ -14,7 +14,7 @@ model:
       lhv_mj_per_unit: 16.0
       hhv_mj_per_unit: 18.0
 
-process_roles:
+roles:
   - id: provide_ag_output
     stage: end_use
     activity_unit: PJ
@@ -23,7 +23,7 @@ process_roles:
     required_outputs:
       - commodity: service:ag_output
 
-process_variants:
+variants:
   - id: traditional_baseline
     role: provide_ag_output
     inputs:

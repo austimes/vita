@@ -20,7 +20,7 @@ def test_toy_electricity_examples_separate_delivery_and_end_use_roles():
     """Both toy electricity variants keep delivery and end-use boundaries explicit."""
     for filename in TOY_ELECTRICITY_FILES:
         source = _load_example(filename)
-        roles = {role["id"]: role for role in source["process_roles"]}
+        roles = {role["id"]: role for role in source["roles"]}
 
         delivery = roles["deliver_electricity_grid"]
         end_use = roles["provide_electricity_service"]
@@ -67,7 +67,7 @@ def test_toy_electricity_single_generation_role():
     """Both models use a single generate_electricity role with variant-level inputs."""
     for filename in TOY_ELECTRICITY_FILES:
         source = _load_example(filename)
-        roles = {role["id"]: role for role in source["process_roles"]}
+        roles = {role["id"]: role for role in source["roles"]}
 
         # Single generation role, not fuel-pathway fragmented
         assert "generate_electricity" in roles
@@ -80,7 +80,7 @@ def test_toy_electricity_single_generation_role():
 
         # Variants under this role
         gen_variants = [
-            v for v in source["process_variants"]
+            v for v in source["variants"]
             if v["role"] == "generate_electricity"
         ]
         assert len(gen_variants) == 4  # ccgt, ocgt, solar_pv, onshore_wind
@@ -90,14 +90,14 @@ def test_toy_electricity_renewable_resource_supply():
     """Renewables consume explicit resource commodities from supply roles."""
     for filename in TOY_ELECTRICITY_FILES:
         source = _load_example(filename)
-        roles = {role["id"]: role for role in source["process_roles"]}
+        roles = {role["id"]: role for role in source["roles"]}
 
         # Resource supply roles exist at supply stage
         assert roles["supply_wind_resource"]["stage"] == "supply"
         assert roles["supply_solar_irradiance"]["stage"] == "supply"
 
         # Renewable variants consume resources, not zero-input
-        variants = {v["id"]: v for v in source["process_variants"]}
+        variants = {v["id"]: v for v in source["variants"]}
         assert (
             variants["solar_pv"]["inputs"][0]["commodity"]
             == "resource:solar_irradiance"

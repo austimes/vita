@@ -4,11 +4,17 @@
   "title": "VedaLang Model",
   "description": "Schema for VedaLang source files - a typed DSL for VEDA models",
   "type": "object",
-  "required": ["model"],
+  "required": [
+    "model"
+  ],
   "properties": {
     "model": {
       "type": "object",
-      "required": ["name", "regions", "commodities"],
+      "required": [
+        "name",
+        "regions",
+        "commodities"
+      ],
       "properties": {
         "name": {
           "type": "string",
@@ -20,7 +26,9 @@
         },
         "regions": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "minItems": 1,
           "description": "List of region codes"
         },
@@ -30,7 +38,10 @@
         },
         "milestone_years": {
           "type": "array",
-          "items": { "type": "integer", "minimum": 1900 },
+          "items": {
+            "type": "integer",
+            "minimum": 1900
+          },
           "minItems": 1,
           "description": "List of model milestone years (e.g., [2020, 2030, 2040, 2050]). First year is the model start year."
         },
@@ -48,32 +59,44 @@
         },
         "commodities": {
           "type": "array",
-          "items": { "$ref": "#/$defs/commodity" },
+          "items": {
+            "$ref": "#/$defs/commodity"
+          },
           "description": "Commodity definitions"
         },
         "scenario_parameters": {
           "type": "array",
-          "items": { "$ref": "#/$defs/scenario_parameter" },
+          "items": {
+            "$ref": "#/$defs/scenario_parameter"
+          },
           "description": "Scenario parameters (demand projections, prices, etc.)"
         },
         "trade_links": {
           "type": "array",
-          "items": { "$ref": "#/$defs/trade_link" },
+          "items": {
+            "$ref": "#/$defs/trade_link"
+          },
           "description": "Inter-regional trade links"
         },
         "constraints": {
           "type": "array",
-          "items": { "$ref": "#/$defs/constraint" },
+          "items": {
+            "$ref": "#/$defs/constraint"
+          },
           "description": "User constraints (emission caps, activity shares, etc.)"
         },
         "cases": {
           "type": "array",
-          "items": { "$ref": "#/$defs/case" },
+          "items": {
+            "$ref": "#/$defs/case"
+          },
           "description": "Model cases - named combinations of scenario parameters for different model runs"
         },
         "studies": {
           "type": "array",
-          "items": { "$ref": "#/$defs/study" },
+          "items": {
+            "$ref": "#/$defs/study"
+          },
           "description": "Studies - collections of cases for comparison"
         }
       }
@@ -82,29 +105,39 @@
       "$ref": "#/$defs/scoping",
       "description": "Sector/end_use scoping for demand-side modeling"
     },
-    "process_roles": {
+    "roles": {
       "type": "array",
-      "items": { "$ref": "#/$defs/process_role" },
+      "items": {
+        "$ref": "#/$defs/process_role"
+      },
       "description": "Abstract process transformations (topology definitions)"
     },
-    "process_variants": {
+    "variants": {
       "type": "array",
-      "items": { "$ref": "#/$defs/process_variant" },
+      "items": {
+        "$ref": "#/$defs/process_variant"
+      },
       "description": "Concrete technology implementations of process roles"
     },
     "availability": {
       "type": "array",
-      "items": { "$ref": "#/$defs/availability_entry" },
+      "items": {
+        "$ref": "#/$defs/availability_entry"
+      },
       "description": "Where variants are available (regions/sectors/scopes)"
     },
     "process_parameters": {
       "type": "array",
-      "items": { "$ref": "#/$defs/process_parameter" },
+      "items": {
+        "$ref": "#/$defs/process_parameter"
+      },
       "description": "Selector-based parameter blocks for variants"
     },
     "demands": {
       "type": "array",
-      "items": { "$ref": "#/$defs/demand" },
+      "items": {
+        "$ref": "#/$defs/demand"
+      },
       "description": "Service commodity demands by region/sector/scope"
     },
     "diagnostics": {
@@ -113,17 +146,23 @@
     },
     "commodity_groups": {
       "type": "array",
-      "items": { "$ref": "#/$defs/commodity_group" },
+      "items": {
+        "$ref": "#/$defs/commodity_group"
+      },
       "description": "Reusable commodity groups for facility input mix constraints"
     },
     "facility_templates": {
       "type": "array",
-      "items": { "$ref": "#/$defs/facility_template" },
+      "items": {
+        "$ref": "#/$defs/facility_template"
+      },
       "description": "Reusable facility templates bound to process roles and candidate variants"
     },
     "facilities": {
       "type": "array",
-      "items": { "$ref": "#/$defs/facility" },
+      "items": {
+        "$ref": "#/$defs/facility"
+      },
       "description": "Facility instances with location, installed state, and optional safeguard metadata"
     },
     "facility_selection": {
@@ -132,21 +171,47 @@
     },
     "spatial_mappings": {
       "type": "array",
-      "items": { "$ref": "#/$defs/spatial_mapping" },
+      "items": {
+        "$ref": "#/$defs/spatial_mapping"
+      },
       "description": "Mappings from facility location references to model regions by region scheme"
+    },
+    "providers": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/provider"
+      },
+      "description": "Provider objects (facility/fleet) that host role\u2192variant\u2192mode choices"
+    },
+    "provider_parameters": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/provider_parameter"
+      },
+      "description": "Selector-based parameter blocks for provider instances"
     }
   },
   "$defs": {
     "scoping": {
       "type": "object",
       "description": "Sector/end_use scoping configuration",
-      "required": ["sectors"],
+      "required": [
+        "sectors"
+      ],
       "properties": {
         "sectors": {
           "type": "array",
           "items": {
             "type": "string",
-            "enum": ["RES", "COM", "IND", "TRN", "AGR", "NE", "OTH"]
+            "enum": [
+              "RES",
+              "COM",
+              "IND",
+              "TRN",
+              "AGR",
+              "NE",
+              "OTH"
+            ]
           },
           "minItems": 1,
           "description": "Demand sectors from TIMES DEM_SECT"
@@ -164,7 +229,12 @@
     },
     "commodity_group": {
       "type": "object",
-      "required": ["id", "members", "unit", "dimension"],
+      "required": [
+        "id",
+        "members",
+        "unit",
+        "dimension"
+      ],
       "properties": {
         "id": {
           "type": "string",
@@ -173,7 +243,9 @@
         "members": {
           "type": "array",
           "minItems": 1,
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "uniqueItems": true
         },
         "unit": {
@@ -181,63 +253,106 @@
         },
         "dimension": {
           "type": "string",
-          "enum": ["energy", "mass", "service"]
+          "enum": [
+            "energy",
+            "mass",
+            "service"
+          ]
         }
       },
       "additionalProperties": false
     },
     "facility_class": {
       "type": "string",
-      "enum": ["safeguard", "generator", "generic"]
+      "enum": [
+        "safeguard",
+        "generator",
+        "generic"
+      ]
     },
     "facility_mode": {
       "type": "object",
-      "required": ["id", "fuel_in", "capex", "existing"],
+      "required": [
+        "id",
+        "fuel_in",
+        "capex",
+        "existing"
+      ],
       "properties": {
         "id": {
           "type": "string",
           "pattern": "^[a-z][a-z0-9_-]*$"
         },
-        "fuel_in": { "type": "string" },
-        "capex": { "type": "number", "minimum": 0 },
-        "existing": { "type": "boolean" },
+        "fuel_in": {
+          "type": "string"
+        },
+        "capex": {
+          "type": "number",
+          "minimum": 0
+        },
+        "existing": {
+          "type": "boolean"
+        },
         "efficiency": {
           "oneOf": [
-            { "type": "number", "minimum": 0 },
-            { "$ref": "#/$defs/time_varying_value" }
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "$ref": "#/$defs/time_varying_value"
+            }
           ]
         },
         "emission_factors": {
           "type": "object",
           "additionalProperties": {
             "oneOf": [
-              { "type": "number" },
-              { "$ref": "#/$defs/time_varying_value" }
+              {
+                "type": "number"
+              },
+              {
+                "$ref": "#/$defs/time_varying_value"
+              }
             ]
           }
         },
-        "ramp_rate": { "type": "number", "minimum": 0 }
+        "ramp_rate": {
+          "type": "number",
+          "minimum": 0
+        }
       },
       "additionalProperties": false
     },
     "facility_template_variant": {
       "type": "object",
-      "required": ["id", "baseline_mode", "mode_ladder", "modes"],
+      "required": [
+        "id",
+        "baseline_mode",
+        "mode_ladder",
+        "modes"
+      ],
       "properties": {
         "id": {
           "type": "string",
           "pattern": "^[a-z][a-z0-9_-]*$"
         },
-        "baseline_mode": { "type": "string" },
+        "baseline_mode": {
+          "type": "string"
+        },
         "mode_ladder": {
           "type": "array",
           "minItems": 1,
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "uniqueItems": true
         },
         "modes": {
           "type": "array",
-          "items": { "$ref": "#/$defs/facility_mode" },
+          "items": {
+            "$ref": "#/$defs/facility_mode"
+          },
           "minItems": 1
         }
       },
@@ -261,15 +376,29 @@
         "class": {
           "$ref": "#/$defs/facility_class"
         },
-        "role": { "type": "string" },
+        "role": {
+          "type": "string"
+        },
         "sector": {
           "type": "string",
-          "enum": ["RES", "COM", "IND", "TRN", "AGR", "NE", "OTH"]
+          "enum": [
+            "RES",
+            "COM",
+            "IND",
+            "TRN",
+            "AGR",
+            "NE",
+            "OTH"
+          ]
         },
-        "primary_output_commodity": { "type": "string" },
+        "primary_output_commodity": {
+          "type": "string"
+        },
         "variants": {
           "type": "array",
-          "items": { "$ref": "#/$defs/facility_template_variant" },
+          "items": {
+            "$ref": "#/$defs/facility_template_variant"
+          },
           "minItems": 1
         }
       },
@@ -277,38 +406,77 @@
     },
     "facility_cap_base": {
       "type": "object",
-      "required": ["value", "unit"],
+      "required": [
+        "value",
+        "unit"
+      ],
       "properties": {
-        "value": { "type": "number", "minimum": 0 },
-        "unit": { "$ref": "#/$defs/unit_symbol" }
+        "value": {
+          "type": "number",
+          "minimum": 0
+        },
+        "unit": {
+          "$ref": "#/$defs/unit_symbol"
+        }
       },
       "additionalProperties": false
     },
     "facility_safeguard_decline_block": {
       "type": "object",
-      "required": ["from_year", "to_year", "annual_decline_pct"],
+      "required": [
+        "from_year",
+        "to_year",
+        "annual_decline_pct"
+      ],
       "properties": {
-        "from_year": { "type": "integer", "minimum": 1900 },
-        "to_year": { "type": "integer", "minimum": 1900 },
-        "annual_decline_pct": { "type": "number", "minimum": 0, "maximum": 100 }
+        "from_year": {
+          "type": "integer",
+          "minimum": 1900
+        },
+        "to_year": {
+          "type": "integer",
+          "minimum": 1900
+        },
+        "annual_decline_pct": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        }
       },
       "additionalProperties": false
     },
     "facility_safeguard": {
       "type": "object",
-      "required": ["baseline_intensity", "baseline_year", "intensity_decline_blocks"],
+      "required": [
+        "baseline_intensity",
+        "baseline_year",
+        "intensity_decline_blocks"
+      ],
       "properties": {
-        "baseline_intensity": { "type": "number", "minimum": 0 },
-        "baseline_year": { "type": "integer", "minimum": 1900 },
+        "baseline_intensity": {
+          "type": "number",
+          "minimum": 0
+        },
+        "baseline_year": {
+          "type": "integer",
+          "minimum": 1900
+        },
         "intensity_decline_blocks": {
           "type": "array",
-          "items": { "$ref": "#/$defs/facility_safeguard_decline_block" },
+          "items": {
+            "$ref": "#/$defs/facility_safeguard_decline_block"
+          },
           "minItems": 1
         },
         "explicit_intensity_overrides": {
           "type": "object",
-          "additionalProperties": { "type": "number", "minimum": 0 },
-          "propertyNames": { "pattern": "^[12][0-9]{3}$" }
+          "additionalProperties": {
+            "type": "number",
+            "minimum": 0
+          },
+          "propertyNames": {
+            "pattern": "^[12][0-9]{3}$"
+          }
         }
       },
       "additionalProperties": false
@@ -328,28 +496,59 @@
           "type": "string",
           "pattern": "^[a-z][a-z0-9_-]*$"
         },
-        "template": { "type": "string" },
-        "class": { "$ref": "#/$defs/facility_class" },
-        "location_ref": { "type": "string" },
+        "template": {
+          "type": "string"
+        },
+        "class": {
+          "$ref": "#/$defs/facility_class"
+        },
+        "location_ref": {
+          "type": "string"
+        },
         "representation": {
           "type": "string",
-          "enum": ["individual", "archetype"],
+          "enum": [
+            "individual",
+            "archetype"
+          ],
           "default": "individual"
         },
-        "output_series": { "$ref": "#/$defs/time_series" },
-        "cap_base": { "$ref": "#/$defs/facility_cap_base" },
+        "output_series": {
+          "$ref": "#/$defs/time_series"
+        },
+        "cap_base": {
+          "$ref": "#/$defs/facility_cap_base"
+        },
         "capacity_coupling": {
           "type": "string",
-          "enum": ["le", "eq"],
+          "enum": [
+            "le",
+            "eq"
+          ],
           "default": "le"
         },
-        "no_backsliding": { "type": "boolean", "default": true },
-        "safeguard": { "$ref": "#/$defs/facility_safeguard" }
+        "no_backsliding": {
+          "type": "boolean",
+          "default": true
+        },
+        "safeguard": {
+          "$ref": "#/$defs/facility_safeguard"
+        }
       },
       "allOf": [
         {
-          "if": { "properties": { "class": { "const": "safeguard" } } },
-          "then": { "required": ["safeguard"] }
+          "if": {
+            "properties": {
+              "class": {
+                "const": "safeguard"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "safeguard"
+            ]
+          }
         }
       ],
       "additionalProperties": false
@@ -359,7 +558,9 @@
       "properties": {
         "mode": {
           "type": "string",
-          "enum": ["top_n_by_baseline_emissions"],
+          "enum": [
+            "top_n_by_baseline_emissions"
+          ],
           "default": "top_n_by_baseline_emissions"
         },
         "n_individual": {
@@ -368,33 +569,54 @@
         },
         "ranking_metric": {
           "type": "string",
-          "enum": ["baseline_emissions"],
+          "enum": [
+            "baseline_emissions"
+          ],
           "default": "baseline_emissions"
         },
         "aggregation_keys": {
           "type": "array",
-          "items": { "type": "string" }
+          "items": {
+            "type": "string"
+          }
         }
       },
       "additionalProperties": false
     },
     "spatial_mapping_entry": {
       "type": "object",
-      "required": ["region"],
+      "required": [
+        "region"
+      ],
       "properties": {
-        "region": { "type": "string" },
-        "share": { "type": "number", "minimum": 0, "maximum": 1, "default": 1.0 }
+        "region": {
+          "type": "string"
+        },
+        "share": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "default": 1.0
+        }
       },
       "additionalProperties": false
     },
     "spatial_mapping": {
       "type": "object",
-      "required": ["scheme", "from", "map"],
+      "required": [
+        "scheme",
+        "from",
+        "map"
+      ],
       "properties": {
-        "scheme": { "type": "string" },
+        "scheme": {
+          "type": "string"
+        },
         "from": {
           "type": "string",
-          "enum": ["facility_location_ref"]
+          "enum": [
+            "facility_location_ref"
+          ]
         },
         "map": {
           "type": "object",
@@ -404,7 +626,9 @@
           "additionalProperties": {
             "type": "array",
             "minItems": 1,
-            "items": { "$ref": "#/$defs/spatial_mapping_entry" }
+            "items": {
+              "$ref": "#/$defs/spatial_mapping_entry"
+            }
           }
         }
       },
@@ -412,43 +636,88 @@
     },
     "energy_unit": {
       "type": "string",
-      "enum": ["PJ", "TJ", "GJ", "MWh", "GWh", "TWh", "MTOE", "KTOE"],
+      "enum": [
+        "PJ",
+        "TJ",
+        "GJ",
+        "MWh",
+        "GWh",
+        "TWh",
+        "MTOE",
+        "KTOE"
+      ],
       "description": "Supported energy units"
     },
     "power_unit": {
       "type": "string",
-      "enum": ["GW", "MW", "kW", "TW"],
+      "enum": [
+        "GW",
+        "MW",
+        "kW",
+        "TW"
+      ],
       "description": "Supported power/capacity units"
     },
     "mass_unit": {
       "type": "string",
-      "enum": ["Mt", "kt", "t", "Gt"],
+      "enum": [
+        "Mt",
+        "kt",
+        "t",
+        "Gt"
+      ],
       "description": "Supported mass units"
     },
     "currency_unit": {
       "type": "string",
-      "enum": ["USD", "kUSD", "MUSD", "BUSD"],
+      "enum": [
+        "USD",
+        "kUSD",
+        "MUSD",
+        "BUSD"
+      ],
       "description": "Supported currency units"
     },
     "service_unit": {
       "type": "string",
-      "enum": ["Bvkm"],
+      "enum": [
+        "Bvkm"
+      ],
       "description": "Supported service units"
     },
     "unit_symbol": {
       "type": "string",
       "enum": [
-        "PJ", "TJ", "GJ", "MWh", "GWh", "TWh", "MTOE", "KTOE",
-        "GW", "MW", "kW", "TW",
-        "Mt", "kt", "t", "Gt",
-        "USD", "kUSD", "MUSD", "BUSD",
+        "PJ",
+        "TJ",
+        "GJ",
+        "MWh",
+        "GWh",
+        "TWh",
+        "MTOE",
+        "KTOE",
+        "GW",
+        "MW",
+        "kW",
+        "TW",
+        "Mt",
+        "kt",
+        "t",
+        "Gt",
+        "USD",
+        "kUSD",
+        "MUSD",
+        "BUSD",
         "Bvkm"
       ],
       "description": "Supported unit symbols"
     },
     "energy_basis": {
       "type": "string",
-      "enum": ["HHV", "LHV"],
+      "enum": [
+        "HHV",
+        "LHV"
+      ],
       "description": "Energy basis for fuel/energy-mass consistency"
     },
     "unit_policy": {
@@ -456,7 +725,10 @@
       "properties": {
         "mode": {
           "type": "string",
-          "enum": ["permissive", "strict"],
+          "enum": [
+            "permissive",
+            "strict"
+          ],
           "default": "permissive",
           "description": "Strict mode turns unit warnings into hard errors"
         },
@@ -474,31 +746,41 @@
           "properties": {
             "energy": {
               "type": "array",
-              "items": { "$ref": "#/$defs/energy_unit" },
+              "items": {
+                "$ref": "#/$defs/energy_unit"
+              },
               "minItems": 1,
               "uniqueItems": true
             },
             "power": {
               "type": "array",
-              "items": { "$ref": "#/$defs/power_unit" },
+              "items": {
+                "$ref": "#/$defs/power_unit"
+              },
               "minItems": 1,
               "uniqueItems": true
             },
             "mass": {
               "type": "array",
-              "items": { "$ref": "#/$defs/mass_unit" },
+              "items": {
+                "$ref": "#/$defs/mass_unit"
+              },
               "minItems": 1,
               "uniqueItems": true
             },
             "currency": {
               "type": "array",
-              "items": { "$ref": "#/$defs/currency_unit" },
+              "items": {
+                "$ref": "#/$defs/currency_unit"
+              },
               "minItems": 1,
               "uniqueItems": true
             },
             "service": {
               "type": "array",
-              "items": { "$ref": "#/$defs/service_unit" },
+              "items": {
+                "$ref": "#/$defs/service_unit"
+              },
               "minItems": 1,
               "uniqueItems": true
             }
@@ -510,7 +792,10 @@
     },
     "currency_code": {
       "type": "string",
-      "enum": ["AUD", "USD"],
+      "enum": [
+        "AUD",
+        "USD"
+      ],
       "description": "Supported ISO currency codes for monetary normalization"
     },
     "monetary_unit_token": {
@@ -525,12 +810,18 @@
     },
     "time_varying_cost_rate": {
       "type": "object",
-      "required": ["values"],
+      "required": [
+        "values"
+      ],
       "properties": {
         "values": {
           "type": "object",
-          "additionalProperties": { "$ref": "#/$defs/cost_rate_literal" },
-          "propertyNames": { "pattern": "^[12][0-9]{3}$" }
+          "additionalProperties": {
+            "$ref": "#/$defs/cost_rate_literal"
+          },
+          "propertyNames": {
+            "pattern": "^[12][0-9]{3}$"
+          }
         },
         "interpolation": {
           "type": "string",
@@ -548,7 +839,9 @@
     },
     "monetary_policy": {
       "type": "object",
-      "required": ["canonical"],
+      "required": [
+        "canonical"
+      ],
       "properties": {
         "canonical": {
           "$ref": "#/$defs/monetary_unit_token",
@@ -561,33 +854,57 @@
         "cpi_tables": {
           "type": "object",
           "description": "Optional CPI index tables keyed by currency code for year normalization",
-          "propertyNames": { "$ref": "#/$defs/currency_code" },
-          "additionalProperties": { "type": "string" }
+          "propertyNames": {
+            "$ref": "#/$defs/currency_code"
+          },
+          "additionalProperties": {
+            "type": "string"
+          }
         }
       },
       "additionalProperties": false
     },
     "process_activity_unit": {
       "oneOf": [
-        { "$ref": "#/$defs/energy_unit" },
-        { "$ref": "#/$defs/service_unit" },
-        { "$ref": "#/$defs/mass_unit" }
+        {
+          "$ref": "#/$defs/energy_unit"
+        },
+        {
+          "$ref": "#/$defs/service_unit"
+        },
+        {
+          "$ref": "#/$defs/mass_unit"
+        }
       ],
       "description": "Process activity unit (annual extensive quantity basis: energy, service, or mass)"
     },
     "process_rate_unit": {
       "type": "string",
       "enum": [
-        "PJ/yr", "TJ/yr", "GJ/yr", "MWh/yr", "GWh/yr", "TWh/yr", "MTOE/yr", "KTOE/yr",
+        "PJ/yr",
+        "TJ/yr",
+        "GJ/yr",
+        "MWh/yr",
+        "GWh/yr",
+        "TWh/yr",
+        "MTOE/yr",
+        "KTOE/yr",
         "Bvkm/yr",
-        "Mt/yr", "kt/yr", "t/yr", "Gt/yr"
+        "Mt/yr",
+        "kt/yr",
+        "t/yr",
+        "Gt/yr"
       ],
       "description": "Explicit annual rate unit (<unit>/yr)"
     },
     "process_capacity_unit": {
       "oneOf": [
-        { "$ref": "#/$defs/power_unit" },
-        { "$ref": "#/$defs/process_rate_unit" }
+        {
+          "$ref": "#/$defs/power_unit"
+        },
+        {
+          "$ref": "#/$defs/process_rate_unit"
+        }
       ],
       "description": "Process capacity unit (instantaneous power or explicit annual throughput rate)"
     },
@@ -613,7 +930,14 @@
         },
         "stage": {
           "type": "string",
-          "enum": ["supply", "conversion", "distribution", "storage", "end_use", "sink"],
+          "enum": [
+            "supply",
+            "conversion",
+            "distribution",
+            "storage",
+            "end_use",
+            "sink"
+          ],
           "description": "Optional stage classification (descriptive, for layout/sankey)"
         },
         "activity_unit": {
@@ -626,12 +950,16 @@
         },
         "required_inputs": {
           "type": "array",
-          "items": { "$ref": "#/$defs/role_flow" },
+          "items": {
+            "$ref": "#/$defs/role_flow"
+          },
           "description": "Minimum required input commodities. Every variant must include these in its inputs."
         },
         "required_outputs": {
           "type": "array",
-          "items": { "$ref": "#/$defs/role_flow" },
+          "items": {
+            "$ref": "#/$defs/role_flow"
+          },
           "description": "Minimum required output commodities. Every variant must include these in its outputs."
         }
       },
@@ -640,7 +968,9 @@
     "role_flow": {
       "type": "object",
       "description": "Commodity reference in a role input/output",
-      "required": ["commodity"],
+      "required": [
+        "commodity"
+      ],
       "properties": {
         "commodity": {
           "type": "string",
@@ -652,7 +982,9 @@
     "variant_flow": {
       "type": "object",
       "description": "Commodity reference in a variant input/output with optional validation-only coefficient anchor",
-      "required": ["commodity"],
+      "required": [
+        "commodity"
+      ],
       "properties": {
         "commodity": {
           "type": "string",
@@ -673,7 +1005,10 @@
     "process_variant": {
       "type": "object",
       "description": "Concrete technology implementing a process role. Declares full explicit I/O (no inheritance from role).",
-      "required": ["id", "role", "inputs", "outputs"],
+      "required": [
+        "id",
+        "role"
+      ],
       "properties": {
         "id": {
           "type": "string",
@@ -694,63 +1029,112 @@
         },
         "inputs": {
           "type": "array",
-          "items": { "$ref": "#/$defs/variant_flow" },
+          "items": {
+            "$ref": "#/$defs/variant_flow"
+          },
           "description": "Full list of input commodities consumed by this variant. Must include all role required_inputs."
         },
         "outputs": {
           "type": "array",
-          "items": { "$ref": "#/$defs/variant_flow" },
+          "items": {
+            "$ref": "#/$defs/variant_flow"
+          },
           "description": "Full list of output commodities produced by this variant. Must include all role required_outputs."
         },
         "kind": {
           "type": "string",
-          "enum": ["device", "storage", "generator", "network"],
+          "enum": [
+            "device",
+            "storage",
+            "generator",
+            "network"
+          ],
           "description": "Optional semantic kind for diagnostics metadata. When omitted, compiler derives it."
         },
         "efficiency": {
           "oneOf": [
-            { "type": "number", "minimum": 0 },
-            { "$ref": "#/$defs/time_varying_value" }
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "$ref": "#/$defs/time_varying_value"
+            }
           ],
           "description": "Conversion performance value. Interpreted by performance_metric (efficiency or COP)."
         },
         "performance_metric": {
           "type": "string",
-          "enum": ["efficiency", "cop"],
+          "enum": [
+            "efficiency",
+            "cop"
+          ],
           "default": "efficiency",
           "description": "Interpretation of efficiency value. Use 'cop' for heat-pump style components where values > 1 are expected."
         },
         "lifetime": {
           "oneOf": [
-            { "type": "number", "minimum": 0 },
-            { "$ref": "#/$defs/time_varying_value" }
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "$ref": "#/$defs/time_varying_value"
+            }
           ],
           "description": "Technical lifetime in years"
         },
         "investment_cost": {
           "oneOf": [
-            { "type": "number", "minimum": 0 },
-            { "$ref": "#/$defs/time_varying_value" },
-            { "$ref": "#/$defs/cost_rate_literal" },
-            { "$ref": "#/$defs/time_varying_cost_rate" }
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "$ref": "#/$defs/time_varying_value"
+            },
+            {
+              "$ref": "#/$defs/cost_rate_literal"
+            },
+            {
+              "$ref": "#/$defs/time_varying_cost_rate"
+            }
           ],
           "description": "Capital cost per unit capacity"
         },
         "fixed_om_cost": {
           "oneOf": [
-            { "type": "number", "minimum": 0 },
-            { "$ref": "#/$defs/time_varying_value" },
-            { "$ref": "#/$defs/cost_rate_literal" },
-            { "$ref": "#/$defs/time_varying_cost_rate" }
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "$ref": "#/$defs/time_varying_value"
+            },
+            {
+              "$ref": "#/$defs/cost_rate_literal"
+            },
+            {
+              "$ref": "#/$defs/time_varying_cost_rate"
+            }
           ],
           "description": "Fixed O&M cost per unit capacity per year"
         },
         "variable_om_cost": {
           "oneOf": [
-            { "type": "number", "minimum": 0 },
-            { "$ref": "#/$defs/time_varying_value" },
-            { "$ref": "#/$defs/cost_rate_literal" },
-            { "$ref": "#/$defs/time_varying_cost_rate" }
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "$ref": "#/$defs/time_varying_value"
+            },
+            {
+              "$ref": "#/$defs/cost_rate_literal"
+            },
+            {
+              "$ref": "#/$defs/time_varying_cost_rate"
+            }
           ],
           "description": "Variable O&M cost per unit activity"
         },
@@ -763,22 +1147,54 @@
           "description": "Per-emission-commodity factors keyed by commodity id, per unit PROCESS ACTIVITY (TIMES ENV_ACT). Values are scalars or time-varying specs.",
           "additionalProperties": {
             "oneOf": [
-              { "type": "number" },
-              { "$ref": "#/$defs/time_varying_value" }
+              {
+                "type": "number"
+              },
+              {
+                "$ref": "#/$defs/time_varying_value"
+              }
             ]
           }
         },
         "emission_factor_basis": {
           "$ref": "#/$defs/energy_basis",
           "description": "Point-of-use heating-value basis for emission_factors when variant has combustible inputs/outputs."
+        },
+        "modes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/variant_mode"
+          },
+          "minItems": 1,
+          "description": "Operating modes nested under this variant"
+        },
+        "default_mode": {
+          "type": "string",
+          "description": "Optional default mode id used when legacy availability is present"
         }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "required": [
+            "inputs",
+            "outputs"
+          ]
+        },
+        {
+          "required": [
+            "modes"
+          ]
+        }
+      ]
     },
     "availability_entry": {
       "type": "object",
       "description": "Defines where a variant is available",
-      "required": ["variant", "regions"],
+      "required": [
+        "variant",
+        "regions"
+      ],
       "properties": {
         "variant": {
           "type": "string",
@@ -786,18 +1202,24 @@
         },
         "regions": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "minItems": 1,
           "description": "Regions where the variant is available"
         },
         "sectors": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "description": "Optional sector filter (from scoping.sectors)"
         },
         "scopes": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "description": "Optional scope filter (sector.end_use keys)"
         }
       },
@@ -806,7 +1228,9 @@
     "process_parameter": {
       "type": "object",
       "description": "Selector-based parameter block for variant instances",
-      "required": ["selector"],
+      "required": [
+        "selector"
+      ],
       "properties": {
         "selector": {
           "$ref": "#/$defs/parameter_selector",
@@ -814,7 +1238,9 @@
         },
         "existing_capacity": {
           "type": "array",
-          "items": { "$ref": "#/$defs/past_investment" },
+          "items": {
+            "$ref": "#/$defs/past_investment"
+          },
           "description": "Past capacity investments (NCAP_PASTI)"
         },
         "cap_bound": {
@@ -831,8 +1257,13 @@
         },
         "stock": {
           "oneOf": [
-            { "type": "number", "minimum": 0 },
-            { "$ref": "#/$defs/time_varying_value" }
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "$ref": "#/$defs/time_varying_value"
+            }
           ],
           "description": "Stock value"
         }
@@ -842,7 +1273,10 @@
     "parameter_selector": {
       "type": "object",
       "description": "Selector for parameter blocks",
-      "required": ["variant", "region"],
+      "required": [
+        "variant",
+        "region"
+      ],
       "properties": {
         "variant": {
           "type": "string",
@@ -866,7 +1300,11 @@
     "demand": {
       "type": "object",
       "description": "Service commodity demand specification",
-      "required": ["commodity", "region", "values"],
+      "required": [
+        "commodity",
+        "region",
+        "values"
+      ],
       "properties": {
         "commodity": {
           "type": "string",
@@ -887,8 +1325,12 @@
         "values": {
           "type": "object",
           "description": "Year -> demand value mapping",
-          "additionalProperties": { "type": "number" },
-          "propertyNames": { "pattern": "^[12][0-9]{3}$" }
+          "additionalProperties": {
+            "type": "number"
+          },
+          "propertyNames": {
+            "pattern": "^[12][0-9]{3}$"
+          }
         },
         "interpolation": {
           "type": "string",
@@ -920,7 +1362,9 @@
     "case": {
       "type": "object",
       "description": "A model case - a named combination of scenario parameters for a specific model run",
-      "required": ["name"],
+      "required": [
+        "name"
+      ],
       "properties": {
         "name": {
           "type": "string",
@@ -938,37 +1382,51 @@
         },
         "includes": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "description": "List of scenario parameter names to include in this case. If omitted, includes all parameters."
         },
         "excludes": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "description": "List of scenario parameter names to exclude from this case"
         },
         "tags": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "description": "Optional labels for categorizing cases (e.g., 'policy', 'reference', 'sensitivity')"
         },
         "demand_overrides": {
           "type": "array",
-          "items": { "$ref": "#/$defs/case_demand_override" },
+          "items": {
+            "$ref": "#/$defs/case_demand_override"
+          },
           "description": "Per-case demand overrides/scaling"
         },
         "fuel_price_overrides": {
           "type": "array",
-          "items": { "$ref": "#/$defs/case_price_override" },
+          "items": {
+            "$ref": "#/$defs/case_price_override"
+          },
           "description": "Per-case commodity price overrides"
         },
         "constraint_overrides": {
           "type": "array",
-          "items": { "$ref": "#/$defs/case_constraint_override" },
+          "items": {
+            "$ref": "#/$defs/case_constraint_override"
+          },
           "description": "Per-case enable/disable and parameter overrides for constraints"
         },
         "variant_overrides": {
           "type": "array",
-          "items": { "$ref": "#/$defs/case_variant_override" },
+          "items": {
+            "$ref": "#/$defs/case_variant_override"
+          },
           "description": "Per-case variant overrides (cost/performance, or disable via generated bounds)"
         }
       },
@@ -977,7 +1435,10 @@
     "study": {
       "type": "object",
       "description": "A study - a collection of cases for comparison",
-      "required": ["name", "cases"],
+      "required": [
+        "name",
+        "cases"
+      ],
       "properties": {
         "name": {
           "type": "string",
@@ -989,7 +1450,9 @@
         },
         "cases": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "minItems": 1,
           "description": "List of case names included in this study"
         }
@@ -999,7 +1462,10 @@
     "constraint": {
       "type": "object",
       "description": "User constraint definition (emission_cap or activity_share)",
-      "required": ["name", "type"],
+      "required": [
+        "name",
+        "type"
+      ],
       "properties": {
         "name": {
           "type": "string",
@@ -1011,7 +1477,10 @@
         },
         "type": {
           "type": "string",
-          "enum": ["emission_cap", "activity_share"],
+          "enum": [
+            "emission_cap",
+            "activity_share"
+          ],
           "description": "Type of constraint"
         },
         "category": {
@@ -1024,7 +1493,9 @@
         },
         "processes": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "description": "List of process names (for activity_share)"
         },
         "limit": {
@@ -1033,7 +1504,11 @@
         },
         "limtype": {
           "type": "string",
-          "enum": ["up", "lo", "fx"],
+          "enum": [
+            "up",
+            "lo",
+            "fx"
+          ],
           "default": "up",
           "description": "Limit type: up (max), lo (min), or fx (fixed)"
         },
@@ -1052,8 +1527,12 @@
         "years": {
           "type": "object",
           "description": "Year-specific RHS values (overrides limit)",
-          "additionalProperties": { "type": "number" },
-          "propertyNames": { "pattern": "^[12][0-9]{3}$" }
+          "additionalProperties": {
+            "type": "number"
+          },
+          "propertyNames": {
+            "pattern": "^[12][0-9]{3}$"
+          }
         },
         "interpolation": {
           "type": "string",
@@ -1070,12 +1549,33 @@
       },
       "allOf": [
         {
-          "if": { "properties": { "type": { "const": "emission_cap" } } },
-          "then": { "required": ["commodity"] }
+          "if": {
+            "properties": {
+              "type": {
+                "const": "emission_cap"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "commodity"
+            ]
+          }
         },
         {
-          "if": { "properties": { "type": { "const": "activity_share" } } },
-          "then": { "required": ["commodity", "processes"] }
+          "if": {
+            "properties": {
+              "type": {
+                "const": "activity_share"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "commodity",
+              "processes"
+            ]
+          }
         }
       ],
       "additionalProperties": false
@@ -1083,7 +1583,11 @@
     "trade_link": {
       "type": "object",
       "description": "Inter-regional trade link for commodity exchange",
-      "required": ["origin", "destination", "commodity"],
+      "required": [
+        "origin",
+        "destination",
+        "commodity"
+      ],
       "properties": {
         "origin": {
           "type": "string",
@@ -1111,15 +1615,25 @@
         },
         "cost": {
           "oneOf": [
-            { "type": "number", "minimum": 0 },
-            { "$ref": "#/$defs/time_varying_value" }
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "$ref": "#/$defs/time_varying_value"
+            }
           ],
           "description": "Transport cost per unit"
         },
         "capacity": {
           "oneOf": [
-            { "type": "number", "minimum": 0 },
-            { "$ref": "#/$defs/time_varying_value" }
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "$ref": "#/$defs/time_varying_value"
+            }
           ],
           "description": "Maximum trade capacity"
         }
@@ -1132,17 +1646,23 @@
       "properties": {
         "season": {
           "type": "array",
-          "items": { "$ref": "#/$defs/timeslice_level" },
+          "items": {
+            "$ref": "#/$defs/timeslice_level"
+          },
           "description": "Seasonal level (e.g., Summer, Winter)"
         },
         "weekly": {
           "type": "array",
-          "items": { "$ref": "#/$defs/timeslice_level" },
+          "items": {
+            "$ref": "#/$defs/timeslice_level"
+          },
           "description": "Weekly level (e.g., Weekday, Weekend)"
         },
         "daynite": {
           "type": "array",
-          "items": { "$ref": "#/$defs/timeslice_level" },
+          "items": {
+            "$ref": "#/$defs/timeslice_level"
+          },
           "description": "Day/night level (e.g., Day, Night, Peak)"
         },
         "fractions": {
@@ -1159,7 +1679,9 @@
     },
     "timeslice_level": {
       "type": "object",
-      "required": ["code"],
+      "required": [
+        "code"
+      ],
       "properties": {
         "code": {
           "type": "string",
@@ -1189,7 +1711,9 @@
     "commodity": {
       "type": "object",
       "description": "Commodity definition",
-      "required": ["type"],
+      "required": [
+        "type"
+      ],
       "properties": {
         "id": {
           "type": "string",
@@ -1202,7 +1726,15 @@
         },
         "type": {
           "type": "string",
-          "enum": ["fuel", "energy", "service", "material", "emission", "money", "other"],
+          "enum": [
+            "fuel",
+            "energy",
+            "service",
+            "material",
+            "emission",
+            "money",
+            "other"
+          ],
           "description": "Canonical commodity type used by diagnostics semantics and COM_TYPE mapping."
         },
         "unit": {
@@ -1250,23 +1782,46 @@
       "allOf": [
         {
           "if": {
-            "properties": { "combustible": { "const": true } },
-            "required": ["combustible"]
+            "properties": {
+              "combustible": {
+                "const": true
+              }
+            },
+            "required": [
+              "combustible"
+            ]
           },
           "then": {
-            "required": ["lhv_mj_per_unit", "hhv_mj_per_unit"]
+            "required": [
+              "lhv_mj_per_unit",
+              "hhv_mj_per_unit"
+            ]
           }
         },
         {
           "if": {
-            "properties": { "combustible": { "const": false } },
-            "required": ["combustible"]
+            "properties": {
+              "combustible": {
+                "const": false
+              }
+            },
+            "required": [
+              "combustible"
+            ]
           },
           "then": {
             "not": {
               "anyOf": [
-                { "required": ["lhv_mj_per_unit"] },
-                { "required": ["hhv_mj_per_unit"] }
+                {
+                  "required": [
+                    "lhv_mj_per_unit"
+                  ]
+                },
+                {
+                  "required": [
+                    "hhv_mj_per_unit"
+                  ]
+                }
               ]
             }
           }
@@ -1276,17 +1831,34 @@
     },
     "case_demand_override": {
       "type": "object",
-      "required": ["commodity"],
+      "required": [
+        "commodity"
+      ],
       "properties": {
-        "commodity": { "type": "string" },
-        "region": { "type": "string" },
-        "sector": { "type": "string" },
-        "scope": { "type": "string" },
-        "scale": { "type": "number", "minimum": 0 },
+        "commodity": {
+          "type": "string"
+        },
+        "region": {
+          "type": "string"
+        },
+        "sector": {
+          "type": "string"
+        },
+        "scope": {
+          "type": "string"
+        },
+        "scale": {
+          "type": "number",
+          "minimum": 0
+        },
         "values": {
           "type": "object",
-          "additionalProperties": { "type": "number" },
-          "propertyNames": { "pattern": "^[12][0-9]{3}$" }
+          "additionalProperties": {
+            "type": "number"
+          },
+          "propertyNames": {
+            "pattern": "^[12][0-9]{3}$"
+          }
         },
         "interpolation": {
           "type": "string",
@@ -1304,17 +1876,26 @@
     },
     "case_price_override": {
       "type": "object",
-      "required": ["commodity", "values"],
+      "required": [
+        "commodity",
+        "values"
+      ],
       "properties": {
-        "commodity": { "type": "string" },
+        "commodity": {
+          "type": "string"
+        },
         "value_basis": {
           "$ref": "#/$defs/energy_basis",
           "description": "Point-of-use heating-value basis for override price values when commodity is combustible."
         },
         "values": {
           "type": "object",
-          "additionalProperties": { "type": "number" },
-          "propertyNames": { "pattern": "^[12][0-9]{3}$" }
+          "additionalProperties": {
+            "type": "number"
+          },
+          "propertyNames": {
+            "pattern": "^[12][0-9]{3}$"
+          }
         },
         "interpolation": {
           "type": "string",
@@ -1333,14 +1914,27 @@
     },
     "case_constraint_override": {
       "type": "object",
-      "required": ["name"],
+      "required": [
+        "name"
+      ],
       "properties": {
-        "name": { "type": "string" },
-        "enabled": { "type": "boolean", "default": true },
-        "limit": { "type": "number" },
+        "name": {
+          "type": "string"
+        },
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "limit": {
+          "type": "number"
+        },
         "limtype": {
           "type": "string",
-          "enum": ["up", "lo", "fx"]
+          "enum": [
+            "up",
+            "lo",
+            "fx"
+          ]
         },
         "minimum_share": {
           "type": "number",
@@ -1354,46 +1948,89 @@
         },
         "years": {
           "type": "object",
-          "additionalProperties": { "type": "number" },
-          "propertyNames": { "pattern": "^[12][0-9]{3}$" }
+          "additionalProperties": {
+            "type": "number"
+          },
+          "propertyNames": {
+            "pattern": "^[12][0-9]{3}$"
+          }
         }
       },
       "additionalProperties": false
     },
     "case_variant_override": {
       "type": "object",
-      "required": ["variant"],
+      "required": [
+        "variant"
+      ],
       "properties": {
-        "variant": { "type": "string" },
-        "enabled": { "type": "boolean", "default": true },
+        "variant": {
+          "type": "string"
+        },
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
         "efficiency": {
           "oneOf": [
-            { "type": "number", "minimum": 0 },
-            { "$ref": "#/$defs/time_varying_value" }
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "$ref": "#/$defs/time_varying_value"
+            }
           ]
         },
         "investment_cost": {
           "oneOf": [
-            { "type": "number", "minimum": 0 },
-            { "$ref": "#/$defs/time_varying_value" },
-            { "$ref": "#/$defs/cost_rate_literal" },
-            { "$ref": "#/$defs/time_varying_cost_rate" }
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "$ref": "#/$defs/time_varying_value"
+            },
+            {
+              "$ref": "#/$defs/cost_rate_literal"
+            },
+            {
+              "$ref": "#/$defs/time_varying_cost_rate"
+            }
           ]
         },
         "fixed_om_cost": {
           "oneOf": [
-            { "type": "number", "minimum": 0 },
-            { "$ref": "#/$defs/time_varying_value" },
-            { "$ref": "#/$defs/cost_rate_literal" },
-            { "$ref": "#/$defs/time_varying_cost_rate" }
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "$ref": "#/$defs/time_varying_value"
+            },
+            {
+              "$ref": "#/$defs/cost_rate_literal"
+            },
+            {
+              "$ref": "#/$defs/time_varying_cost_rate"
+            }
           ]
         },
         "variable_om_cost": {
           "oneOf": [
-            { "type": "number", "minimum": 0 },
-            { "$ref": "#/$defs/time_varying_value" },
-            { "$ref": "#/$defs/cost_rate_literal" },
-            { "$ref": "#/$defs/time_varying_cost_rate" }
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "$ref": "#/$defs/time_varying_value"
+            },
+            {
+              "$ref": "#/$defs/cost_rate_literal"
+            },
+            {
+              "$ref": "#/$defs/time_varying_cost_rate"
+            }
           ]
         },
         "variable_om_cost_basis": {
@@ -1402,8 +2039,13 @@
         },
         "lifetime": {
           "oneOf": [
-            { "type": "number", "minimum": 0 },
-            { "$ref": "#/$defs/time_varying_value" }
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "$ref": "#/$defs/time_varying_value"
+            }
           ]
         }
       },
@@ -1411,7 +2053,10 @@
     },
     "diagnostics_boundary": {
       "type": "object",
-      "required": ["id", "measure"],
+      "required": [
+        "id",
+        "measure"
+      ],
       "properties": {
         "id": {
           "type": "string",
@@ -1419,9 +2064,16 @@
         },
         "measure": {
           "type": "string",
-          "enum": ["end_use_inputs", "service_outputs", "generation_outputs", "emissions_net"]
+          "enum": [
+            "end_use_inputs",
+            "service_outputs",
+            "generation_outputs",
+            "emissions_net"
+          ]
         },
-        "selectors": { "$ref": "#/$defs/diagnostics_selectors" }
+        "selectors": {
+          "$ref": "#/$defs/diagnostics_selectors"
+        }
       },
       "additionalProperties": false
     },
@@ -1432,38 +2084,62 @@
           "type": "array",
           "items": {
             "type": "string",
-            "enum": ["supply", "conversion", "distribution", "storage", "end_use", "sink"]
+            "enum": [
+              "supply",
+              "conversion",
+              "distribution",
+              "storage",
+              "end_use",
+              "sink"
+            ]
           }
         },
         "sector_in": {
           "type": "array",
-          "items": { "type": "string" }
+          "items": {
+            "type": "string"
+          }
         },
         "service_in": {
           "type": "array",
-          "items": { "type": "string" }
+          "items": {
+            "type": "string"
+          }
         },
         "kind_in": {
           "type": "array",
           "items": {
             "type": "string",
-            "enum": ["device", "storage", "generator", "network"]
+            "enum": [
+              "device",
+              "storage",
+              "generator",
+              "network"
+            ]
           }
         },
         "include_any": {
           "type": "array",
-          "items": { "type": "string" }
+          "items": {
+            "type": "string"
+          }
         },
         "exclude_any": {
           "type": "array",
-          "items": { "type": "string" }
+          "items": {
+            "type": "string"
+          }
         }
       },
       "additionalProperties": false
     },
     "diagnostics_metric": {
       "type": "object",
-      "required": ["id", "type", "boundary"],
+      "required": [
+        "id",
+        "type",
+        "boundary"
+      ],
       "properties": {
         "id": {
           "type": "string",
@@ -1480,9 +2156,15 @@
             "delta"
           ]
         },
-        "boundary": { "type": "string" },
-        "from_case": { "type": "string" },
-        "to_case": { "type": "string" }
+        "boundary": {
+          "type": "string"
+        },
+        "from_case": {
+          "type": "string"
+        },
+        "to_case": {
+          "type": "string"
+        }
       },
       "additionalProperties": false
     },
@@ -1491,16 +2173,23 @@
       "properties": {
         "on_empty_boundary": {
           "type": "string",
-          "enum": ["warn", "error"],
+          "enum": [
+            "warn",
+            "error"
+          ],
           "default": "warn"
         },
         "boundaries": {
           "type": "array",
-          "items": { "$ref": "#/$defs/diagnostics_boundary" }
+          "items": {
+            "$ref": "#/$defs/diagnostics_boundary"
+          }
         },
         "metrics": {
           "type": "array",
-          "items": { "$ref": "#/$defs/diagnostics_metric" }
+          "items": {
+            "$ref": "#/$defs/diagnostics_metric"
+          }
         }
       },
       "additionalProperties": false
@@ -1508,7 +2197,10 @@
     "past_investment": {
       "type": "object",
       "description": "A past capacity investment with specific vintage year (NCAP_PASTI)",
-      "required": ["vintage", "capacity"],
+      "required": [
+        "vintage",
+        "capacity"
+      ],
       "properties": {
         "vintage": {
           "type": "integer",
@@ -1547,36 +2239,63 @@
     },
     "flow": {
       "type": "object",
-      "required": ["commodity"],
+      "required": [
+        "commodity"
+      ],
       "properties": {
-        "commodity": { "type": "string", "description": "Reference to commodity name" },
-        "share": { "type": "number", "minimum": 0, "maximum": 1, "default": 1.0, "description": "Flow share for non-emission outputs (FLO_SHAR)" },
-        "coefficient": { "type": "number", "exclusiveMinimum": 0, "description": "Validation-only anchor coefficient in commodity_unit/activity_unit. Used for lint/compile unit checks; emission semantics remain driven by topology + efficiency." },
-        "basis": { "$ref": "#/$defs/energy_basis", "description": "Point-of-use heating-value basis for coefficient when this flow references a combustible commodity." },
-        "emission_factor": { "type": "number", "description": "Emission per unit PROCESS ACTIVITY. Units: <emission_commodity.unit> per <process.activity_unit> (e.g., Mt CO2 per PJ activity). Implemented via ENV_ACT in TIMES, which xl2times maps to FLO_EMIS. Always per-activity, NOT per-flow. Use instead of 'share' for emission commodities." }
+        "commodity": {
+          "type": "string",
+          "description": "Reference to commodity name"
+        },
+        "share": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "default": 1.0,
+          "description": "Flow share for non-emission outputs (FLO_SHAR)"
+        },
+        "coefficient": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Validation-only anchor coefficient in commodity_unit/activity_unit. Used for lint/compile unit checks; emission semantics remain driven by topology + efficiency."
+        },
+        "basis": {
+          "$ref": "#/$defs/energy_basis",
+          "description": "Point-of-use heating-value basis for coefficient when this flow references a combustible commodity."
+        },
+        "emission_factor": {
+          "type": "number",
+          "description": "Emission per unit PROCESS ACTIVITY. Units: <emission_commodity.unit> per <process.activity_unit> (e.g., Mt CO2 per PJ activity). Implemented via ENV_ACT in TIMES, which xl2times maps to FLO_EMIS. Always per-activity, NOT per-flow. Use instead of 'share' for emission commodities."
+        }
       }
     },
     "scenario_parameter": {
       "type": "object",
       "description": "A scenario parameter - an atomic time-series or value assumption (e.g., CO2 price path, demand projection)",
-      "required": ["name", "type"],
+      "required": [
+        "name",
+        "type"
+      ],
       "properties": {
-        "name": { 
-          "type": "string", 
+        "name": {
+          "type": "string",
           "description": "Parameter name identifier"
         },
-        "description": { 
+        "description": {
           "type": "string",
           "description": "Human-readable parameter description"
         },
         "type": {
           "type": "string",
-          "enum": ["commodity_price", "demand_projection"],
+          "enum": [
+            "commodity_price",
+            "demand_projection"
+          ],
           "description": "Type of scenario parameter"
         },
         "category": {
           "$ref": "#/$defs/category",
-          "description": "Scenario category. Defaults: commodity_price→prices, demand_projection→demands"
+          "description": "Scenario category. Defaults: commodity_price\u2192prices, demand_projection\u2192demands"
         },
         "commodity": {
           "type": "string",
@@ -1601,7 +2320,9 @@
         "values": {
           "type": "object",
           "description": "Year -> value mapping for time-series data (sparse OK, compiler expands)",
-          "additionalProperties": { "type": "number" },
+          "additionalProperties": {
+            "type": "number"
+          },
           "propertyNames": {
             "pattern": "^[12][0-9]{3}$",
             "description": "Keys must be 4-digit years"
@@ -1610,12 +2331,36 @@
       },
       "allOf": [
         {
-          "if": { "properties": { "type": { "const": "commodity_price" } } },
-          "then": { "required": ["commodity", "values", "interpolation"] }
+          "if": {
+            "properties": {
+              "type": {
+                "const": "commodity_price"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "commodity",
+              "values",
+              "interpolation"
+            ]
+          }
         },
         {
-          "if": { "properties": { "type": { "const": "demand_projection" } } },
-          "then": { "required": ["commodity", "values", "interpolation"] }
+          "if": {
+            "properties": {
+              "type": {
+                "const": "demand_projection"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "commodity",
+              "values",
+              "interpolation"
+            ]
+          }
         }
       ]
     },
@@ -1638,11 +2383,18 @@
         "values": {
           "type": "object",
           "description": "Year -> value mapping",
-          "additionalProperties": { "type": "number" },
-          "propertyNames": { "pattern": "^[12][0-9]{3}$" }
+          "additionalProperties": {
+            "type": "number"
+          },
+          "propertyNames": {
+            "pattern": "^[12][0-9]{3}$"
+          }
         }
       },
-      "required": ["values", "interpolation"]
+      "required": [
+        "values",
+        "interpolation"
+      ]
     },
     "time_varying_value": {
       "type": "object",
@@ -1651,8 +2403,12 @@
         "values": {
           "type": "object",
           "description": "Year -> value mapping (e.g., {\"2020\": 1000, \"2030\": 600})",
-          "additionalProperties": { "type": "number" },
-          "propertyNames": { "pattern": "^[12][0-9]{3}$" }
+          "additionalProperties": {
+            "type": "number"
+          },
+          "propertyNames": {
+            "pattern": "^[12][0-9]{3}$"
+          }
         },
         "interpolation": {
           "type": "string",
@@ -1668,7 +2424,287 @@
           "description": "VEDA interpolation/extrapolation mode (default: interp_extrap)"
         }
       },
-      "required": ["values"],
+      "required": [
+        "values"
+      ],
+      "additionalProperties": false
+    },
+    "variant_mode": {
+      "type": "object",
+      "required": [
+        "id",
+        "inputs",
+        "outputs"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]*$"
+        },
+        "description": {
+          "type": "string"
+        },
+        "inputs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/variant_flow"
+          },
+          "description": "Mode-specific explicit inputs"
+        },
+        "outputs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/variant_flow"
+          },
+          "description": "Mode-specific explicit outputs"
+        },
+        "efficiency": {
+          "oneOf": [
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "$ref": "#/$defs/time_varying_value"
+            }
+          ],
+          "description": "Conversion performance value. Interpreted by performance_metric (efficiency or COP)."
+        },
+        "performance_metric": {
+          "type": "string",
+          "enum": [
+            "efficiency",
+            "cop"
+          ],
+          "default": "efficiency",
+          "description": "Interpretation of efficiency value. Use 'cop' for heat-pump style components where values > 1 are expected."
+        },
+        "lifetime": {
+          "oneOf": [
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "$ref": "#/$defs/time_varying_value"
+            }
+          ],
+          "description": "Technical lifetime in years"
+        },
+        "investment_cost": {
+          "oneOf": [
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "$ref": "#/$defs/time_varying_value"
+            },
+            {
+              "$ref": "#/$defs/cost_rate_literal"
+            },
+            {
+              "$ref": "#/$defs/time_varying_cost_rate"
+            }
+          ],
+          "description": "Capital cost per unit capacity"
+        },
+        "fixed_om_cost": {
+          "oneOf": [
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "$ref": "#/$defs/time_varying_value"
+            },
+            {
+              "$ref": "#/$defs/cost_rate_literal"
+            },
+            {
+              "$ref": "#/$defs/time_varying_cost_rate"
+            }
+          ],
+          "description": "Fixed O&M cost per unit capacity per year"
+        },
+        "variable_om_cost": {
+          "oneOf": [
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "$ref": "#/$defs/time_varying_value"
+            },
+            {
+              "$ref": "#/$defs/cost_rate_literal"
+            },
+            {
+              "$ref": "#/$defs/time_varying_cost_rate"
+            }
+          ],
+          "description": "Variable O&M cost per unit activity"
+        },
+        "emission_factors": {
+          "type": "object",
+          "description": "Per-emission-commodity factors keyed by commodity id, per unit PROCESS ACTIVITY (TIMES ENV_ACT). Values are scalars or time-varying specs.",
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": "number"
+              },
+              {
+                "$ref": "#/$defs/time_varying_value"
+              }
+            ]
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "provider_offering": {
+      "type": "object",
+      "required": [
+        "variant"
+      ],
+      "properties": {
+        "variant": {
+          "type": "string",
+          "description": "Reference to process_variant id"
+        },
+        "modes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Allowed mode ids for this variant (defaults to all variant modes)"
+        }
+      },
+      "additionalProperties": false
+    },
+    "provider": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "role",
+        "region",
+        "offerings"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^(facility|fleet)\\.[A-Za-z0-9_.-]+$"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "facility",
+            "fleet"
+          ]
+        },
+        "role": {
+          "type": "string",
+          "description": "Reference to process_role id"
+        },
+        "region": {
+          "type": "string",
+          "description": "Provider region (single region per provider)"
+        },
+        "scopes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Optional commodity scopes served by this provider"
+        },
+        "offerings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/provider_offering"
+          },
+          "minItems": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "provider_selector": {
+      "type": "object",
+      "required": [
+        "provider"
+      ],
+      "properties": {
+        "provider": {
+          "type": "string",
+          "description": "Reference to provider id"
+        },
+        "role": {
+          "type": "string"
+        },
+        "variant": {
+          "type": "string"
+        },
+        "mode": {
+          "type": "string"
+        },
+        "region": {
+          "type": "string"
+        },
+        "scope": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "provider_parameter": {
+      "type": "object",
+      "required": [
+        "selector"
+      ],
+      "properties": {
+        "selector": {
+          "$ref": "#/$defs/provider_selector"
+        },
+        "existing_capacity": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/past_investment"
+          }
+        },
+        "cap_bound": {
+          "$ref": "#/$defs/bound"
+        },
+        "ncap_bound": {
+          "$ref": "#/$defs/bound"
+        },
+        "activity_bound": {
+          "$ref": "#/$defs/bound"
+        },
+        "stock": {
+          "oneOf": [
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "$ref": "#/$defs/time_varying_value"
+            }
+          ]
+        },
+        "emission_factors": {
+          "type": "object",
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": "number"
+              },
+              {
+                "$ref": "#/$defs/time_varying_value"
+              }
+            ]
+          }
+        }
+      },
       "additionalProperties": false
     }
   }

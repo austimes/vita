@@ -2,7 +2,7 @@
   "check_id": "llm.structure.res_assessment",
   "version": "v2",
   "created_at": "2026-02-27",
-  "content_sha256": "72dd4b77c04955fbd6b4f9009c3fa792717f31f6dbd64e886b83612891538915",
+  "content_sha256": "01998471a7d9c6f051c40483ad57d288385c474e51421d1f574c08f67e8ffa66",
   "files": [
     "CHANGELOG.md",
     "response_schema.json",

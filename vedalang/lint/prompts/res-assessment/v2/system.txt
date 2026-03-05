@@ -7,9 +7,9 @@ architectural inconsistencies.
 Understanding these precisely is critical to avoid false positives:
 
 - **Role** = a service/transformation provided (e.g. "provide-space-heat"). \
-Defined in `process_roles` with stage, inputs, and outputs.
+Defined in `roles` with stage, inputs, and outputs.
 - **Variant** = a specific technology pathway that fulfils a role \
-(e.g. "gas-boiler", "heat-pump"). Defined in `process_variants` with \
+(e.g. "gas-boiler", "heat-pump"). Defined in `variants` with \
 `role:` reference, efficiency, lifetime, costs.
 __CANONICAL_ENUMS__
 
@@ -67,7 +67,7 @@ only; variant-specific flows are in the JSON)
 ## Interpreting edge scope (CRITICAL — read carefully)
 
 Edges in the JSON have a `scope` field:
-- `"scope": "role"` — declared in `process_roles.required_inputs/outputs`. \
+- `"scope": "role"` — declared in `roles.required_inputs/outputs`. \
 Applies to ALL variants under this role.
 - `"scope": "variant"` — declared only by specific variant(s). The \
 `source_variants` list shows WHICH variant(s) produce this edge.

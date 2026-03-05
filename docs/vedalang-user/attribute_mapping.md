@@ -37,10 +37,10 @@ All VedaLang process attributes with their TIMES/VEDA mappings:
 
 ## Process Cost Attributes
 
-For P4 (`process_roles`/`process_variants`) models, unit ownership is role-level:
+For P4 (`roles`/`variants`) models, unit ownership is role-level:
 
-- `process_roles[].activity_unit`
-- `process_roles[].capacity_unit`
+- `roles[].activity_unit`
+- `roles[].capacity_unit`
 
 Variants inherit these units from their role; variant-level unit overrides are
 not supported.
@@ -61,7 +61,7 @@ model:
     canonical: MAUD24
     fx_table: rules/monetary/fx_aud_usd_world_bank_pa_nus_fcrf.yaml
 
-process_variants:
+variants:
   - investment_cost: "120 MAUD24/GW"
     fixed_om_cost: "4 MAUD24/GW/yr"
     variable_om_cost: "6.944444 MUSD24/PJ"
@@ -172,7 +172,7 @@ cap_bound:
 Emissions are **ledger entries**, not flows. They are specified as a dict on the process, never in `inputs` or `outputs`:
 
 ```yaml
-process_variants:
+variants:
   - id: gas_plant
     inputs:
       - commodity: primary:natural_gas

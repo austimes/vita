@@ -468,15 +468,15 @@ class TestSchemaDrivenEnums:
     """Tests for schema-driven enum hover/completion/diagnostics behavior."""
 
     def test_process_variant_kind_enum_includes_network(self):
-        """Schema enum for process_variants.kind should include network."""
-        schema_node = schema_for_path(["process_variants", 0, "kind"])
+        """Schema enum for variants.kind should include network."""
+        schema_node = schema_for_path(["variants", 0, "kind"])
         assert schema_node is not None
         enum_values = enum_values_from_schema(schema_node)
         assert "network" in enum_values
         assert "generator" in enum_values
 
     def test_schema_lookup_for_kind_uses_process_variant_context(self):
-        """Context lookup should resolve process_variants.kind correctly."""
+        """Context lookup should resolve variants.kind correctly."""
         source = """model:
   name: test
   regions: [R1]
@@ -484,13 +484,13 @@ class TestSchemaDrivenEnums:
     - id: secondary:electricity
       type: energy
   processes: []
-process_roles:
+roles:
   - id: deliver_power
     required_inputs:
       - commodity: secondary:electricity
     required_outputs:
       - commodity: secondary:electricity
-process_variants:
+variants:
   - id: grid_distribution
     role: deliver_power
     inputs:
@@ -506,7 +506,7 @@ process_variants:
             doc, types.Position(line=line_idx, character=key_start), "kind"
         )
         assert path is not None
-        assert path[-3:] == ["process_variants", 0, "kind"]
+        assert path[-3:] == ["variants", 0, "kind"]
         assert schema_node is not None
         assert "network" in enum_values_from_schema(schema_node)
 
@@ -519,13 +519,13 @@ process_variants:
     - id: secondary:electricity
       type: energy
   processes: []
-process_roles:
+roles:
   - id: deliver_power
     required_inputs:
       - commodity: secondary:electricity
     required_outputs:
       - commodity: secondary:electricity
-process_variants:
+variants:
   - id: grid_distribution
     role: deliver_power
     inputs:
@@ -551,13 +551,13 @@ process_variants:
     - id: secondary:electricity
       type: energy
   processes: []
-process_roles:
+roles:
   - id: deliver_power
     required_inputs:
       - commodity: secondary:electricity
     required_outputs:
       - commodity: secondary:electricity
-process_variants:
+variants:
   - id: grid_distribution
     role: deliver_power
     inputs:

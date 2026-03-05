@@ -66,7 +66,7 @@ def _minimal_new_syntax_source() -> dict:
             ],
         },
         "scoping": {"sectors": ["RES"]},
-        "process_roles": [
+        "roles": [
             {
                 "id": "deliver_heat",
                 "activity_unit": "PJ",
@@ -76,7 +76,7 @@ def _minimal_new_syntax_source() -> dict:
                 "required_outputs": [{"commodity": "heat_service"}],
             }
         ],
-        "process_variants": [
+        "variants": [
             {
                 "id": "heat_pump",
                 "role": "deliver_heat",
@@ -140,7 +140,7 @@ def _process_kind_source(explicit_kind: str | None = None) -> dict:
                 {"id": "heat_service", "type": "service"},
             ],
         },
-        "process_roles": [
+        "roles": [
             {
                 "id": "generate_power",
                 "activity_unit": "PJ",
@@ -166,7 +166,7 @@ def _process_kind_source(explicit_kind: str | None = None) -> dict:
                 "required_outputs": [{"commodity": "electricity"}],
             },
         ],
-        "process_variants": [
+        "variants": [
             {
                 "id": "ccgt",
                 "role": "generate_power",
@@ -215,7 +215,7 @@ def test_end_use_diagnostics_include_all_end_use_variants_by_default():
     source = _minimal_new_syntax_source()
     source["model"]["commodities"].append({"id": "aux_heat_service", "type": "service"})
     source["diagnostics"]["boundaries"][0]["selectors"] = {"stage_in": ["end_use"]}
-    source["process_roles"].append(
+    source["roles"].append(
         {
             "id": "deliver_aux_heat",
             "activity_unit": "PJ",
@@ -225,7 +225,7 @@ def test_end_use_diagnostics_include_all_end_use_variants_by_default():
             "required_outputs": [{"commodity": "aux_heat_service"}],
         }
     )
-    source["process_variants"].append(
+    source["variants"].append(
         {
             "id": "resistive_heater",
             "role": "deliver_aux_heat",

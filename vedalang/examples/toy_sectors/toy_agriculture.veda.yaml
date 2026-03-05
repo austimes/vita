@@ -48,7 +48,7 @@ scoping:
     - AGR
 
 # Process roles: reusable contracts (required I/O + units) shared by multiple variants.
-process_roles:
+roles:
   - id: provide_ag_output
     activity_unit: PJ
     capacity_unit: GW
@@ -74,7 +74,7 @@ process_roles:
       - commodity: material:ag_inputs
 
 # Process variants: concrete technology definitions bound to roles.
-process_variants:
+variants:
   - id: primary_supply
     role: supply_ag_inputs
     inputs: []

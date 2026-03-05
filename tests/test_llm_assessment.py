@@ -33,7 +33,7 @@ MINIMAL_SOURCE = {
             {"id": "space_heat", "type": "service"},
         ],
     },
-    "process_roles": [
+    "roles": [
         {
             "id": "provide_space_heat",
             "activity_unit": "PJ",
@@ -43,7 +43,7 @@ MINIMAL_SOURCE = {
             "required_outputs": [{"commodity": "space_heat"}],
         },
     ],
-    "process_variants": [
+    "variants": [
         {
             "id": "heat_pump",
             "role": "provide_space_heat",
@@ -61,7 +61,7 @@ RESPONSE_WITH_FINDINGS = json.dumps({
             "severity": "critical",
             "category": "fuel_pathway_roles",
             "message": "Roles heat_from_gas and heat_from_elec share output",
-            "location": "process_roles",
+            "location": "roles",
             "suggestion": "Merge into provide_space_heat",
         },
         {
@@ -109,7 +109,7 @@ class TestParseLLMResponse:
         assert critical.severity == "critical"
         assert critical.category == "fuel_pathway_roles"
         assert "heat_from_gas" in critical.message
-        assert critical.location == "process_roles"
+        assert critical.location == "roles"
         assert critical.suggestion == "Merge into provide_space_heat"
 
     def test_markdown_fenced_response(self):
@@ -184,14 +184,14 @@ class TestSerialization:
             severity="critical",
             category="fuel_pathway_roles",
             message="Test message",
-            location="process_roles[0]",
+            location="roles[0]",
             suggestion="Fix it",
         )
         d = finding.to_dict()
         assert d["code"] == "LLM_FUEL_PATHWAY_ROLES"
         assert d["severity"] == "critical"
         assert d["message"] == "Test message"
-        assert d["location"] == "process_roles[0]"
+        assert d["location"] == "roles[0]"
         assert d["suggestion"] == "Fix it"
 
     def test_finding_to_dict_minimal(self):

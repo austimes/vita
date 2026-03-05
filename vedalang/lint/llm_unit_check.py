@@ -187,7 +187,7 @@ def save_store(path: Path, store: dict[str, Any]) -> None:
 
 def list_components(source: dict) -> list[str]:
     """List component IDs for certification (P4 variants or legacy processes)."""
-    variants = source.get("process_variants") or []
+    variants = source.get("variants") or []
     if variants:
         return [v["id"] for v in variants if "id" in v]
     model = source.get("model", {})
@@ -200,7 +200,7 @@ def _component_payload(source: dict, component: str) -> dict[str, Any]:
     commodities = {
         (c.get("id") or c.get("name")): c for c in model.get("commodities", [])
     }
-    roles = {r.get("id"): r for r in source.get("process_roles", []) if "id" in r}
+    roles = {r.get("id"): r for r in source.get("roles", []) if "id" in r}
     payload: dict[str, Any] = {
         "model": model.get("name"),
         "unit_policy": model.get("unit_policy", {}),
@@ -212,7 +212,7 @@ def _component_payload(source: dict, component: str) -> dict[str, Any]:
         },
     }
 
-    for variant in source.get("process_variants", []):
+    for variant in source.get("variants", []):
         if variant.get("id") != component:
             continue
         comm_refs = [

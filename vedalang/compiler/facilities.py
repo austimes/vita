@@ -485,9 +485,9 @@ def prepare_facilities(
     demands = list(transformed.get("demands") or [])
     availability = list(transformed.get("availability") or [])
     process_parameters = list(transformed.get("process_parameters") or [])
-    process_variants = list(transformed.get("process_variants") or [])
+    variants = list(transformed.get("variants") or [])
 
-    existing_variant_ids = {v["id"] for v in process_variants}
+    existing_variant_ids = {v["id"] for v in variants}
     context_entities = []
 
     for entity in selected_entities:
@@ -531,7 +531,7 @@ def prepare_facilities(
                     process_variant["emission_factors"] = deepcopy(
                         mode.emission_factors
                     )
-                process_variants.append(process_variant)
+                variants.append(process_variant)
 
                 availability.append(
                     {
@@ -582,7 +582,7 @@ def prepare_facilities(
     transformed["demands"] = demands
     transformed["availability"] = availability
     transformed["process_parameters"] = process_parameters
-    transformed["process_variants"] = process_variants
+    transformed["variants"] = variants
 
     context = {
         "entities": context_entities,

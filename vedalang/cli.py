@@ -540,7 +540,7 @@ def cmd_lint(args) -> int:
             summary=summary,
         )
 
-    if not source.get("process_roles"):
+    if not source.get("roles"):
         diagnostics.append(
             with_meta(
                 {
@@ -548,7 +548,7 @@ def cmd_lint(args) -> int:
                     "severity": "error",
                     "message": (
                         "Legacy syntax is no longer supported by deterministic lint. "
-                        "Use new syntax with process_roles/process_variants/"
+                        "Use new syntax with roles/variants/"
                         "availability."
                     ),
                     "location": "model.processes",
@@ -1332,8 +1332,8 @@ def _is_yaml_file(path: Path) -> bool:
 FMT_ROOT_KEY_ORDER = (
     "model",
     "scoping",
-    "process_roles",
-    "process_variants",
+    "roles",
+    "variants",
     "availability",
     "process_parameters",
     "demands",

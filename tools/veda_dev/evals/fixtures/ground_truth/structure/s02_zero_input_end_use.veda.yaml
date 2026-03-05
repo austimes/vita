@@ -8,7 +8,7 @@ model:
       unit: PJ
       combustible: false
 
-process_roles:
+roles:
   - id: provide_heat
     stage: end_use
     activity_unit: PJ
@@ -17,7 +17,7 @@ process_roles:
     required_outputs:
       - commodity: service:heat
 
-process_variants:
+variants:
   - id: heat_service_device
     role: provide_heat
     inputs: []

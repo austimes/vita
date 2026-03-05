@@ -28,7 +28,7 @@ model:
     - name: baseline
       is_baseline: true
 
-process_roles:
+roles:
   - id: produce_alumina
     stage: conversion
     activity_unit: PJ

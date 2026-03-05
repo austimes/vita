@@ -22,7 +22,7 @@ model:
       lhv_mj_per_unit: 50.0
       hhv_mj_per_unit: 55.0
 
-process_roles:
+roles:
   - id: provide_mobility
     stage: end_use
     activity_unit: Bvkm
@@ -38,7 +38,7 @@ process_roles:
     required_outputs:
       - commodity: service:heat
 
-process_variants:
+variants:
   - id: ev_car
     role: provide_mobility
     inputs:

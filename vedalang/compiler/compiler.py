@@ -30,9 +30,12 @@ from .facilities import (
 )
 from .ir import (
     apply_process_parameters,
+    apply_provider_parameters,
+    build_providers,
     build_roles,
     build_variants,
     expand_availability,
+    expand_provider_instances,
     lower_instances_to_tableir,
 )
 from .naming import NamingRegistry
@@ -667,7 +670,7 @@ def _collect_new_syntax_structural_invariants(
             errors.append(
                 {
                     "code": "E_STAGE_ENUM",
-                    "location": f"process_roles[{role_id}]",
+                    "location": f"roles[{role_id}]",
                     "message": (
                         "Stage must be one of "
                         f"{list(VALID_PROCESS_STAGES)}, got '{role.stage}'."
@@ -681,7 +684,7 @@ def _collect_new_syntax_structural_invariants(
                     {
                         "code": "E_EMISSION_NAMESPACE_FLOW",
                         "location": (
-                            f"process_roles[{role_id}].required_inputs[{idx}].commodity"
+                            f"roles[{role_id}].required_inputs[{idx}].commodity"
                         ),
                         "message": (
                             "L1 violation: emission:* commodities must not appear in "
@@ -696,7 +699,7 @@ def _collect_new_syntax_structural_invariants(
                     {
                         "code": "E_EMISSION_NAMESPACE_FLOW",
                         "location": (
-                            f"process_roles[{role_id}].required_outputs[{idx}].commodity"
+                            f"roles[{role_id}].required_outputs[{idx}].commodity"
                         ),
                         "message": (
                             "L1/L4 violation: emission:* commodities "
@@ -710,7 +713,7 @@ def _collect_new_syntax_structural_invariants(
         errors.append(
             {
                 "code": "E_ROLE_PRIMARY_OUTPUT",
-                "location": f"process_roles[{role_id}]",
+                "location": f"roles[{role_id}]",
                 "message": issue,
             }
         )
@@ -719,69 +722,83 @@ def _collect_new_syntax_structural_invariants(
     errors.extend(dup_errors)
     warnings.extend(dup_warnings)
 
-    for variant in source.get("process_variants") or []:
+    for variant in source.get("variants") or []:
         variant_id = variant.get("id", "<variant>")
         role = roles.get(variant.get("role"))
+        mode_entries = variant.get("modes") or []
+        flow_blocks = mode_entries if mode_entries else [variant]
 
-        for idx, inp in enumerate(variant.get("inputs") or []):
-            commodity_ref = inp.get("commodity")
-            if commodity_ref and _is_emission_namespace_ref(commodity_ref):
-                errors.append(
-                    {
-                        "code": "E_EMISSION_NAMESPACE_FLOW",
-                        "location": (
-                            f"process_variants[{variant_id}].inputs[{idx}].commodity"
-                        ),
-                        "message": (
-                            "L1 violation: emission:* commodities must not appear in "
-                            "variant inputs. Use emission_factors instead."
-                        ),
-                    }
-                )
+        for block in flow_blocks:
+            block_mode_id = block.get("id")
+            for idx, inp in enumerate(block.get("inputs") or []):
+                commodity_ref = inp.get("commodity")
+                if commodity_ref and _is_emission_namespace_ref(commodity_ref):
+                    location = f"variants[{variant_id}].inputs[{idx}].commodity"
+                    if block_mode_id and mode_entries:
+                        location = (
+                            "variants["
+                            f"{variant_id}].modes[{block_mode_id}].inputs[{idx}].commodity"
+                        )
+                    errors.append(
+                        {
+                            "code": "E_EMISSION_NAMESPACE_FLOW",
+                            "location": location,
+                            "message": (
+                                "L1 violation: emission:* commodities must not "
+                                "appear in variant inputs. Use emission_factors "
+                                "instead."
+                            ),
+                        }
+                    )
 
-        for idx, out in enumerate(variant.get("outputs") or []):
-            commodity_ref = out.get("commodity")
-            if commodity_ref and _is_emission_namespace_ref(commodity_ref):
-                errors.append(
-                    {
-                        "code": "E_EMISSION_NAMESPACE_FLOW",
-                        "location": (
-                            f"process_variants[{variant_id}].outputs[{idx}].commodity"
-                        ),
-                        "message": (
-                            "L1/L4 violation: emission:* commodities "
-                            "must not appear in "
-                            "variant outputs. Use emission_factors instead."
-                        ),
-                    }
-                )
+            for idx, out in enumerate(block.get("outputs") or []):
+                commodity_ref = out.get("commodity")
+                if commodity_ref and _is_emission_namespace_ref(commodity_ref):
+                    location = f"variants[{variant_id}].outputs[{idx}].commodity"
+                    if block_mode_id and mode_entries:
+                        location = (
+                            "variants["
+                            f"{variant_id}].modes[{block_mode_id}].outputs[{idx}].commodity"
+                        )
+                    errors.append(
+                        {
+                            "code": "E_EMISSION_NAMESPACE_FLOW",
+                            "location": location,
+                            "message": (
+                                "L1/L4 violation: emission:* commodities "
+                                "must not appear in "
+                                "variant outputs. Use emission_factors instead."
+                            ),
+                        }
+                    )
 
         if role is None or role.stage != "end_use":
             continue
 
-        # Variant inputs are explicit (required)
-        variant_inputs = [
-            inp["commodity"] for inp in variant.get("inputs") or []
-        ]
+        has_physical_input = False
+        for block in flow_blocks:
+            inputs = [inp["commodity"] for inp in block.get("inputs") or []]
+            physical_inputs = [
+                inp
+                for inp in inputs
+                if _commodity_kind(commodities.get(inp, {}))
+                not in {"service", "emission"}
+            ]
+            if physical_inputs:
+                has_physical_input = True
+                break
 
-        physical_inputs = [
-            inp
-            for inp in variant_inputs
-            if _commodity_kind(commodities.get(inp, {})) not in {"service", "emission"}
-        ]
-        if physical_inputs:
-            continue
-
-        errors.append(
-            {
-                "code": "E_END_USE_PHYSICAL_INPUT",
-                "location": f"process_variants[{variant_id}]",
-                "message": (
-                    "End-use variants must have at least one physical input "
-                    "(fuel/energy/material)."
-                ),
-            }
-        )
+        if not has_physical_input:
+            errors.append(
+                {
+                    "code": "E_END_USE_PHYSICAL_INPUT",
+                    "location": f"variants[{variant_id}]",
+                    "message": (
+                        "End-use variants must have at least one physical input "
+                        "(fuel/energy/material)."
+                    ),
+                }
+            )
 
     for demand in source.get("demands") or []:
         commodity = demand.get("commodity")
@@ -800,7 +817,7 @@ def _collect_new_syntax_structural_invariants(
                 }
             )
 
-    for variant in source.get("process_variants") or []:
+    for variant in source.get("variants") or []:
         variant_id = variant.get("id", "<variant>")
         role = roles.get(variant.get("role"))
         emission_factors = variant.get("emission_factors") or {}
@@ -811,7 +828,7 @@ def _collect_new_syntax_structural_invariants(
         variant_unit_errors: list[str] = []
         variant_unit_warnings: list[str] = []
         _validate_process_unit_pair(
-            process_label=f"process_variants[{variant_id}]",
+            process_label=f"variants[{variant_id}]",
             activity_unit=activity_unit,
             capacity_unit=capacity_unit,
             policy=unit_policy,
@@ -824,7 +841,7 @@ def _collect_new_syntax_structural_invariants(
         )
         if "efficiency" in variant:
             _validate_efficiency_metric(
-                process_label=f"process_variants[{variant_id}]",
+                process_label=f"variants[{variant_id}]",
                 efficiency_value=variant.get("efficiency"),
                 performance_metric=performance_metric,
                 policy=unit_policy,
@@ -838,14 +855,14 @@ def _collect_new_syntax_structural_invariants(
                     variant_unit_warnings,
                     unit_policy,
                     (
-                        "process_variants"
+                        "variants"
                         f"[{variant_id}] defines coefficient anchors but has no "
                         "efficiency value; cannot run anchor magnitude checks."
                     ),
                 )
             else:
                 _validate_flow_coefficient_anchors(
-                    process_label=f"process_variants[{variant_id}]",
+                    process_label=f"variants[{variant_id}]",
                     inputs=variant.get("inputs", []),
                     outputs=variant.get("outputs", []),
                     efficiency_value=variant.get("efficiency"),
@@ -859,7 +876,7 @@ def _collect_new_syntax_structural_invariants(
             errors.append(
                 {
                     "code": "E_PROCESS_UNITS",
-                    "location": f"process_variants[{variant_id}]",
+                    "location": f"variants[{variant_id}]",
                     "message": msg,
                 }
             )
@@ -867,7 +884,7 @@ def _collect_new_syntax_structural_invariants(
             warnings.append(
                 {
                     "code": "W_PROCESS_UNITS",
-                    "location": f"process_variants[{variant_id}]",
+                    "location": f"variants[{variant_id}]",
                     "message": msg,
                 }
             )
@@ -893,7 +910,7 @@ def _collect_new_syntax_structural_invariants(
                 basis = commodities.get(comm_id, {}).get("basis")
                 if not basis:
                     append_unit_issue(
-                        location=f"process_variants[{variant_id}]",
+                        location=f"variants[{variant_id}]",
                         message=(
                             "Energy/mass conversion requires basis metadata: "
                             f"commodity '{comm_id}' (unit '{unit}') has no basis."
@@ -904,7 +921,7 @@ def _collect_new_syntax_structural_invariants(
                     continue
                 if policy_basis and basis != policy_basis:
                     append_unit_issue(
-                        location=f"process_variants[{variant_id}]",
+                        location=f"variants[{variant_id}]",
                         message=(
                             f"Commodity '{comm_id}' basis '{basis}' conflicts with "
                             f"model.unit_policy.energy_basis '{policy_basis}'."
@@ -925,7 +942,7 @@ def _collect_new_syntax_structural_invariants(
             errors.append(
                 {
                     "code": "E_UNIT_TRANSFORM_PROCESS",
-                    "location": f"process_variants[{variant_id}]",
+                    "location": f"variants[{variant_id}]",
                     "message": (
                         "Variant appears to be a unit-only pass-through "
                         "(same commodity in/out without physical transformation)."
@@ -940,7 +957,7 @@ def _collect_new_syntax_structural_invariants(
                     {
                         "code": "E_EMISSION_FACTOR_NAMESPACE",
                         "location": (
-                            f"process_variants[{variant_id}]."
+                            f"variants[{variant_id}]."
                             f"emission_factors[{emission_comm}]"
                         ),
                         "message": (
@@ -966,7 +983,7 @@ def _collect_new_syntax_structural_invariants(
                     {
                         "code": "E_EMISSION_COMMODITY_TYPE",
                         "location": (
-                            f"process_variants[{variant_id}]."
+                            f"variants[{variant_id}]."
                             f"emission_factors[{emission_comm}]"
                         ),
                         "message": (
@@ -982,7 +999,7 @@ def _collect_new_syntax_structural_invariants(
             if emission_dimension != "mass":
                 append_unit_issue(
                     location=(
-                        f"process_variants[{variant_id}]."
+                        f"variants[{variant_id}]."
                         f"emission_factors[{emission_comm}]"
                     ),
                     message=(
@@ -1002,7 +1019,7 @@ def _collect_new_syntax_structural_invariants(
             warnings.append(
                 {
                     "code": "W_NEGATIVE_EMISSION_DOC",
-                    "location": f"process_variants[{variant_id}]",
+                    "location": f"variants[{variant_id}]",
                     "message": (
                         "L3 guidance: negative emission_factors are allowed, but add "
                         "description/notes for auditability."
@@ -1062,7 +1079,7 @@ def collect_new_syntax_structural_diagnostics(
     source: dict,
 ) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
     """Return structured structural/unit/emission diagnostics for new syntax models."""
-    if not source.get("process_roles"):
+    if not source.get("roles"):
         return [], []
 
     model = source["model"]
@@ -1178,7 +1195,7 @@ def collect_new_syntax_cost_unit_diagnostics(
     source: dict,
 ) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
     """Return deterministic new-syntax cost denominator diagnostics for lint."""
-    if not source.get("process_roles"):
+    if not source.get("roles"):
         return [], []
 
     errors: list[dict[str, str]] = []
@@ -1186,12 +1203,12 @@ def collect_new_syntax_cost_unit_diagnostics(
 
     roles_by_id = {
         role.get("id"): role
-        for role in (source.get("process_roles") or [])
+        for role in (source.get("roles") or [])
         if role.get("id")
     }
     variant_units: dict[str, tuple[str, str]] = {}
 
-    for variant in source.get("process_variants") or []:
+    for variant in source.get("variants") or []:
         variant_id = variant.get("id", "<variant>")
         role = roles_by_id.get(variant.get("role"))
         if role is None:
@@ -1209,7 +1226,7 @@ def collect_new_syntax_cost_unit_diagnostics(
                 continue
             _check_cost_rate_literal(
                 value=variant[field_name],
-                location=f"process_variants[{variant_id}].{field_name}",
+                location=f"variants[{variant_id}].{field_name}",
                 field_name=field_name,
                 expected_denominator=expected_denominator,
                 require_per_year=require_per_year,
@@ -1770,9 +1787,9 @@ def _normalize_new_syntax_monetary_costs(source: dict) -> tuple[dict, dict]:
     policy = _resolve_monetary_policy(model)
 
     roles_by_id = {
-        r.get("id"): r for r in (normalized.get("process_roles") or []) if r.get("id")
+        r.get("id"): r for r in (normalized.get("roles") or []) if r.get("id")
     }
-    variants = normalized.get("process_variants") or []
+    variants = normalized.get("variants") or []
     units_by_variant: dict[str, tuple[str, str]] = {}
     for variant in variants:
         variant_id = variant.get("id", "<variant>")
@@ -1783,7 +1800,7 @@ def _normalize_new_syntax_monetary_costs(source: dict) -> tuple[dict, dict]:
         if not activity_unit or not capacity_unit:
             raise SemanticValidationError(
                 [
-                    f"process_roles[{role_id}] must declare both activity_unit and "
+                    f"roles[{role_id}] must declare both activity_unit and "
                     "capacity_unit when model.monetary is used."
                 ]
             )
@@ -1800,7 +1817,7 @@ def _normalize_new_syntax_monetary_costs(source: dict) -> tuple[dict, dict]:
             if policy.get("enabled"):
                 variant[field_name] = _normalize_cost_value(
                     raw_value=variant[field_name],
-                    field_path=f"process_variants[{variant_id}].{field_name}",
+                    field_path=f"variants[{variant_id}].{field_name}",
                     expected_denominator=denominator,
                     require_per_year=require_per_year,
                     policy=policy,
@@ -1808,7 +1825,7 @@ def _normalize_new_syntax_monetary_costs(source: dict) -> tuple[dict, dict]:
             else:
                 variant[field_name] = _coerce_cost_value_without_monetary_policy(
                     raw_value=variant[field_name],
-                    field_path=f"process_variants[{variant_id}].{field_name}",
+                    field_path=f"variants[{variant_id}].{field_name}",
                     expected_denominator=denominator,
                     require_per_year=require_per_year,
                 )
@@ -1855,9 +1872,9 @@ def _normalize_new_syntax_heating_basis_values(source: dict) -> dict:
     """Normalize point-of-use combustible values to canonical HHV basis.
 
     This applies only to new-syntax constructs:
-    - process_variants[*].inputs/outputs[*].coefficient
-    - process_variants[*].variable_om_cost
-    - process_variants[*].emission_factors
+    - variants[*].inputs/outputs[*].coefficient
+    - variants[*].variable_om_cost
+    - variants[*].emission_factors
     - model.scenario_parameters[*] where type=commodity_price
     - model.cases[*].fuel_price_overrides[*]
     - model.cases[*].variant_overrides[*].variable_om_cost
@@ -1869,12 +1886,12 @@ def _normalize_new_syntax_heating_basis_values(source: dict) -> dict:
 
     commodities = _normalize_commodities_for_new_syntax(model.get("commodities", []))
     roles_by_id = {
-        r.get("id"): r for r in (normalized.get("process_roles") or []) if r.get("id")
+        r.get("id"): r for r in (normalized.get("roles") or []) if r.get("id")
     }
 
     variant_meta: dict[str, dict] = {}
 
-    for variant in normalized.get("process_variants") or []:
+    for variant in normalized.get("variants") or []:
         variant_id = variant.get("id", "<variant>")
         role = roles_by_id.get(variant.get("role"), {})
         activity_unit = role.get("activity_unit")
@@ -1897,7 +1914,7 @@ def _normalize_new_syntax_heating_basis_values(source: dict) -> dict:
                     continue
                 flow_basis = flow.get("basis")
                 field_path = (
-                    f"process_variants[{variant_id}].{flow_dir}[{idx}].coefficient"
+                    f"variants[{variant_id}].{flow_dir}[{idx}].coefficient"
                 )
                 if flow_basis not in ENERGY_BASES:
                     if strict_mode:
@@ -1925,7 +1942,7 @@ def _normalize_new_syntax_heating_basis_values(source: dict) -> dict:
         # Process-level variable O&M cost: currency/activity_unit (energy denominator).
         if "variable_om_cost" in variant and combustible_refs and activity_is_energy:
             value_basis = variant.get("variable_om_cost_basis")
-            field_path = f"process_variants[{variant_id}].variable_om_cost"
+            field_path = f"variants[{variant_id}].variable_om_cost"
             if value_basis not in ENERGY_BASES:
                 if strict_mode:
                     raise SemanticValidationError(
@@ -1966,7 +1983,7 @@ def _normalize_new_syntax_heating_basis_values(source: dict) -> dict:
         # conversion applies.
         if "emission_factors" in variant and combustible_refs:
             ef_basis = variant.get("emission_factor_basis")
-            field_path = f"process_variants[{variant_id}].emission_factors"
+            field_path = f"variants[{variant_id}].emission_factors"
             if ef_basis not in ENERGY_BASES:
                 if strict_mode:
                     raise SemanticValidationError(
@@ -2076,7 +2093,7 @@ def _normalize_new_syntax_heating_basis_values(source: dict) -> dict:
             )
             override["value_basis"] = "HHV"
 
-        # Case variant overrides: same rule as process_variants variable_om_cost.
+        # Case variant overrides: same rule as variants variable_om_cost.
         for idx, override in enumerate(case.get("variant_overrides", []) or []):
             if "variable_om_cost" not in override:
                 continue
@@ -2765,7 +2782,7 @@ def validate_cross_references(
 
     Args:
         model: The model dictionary from VedaLang source
-        source: Optional full source dict (for P4 syntax with process_variants)
+        source: Optional full source dict (for P4 syntax with variants)
 
     Returns:
         Tuple of (errors, warnings)
@@ -2850,9 +2867,9 @@ def validate_cross_references(
         proc_name = p.get("name") or p.get("id")
         if proc_name:
             processes.add(proc_name)
-    # P4 syntax: include process_variants from top-level source
+    # P4 syntax: include variants from top-level source
     if source:
-        for v in source.get("process_variants", []):
+        for v in source.get("variants", []):
             variant_id = v.get("id")
             if variant_id:
                 processes.add(variant_id)
@@ -3262,10 +3279,10 @@ def validate_cross_references(
                 role.get("activity_unit", "PJ"),
                 role.get("capacity_unit", "GW"),
             )
-            for role in source.get("process_roles", [])
+            for role in source.get("roles", [])
             if role.get("id")
         }
-        for variant in source.get("process_variants", []):
+        for variant in source.get("variants", []):
             variant_id = variant.get("id", "<variant>")
             for idx, inp in enumerate(variant.get("inputs") or []):
                 comm = inp.get("commodity")
@@ -3273,12 +3290,12 @@ def validate_cross_references(
                     continue
                 _warn_ambiguous_commodity_ref(
                     warnings,
-                    f"process_variants[{variant_id}].inputs[{idx}]",
+                    f"variants[{variant_id}].inputs[{idx}]",
                     comm,
                 )
                 if _is_emission_namespace_ref(comm):
                     errors.append(
-                        "L1 violation in process_variants"
+                        "L1 violation in variants"
                         f"[{variant_id}].inputs[{idx}]: emission:* commodities "
                         "must not appear in inputs/outputs."
                     )
@@ -3289,12 +3306,12 @@ def validate_cross_references(
                     continue
                 _warn_ambiguous_commodity_ref(
                     warnings,
-                    f"process_variants[{variant_id}].outputs[{idx}]",
+                    f"variants[{variant_id}].outputs[{idx}]",
                     comm,
                 )
                 if _is_emission_namespace_ref(comm):
                     errors.append(
-                        "L1/L4 violation in process_variants"
+                        "L1/L4 violation in variants"
                         f"[{variant_id}].outputs[{idx}]: emission:* commodities "
                         "must not appear in inputs/outputs."
                     )
@@ -3303,7 +3320,7 @@ def validate_cross_references(
             for em_key in emission_factors:
                 if ":" in em_key and not _is_emission_namespace_ref(em_key):
                     errors.append(
-                        "L2 violation in process_variants"
+                        "L2 violation in variants"
                         f"[{variant_id}].emission_factors: key '{em_key}' must "
                         "be namespaced as emission:*."
                     )
@@ -3312,7 +3329,7 @@ def validate_cross_references(
             activity_unit, capacity_unit = role_units.get(role_id, ("PJ", "GW"))
             performance_metric = variant.get("performance_metric", "efficiency")
             _validate_process_unit_pair(
-                process_label=f"process_variants[{variant_id}]",
+                process_label=f"variants[{variant_id}]",
                 activity_unit=activity_unit,
                 capacity_unit=capacity_unit,
                 policy=unit_policy,
@@ -3325,7 +3342,7 @@ def validate_cross_references(
             )
             if "efficiency" in variant:
                 _validate_efficiency_metric(
-                    process_label=f"process_variants[{variant_id}]",
+                    process_label=f"variants[{variant_id}]",
                     efficiency_value=variant.get("efficiency"),
                     performance_metric=performance_metric,
                     policy=unit_policy,
@@ -3339,14 +3356,14 @@ def validate_cross_references(
                         warnings,
                         unit_policy,
                         (
-                            "process_variants"
+                            "variants"
                             f"[{variant_id}] defines coefficient anchors but has no "
                             "efficiency value; cannot run anchor magnitude checks."
                         ),
                     )
                 else:
                     _validate_flow_coefficient_anchors(
-                        process_label=f"process_variants[{variant_id}]",
+                        process_label=f"variants[{variant_id}]",
                         inputs=variant.get("inputs", []),
                         outputs=variant.get("outputs", []),
                         efficiency_value=variant.get("efficiency"),
@@ -3364,7 +3381,7 @@ def validate_cross_references(
             ]
             check_energy_mass_basis(
                 variant_flow_commodities,
-                f"process_variants[{variant_id}]",
+                f"variants[{variant_id}]",
             )
 
             if (
@@ -3377,7 +3394,7 @@ def validate_cross_references(
                 )
             ):
                 errors.append(
-                    "UNIT_TRANSFORM_PROCESS_FORBIDDEN in process_variants"
+                    "UNIT_TRANSFORM_PROCESS_FORBIDDEN in variants"
                     f"[{variant_id}]: appears to be a unit-only pass-through "
                     "without physical transformation."
                 )
@@ -3415,11 +3432,11 @@ def _compile_new_syntax(
     selected_cases: list[str] | None = None,
 ) -> dict:
     """
-    Compile VedaLang source using new P4 syntax (process_roles/variants/availability).
+    Compile VedaLang source using new P4 syntax (roles/variants/availability).
 
     This is the new compilation pipeline that uses:
-    - process_roles: abstract transformations (topology)
-    - process_variants: concrete technologies with parameters
+    - roles: abstract transformations (topology)
+    - variants: concrete technologies with parameters
     - availability: where variants exist (region/sector/scope)
     - process_parameters: selector-based parameter overrides
     - demands: service commodity demands
@@ -3446,7 +3463,7 @@ def _compile_new_syntax(
     # Build normalized commodities dict
     commodities = _normalize_commodities_for_new_syntax(model.get("commodities", []))
 
-    # Build roles from process_roles
+    # Build roles from roles
     roles = build_roles(source, commodities)
     convention_warnings = _validate_new_syntax_structural_invariants(
         source,
@@ -3462,7 +3479,7 @@ def _compile_new_syntax(
     )
     model = source["model"]
 
-    # Build variants from process_variants (after facility expansion so generated
+    # Build variants from variants (after facility expansion so generated
     # mode variants are included).
     variants = build_variants(source, roles, commodities)
 
@@ -3470,11 +3487,14 @@ def _compile_new_syntax(
     scoping_cfg = source.get("scoping") or {}
     segment_keys = build_segments({"scoping": scoping_cfg})
 
-    # Expand availability to process instances
-    instances = expand_availability(source, variants, segment_keys)
-
-    # Apply process_parameters overrides
-    apply_process_parameters(instances, source)
+    if source.get("providers"):
+        providers = build_providers(source, roles, variants)
+        instances = expand_provider_instances(providers, variants)
+        apply_provider_parameters(instances, source)
+    else:
+        # Legacy pathway retained while examples/tests migrate to providers.
+        instances = expand_availability(source, variants, segment_keys)
+        apply_process_parameters(instances, source)
 
     # Create naming registry for deterministic symbols
     registry = NamingRegistry()
@@ -3551,7 +3571,18 @@ def _compile_new_syntax(
     # Build ~FI_PROCESS rows from instances
     fi_process_rows = []
     for key, instance in sorted(instances.items()):
-        prc_name = registry.get_process_symbol(key.variant_id, key.region, key.segment)
+        mode_outputs = (
+            instance.mode.outputs if instance.mode else instance.variant.outputs
+        )
+        prc_name = registry.get_process_symbol(
+            key.variant_id,
+            key.region,
+            key.segment,
+            provider_kind=key.provider_kind,
+            provider_id=key.provider_id,
+            role_id=key.role_id,
+            mode_id=key.mode_id,
+        )
         activity_unit = instance.role.activity_unit
         capacity_unit = instance.role.capacity_unit
         row = {
@@ -3559,7 +3590,7 @@ def _compile_new_syntax(
             "process": prc_name,
             "sets": ",".join(
                 ["DMD"]
-                if _produces_service_comm(instance.variant.outputs, commodities)
+                if _produces_service_comm(mode_outputs, commodities)
                 else []
             ),
             "tact": activity_unit,
@@ -3571,14 +3602,26 @@ def _compile_new_syntax(
     fi_t_rows = []
     pasti_rows = []
     for key, instance in sorted(instances.items()):
-        prc_name = registry.get_process_symbol(key.variant_id, key.region, key.segment)
+        prc_name = registry.get_process_symbol(
+            key.variant_id,
+            key.region,
+            key.segment,
+            provider_kind=key.provider_kind,
+            provider_id=key.provider_id,
+            role_id=key.role_id,
+            mode_id=key.mode_id,
+        )
         attrs = instance.attrs
+        mode_inputs = instance.mode.inputs if instance.mode else instance.variant.inputs
+        mode_outputs = (
+            instance.mode.outputs if instance.mode else instance.variant.outputs
+        )
         activity_unit = instance.role.activity_unit
         capacity_unit = instance.role.capacity_unit
         prc_capact = _compute_cap2act(capacity_unit, activity_unit)
 
         # Input commodities (from variant's explicit I/O)
-        for inp_id in instance.variant.inputs:
+        for inp_id in mode_inputs:
             comm = commodities.get(inp_id, {})
             tradable = comm.get("tradable", True)
             if tradable:
@@ -3592,7 +3635,7 @@ def _compile_new_syntax(
             })
 
         # Output commodities (from variant's explicit I/O)
-        for out_id in instance.variant.outputs:
+        for out_id in mode_outputs:
             comm = commodities.get(out_id, {})
             comm_kind = _commodity_kind(comm)
             tradable = comm.get("tradable", True)
@@ -3649,9 +3692,7 @@ def _compile_new_syntax(
                 "process": prc_name,
                 "prc_capact": prc_capact,
             }
-            first_output = (
-                instance.variant.outputs[0] if instance.variant.outputs else None
-            )
+            first_output = mode_outputs[0] if mode_outputs else None
             if first_output:
                 comm = commodities.get(first_output, {})
                 tradable = comm.get("tradable", True)
@@ -3876,21 +3917,28 @@ def _commodity_kind(comm: dict) -> str:
     }.get(ctype, "carrier")
 
 
-def _primary_output_for_role(role, commodities: dict[str, dict]) -> str | None:
-    """Select primary output as first non-emission required output.
+def _primary_output_for_outputs(
+    outputs: list[str], commodities: dict[str, dict]
+) -> str | None:
+    """Select primary output as first non-emission output.
 
     Fallback to first output if all outputs are emissions.
     """
     non_emission = [
         out
-        for out in role.required_outputs
+        for out in outputs
         if _commodity_kind(commodities.get(out, {})) != "emission"
     ]
     if non_emission:
         return non_emission[0]
-    if role.required_outputs:
-        return role.required_outputs[0]
+    if outputs:
+        return outputs[0]
     return None
+
+
+def _primary_output_for_role(role, commodities: dict[str, dict]) -> str | None:
+    """Select primary output from role.required_outputs."""
+    return _primary_output_for_outputs(role.required_outputs, commodities)
 
 
 def _validate_role_primary_outputs(
@@ -3963,7 +4011,7 @@ def _detect_service_role_duplication(
             warnings.append(
                 {
                     "code": "W2_FUEL_PATHWAY_ROLE_NAME",
-                    "location": f"process_roles[{role.id}]",
+                    "location": f"roles[{role.id}]",
                     "message": (
                         "Role name appears to encode fuel pathway semantics. "
                         "Use service-level names on roles and move pathway "
@@ -3983,7 +4031,7 @@ def _detect_service_role_duplication(
             {
                 "code": "E1_DUPLICATE_SERVICE_ROLES",
                 "location": (
-                    f"process_roles[{service}]"
+                    f"roles[{service}]"
                 ),
                 "message": (
                     "Fuel-pathway role duplication detected for service commodity "
@@ -4008,7 +4056,7 @@ def _detect_service_role_duplication(
             warnings.append(
                 {
                     "code": "W1_SPLIT_IDENTICAL_IO_ROLES",
-                    "location": f"process_roles[{service}]",
+                    "location": f"roles[{service}]",
                     "message": (
                         "Multiple end-use roles share identical "
                         "input/output structure: "
@@ -4091,12 +4139,22 @@ def _build_metadata_map(
     """Build solve-independent metadata map for diagnostics boundary resolution."""
     metadata: dict[str, dict] = {}
     for key, instance in sorted(instances.items()):
-        symbol = registry.get_process_symbol(key.variant_id, key.region, key.segment)
+        symbol = registry.get_process_symbol(
+            key.variant_id,
+            key.region,
+            key.segment,
+            provider_kind=key.provider_kind,
+            provider_id=key.provider_id,
+            role_id=key.role_id,
+            mode_id=key.mode_id,
+        )
         role = instance.role
-        service = _primary_output_for_role(role, commodities)
+        outputs = instance.mode.outputs if instance.mode else instance.variant.outputs
+        inputs = instance.mode.inputs if instance.mode else instance.variant.inputs
+        service = _primary_output_for_outputs(outputs, commodities)
         carriers = [
             inp
-            for inp in instance.variant.inputs
+            for inp in inputs
             if _commodity_kind(commodities.get(inp, {})) != "emission"
         ]
         sector = None
@@ -4106,12 +4164,16 @@ def _build_metadata_map(
             role,
             instance.attrs,
             commodities,
-            instance.variant.outputs,
+            outputs,
         )
         meta_entry = {
             "variant": key.variant_id,
             "region": key.region,
             "scope": key.segment,
+            "provider": key.provider_id,
+            "provider_kind": key.provider_kind,
+            "role": key.role_id or role.id,
+            "mode": key.mode_id,
             "stage": role.stage,
             "sector": sector,
             "service": service,
@@ -4225,8 +4287,8 @@ def compile_vedalang_to_tableir(
     if validate:
         validate_vedalang(source)
 
-    # Detect new syntax: process_roles is at top-level (not in model)
-    if source.get("process_roles"):
+    # Detect new syntax: roles is at top-level (not in model)
+    if source.get("roles"):
         return _compile_new_syntax(source, validate, selected_cases)
 
     model = source["model"]

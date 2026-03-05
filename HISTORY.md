@@ -78,8 +78,8 @@ Progressive complexity series (`minisystem1` through `minisystem8`):
 
 **Major schema redesign** introducing composable process modeling:
 
-- **`process_roles`**: Abstract topology definitions (what transformation happens — inputs/outputs, stage)
-- **`process_variants`**: Concrete technology implementations of roles (efficiency, costs, lifetime)
+- **`roles`**: Abstract topology definitions (what transformation happens — inputs/outputs, stage)
+- **`variants`**: Concrete technology implementations of roles (efficiency, costs, lifetime)
 - **`segments`**: Sector/end-use segmentation for demand-side modeling
 - **`availability`**: Where variants are available (region × sector × segment)
 - **`process_parameters`**: Selector-based parameter blocks (stock, bounds, existing capacity)

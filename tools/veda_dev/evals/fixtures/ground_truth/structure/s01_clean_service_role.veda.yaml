@@ -18,7 +18,7 @@ model:
       lhv_mj_per_unit: 50.0
       hhv_mj_per_unit: 55.0
 
-process_roles:
+roles:
   - id: supply_electricity
     stage: supply
     activity_unit: PJ
@@ -41,7 +41,7 @@ process_roles:
     required_outputs:
       - commodity: service:heat
 
-process_variants:
+variants:
   - id: grid_import
     role: supply_electricity
     inputs: []

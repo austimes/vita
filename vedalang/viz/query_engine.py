@@ -17,7 +17,17 @@ from .graph_models import (
 from .trade_view import build_compiled_trade_view, build_source_trade_view
 
 VALID_MODES = {"source", "compiled"}
-VALID_GRANULARITIES = {"role", "variant", "instance", "mode", "facility"}
+VALID_GRANULARITIES = {
+    "role",
+    "provider",
+    "provider_variant",
+    "provider_variant_mode",
+    "instance",
+    # Legacy aliases retained for compatibility in clients.
+    "variant",
+    "mode",
+    "facility",
+}
 VALID_LENSES = {"system", "trade"}
 
 

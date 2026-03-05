@@ -409,7 +409,7 @@ def _path_at_position(
 def yaml_path_at_position(
     document: TextDocument, position: types.Position
 ) -> list[str | int]:
-    """Get the YAML path at cursor location (e.g., ['process_variants', 0, 'kind'])."""
+    """Get the YAML path at cursor location (e.g., ['variants', 0, 'kind'])."""
     try:
         root = yaml.compose(document.source)
     except yaml.YAMLError:

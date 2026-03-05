@@ -50,7 +50,7 @@ scoping:
     - IND
 
 # Process roles: reusable contracts (required I/O + units) shared by multiple variants.
-process_roles:
+roles:
   - id: provide_electricity
     activity_unit: PJ
     capacity_unit: GW
@@ -85,7 +85,7 @@ process_roles:
       - commodity: resource:wind_resource
 
 # Process variants: concrete technology definitions bound to roles.
-process_variants:
+variants:
   - id: ccgt
     role: provide_electricity
     inputs:

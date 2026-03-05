@@ -8,7 +8,7 @@ model:
       unit: Mt
       combustible: false
 
-process_roles:
+roles:
   - id: remove_co2
     stage: sink
     activity_unit: Mt
@@ -16,7 +16,7 @@ process_roles:
     required_inputs: []
     required_outputs: []
 
-process_variants:
+variants:
   - id: dac_ledger_sink
     role: remove_co2
     inputs: []

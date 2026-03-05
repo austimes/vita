@@ -97,7 +97,7 @@ def test_monetary_policy_and_cost_literals_validate():
                 {"id": "secondary:electricity", "type": "energy", "unit": "PJ"}
             ],
         },
-        "process_roles": [
+        "roles": [
             {
                 "id": "supply_power",
                 "activity_unit": "PJ",
@@ -106,7 +106,7 @@ def test_monetary_policy_and_cost_literals_validate():
                 "required_outputs": [{"commodity": "secondary:electricity"}],
             }
         ],
-        "process_variants": [
+        "variants": [
             {
                 "id": "grid_import",
                 "role": "supply_power",
@@ -214,7 +214,7 @@ def test_efficiency_allows_cop_style_values():
             "regions": ["R1"],
             "commodities": [],
         },
-        "process_roles": [
+        "roles": [
             {
                 "id": "generate_power",
                 "activity_unit": "PJ",
@@ -223,7 +223,7 @@ def test_efficiency_allows_cop_style_values():
                 "required_outputs": [{"commodity": "electricity"}],
             }
         ],
-        "process_variants": [
+        "variants": [
             {
                 "id": "bad_plant",
                 "role": "generate_power",
@@ -238,7 +238,7 @@ def test_efficiency_allows_cop_style_values():
 
 
 def test_process_variant_rejects_unknown_performance_metric():
-    """process_variants.performance_metric must be one of allowed enum values."""
+    """variants.performance_metric must be one of allowed enum values."""
     schema = load_schema()
     data = {
         "model": {
@@ -246,7 +246,7 @@ def test_process_variant_rejects_unknown_performance_metric():
             "regions": ["R1"],
             "commodities": [{"id": "electricity", "type": "energy"}],
         },
-        "process_roles": [
+        "roles": [
             {
                 "id": "generate_power",
                 "activity_unit": "PJ",
@@ -255,7 +255,7 @@ def test_process_variant_rejects_unknown_performance_metric():
                 "required_outputs": [{"commodity": "electricity"}],
             }
         ],
-        "process_variants": [
+        "variants": [
             {
                 "id": "bad_plant",
                 "role": "generate_power",
@@ -282,7 +282,7 @@ def test_process_variant_flow_coefficient_anchor_validates():
                 {"id": "secondary:electricity", "type": "energy", "unit": "TWh"},
             ],
         },
-        "process_roles": [
+        "roles": [
             {
                 "id": "generate_power",
                 "activity_unit": "PJ",
@@ -291,7 +291,7 @@ def test_process_variant_flow_coefficient_anchor_validates():
                 "required_outputs": [{"commodity": "secondary:electricity"}],
             }
         ],
-        "process_variants": [
+        "variants": [
             {
                 "id": "ccgt",
                 "role": "generate_power",
@@ -309,7 +309,7 @@ def test_process_variant_flow_coefficient_anchor_validates():
 
 
 def test_process_role_activity_capacity_units_validate():
-    """process_roles should accept explicit activity/capacity units."""
+    """roles should accept explicit activity/capacity units."""
     schema = load_schema()
     data = {
         "model": {
@@ -324,7 +324,7 @@ def test_process_role_activity_capacity_units_validate():
                 {"id": "service:space_heat", "type": "service", "unit": "TWh"},
             ],
         },
-        "process_roles": [
+        "roles": [
             {
                 "id": "provide_space_heat",
                 "activity_unit": "TWh",
@@ -333,7 +333,7 @@ def test_process_role_activity_capacity_units_validate():
                 "required_outputs": [{"commodity": "service:space_heat"}],
             }
         ],
-        "process_variants": [
+        "variants": [
             {
                 "id": "heat_pump",
                 "role": "provide_space_heat",
@@ -357,7 +357,7 @@ def test_process_role_rejects_ambiguous_non_power_capacity_unit():
                 {"id": "secondary:electricity", "type": "energy", "unit": "PJ"},
             ],
         },
-        "process_roles": [
+        "roles": [
             {
                 "id": "supply_power",
                 "activity_unit": "PJ",
@@ -366,7 +366,7 @@ def test_process_role_rejects_ambiguous_non_power_capacity_unit():
                 "required_outputs": [{"commodity": "secondary:electricity"}],
             }
         ],
-        "process_variants": [
+        "variants": [
             {
                 "id": "grid_import",
                 "role": "supply_power",
@@ -646,7 +646,7 @@ def test_segments_invalid_sector_rejected():
         jsonschema.validate(data, schema)
 
 
-def test_process_roles_validates():
+def test_roles_validates():
     """Process roles block should validate against schema."""
     schema = load_schema()
     data = {
@@ -658,7 +658,7 @@ def test_process_roles_validates():
                 {"id": "lighting", "type": "service"},
             ],
         },
-        "process_roles": [
+        "roles": [
             {
                 "id": "generate_electricity",
                 "activity_unit": "PJ",
@@ -680,7 +680,7 @@ def test_process_roles_validates():
     jsonschema.validate(data, schema)
 
 
-def test_process_roles_invalid_stage_rejected():
+def test_roles_invalid_stage_rejected():
     """Invalid stage enum value should be rejected."""
     schema = load_schema()
     data = {
@@ -689,7 +689,7 @@ def test_process_roles_invalid_stage_rejected():
             "regions": ["R1"],
             "commodities": [],
         },
-        "process_roles": [
+        "roles": [
             {
                 "id": "bad_role",
                 "activity_unit": "PJ",
@@ -702,7 +702,7 @@ def test_process_roles_invalid_stage_rejected():
         jsonschema.validate(data, schema)
 
 
-def test_process_variants_validates():
+def test_variants_validates():
     """Process variants block should validate against schema."""
     schema = load_schema()
     data = {
@@ -721,7 +721,7 @@ def test_process_variants_validates():
                 {"id": "electricity", "type": "energy", "combustible": False},
             ],
         },
-        "process_roles": [
+        "roles": [
             {
                 "id": "generate_power",
                 "activity_unit": "PJ",
@@ -730,7 +730,7 @@ def test_process_variants_validates():
                 "required_outputs": [{"commodity": "electricity"}],
             },
         ],
-        "process_variants": [
+        "variants": [
             {
                 "id": "coal_plant",
                 "role": "generate_power",
@@ -756,7 +756,7 @@ def test_process_variants_validates():
     jsonschema.validate(data, schema)
 
 
-def test_process_variants_requires_role():
+def test_variants_requires_role():
     """Process variant requires role reference."""
     schema = load_schema()
     data = {
@@ -765,7 +765,7 @@ def test_process_variants_requires_role():
             "regions": ["R1"],
             "commodities": [],
         },
-        "process_variants": [
+        "variants": [
             {
                 "id": "orphan_plant",
                 # Missing required 'role'
@@ -952,7 +952,7 @@ def test_negative_emission_factor_validates():
                 {"id": "emission:co2", "type": "emission"},
             ],
         },
-        "process_roles": [
+        "roles": [
             {
                 "id": "remove_co2",
                 "activity_unit": "PJ",
@@ -961,7 +961,7 @@ def test_negative_emission_factor_validates():
                 "required_outputs": [{"commodity": "service:co2_removal"}],
             }
         ],
-        "process_variants": [
+        "variants": [
             {
                 "id": "dac",
                 "role": "remove_co2",
@@ -990,7 +990,7 @@ def test_full_roles_variants_model_validates():
         "scoping": {
             "sectors": ["RES", "COM"],
         },
-        "process_roles": [
+        "roles": [
             {
                 "id": "generate_electricity",
                 "activity_unit": "PJ",
@@ -1008,7 +1008,7 @@ def test_full_roles_variants_model_validates():
                 "required_outputs": [{"commodity": "lighting"}],
             },
         ],
-        "process_variants": [
+        "variants": [
             {
                 "id": "simple_generator",
                 "role": "generate_electricity",

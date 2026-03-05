@@ -38,7 +38,7 @@ scoping:
     - RES
 
 # Process roles: reusable contracts (required I/O + units) shared by multiple variants.
-process_roles:
+roles:
   - id: deliver_residential
     activity_unit: PJ
     capacity_unit: GW
@@ -66,7 +66,7 @@ process_roles:
       - commodity: primary:natural_gas
 
 # Process variants: concrete technology definitions bound to roles.
-process_variants:
+variants:
   - id: ccgt
     role: generate_electricity
     inputs:

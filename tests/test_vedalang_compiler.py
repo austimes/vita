@@ -17,6 +17,7 @@ from vedalang.compiler.compiler import (
     _normalize_commodities_for_new_syntax,
 )
 from vedalang.compiler.ir import build_roles
+from vedalang.compiler.naming import parse_process_symbol
 from vedalang.compiler.registry import VedaLangError
 
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -177,7 +178,7 @@ def test_demand_projection_scenario():
             ],
         },
         "scoping": {"sectors": ["RES"]},
-        "process_roles": [
+        "roles": [
             {"id": "deliver_residential",
              "activity_unit": "PJ",
              "capacity_unit": "GW",
@@ -185,7 +186,7 @@ def test_demand_projection_scenario():
              "required_inputs": [{"commodity": "electricity"}],
              "required_outputs": [{"commodity": "residential_demand"}]},
         ],
-        "process_variants": [
+        "variants": [
             {
                 "id": "residential_device",
                 "role": "deliver_residential",
@@ -255,7 +256,7 @@ def test_monetary_cost_literal_normalizes_to_canonical_currency():
                 {"id": "secondary:electricity", "type": "energy", "unit": "PJ"},
             ],
         },
-        "process_roles": [
+        "roles": [
             {
                 "id": "supply_power",
                 "stage": "supply",
@@ -265,7 +266,7 @@ def test_monetary_cost_literal_normalizes_to_canonical_currency():
                 "required_outputs": [{"commodity": "secondary:electricity"}],
             }
         ],
-        "process_variants": [
+        "variants": [
             {
                 "id": "grid_import",
                 "role": "supply_power",
@@ -324,7 +325,7 @@ def test_monetary_cost_literal_denominator_mismatch_raises():
                 {"id": "secondary:electricity", "type": "energy", "unit": "PJ"},
             ],
         },
-        "process_roles": [
+        "roles": [
             {
                 "id": "supply_power",
                 "stage": "supply",
@@ -334,7 +335,7 @@ def test_monetary_cost_literal_denominator_mismatch_raises():
                 "required_outputs": [{"commodity": "secondary:electricity"}],
             }
         ],
-        "process_variants": [
+        "variants": [
             {
                 "id": "grid_import",
                 "role": "supply_power",
@@ -366,7 +367,7 @@ def test_monetary_policy_rejects_unitless_cost_scalars():
                 {"id": "secondary:electricity", "type": "energy", "unit": "PJ"},
             ],
         },
-        "process_roles": [
+        "roles": [
             {
                 "id": "supply_power",
                 "stage": "supply",
@@ -376,7 +377,7 @@ def test_monetary_policy_rejects_unitless_cost_scalars():
                 "required_outputs": [{"commodity": "secondary:electricity"}],
             }
         ],
-        "process_variants": [
+        "variants": [
             {
                 "id": "grid_import",
                 "role": "supply_power",
@@ -412,7 +413,7 @@ def test_demand_projection_creates_scenario_file():
             ],
         },
         "scoping": {"sectors": ["RES"]},
-        "process_roles": [
+        "roles": [
             {
                 "id": "deliver_residential",
                 "activity_unit": "PJ",
@@ -422,7 +423,7 @@ def test_demand_projection_creates_scenario_file():
                 "required_outputs": [{"commodity": "residential_demand"}],
             },
         ],
-        "process_variants": [
+        "variants": [
             {
                 "id": "residential_device",
                 "role": "deliver_residential",
@@ -1497,11 +1498,11 @@ def test_pcg_missing_raises_validation_error():
     """Process without primary_commodity_group should raise ValidationError.
 
     NOTE: This test uses legacy 'processes' syntax which is deprecated.
-    The new P4 syntax uses process_roles/variants/availability instead.
+    The new P4 syntax uses roles/variants/availability instead.
     """
     pytest.skip(
         "Legacy 'processes' syntax is deprecated"
-        " in P4 - use process_roles/variants"
+        " in P4 - use roles/variants"
     )
 
 
@@ -1512,7 +1513,7 @@ def test_pcg_invalid_value_raises_validation_error():
     """
     pytest.skip(
         "Legacy 'processes' syntax is deprecated"
-        " in P4 - use process_roles/variants"
+        " in P4 - use roles/variants"
     )
 
 
@@ -1523,7 +1524,7 @@ def test_pcg_explicit_nrgo():
     """
     pytest.skip(
         "Legacy 'processes' syntax is deprecated"
-        " in P4 - use process_roles/variants"
+        " in P4 - use roles/variants"
     )
 
 
@@ -1534,14 +1535,14 @@ def test_pcg_explicit_demo():
     """
     pytest.skip(
         "Legacy 'processes' syntax is deprecated"
-        " in P4 - use process_roles/variants"
+        " in P4 - use roles/variants"
     )
 
 
 def test_pcg_always_emitted():
     """primarycg column may be empty in new P4 syntax (compiler-owned).
 
-    NOTE: The new P4 syntax uses process_roles/variants, and primarycg
+    NOTE: The new P4 syntax uses roles/variants, and primarycg
     inference is compiler-owned. We no longer require user-specified PCG.
     """
     pytest.skip(
@@ -1876,7 +1877,7 @@ def test_commodity_price_wrong_commodity_type():
     """
     pytest.skip(
         "Legacy 'processes' syntax is deprecated"
-        " in P4 - use process_roles/variants"
+        " in P4 - use roles/variants"
     )
 
 
@@ -2661,7 +2662,7 @@ def test_default_commodity_units_demand():
             ],
         },
         "scoping": {"sectors": ["RES"]},
-        "process_roles": [
+        "roles": [
             {
                 "id": "deliver_residential",
                 "activity_unit": "PJ",
@@ -2671,7 +2672,7 @@ def test_default_commodity_units_demand():
                 "required_outputs": [{"commodity": "residential_demand"}],
             },
         ],
-        "process_variants": [
+        "variants": [
             {
                 "id": "residential_device",
                 "role": "deliver_residential",
@@ -2875,7 +2876,7 @@ def test_prc_capact_emitted_for_explicit_annual_rate_capacity():
                 {"id": "secondary:electricity", "type": "energy", "unit": "PJ"},
             ],
         },
-        "process_roles": [
+        "roles": [
             {
                 "id": "supply_power",
                 "stage": "supply",
@@ -2885,7 +2886,7 @@ def test_prc_capact_emitted_for_explicit_annual_rate_capacity():
                 "required_outputs": [{"commodity": "secondary:electricity"}],
             }
         ],
-        "process_variants": [
+        "variants": [
             {
                 "id": "grid_import",
                 "role": "supply_power",
@@ -2935,7 +2936,7 @@ def test_incompatible_activity_capacity_pair_is_rejected():
                 {"id": "service:passenger_km", "type": "service", "unit": "Bvkm"},
             ],
         },
-        "process_roles": [
+        "roles": [
             {
                 "id": "provide_mobility",
                 "stage": "end_use",
@@ -2945,7 +2946,7 @@ def test_incompatible_activity_capacity_pair_is_rejected():
                 "required_outputs": [{"commodity": "service:passenger_km"}],
             }
         ],
-        "process_variants": [
+        "variants": [
             {
                 "id": "bad_variant",
                 "role": "provide_mobility",
@@ -2965,8 +2966,8 @@ def test_incompatible_activity_capacity_pair_is_rejected():
 def test_new_syntax_role_units_emit_tact_tcap_and_prc_capact():
     """P4 role units should emit authored tact/tcap and computed PRC_CAPACT."""
     source = _base_new_syntax_source()
-    source["process_roles"][0]["activity_unit"] = "TWh"
-    source["process_roles"][0]["capacity_unit"] = "GW"
+    source["roles"][0]["activity_unit"] = "TWh"
+    source["roles"][0]["capacity_unit"] = "GW"
 
     tableir = compile_vedalang_to_tableir(source)
 
@@ -3071,7 +3072,7 @@ def test_existing_capacity_emits_ncap_pasti():
     """
     pytest.skip(
         "Legacy 'processes' syntax is deprecated"
-        " in P4 - use process_roles/variants"
+        " in P4 - use roles/variants"
     )
 
 
@@ -3082,7 +3083,7 @@ def test_existing_capacity_vs_stock():
     """
     pytest.skip(
         "Legacy 'processes' syntax is deprecated"
-        " in P4 - use process_roles/variants"
+        " in P4 - use roles/variants"
     )
 
 
@@ -3211,7 +3212,7 @@ def _base_new_syntax_source() -> dict:
             ],
         },
         "scoping": {"sectors": ["RES"]},
-        "process_roles": [
+        "roles": [
             {
                 "id": "provide_space_heat",
                 "stage": "end_use",
@@ -3221,7 +3222,7 @@ def _base_new_syntax_source() -> dict:
                 "required_outputs": [{"commodity": "space_heat"}],
             }
         ],
-        "process_variants": [
+        "variants": [
             {
                 "id": "heat_pump",
                 "role": "provide_space_heat",
@@ -3274,7 +3275,7 @@ def _new_syntax_conversion_source() -> dict:
             ],
         },
         "scoping": {"sectors": ["RES"]},
-        "process_roles": [
+        "roles": [
             {
                 "id": "generate_electricity",
                 "activity_unit": "PJ",
@@ -3284,7 +3285,7 @@ def _new_syntax_conversion_source() -> dict:
                 "required_outputs": [{"commodity": "secondary:electricity"}],
             }
         ],
-        "process_variants": [
+        "variants": [
             {
                 "id": "ccgt",
                 "role": "generate_electricity",
@@ -3343,7 +3344,7 @@ def test_new_syntax_emission_constraints_require_emission_commodity():
 
 def test_new_syntax_role_primary_output_invariant_enforced():
     source = _base_new_syntax_source()
-    source["process_roles"][0]["required_outputs"] = [
+    source["roles"][0]["required_outputs"] = [
         {"commodity": "space_heat"},
         {"commodity": "electricity"},
     ]
@@ -3354,7 +3355,7 @@ def test_new_syntax_role_primary_output_invariant_enforced():
 
 def test_new_syntax_stage_enum_violation_reports_structural_code():
     source = _base_new_syntax_source()
-    source["process_roles"][0]["stage"] = "invalid_stage"
+    source["roles"][0]["stage"] = "invalid_stage"
 
     with pytest.raises(Exception, match=r"\[E_STAGE_ENUM\]"):
         compile_vedalang_to_tableir(source, validate=False)
@@ -3362,7 +3363,7 @@ def test_new_syntax_stage_enum_violation_reports_structural_code():
 
 def test_new_syntax_rejects_emission_namespace_in_outputs():
     source = _base_new_syntax_source()
-    source["process_variants"][0]["outputs"].append({"commodity": "emission:co2"})
+    source["variants"][0]["outputs"].append({"commodity": "emission:co2"})
 
     with pytest.raises(Exception, match=r"\[E_EMISSION_NAMESPACE_FLOW\]"):
         compile_vedalang_to_tableir(source)
@@ -3370,7 +3371,7 @@ def test_new_syntax_rejects_emission_namespace_in_outputs():
 
 def test_new_syntax_requires_emission_namespace_in_emission_factors():
     source = _base_new_syntax_source()
-    source["process_variants"][0]["emission_factors"] = {"material:co2": 0.01}
+    source["variants"][0]["emission_factors"] = {"material:co2": 0.01}
 
     with pytest.raises(Exception, match=r"\[E_EMISSION_FACTOR_NAMESPACE\]"):
         compile_vedalang_to_tableir(source)
@@ -3378,7 +3379,7 @@ def test_new_syntax_requires_emission_namespace_in_emission_factors():
 
 def test_new_syntax_negative_emission_factor_warns_without_documentation():
     source = _base_new_syntax_source()
-    source["process_variants"][0]["emission_factors"] = {"emission:co2": -1.0}
+    source["variants"][0]["emission_factors"] = {"emission:co2": -1.0}
 
     tableir = compile_vedalang_to_tableir(source)
     warnings = tableir["convention_diagnostics"]["warnings"]
@@ -3388,7 +3389,7 @@ def test_new_syntax_negative_emission_factor_warns_without_documentation():
 def test_new_syntax_detects_duplicate_service_roles_with_merge_hint():
     source = _base_new_syntax_source()
     source["model"]["commodities"].append({"id": "gas", "type": "fuel"})
-    source["process_roles"].append(
+    source["roles"].append(
         {
             "id": "heat_from_gas",
             "activity_unit": "PJ",
@@ -3398,7 +3399,7 @@ def test_new_syntax_detects_duplicate_service_roles_with_merge_hint():
             "required_outputs": [{"commodity": "space_heat"}],
         }
     )
-    source["process_variants"].append(
+    source["variants"].append(
         {
             "id": "gas_heater",
             "role": "heat_from_gas",
@@ -3427,7 +3428,7 @@ def test_new_syntax_detects_duplicate_service_roles_with_merge_hint():
 
 def test_new_syntax_w1_detects_identical_io_split_across_roles():
     source = _base_new_syntax_source()
-    source["process_roles"].append(
+    source["roles"].append(
         {
             "id": "space_heat_with_alt_grid",
             "activity_unit": "PJ",
@@ -3448,8 +3449,8 @@ def test_new_syntax_w1_detects_identical_io_split_across_roles():
 
 def test_new_syntax_w2_warning_is_machine_readable_and_non_blocking():
     source = _base_new_syntax_source()
-    source["process_roles"][0]["id"] = "space_heat_from_electricity"
-    source["process_variants"][0]["role"] = "space_heat_from_electricity"
+    source["roles"][0]["id"] = "space_heat_from_electricity"
+    source["variants"][0]["role"] = "space_heat_from_electricity"
 
     tableir = compile_vedalang_to_tableir(source)
     warnings = tableir["convention_diagnostics"]["warnings"]
@@ -3460,7 +3461,7 @@ def test_new_syntax_w2_warning_is_machine_readable_and_non_blocking():
 def test_new_syntax_false_positive_guard_different_service_outputs():
     source = _base_new_syntax_source()
     source["model"]["commodities"].append({"id": "water_heat", "type": "service"})
-    source["process_roles"].append(
+    source["roles"].append(
         {
             "id": "provide_water_heat",
             "activity_unit": "PJ",
@@ -3470,7 +3471,7 @@ def test_new_syntax_false_positive_guard_different_service_outputs():
             "required_outputs": [{"commodity": "water_heat"}],
         }
     )
-    source["process_variants"].append(
+    source["variants"].append(
         {
             "id": "electric_boiler",
             "role": "provide_water_heat",
@@ -3514,7 +3515,7 @@ def test_new_syntax_coefficient_anchor_mismatch_is_error_in_strict_mode():
 def test_new_syntax_strict_requires_point_of_use_basis_for_combustible_coefficients():
     source = _new_syntax_conversion_source()
     source["model"]["unit_policy"] = {"mode": "strict"}
-    source["process_variants"][0]["inputs"][0].pop("basis")
+    source["variants"][0]["inputs"][0].pop("basis")
 
     with pytest.raises(Exception, match=r"requires explicit basis"):
         compile_vedalang_to_tableir(source)
@@ -3557,7 +3558,7 @@ def test_new_syntax_heating_basis_values_are_normalized_to_hhv():
             "cases": [{"name": "baseline", "is_baseline": True}],
         },
         "scoping": {"sectors": ["RES"]},
-        "process_roles": [
+        "roles": [
             {
                 "id": "generate_power",
                 "stage": "conversion",
@@ -3567,7 +3568,7 @@ def test_new_syntax_heating_basis_values_are_normalized_to_hhv():
                 "required_outputs": [{"commodity": "secondary:electricity"}],
             }
         ],
-        "process_variants": [
+        "variants": [
             {
                 "id": "ccgt",
                 "role": "generate_power",
@@ -3638,8 +3639,8 @@ def test_new_syntax_heating_basis_values_are_normalized_to_hhv():
 
 def test_new_syntax_cop_metric_allows_efficiency_above_one():
     source = _new_syntax_conversion_source()
-    source["process_variants"][0]["efficiency"] = 3.0
-    source["process_variants"][0]["performance_metric"] = "cop"
+    source["variants"][0]["efficiency"] = 3.0
+    source["variants"][0]["performance_metric"] = "cop"
 
     tableir = compile_vedalang_to_tableir(source)
     assert "files" in tableir
@@ -3656,7 +3657,7 @@ def test_toy_agriculture_uses_service_role_and_sink_sequestration_conventions():
     assert commodity_types["service:agricultural_output"] == "service"
     assert commodity_types["emission:co2e"] == "emission"
 
-    roles = {role["id"]: role for role in source["process_roles"]}
+    roles = {role["id"]: role for role in source["roles"]}
     assert set(roles) == {"supply_ag_inputs", "provide_ag_output", "remove_co2"}
     assert roles["supply_ag_inputs"]["stage"] == "supply"
     assert roles["provide_ag_output"]["stage"] == "end_use"
@@ -3669,7 +3670,7 @@ def test_toy_agriculture_uses_service_role_and_sink_sequestration_conventions():
 
     variant_roles = {
         variant["id"]: variant["role"]
-        for variant in source["process_variants"]
+        for variant in source["variants"]
     }
     assert variant_roles["primary_supply"] == "supply_ag_inputs"
     assert variant_roles["traditional_baseline"] == "provide_ag_output"
@@ -3687,7 +3688,7 @@ def test_toy_agriculture_example_compiles_after_refactor():
 def test_toy_buildings_uses_service_role_and_case_demand_override_conventions():
     source = load_vedalang(EXAMPLES_DIR / "toy_sectors/toy_buildings.veda.yaml")
 
-    roles = {role["id"]: role for role in source["process_roles"]}
+    roles = {role["id"]: role for role in source["roles"]}
     assert "provide_space_heat" in roles
     assert roles["provide_space_heat"]["stage"] == "end_use"
     assert roles["provide_space_heat"]["required_inputs"] == []
@@ -3703,7 +3704,7 @@ def test_toy_buildings_uses_service_role_and_case_demand_override_conventions():
     assert "convert_electricity_to_delivered_heat" not in roles
 
     # Variants use variant-level inputs
-    variants = {v["id"]: v for v in source["process_variants"]}
+    variants = {v["id"]: v for v in source["variants"]}
     assert variants["gas_heater"]["role"] == "provide_space_heat"
     assert variants["gas_heater"]["inputs"] == [
         {"commodity": "primary:natural_gas", "basis": "HHV"}
@@ -3725,7 +3726,7 @@ def test_toy_buildings_uses_service_role_and_case_demand_override_conventions():
 def test_toy_industry_uses_variant_level_inputs():
     source = load_vedalang(EXAMPLES_DIR / "toy_sectors/toy_industry.veda.yaml")
 
-    roles = {role["id"]: role for role in source["process_roles"]}
+    roles = {role["id"]: role for role in source["roles"]}
     assert "provide_industrial_heat" in roles
     assert roles["provide_industrial_heat"]["stage"] == "end_use"
     assert roles["provide_industrial_heat"]["required_inputs"] == []
@@ -3739,7 +3740,7 @@ def test_toy_industry_uses_variant_level_inputs():
 
     variants = {
         variant["id"]: variant
-        for variant in source["process_variants"]
+        for variant in source["variants"]
     }
     assert variants["gas_boiler"]["role"] == "provide_industrial_heat"
     assert variants["gas_boiler"]["inputs"] == [
@@ -3758,7 +3759,7 @@ def test_toy_industry_uses_variant_level_inputs():
 def test_toy_transport_uses_service_role_with_pathway_variants():
     source = load_vedalang(EXAMPLES_DIR / "toy_sectors/toy_transport.veda.yaml")
 
-    roles = {role["id"]: role for role in source["process_roles"]}
+    roles = {role["id"]: role for role in source["roles"]}
     assert "provide_passenger_km" in roles
     assert roles["provide_passenger_km"]["stage"] == "end_use"
     assert roles["provide_passenger_km"]["required_inputs"] == []
@@ -3770,7 +3771,7 @@ def test_toy_transport_uses_service_role_with_pathway_variants():
     assert "convert_petrol_to_mobility" not in roles
     assert "convert_electricity_to_mobility" not in roles
 
-    variants = {v["id"]: v for v in source["process_variants"]}
+    variants = {v["id"]: v for v in source["variants"]}
     assert variants["ice_car"]["role"] == "provide_passenger_km"
     assert variants["ice_car"]["inputs"] == [
         {"commodity": "primary:petrol", "basis": "HHV"}
@@ -3782,7 +3783,7 @@ def test_toy_transport_uses_service_role_with_pathway_variants():
 def test_toy_resources_uses_service_role_with_case_overlays():
     source = load_vedalang(EXAMPLES_DIR / "toy_sectors/toy_resources.veda.yaml")
 
-    roles = {role["id"]: role for role in source["process_roles"]}
+    roles = {role["id"]: role for role in source["roles"]}
     assert "provide_haul_work" in roles
     assert roles["provide_haul_work"]["stage"] == "end_use"
     assert roles["provide_haul_work"]["required_inputs"] == []
@@ -3797,7 +3798,7 @@ def test_toy_resources_uses_service_role_with_case_overlays():
 
     variants = {
         variant["id"]: variant["role"]
-        for variant in source["process_variants"]
+        for variant in source["variants"]
     }
     assert variants["diesel_haul"] == "provide_haul_work"
     assert variants["electric_haul"] == "provide_haul_work"
@@ -3821,18 +3822,103 @@ def test_toy_refactored_examples_compile_under_new_invariants():
 
 def test_new_syntax_end_use_requires_physical_input():
     source = _base_new_syntax_source()
-    source["process_roles"][0]["required_inputs"] = []
-    source["process_variants"][0]["inputs"] = []
-    source["process_variants"][0].pop("kind")
+    source["roles"][0]["required_inputs"] = []
+    source["variants"][0]["inputs"] = []
+    source["variants"][0].pop("kind")
 
     with pytest.raises(Exception, match=r"\[E_END_USE_PHYSICAL_INPUT\]"):
         compile_vedalang_to_tableir(source)
 
 def test_new_syntax_end_use_zero_input_explicit_kind_still_errors():
     source = _base_new_syntax_source()
-    source["process_roles"][0]["required_inputs"] = []
-    source["process_variants"][0]["inputs"] = []
-    source["process_variants"][0]["kind"] = "device"
+    source["roles"][0]["required_inputs"] = []
+    source["variants"][0]["inputs"] = []
+    source["variants"][0]["kind"] = "device"
 
     with pytest.raises(Exception, match=r"\[E_END_USE_PHYSICAL_INPUT\]"):
         compile_vedalang_to_tableir(source)
+
+
+def test_provider_path_emits_parseable_provider_process_symbols():
+    source = {
+        "model": {
+            "name": "ProviderPath",
+            "regions": ["VIC"],
+            "milestone_years": [2020, 2030],
+            "commodities": [
+                {
+                    "id": "primary:natural_gas",
+                    "type": "fuel",
+                    "unit": "PJ",
+                    "combustible": True,
+                    "hhv_mj_per_unit": 55.0,
+                    "lhv_mj_per_unit": 50.0,
+                },
+                {
+                    "id": "service:space_heat",
+                    "type": "service",
+                    "unit": "PJ",
+                    "combustible": False,
+                    "tradable": False,
+                },
+            ],
+            "constraints": [],
+        },
+        "scoping": {"sectors": ["RES"]},
+        "roles": [
+            {
+                "id": "provide_space_heat",
+                "activity_unit": "PJ",
+                "capacity_unit": "GW",
+                "stage": "end_use",
+                "required_inputs": [{"commodity": "primary:natural_gas"}],
+                "required_outputs": [{"commodity": "service:space_heat"}],
+            }
+        ],
+        "variants": [
+            {
+                "id": "gas_boiler",
+                "role": "provide_space_heat",
+                "modes": [
+                    {
+                        "id": "ng",
+                        "inputs": [{"commodity": "primary:natural_gas"}],
+                        "outputs": [{"commodity": "service:space_heat"}],
+                        "efficiency": 0.9,
+                    }
+                ],
+            }
+        ],
+        "providers": [
+            {
+                "id": "fleet.space_heat.VIC.residential",
+                "kind": "fleet",
+                "role": "provide_space_heat",
+                "region": "VIC",
+                "scopes": ["RES"],
+                "offerings": [{"variant": "gas_boiler", "modes": ["ng"]}],
+            }
+        ],
+        "demands": [
+            {
+                "commodity": "service:space_heat",
+                "region": "VIC",
+                "scope": "RES",
+                "values": {"2020": 100.0, "2030": 110.0},
+            }
+        ],
+    }
+    tableir = compile_vedalang_to_tableir(source)
+    process_rows = []
+    for file_spec in tableir["files"]:
+        for sheet in file_spec.get("sheets", []):
+            for table in sheet.get("tables", []):
+                if table.get("tag") == "~FI_PROCESS":
+                    process_rows.extend(table.get("rows", []))
+    assert process_rows
+    parsed = parse_process_symbol(process_rows[0]["process"])
+    assert parsed is not None
+    assert parsed["provider_kind"] == "FLT"
+    assert parsed["role_id"] == "provide_space_heat"
+    assert parsed["variant_id"] == "gas_boiler"
+    assert parsed["mode_id"] == "ng"

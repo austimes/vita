@@ -8,7 +8,7 @@ For findings that are not suggestion-only, include concrete remediation in
 'expected_commodity_units' (commodity->unit),
 'observed_units', and 'model_expectation'.
 Be explicit and actionable; do not be vague.
-Important: process activity/capacity units are defined on process_roles,
+Important: process activity/capacity units are defined on roles,
 and variants inherit them.
 Important: activity_unit must be an extensive (non-rate) unit.
 capacity_unit must be either power (GW/MW/kW/TW) or explicit annual

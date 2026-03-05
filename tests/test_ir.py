@@ -9,14 +9,19 @@ import pytest
 from vedalang.compiler.ir import (
     InstanceKey,
     IRError,
+    Mode,
     ProcessInstance,
+    Provider,
     Role,
     Variant,
     apply_process_parameters,
+    apply_provider_parameters,
     build_commodities_dict,
+    build_providers,
     build_roles,
     build_variants,
     expand_availability,
+    expand_provider_instances,
     lower_instances_to_tableir,
     validate_demand_feasibility,
 )
@@ -138,16 +143,16 @@ class TestProcessInstance:
 class TestBuildRoles:
     """Tests for build_roles()."""
 
-    def test_empty_process_roles(self):
-        """Empty process_roles returns empty dict."""
+    def test_empty_roles(self):
+        """Empty roles returns empty dict."""
         commodities = {"electricity": {"id": "electricity", "kind": "carrier"}}
         assert build_roles({}, commodities) == {}
-        assert build_roles({"process_roles": []}, commodities) == {}
+        assert build_roles({"roles": []}, commodities) == {}
 
     def test_single_role(self):
         """Single role is built correctly."""
         model = {
-            "process_roles": [
+            "roles": [
                 {
                     "id": "generate_electricity",
                     "activity_unit": "PJ",
@@ -171,7 +176,7 @@ class TestBuildRoles:
     def test_role_with_inputs_and_outputs(self):
         """Role with both inputs and outputs."""
         model = {
-            "process_roles": [
+            "roles": [
                 {
                     "id": "deliver_lighting",
                     "activity_unit": "PJ",
@@ -194,7 +199,7 @@ class TestBuildRoles:
     def test_duplicate_role_id_raises(self):
         """Duplicate role id raises IRError."""
         model = {
-            "process_roles": [
+            "roles": [
                 {
                     "id": "dup_role",
                     "activity_unit": "PJ",
@@ -218,7 +223,7 @@ class TestBuildRoles:
     def test_unknown_input_commodity_raises(self):
         """Unknown input commodity raises IRError."""
         model = {
-            "process_roles": [
+            "roles": [
                 {
                     "id": "test_role",
                     "activity_unit": "PJ",
@@ -234,7 +239,7 @@ class TestBuildRoles:
     def test_unknown_output_commodity_raises(self):
         """Unknown output commodity raises IRError."""
         model = {
-            "process_roles": [
+            "roles": [
                 {
                     "id": "test_role",
                     "activity_unit": "PJ",
@@ -251,11 +256,11 @@ class TestBuildRoles:
 class TestBuildVariants:
     """Tests for build_variants()."""
 
-    def test_empty_process_variants(self):
-        """Empty process_variants returns empty dict."""
+    def test_empty_variants(self):
+        """Empty variants returns empty dict."""
         roles = {"role1": Role(id="role1", required_inputs=[], required_outputs=[])}
         assert build_variants({}, roles) == {}
-        assert build_variants({"process_variants": []}, roles) == {}
+        assert build_variants({"variants": []}, roles) == {}
 
     def test_single_variant(self):
         """Single variant is built correctly."""
@@ -267,7 +272,7 @@ class TestBuildVariants:
             )
         }
         model = {
-            "process_variants": [
+            "variants": [
                 {
                     "id": "simple_generator",
                     "role": "generate_electricity",
@@ -291,7 +296,7 @@ class TestBuildVariants:
         """Variant with all supported attributes."""
         roles = {"role1": Role(id="role1", required_inputs=[], required_outputs=[])}
         model = {
-            "process_variants": [
+            "variants": [
                 {
                     "id": "full_variant",
                     "role": "role1",
@@ -319,7 +324,7 @@ class TestBuildVariants:
         """Duplicate variant id raises IRError."""
         roles = {"role1": Role(id="role1", required_inputs=[], required_outputs=[])}
         model = {
-            "process_variants": [
+            "variants": [
                 {"id": "dup", "role": "role1"},
                 {"id": "dup", "role": "role1"},
             ]
@@ -329,7 +334,7 @@ class TestBuildVariants:
 
     def test_unknown_role_raises(self):
         """Unknown role reference raises IRError."""
-        model = {"process_variants": [{"id": "var1", "role": "unknown_role"}]}
+        model = {"variants": [{"id": "var1", "role": "unknown_role"}]}
         with pytest.raises(IRError, match="unknown role: unknown_role"):
             build_variants(model, {})
 
@@ -357,6 +362,141 @@ class TestExpandAvailability:
         key = InstanceKey("gen", "REG1", None)
         assert key in instances
         assert instances[key].variant is variants["gen"]
+
+
+class TestProviderExpansion:
+    """Tests provider-first expansion (provider×variant×mode×scope)."""
+
+    def test_build_variant_with_modes(self):
+        roles = {
+            "heat_service": Role(
+                id="heat_service",
+                required_inputs=["primary:natural_gas"],
+                required_outputs=["service:space_heat"],
+            )
+        }
+        model = {
+            "variants": [
+                {
+                    "id": "boiler",
+                    "role": "heat_service",
+                    "modes": [
+                        {
+                            "id": "ng",
+                            "inputs": [{"commodity": "primary:natural_gas"}],
+                            "outputs": [{"commodity": "service:space_heat"}],
+                            "efficiency": 0.9,
+                        }
+                    ],
+                }
+            ]
+        }
+        variants = build_variants(model, roles)
+        boiler = variants["boiler"]
+        assert boiler.default_mode == "ng"
+        assert boiler.modes["ng"].attrs["efficiency"] == 0.9
+
+    def test_build_providers_and_expand_instances(self):
+        role = Role(
+            id="heat_service",
+            required_inputs=["primary:natural_gas"],
+            required_outputs=["service:space_heat"],
+        )
+        mode = Mode(
+            id="ng",
+            attrs={"efficiency": 0.9},
+            inputs=["primary:natural_gas"],
+            outputs=["service:space_heat"],
+        )
+        variants = {
+            "boiler": Variant(
+                id="boiler",
+                role=role,
+                modes={"ng": mode},
+                default_mode="ng",
+                inputs=mode.inputs,
+                outputs=mode.outputs,
+            )
+        }
+        model = {
+            "providers": [
+                {
+                    "id": "fleet.space_heat.VIC.residential",
+                    "kind": "fleet",
+                    "role": "heat_service",
+                    "region": "VIC",
+                    "scopes": ["RES"],
+                    "offerings": [{"variant": "boiler", "modes": ["ng"]}],
+                }
+            ]
+        }
+        providers = build_providers(model, {"heat_service": role}, variants)
+        instances = expand_provider_instances(providers, variants)
+        key = InstanceKey(
+            "boiler",
+            "VIC",
+            "RES",
+            provider_id="fleet.space_heat.VIC.residential",
+            mode_id="ng",
+            provider_kind="fleet",
+            role_id="heat_service",
+        )
+        assert key in instances
+        assert instances[key].attrs["efficiency"] == 0.9
+
+    def test_apply_provider_parameters(self):
+        role = Role(id="r", required_inputs=[], required_outputs=["service:x"])
+        mode = Mode(id="m", attrs={"efficiency": 1.0}, inputs=[], outputs=["service:x"])
+        variant = Variant(
+            id="v",
+            role=role,
+            modes={"m": mode},
+            default_mode="m",
+            inputs=[],
+            outputs=["service:x"],
+        )
+        key = InstanceKey(
+            "v",
+            "R1",
+            "RES",
+            provider_id="fleet.r.R1.RES",
+            mode_id="m",
+            provider_kind="fleet",
+            role_id="r",
+        )
+        instances = {
+            key: ProcessInstance(
+                key=key,
+                role=role,
+                variant=variant,
+                mode=mode,
+                provider=Provider(
+                    id="fleet.r.R1.RES",
+                    kind="fleet",
+                    role="r",
+                    region="R1",
+                    scopes=["RES"],
+                ),
+                attrs={"efficiency": 1.0},
+            )
+        }
+        apply_provider_parameters(
+            instances,
+            {
+                "provider_parameters": [
+                    {
+                        "selector": {
+                            "provider": "fleet.r.R1.RES",
+                            "variant": "v",
+                            "mode": "m",
+                            "scope": "RES",
+                        },
+                        "stock": 42,
+                    }
+                ]
+            },
+        )
+        assert instances[key].attrs["stock"] == 42
 
     def test_availability_with_sectors_coarse(self):
         """Availability with sectors (no end_uses) expands to sectors."""

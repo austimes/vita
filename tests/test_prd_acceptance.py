@@ -74,9 +74,9 @@ class TestA2_NoFuelPathwayRoles:
     @pytest.mark.parametrize("model_path", TOY_MODELS, ids=lambda p: p.stem)
     def test_no_fuel_pathway_roles(self, model_path: Path):
         source = load_vedalang(model_path)
-        if "process_roles" not in source:
-            pytest.skip("Legacy-syntax model (no process_roles)")
-        role_ids = {role["id"] for role in source["process_roles"]}
+        if "roles" not in source:
+            pytest.skip("Legacy-syntax model (no roles)")
+        role_ids = {role["id"] for role in source["roles"]}
         for bad in FUEL_PATHWAY_KEYWORDS:
             assert bad not in role_ids, (
                 f"{model_path.name}: prohibited fuel-pathway role '{bad}' present"
@@ -86,7 +86,7 @@ class TestA2_NoFuelPathwayRoles:
     def test_compiler_rejects_duplicate_service_roles(self, model_path: Path):
         """If we were to re-add a fuel-pathway role, the compiler would catch it."""
         source = load_vedalang(model_path)
-        if "process_roles" not in source:
+        if "roles" not in source:
             pytest.skip("Legacy-syntax model")
         commodities = _normalize_commodities_for_new_syntax(
             source["model"]["commodities"]
@@ -105,10 +105,10 @@ class TestA3_NoZeroInputEndUse:
     @pytest.mark.parametrize("model_path", TOY_MODELS, ids=lambda p: p.stem)
     def test_no_zero_input_end_use_variants(self, model_path: Path):
         source = load_vedalang(model_path)
-        if "process_roles" not in source:
+        if "roles" not in source:
             pytest.skip("Legacy-syntax model")
-        roles = {r["id"]: r for r in source["process_roles"]}
-        variants = source.get("process_variants", [])
+        roles = {r["id"]: r for r in source["roles"]}
+        variants = source.get("variants", [])
         for role_id, role in roles.items():
             if role.get("stage") != "end_use":
                 continue
@@ -138,7 +138,7 @@ class TestA3_NoZeroInputEndUse:
                 "constraints": [],
             },
             "scoping": {"sectors": ["RES"]},
-            "process_roles": [
+            "roles": [
                 {
                     "id": "provide_space_heat",
                     "activity_unit": "PJ",
@@ -148,7 +148,7 @@ class TestA3_NoZeroInputEndUse:
                     "required_outputs": [{"commodity": "space_heat"}],
                 },
             ],
-            "process_variants": [
+            "variants": [
                 {
                     "id": "fake_device",
                     "role": "provide_space_heat",
@@ -316,7 +316,7 @@ class TestA8_CompilerStructuralInvariants:
                 ],
             },
             "scoping": {"sectors": ["RES"]},
-            "process_roles": [
+            "roles": [
                 {
                     "id": "provide_space_heat",
                     "activity_unit": "PJ",
@@ -326,7 +326,7 @@ class TestA8_CompilerStructuralInvariants:
                     "required_outputs": [{"commodity": "space_heat"}],
                 },
             ],
-            "process_variants": [
+            "variants": [
                 {"id": "heat_pump", "role": "provide_space_heat",
                  "inputs": [{"commodity": "electricity"}],
                  "outputs": [{"commodity": "space_heat"}],
@@ -343,7 +343,7 @@ class TestA8_CompilerStructuralInvariants:
 
     def test_e_stage_enum(self):
         src = self._base_source()
-        src["process_roles"][0]["stage"] = "bogus_stage"
+        src["roles"][0]["stage"] = "bogus_stage"
         with pytest.raises(Exception, match=r"\[E_STAGE_ENUM\]"):
             compile_vedalang_to_tableir(src, validate=False)
 
@@ -367,7 +367,7 @@ class TestA8_CompilerStructuralInvariants:
 
     def test_e_role_primary_output(self):
         src = self._base_source()
-        src["process_roles"][0]["required_outputs"] = [
+        src["roles"][0]["required_outputs"] = [
             {"commodity": "space_heat"},
             {"commodity": "electricity"},
         ]
@@ -377,7 +377,7 @@ class TestA8_CompilerStructuralInvariants:
     def test_e1_duplicate_service_roles(self):
         src = self._base_source()
         src["model"]["commodities"].append({"id": "gas", "type": "fuel"})
-        src["process_roles"].append(
+        src["roles"].append(
             {"id": "heat_from_gas",
              "activity_unit": "PJ",
              "capacity_unit": "GW",
@@ -385,7 +385,7 @@ class TestA8_CompilerStructuralInvariants:
              "required_inputs": [{"commodity": "gas"}],
              "required_outputs": [{"commodity": "space_heat"}]},
         )
-        src["process_variants"].append(
+        src["variants"].append(
             {"id": "gas_heater", "role": "heat_from_gas",
              "inputs": [{"commodity": "gas"}],
              "outputs": [{"commodity": "space_heat"}],
@@ -399,8 +399,8 @@ class TestA8_CompilerStructuralInvariants:
 
     def test_e_end_use_physical_input(self):
         src = self._base_source()
-        src["process_roles"][0]["required_inputs"] = []
-        src["process_variants"][0]["inputs"] = []
-        src["process_variants"][0].pop("kind", None)
+        src["roles"][0]["required_inputs"] = []
+        src["variants"][0]["inputs"] = []
+        src["variants"][0].pop("kind", None)
         with pytest.raises(Exception, match=r"\[E_END_USE_PHYSICAL_INPUT\]"):
             compile_vedalang_to_tableir(src)

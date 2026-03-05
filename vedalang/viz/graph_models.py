@@ -103,7 +103,16 @@ def _build_facets(source: dict, segment_keys: list[str]) -> dict[str, list[str]]
         "cases": sorted(c["name"] for c in model.get("cases", []) if "name" in c),
         "sectors": sorted(seg_cfg.get("sectors", [])),
         "scopes": sorted(segment_keys),
-        "granularities": ["role", "variant", "instance", "mode", "facility"],
+        "granularities": [
+            "role",
+            "provider",
+            "provider_variant",
+            "provider_variant_mode",
+            "instance",
+            "variant",
+            "mode",
+            "facility",
+        ],
         "lenses": ["system", "trade"],
     }
 
@@ -130,31 +139,50 @@ def _group_for_granularity(
     process_symbol: str,
     variant_id: str,
     role_id: str,
+    provider_id: str | None,
+    mode_id: str | None,
     facility_meta: dict[str, Any] | None,
 ) -> tuple[str, str, str]:
+    requested = granularity
+    if granularity == "variant":
+        granularity = "provider_variant"
+    elif granularity == "mode":
+        granularity = "provider_variant_mode"
+    elif granularity == "facility":
+        granularity = "provider"
+
     if granularity == "instance":
         return f"instance:{process_symbol}", process_symbol, "instance"
-    if granularity == "variant":
-        return f"variant:{variant_id}", variant_id, "variant"
-    if granularity == "mode":
+    if granularity == "provider":
+        node_type = "facility" if requested == "facility" else "provider"
+        if provider_id:
+            return f"provider:{provider_id}", provider_id, node_type
         if facility_meta:
             facility_id = str(facility_meta.get("facility_id", "facility"))
-            template_variant_id = str(
-                facility_meta.get("template_variant_id", "variant")
-            )
-            mode_id = str(facility_meta.get("mode_id", "mode"))
-            label = f"{facility_id}::{template_variant_id}::{mode_id}"
+            return f"provider:{facility_id}", facility_id, node_type
+        return f"provider:role:{role_id}", role_id, node_type
+    if granularity == "provider_variant":
+        node_type = "variant" if requested == "variant" else "provider_variant"
+        if provider_id:
+            label = f"{provider_id}::{variant_id}"
+            return f"provider_variant:{provider_id}:{variant_id}", label, node_type
+        return f"provider_variant:{variant_id}", variant_id, node_type
+    if granularity == "provider_variant_mode":
+        node_type = "mode" if requested == "mode" else "provider_variant_mode"
+        resolved_mode = mode_id
+        if not resolved_mode and facility_meta:
+            resolved_mode = str(facility_meta.get("mode_id", "mode"))
+        if provider_id and resolved_mode:
+            label = f"{provider_id}::{variant_id}::{resolved_mode}"
             return (
-                f"mode:{facility_id}:{template_variant_id}:{mode_id}",
+                f"provider_variant_mode:{provider_id}:{variant_id}:{resolved_mode}",
                 label,
-                "mode",
+                node_type,
             )
-        return f"mode:variant:{variant_id}", variant_id, "mode"
-    if granularity == "facility":
-        if facility_meta:
-            facility_id = str(facility_meta.get("facility_id", "facility"))
-            return f"facility:{facility_id}", facility_id, "facility"
-        return f"facility:role:{role_id}", role_id, "facility"
+        if provider_id:
+            label = f"{provider_id}::{variant_id}"
+            return f"provider_variant_mode:{provider_id}:{variant_id}", label, node_type
+        return f"provider_variant_mode:{variant_id}", variant_id, node_type
     return f"role:{role_id}", role_id, "role"
 
 
@@ -174,6 +202,8 @@ def _init_group_detail(
         "sectors": set(),
         "variants": set(),
         "roles": set(),
+        "provider_ids": set(),
+        "provider_kinds": set(),
         "sets": set(),
         "stages": set(),
         "facility_ids": set(),
@@ -206,6 +236,8 @@ def _single_or_none(values: list[Any]) -> Any | None:
 def _finalize_group_detail(detail: dict[str, Any]) -> dict[str, Any]:
     stages = _sorted_non_null(detail["stages"])
     facilities = _sorted_non_null(detail["facility_ids"])
+    provider_ids = _sorted_non_null(detail["provider_ids"])
+    provider_kinds = _sorted_non_null(detail["provider_kinds"])
     template_variants = _sorted_non_null(detail["template_variants"])
     modes = _sorted_non_null(detail["mode_ids"])
     baseline_modes = _sorted_non_null(detail["baseline_modes"])
@@ -229,6 +261,10 @@ def _finalize_group_detail(detail: dict[str, Any]) -> dict[str, Any]:
         "sectors": sorted(detail["sectors"]),
         "variants": sorted(detail["variants"]),
         "roles": sorted(detail["roles"]),
+        "provider_ids": provider_ids,
+        "provider_id": _single_or_none(provider_ids),
+        "provider_kinds": provider_kinds,
+        "provider_kind": _single_or_none(provider_kinds),
         "sets": sorted(detail["sets"]),
         "stages": stages,
         "stage": stages[0] if len(stages) == 1 else None,
@@ -286,7 +322,7 @@ def build_source_system_graph(
     registry = NamingRegistry()
     variant_to_role = {
         variant.get("id"): variant.get("role")
-        for variant in prepared_source.get("process_variants", [])
+        for variant in prepared_source.get("variants", [])
         if variant.get("id") and variant.get("role")
     }
 
@@ -305,16 +341,27 @@ def build_source_system_graph(
             continue
 
         process_symbol = registry.get_process_symbol(
-            key.variant_id, key.region, key.segment
+            key.variant_id,
+            key.region,
+            key.segment,
+            provider_kind=key.provider_kind,
+            provider_id=key.provider_id,
+            role_id=key.role_id,
+            mode_id=key.mode_id,
         )
         facility_meta = facility_variant_meta.get(key.variant_id)
         role_id = variant_to_role.get(key.variant_id, instance.role.id)
+        mode_id = key.mode_id
+        provider_id = key.provider_id
+        provider_kind = key.provider_kind
 
         current_node_id, current_label, current_type = _group_for_granularity(
             granularity=granularity,
             process_symbol=process_symbol,
             variant_id=key.variant_id,
             role_id=role_id,
+            provider_id=provider_id,
+            mode_id=mode_id,
             facility_meta=facility_meta,
         )
 
@@ -334,6 +381,12 @@ def build_source_system_graph(
             group["sectors"].add(sector)
         group["variants"].add(key.variant_id)
         group["roles"].add(role_id)
+        if provider_id:
+            group["provider_ids"].add(provider_id)
+        if provider_kind:
+            group["provider_kinds"].add(provider_kind)
+        if mode_id:
+            group["mode_ids"].add(mode_id)
         if instance.role.stage:
             group["stages"].add(instance.role.stage)
 
@@ -479,7 +532,7 @@ def build_compiled_system_graph(
     }
     variant_to_role = {
         variant.get("id"): variant.get("role")
-        for variant in prepared_source.get("process_variants", [])
+        for variant in prepared_source.get("variants", [])
         if variant.get("id") and variant.get("role")
     }
 
@@ -523,6 +576,9 @@ def build_compiled_system_graph(
         process_stage[process] = meta.get("stage")
         process_scope[process] = segment
         variant_name = str(meta.get("variant") or process)
+        provider_id = meta.get("provider")
+        provider_kind = meta.get("provider_kind")
+        mode_id = meta.get("mode")
         role_name = (
             variant_to_role.get(variant_name)
             or str(meta.get("role") or meta.get("stage") or "role")
@@ -533,6 +589,8 @@ def build_compiled_system_graph(
             process_symbol=str(process),
             variant_id=variant_name,
             role_id=role_name,
+            provider_id=provider_id,
+            mode_id=mode_id,
             facility_meta=facility_meta,
         )
 
@@ -555,6 +613,12 @@ def build_compiled_system_graph(
             sector = _sector_of(segment)
             if sector:
                 detail["sectors"].add(sector)
+        if provider_id:
+            detail["provider_ids"].add(provider_id)
+        if provider_kind:
+            detail["provider_kinds"].add(provider_kind)
+        if mode_id:
+            detail["mode_ids"].add(mode_id)
         variant_name = meta.get("variant")
         if variant_name:
             detail["variants"].add(variant_name)

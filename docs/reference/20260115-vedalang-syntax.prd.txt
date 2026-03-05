@@ -13,8 +13,8 @@ Status: Proposed (ready for implementation planning)
 
 We will make VedaLang RES authoring simpler and more composable by separating:
 
-- Topology intent (what transformations exist): `process_roles`
-- Technology implementation (how transformations are realized): `process_variants`
+- Topology intent (what transformations exist): `roles`
+- Technology implementation (how transformations are realized): `variants`
 - Placement/availability (where implementations exist): `availability` over regions/segments
 
 This PRD also standardizes VedaLang naming/semantics:
@@ -285,7 +285,7 @@ commodities:
     unit: PJ
     tradable: false
 
-process_roles:
+roles:
   - id: generate_electricity
     stage: conversion
     inputs: []
@@ -295,7 +295,7 @@ process_roles:
     inputs: [{ commodity: electricity }]
     outputs: [{ commodity: lighting }]
 
-process_variants:
+variants:
   - id: simple_generator
     role: generate_electricity
     efficiency: 1.0
@@ -340,7 +340,7 @@ demands:
 =====================================================================
 
 FR14. Parser / schema updates
-- Add new top-level blocks: `segments`, `process_roles`, `process_variants`, `availability`.
+- Add new top-level blocks: `segments`, `roles`, `variants`, `availability`.
 - Deprecate/remove (in examples first, then schema):
   - commodity `context`
   - process `sets` (user-authored)
@@ -390,8 +390,8 @@ Acceptance criteria for minisystem updates:
 12. Acceptance Criteria
 =====================================================================
 
-AC1. A model author can define a RES using `process_roles` + `commodities` + `segments` only,
-    and later add `process_variants` to “fill in” implementations.
+AC1. A model author can define a RES using `roles` + `commodities` + `segments` only,
+    and later add `variants` to “fill in” implementations.
 AC2. For any demand, the linter gives a clear “no provider available” diagnostic that references
     the missing role/variant needed.
 AC3. No user-authored TIMES set names appear in VedaLang source.

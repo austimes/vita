@@ -71,13 +71,13 @@ def export_res_graph(source: dict) -> dict:
         commodity_nodes.append(entry)
 
     # Build roles and edges
-    process_roles = source.get("process_roles") or []
+    roles = source.get("roles") or []
     role_nodes = []
     edges = []
 
     # Build variant-per-role counts
     variant_by_role: dict[str, list[dict]] = {}
-    for variant in source.get("process_variants") or []:
+    for variant in source.get("variants") or []:
         role_id = variant.get("role")
         if role_id:
             variant_by_role.setdefault(role_id, []).append(variant)
@@ -88,7 +88,7 @@ def export_res_graph(source: dict) -> dict:
                 return item
         return None
 
-    for raw_role in process_roles:
+    for raw_role in roles:
         role_id = raw_role.get("id")
         if not role_id:
             continue
@@ -185,7 +185,7 @@ def export_res_graph(source: dict) -> dict:
     # Track variant-level outputs per role (for role metadata)
     variant_output_by_role: dict[str, set[str]] = {}
 
-    for variant in source.get("process_variants") or []:
+    for variant in source.get("variants") or []:
         vid = variant.get("id")
         role_id = variant.get("role")
         if not vid or not role_id:
@@ -193,7 +193,7 @@ def export_res_graph(source: dict) -> dict:
 
         # Find the role to derive kind
         role_raw = next(
-            (r for r in process_roles if r.get("id") == role_id), None
+            (r for r in roles if r.get("id") == role_id), None
         )
         kind = variant.get("kind")
         kind_source = "explicit" if kind else "derived"

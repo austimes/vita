@@ -16,7 +16,7 @@ def _make_model_with_emissions():
                 {"id": "co2", "kind": "emission", "unit": "Mt"},
             ],
         },
-        "process_roles": [
+        "roles": [
             {
                 "id": "generate_elc",
                 "activity_unit": "PJ",
@@ -34,7 +34,7 @@ def _make_model_with_emissions():
                 "required_outputs": [{"commodity": "elc"}],
             },
         ],
-        "process_variants": [
+        "variants": [
             {
                 "id": "ccgt",
                 "role": "generate_elc",

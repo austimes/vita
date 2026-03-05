@@ -57,7 +57,7 @@ scoping:
   sectors:
     - IND
 
-process_roles:
+roles:
   - id: provide_industrial_heat
     activity_unit: PJ
     capacity_unit: GW
@@ -74,7 +74,7 @@ process_roles:
     required_outputs:
       - commodity: primary:lng
 
-process_variants:
+variants:
   - id: lng_boiler_baseline
     role: provide_industrial_heat
     inputs:

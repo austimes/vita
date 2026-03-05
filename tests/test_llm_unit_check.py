@@ -17,7 +17,7 @@ SOURCE = {
             {"id": "secondary:electricity", "type": "energy", "unit": "TWh"},
         ],
     },
-    "process_roles": [
+    "roles": [
         {
             "id": "generate_electricity",
             "activity_unit": "PJ",
@@ -26,7 +26,7 @@ SOURCE = {
             "required_outputs": [{"commodity": "secondary:electricity"}],
         }
     ],
-    "process_variants": [
+    "variants": [
         {
             "id": "ccgt",
             "role": "generate_electricity",
@@ -49,7 +49,7 @@ SOURCE_WITH_MONETARY = {
             {"id": "secondary:electricity", "type": "energy", "unit": "PJ"},
         ],
     },
-    "process_roles": [
+    "roles": [
         {
             "id": "supply_power",
             "activity_unit": "PJ",
@@ -58,7 +58,7 @@ SOURCE_WITH_MONETARY = {
             "required_outputs": [{"commodity": "secondary:electricity"}],
         }
     ],
-    "process_variants": [
+    "variants": [
         {
             "id": "grid_import",
             "role": "supply_power",
@@ -87,7 +87,7 @@ def _certified_result(
 def test_component_fingerprint_changes_on_component_edit():
     fp1 = llm_unit_check.component_fingerprint(SOURCE, "ccgt")
     mutated = json.loads(json.dumps(SOURCE))
-    mutated["process_variants"][0]["efficiency"] = 0.6
+    mutated["variants"][0]["efficiency"] = 0.6
     fp2 = llm_unit_check.component_fingerprint(mutated, "ccgt")
     assert fp1 != fp2
 

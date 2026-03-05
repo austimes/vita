@@ -56,7 +56,7 @@ scoping:
     - TRN
 
 # Process roles: reusable contracts (required I/O + units) shared by multiple variants.
-process_roles:
+roles:
   - id: provide_passenger_km
     activity_unit: Bvkm
     capacity_unit: Bvkm/yr
@@ -82,7 +82,7 @@ process_roles:
       - commodity: primary:petrol
 
 # Process variants: concrete technology definitions bound to roles.
-process_variants:
+variants:
   - id: electricity_import
     role: supply_electricity
     inputs: []

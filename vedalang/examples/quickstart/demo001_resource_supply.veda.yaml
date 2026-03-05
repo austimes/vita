@@ -33,7 +33,7 @@ scoping:
     - IND
 
 # Process roles: reusable contracts (required I/O + units) shared by multiple variants.
-process_roles:
+roles:
   - id: deliver_coal_supply
     description: Demand technology — delivers coal to meet supply demand
     activity_unit: PJ
@@ -72,7 +72,7 @@ process_roles:
       - commodity: primary:coal
 
 # Process variants: concrete technology definitions bound to roles.
-process_variants:
+variants:
   - id: coal_demand_device
     description: Generic demand technology consuming coal
     role: deliver_coal_supply

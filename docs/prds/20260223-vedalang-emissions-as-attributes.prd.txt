@@ -74,7 +74,7 @@ Principle
 
 Example: Gas heater (toy_buildings fix)
 
-process_variants:
+variants:
   - id: gas_heater
     role: provide_space_heat
     inputs:
@@ -101,7 +101,7 @@ So:
 
 DAC pattern (minimal, removal-only)
 
-process_variants:
+variants:
   - id: dac
     role: remove_co2
     inputs:
@@ -111,7 +111,7 @@ process_variants:
 
 DAC with explicit captured stream (for CCS infrastructure)
 
-process_variants:
+variants:
   - id: dac
     role: remove_co2
     inputs:
@@ -127,7 +127,7 @@ Interpretation:
 
 LULUCF sequestration pattern
 
-process_variants:
+variants:
   - id: afforestation
     role: sequester_carbon
     inputs:

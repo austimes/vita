@@ -40,7 +40,7 @@ def _base_source() -> dict:
             ],
             "cases": [{"name": "baseline", "is_baseline": True}],
         },
-        "process_roles": [
+        "roles": [
             {
                 "id": "produce_alumina",
                 "activity_unit": "PJ",
@@ -236,7 +236,7 @@ def test_facility_top_n_aggregation_keeps_one_individual_plus_one_aggregate():
 def test_facility_scopes_do_not_expand_existing_sector_availability():
     source = _base_source()
     source["scoping"] = {"sectors": ["IND"], "end_uses": ["existing_scope"]}
-    source["process_variants"] = [
+    source["variants"] = [
         {
             "id": "alumina_generic",
             "role": "produce_alumina",

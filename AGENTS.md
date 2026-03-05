@@ -192,7 +192,7 @@ wording to make primary-vs-secondary energy pedigree explicit.
 **Emissions are ledger entries, not flows.** `emission:*` commodities MUST NOT appear in process `inputs` or `outputs`. They enter the model only via `emission_factors`:
 
 ```yaml
-process_variants:
+variants:
   - id: gas_heater
     inputs:
       - commodity: primary:natural_gas

@@ -27,7 +27,7 @@ model:
       unit: PJ
       description: Natural Gas
 
-process_roles:
+roles:
   - id: generate_electricity
     stage: conversion
     inputs:
@@ -35,7 +35,7 @@ process_roles:
     outputs:
       - commodity: secondary:electricity
 
-process_variants:
+variants:
   - id: gas_plant
     role: generate_electricity
     efficiency: 0.50
@@ -50,8 +50,8 @@ availability:
 - **model.regions**: Geographic regions in your model
 - **model.milestone_years**: Time periods the model solves for
 - **model.commodities**: Energy carriers, services, and emissions — with namespace prefixes (e.g., `secondary:`, `service:`, `emission:`)
-- **process_roles**: Templates defining what a process does (inputs → outputs)
-- **process_variants**: Specific technologies that implement a role
+- **roles**: Templates defining what a process does (inputs → outputs)
+- **variants**: Specific technologies that implement a role
 - **availability**: Where and when each variant is available
 
 ## Step 2: Validate Your Model
@@ -115,7 +115,7 @@ commodities:
     type: energy
     unit: PJ
 
-process_roles:
+roles:
   - id: generate_electricity
     outputs:
       - commodity: secondary:electricity  # ← Must match exactly

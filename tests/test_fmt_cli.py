@@ -133,7 +133,7 @@ def test_cmd_fmt_no_matching_files_is_success(tmp_path, capsys):
 def test_canonicalize_yaml_text_sorts_and_adds_blank_lines():
     source = textwrap.dedent(
         """\
-        process_roles:
+        roles:
           - stage: demand
             id: role_b
           - id: role_a
@@ -151,7 +151,7 @@ def test_canonicalize_yaml_text_sorts_and_adds_blank_lines():
     formatted = cli._canonicalize_yaml_text(source)
     assert formatted is not None
     assert formatted.startswith("model:\n")
-    assert "\n\nprocess_roles:\n" in formatted
+    assert "\n\nroles:\n" in formatted
     assert formatted.index("id: service:a") < formatted.index("id: service:z")
     assert formatted.index("id: role_a") < formatted.index("id: role_b")
     assert "\n\n  - id: service:z\n" in formatted
@@ -160,7 +160,7 @@ def test_canonicalize_yaml_text_sorts_and_adds_blank_lines():
 def test_cmd_fmt_check_mode_returns_1_on_canonical_drift(tmp_path, monkeypatch, capsys):
     src = tmp_path / "canonical_drift.veda.yaml"
     src.write_text(
-        "process_roles:\n"
+        "roles:\n"
         "  - stage: demand\n"
         "    id: role_b\n"
         "model:\n"
@@ -196,7 +196,7 @@ def test_cmd_fmt_check_mode_returns_1_on_canonical_drift(tmp_path, monkeypatch, 
 def test_cmd_fmt_write_mode_applies_canonicalization(tmp_path, monkeypatch, capsys):
     src = tmp_path / "canonicalize_me.veda.yaml"
     src.write_text(
-        "process_roles:\n"
+        "roles:\n"
         "  - stage: demand\n"
         "    id: role_b\n"
         "  - stage: supply\n"
@@ -234,6 +234,6 @@ def test_cmd_fmt_write_mode_applies_canonicalization(tmp_path, monkeypatch, caps
 
     updated = src.read_text(encoding="utf-8")
     assert updated.startswith("model:\n")
-    assert "\n\nprocess_roles:\n" in updated
+    assert "\n\nroles:\n" in updated
     assert updated.index("id: service:a") < updated.index("id: service:z")
     assert updated.index("id: role_a") < updated.index("id: role_b")

@@ -40,7 +40,7 @@ Prefer one service-oriented role with multiple pathway variants.
 Good:
 
 ```yaml
-process_roles:
+roles:
   - id: provide_space_heat
     stage: end_use
     inputs:
@@ -48,7 +48,7 @@ process_roles:
     outputs:
       - commodity: service:space_heat
 
-process_variants:
+variants:
   - id: gas_boiler
     role: provide_space_heat
     efficiency: 0.9
@@ -62,7 +62,7 @@ process_variants:
 Avoid:
 
 ```yaml
-process_roles:
+roles:
   - id: heat_from_gas
     stage: end_use
     inputs: [{commodity: primary:natural_gas}]
@@ -85,7 +85,7 @@ They represent primary resource/source nodes at the left edge of the RES.
 Good:
 
 ```yaml
-process_roles:
+roles:
   - id: supply_ag_inputs
     stage: supply
     outputs:
@@ -101,7 +101,7 @@ flows).
 
 ```yaml
 # Suspicious — end_use role with no inputs looks like fake supply
-process_roles:
+roles:
   - id: create_space_heat
     stage: end_use
     outputs:
@@ -129,7 +129,7 @@ model:
 Avoid (implicit fake supply):
 
 ```yaml
-process_roles:
+roles:
   - id: create_space_heat
     stage: end_use
     outputs:
@@ -241,7 +241,7 @@ model:
       lhv_mj_per_unit: 50.0
       hhv_mj_per_unit: 55.0
 
-process_variants:
+variants:
   - id: gas_supply
     role: supply_gas
     outputs:
@@ -281,7 +281,7 @@ They MUST NOT appear in process `inputs` or `outputs`.
 Good:
 
 ```yaml
-process_variants:
+variants:
   - id: gas_boiler
     role: provide_space_heat
     inputs:
@@ -295,7 +295,7 @@ process_variants:
 Avoid:
 
 ```yaml
-process_variants:
+variants:
   - id: gas_boiler
     outputs:
       - commodity: service:space_heat
@@ -305,7 +305,7 @@ process_variants:
 For negative emissions (DAC, LULUCF), use negative `emission_factors`:
 
 ```yaml
-process_variants:
+variants:
   - id: dac
     role: remove_co2
     inputs:

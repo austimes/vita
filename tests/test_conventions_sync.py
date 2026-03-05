@@ -22,7 +22,7 @@ MINIMAL_SOURCE = {
             {"id": "service:space_heat", "type": "service"},
         ],
     },
-    "process_roles": [
+    "roles": [
         {
             "id": "provide_space_heat",
             "activity_unit": "PJ",
@@ -32,7 +32,7 @@ MINIMAL_SOURCE = {
             "required_outputs": [{"commodity": "service:space_heat"}],
         }
     ],
-    "process_variants": [
+    "variants": [
         {
             "id": "heat_pump",
             "role": "provide_space_heat",

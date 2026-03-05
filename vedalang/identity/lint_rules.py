@@ -549,7 +549,7 @@ class N011_SnakeCasePreferred(NamingLintRule):
                 )
 
         # Check process role IDs
-        for i, role in enumerate(model.get("process_roles", [])):
+        for i, role in enumerate(model.get("roles", [])):
             rid = role.get("id", "")
             if "-" in rid:
                 diagnostics.append(
@@ -560,12 +560,12 @@ class N011_SnakeCasePreferred(NamingLintRule):
                             f"Role '{rid}' uses dashes. "
                             f"Prefer snake_case: '{rid.replace('-', '_')}'"
                         ),
-                        path=f"process_roles[{i}].id",
+                        path=f"roles[{i}].id",
                     )
                 )
 
         # Check process variant IDs
-        for i, var in enumerate(model.get("process_variants", [])):
+        for i, var in enumerate(model.get("variants", [])):
             vid = var.get("id", "")
             if "-" in vid:
                 diagnostics.append(
@@ -576,7 +576,7 @@ class N011_SnakeCasePreferred(NamingLintRule):
                             f"Variant '{vid}' uses dashes. "
                             f"Prefer snake_case: '{vid.replace('-', '_')}'"
                         ),
-                        path=f"process_variants[{i}].id",
+                        path=f"variants[{i}].id",
                     )
                 )
 

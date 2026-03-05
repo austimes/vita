@@ -7,8 +7,8 @@ This module provides the intermediate representation (IR) for processes:
 - ProcessInstance: fully resolved process instance with merged attributes
 
 The IR pipeline:
-1. build_roles() - parse process_roles, validate commodity refs
-2. build_variants() - parse process_variants, resolve role refs
+1. build_roles() - parse roles, validate commodity refs
+2. build_variants() - parse variants, resolve role refs
 3. expand_availability() - expand availability entries into instance keys
 4. apply_process_parameters() - apply selector-matched overrides
 5. lower_instances_to_tableir() - convert to TableIR process rows
@@ -70,6 +70,38 @@ class Variant:
     attrs: dict = field(default_factory=dict)
     inputs: list[str] = field(default_factory=list)
     outputs: list[str] = field(default_factory=list)
+    modes: dict[str, "Mode"] = field(default_factory=dict)
+    default_mode: str | None = None
+
+
+@dataclass
+class Mode:
+    """Concrete operating state nested under a variant."""
+
+    id: str
+    attrs: dict = field(default_factory=dict)
+    inputs: list[str] = field(default_factory=list)
+    outputs: list[str] = field(default_factory=list)
+
+
+@dataclass
+class ProviderOffering:
+    """Provider-level selection of variant + allowed modes."""
+
+    variant_id: str
+    modes: list[str] = field(default_factory=list)
+
+
+@dataclass
+class Provider:
+    """Concrete reporting object hosting role implementations."""
+
+    id: str
+    kind: str
+    role: str
+    region: str
+    scopes: list[str | None] = field(default_factory=list)
+    offerings: list[ProviderOffering] = field(default_factory=list)
 
 
 class InstanceKey(NamedTuple):
@@ -86,6 +118,10 @@ class InstanceKey(NamedTuple):
     variant_id: str
     region: str
     segment: str | None
+    provider_id: str | None = None
+    mode_id: str | None = None
+    provider_kind: str | None = None
+    role_id: str | None = None
 
 
 @dataclass
@@ -105,6 +141,8 @@ class ProcessInstance:
     key: InstanceKey
     role: Role
     variant: Variant
+    mode: Mode | None = None
+    provider: Provider | None = None
     attrs: dict = field(default_factory=dict)
 
 
@@ -118,10 +156,10 @@ def build_roles(
     model: dict,
     commodities: dict[str, dict],
 ) -> dict[str, Role]:
-    """Build Role objects from process_roles, validating commodity refs.
+    """Build Role objects from roles, validating commodity refs.
 
     Args:
-        model: Model dict with 'process_roles' key
+        model: Model dict with 'roles' key
         commodities: Dict mapping commodity id to normalized commodity dict
 
     Returns:
@@ -130,13 +168,13 @@ def build_roles(
     Raises:
         IRError: If duplicate role id or invalid commodity reference
     """
-    roles: dict[str, Role] = {}
-    process_roles = model.get("process_roles") or []
+    roles_by_id: dict[str, Role] = {}
+    role_entries = model.get("roles") or []
 
-    for raw in process_roles:
+    for raw in role_entries:
         role_id = raw["id"]
 
-        if role_id in roles:
+        if role_id in roles_by_id:
             raise IRError(f"Duplicate role id: {role_id}")
 
         required_inputs = []
@@ -157,7 +195,7 @@ def build_roles(
                 )
             required_outputs.append(comm_id)
 
-        roles[role_id] = Role(
+        roles_by_id[role_id] = Role(
             id=role_id,
             required_inputs=required_inputs,
             required_outputs=required_outputs,
@@ -166,7 +204,7 @@ def build_roles(
             capacity_unit=raw["capacity_unit"],
         )
 
-    return roles
+    return roles_by_id
 
 
 def build_variants(
@@ -174,13 +212,13 @@ def build_variants(
     roles: dict[str, Role],
     commodities: dict[str, dict] | None = None,
 ) -> dict[str, Variant]:
-    """Build Variant objects from process_variants, resolving role refs.
+    """Build Variant objects from variants, resolving role refs.
 
     Validates that each variant explicitly declares inputs and outputs,
     and that the variant's I/O satisfies the role's service contract.
 
     Args:
-        model: Model dict with 'process_variants' key
+        model: Model dict with 'variants' key
         roles: Dict mapping role id to Role object
         commodities: Optional commodity dict for validating commodity references
 
@@ -191,8 +229,8 @@ def build_variants(
         IRError: If duplicate variant id, invalid role/commodity reference,
             or variant doesn't satisfy role contract
     """
-    variants: dict[str, Variant] = {}
-    process_variants = model.get("process_variants") or []
+    variants_by_id: dict[str, Variant] = {}
+    variant_entries = model.get("variants") or []
 
     attr_keys = {
         "kind",
@@ -205,11 +243,35 @@ def build_variants(
         "emission_factors",
     }
 
-    for raw in process_variants:
+    def _parse_flows(
+        variant_id: str,
+        mode_id: str,
+        raw_mode: dict,
+        field: str,
+    ) -> list[str]:
+        values: list[str] = []
+        for flow in raw_mode.get(field) or []:
+            comm_id = flow["commodity"]
+            if commodities is not None and comm_id not in commodities:
+                raise IRError(
+                    f"Variant '{variant_id}' mode '{mode_id}' references unknown "
+                    f"{field[:-1]} commodity: {comm_id}"
+                )
+            values.append(comm_id)
+        return values
+
+    def _parse_attrs(raw_obj: dict) -> dict:
+        attrs = {}
+        for key in attr_keys:
+            if key in raw_obj:
+                attrs[key] = raw_obj[key]
+        return attrs
+
+    for raw in variant_entries:
         variant_id = raw["id"]
         role_id = raw["role"]
 
-        if variant_id in variants:
+        if variant_id in variants_by_id:
             raise IRError(f"Duplicate variant id: {variant_id}")
 
         if role_id not in roles:
@@ -218,56 +280,79 @@ def build_variants(
             )
 
         role = roles[role_id]
-        attrs = {}
-        for key in attr_keys:
-            if key in raw:
-                attrs[key] = raw[key]
+        variant_attrs = _parse_attrs(raw)
 
-        # Parse inputs (required)
-        variant_inputs: list[str] = []
-        for inp in raw.get("inputs") or []:
-            comm_id = inp["commodity"]
-            if commodities is not None and comm_id not in commodities:
+        modes_by_id: dict[str, Mode] = {}
+        mode_entries = raw.get("modes") or []
+
+        # Backward-compatible fallback: single implicit mode from variant I/O.
+        if not mode_entries:
+            mode_entries = [
+                {
+                    "id": "default",
+                    "inputs": raw.get("inputs") or [],
+                    "outputs": raw.get("outputs") or [],
+                }
+            ]
+
+        for raw_mode in mode_entries:
+            mode_id = raw_mode["id"]
+            if mode_id in modes_by_id:
                 raise IRError(
-                    f"Variant '{variant_id}' references unknown input "
-                    f"commodity: {comm_id}"
+                    f"Variant '{variant_id}' has duplicate mode id: {mode_id}"
                 )
-            variant_inputs.append(comm_id)
+            mode_inputs = _parse_flows(variant_id, mode_id, raw_mode, "inputs")
+            mode_outputs = _parse_flows(variant_id, mode_id, raw_mode, "outputs")
 
-        # Parse outputs (required)
-        variant_outputs: list[str] = []
-        for out in raw.get("outputs") or []:
-            comm_id = out["commodity"]
-            if commodities is not None and comm_id not in commodities:
+            missing_inputs = set(role.required_inputs) - set(mode_inputs)
+            if missing_inputs:
                 raise IRError(
-                    f"Variant '{variant_id}' references unknown output "
-                    f"commodity: {comm_id}"
+                    f"Variant '{variant_id}' mode '{mode_id}' missing required "
+                    f"inputs from role '{role_id}': {sorted(missing_inputs)}"
                 )
-            variant_outputs.append(comm_id)
+            missing_outputs = set(role.required_outputs) - set(mode_outputs)
+            if missing_outputs:
+                raise IRError(
+                    f"Variant '{variant_id}' mode '{mode_id}' missing required "
+                    f"outputs from role '{role_id}': {sorted(missing_outputs)}"
+                )
 
-        # Validate role contract satisfaction
-        missing_inputs = set(role.required_inputs) - set(variant_inputs)
-        if missing_inputs:
-            raise IRError(
-                f"Variant '{variant_id}' missing required inputs from role "
-                f"'{role_id}': {sorted(missing_inputs)}"
-            )
-        missing_outputs = set(role.required_outputs) - set(variant_outputs)
-        if missing_outputs:
-            raise IRError(
-                f"Variant '{variant_id}' missing required outputs from role "
-                f"'{role_id}': {sorted(missing_outputs)}"
+            mode_attrs = _parse_attrs(raw_mode)
+            modes_by_id[mode_id] = Mode(
+                id=mode_id,
+                attrs={**variant_attrs, **mode_attrs},
+                inputs=mode_inputs,
+                outputs=mode_outputs,
             )
 
-        variants[variant_id] = Variant(
+        default_mode = None
+        if "default_mode" in raw:
+            default_mode = raw["default_mode"]
+            if default_mode not in modes_by_id:
+                raise IRError(
+                    f"Variant '{variant_id}' default_mode '{default_mode}' "
+                    "is not a declared mode"
+                )
+        elif modes_by_id:
+            default_mode = sorted(modes_by_id.keys())[0]
+
+        # Keep variant-level inputs/outputs for legacy pathways that are
+        # not yet provider-mode aware.
+        default_mode_obj = modes_by_id.get(default_mode) if default_mode else None
+        variant_inputs = default_mode_obj.inputs if default_mode_obj else []
+        variant_outputs = default_mode_obj.outputs if default_mode_obj else []
+
+        variants_by_id[variant_id] = Variant(
             id=variant_id,
             role=role,
-            attrs=attrs,
+            attrs=variant_attrs,
             inputs=variant_inputs,
             outputs=variant_outputs,
+            modes=modes_by_id,
+            default_mode=default_mode,
         )
 
-    return variants
+    return variants_by_id
 
 
 def _expand_sectors_to_segments(
@@ -354,11 +439,124 @@ def expand_availability(
             for segment in segments_to_use:
                 key = InstanceKey(variant_id, region, segment)
                 if key not in instances:
+                    mode = (
+                        variant.modes.get(variant.default_mode)
+                        if variant.default_mode
+                        else None
+                    )
                     instances[key] = ProcessInstance(
                         key=key,
                         role=variant.role,
                         variant=variant,
-                        attrs=dict(variant.attrs),
+                        mode=mode,
+                        attrs=dict(mode.attrs if mode else variant.attrs),
+                    )
+
+    return instances
+
+
+def build_providers(
+    model: dict,
+    roles: dict[str, Role],
+    variants: dict[str, Variant],
+) -> dict[str, Provider]:
+    """Build Provider objects from providers, validating role/variant/mode refs."""
+    providers_by_id: dict[str, Provider] = {}
+    provider_entries = model.get("providers") or []
+
+    for raw in provider_entries:
+        provider_id = raw["id"]
+        if provider_id in providers_by_id:
+            raise IRError(f"Duplicate provider id: {provider_id}")
+
+        role_id = raw["role"]
+        if role_id not in roles:
+            raise IRError(
+                f"Provider '{provider_id}' references unknown role: {role_id}"
+            )
+
+        offerings: list[ProviderOffering] = []
+        for offering in raw.get("offerings") or []:
+            variant_id = offering["variant"]
+            if variant_id not in variants:
+                raise IRError(
+                    f"Provider '{provider_id}' references unknown variant: {variant_id}"
+                )
+            variant = variants[variant_id]
+            if variant.role.id != role_id:
+                raise IRError(
+                    f"Provider '{provider_id}' role '{role_id}' does not match "
+                    f"variant '{variant_id}' role '{variant.role.id}'"
+                )
+
+            mode_ids = list(offering.get("modes") or [])
+            if not mode_ids:
+                mode_ids = sorted(variant.modes.keys())
+            if not mode_ids:
+                raise IRError(
+                    f"Provider '{provider_id}' variant '{variant_id}' has no modes"
+                )
+            for mode_id in mode_ids:
+                if mode_id not in variant.modes:
+                    raise IRError(
+                        f"Provider '{provider_id}' variant '{variant_id}' references "
+                        f"unknown mode '{mode_id}'"
+                    )
+
+            offerings.append(ProviderOffering(variant_id=variant_id, modes=mode_ids))
+
+        if not offerings:
+            raise IRError(
+                f"Provider '{provider_id}' must declare at least one offering"
+            )
+
+        scopes = list(raw.get("scopes") or [])
+        if not scopes:
+            scopes = [None]
+
+        providers_by_id[provider_id] = Provider(
+            id=provider_id,
+            kind=raw["kind"],
+            role=role_id,
+            region=raw["region"],
+            scopes=scopes,
+            offerings=offerings,
+        )
+
+    return providers_by_id
+
+
+def expand_provider_instances(
+    providers: dict[str, Provider],
+    variants: dict[str, Variant],
+) -> dict[InstanceKey, ProcessInstance]:
+    """Expand provider offerings to concrete provider×variant×mode×scope instances."""
+    instances: dict[InstanceKey, ProcessInstance] = {}
+
+    for provider in providers.values():
+        for offering in provider.offerings:
+            variant = variants[offering.variant_id]
+            for mode_id in offering.modes:
+                mode = variant.modes[mode_id]
+                for segment in provider.scopes:
+                    key = InstanceKey(
+                        offering.variant_id,
+                        provider.region,
+                        segment,
+                        provider_id=provider.id,
+                        mode_id=mode_id,
+                        provider_kind=provider.kind,
+                        role_id=provider.role,
+                    )
+                    if key in instances:
+                        continue
+                    instances[key] = ProcessInstance(
+                        key=key,
+                        role=variant.role,
+                        variant=variant,
+                        mode=mode,
+                        provider=provider,
+                        attrs=dict(mode.attrs),
                     )
 
     return instances
@@ -443,6 +641,65 @@ def apply_process_parameters(
                         instance.attrs[attr_key] = {**existing, **param_block[attr_key]}
 
 
+def _provider_selector_matches(selector: dict, key: InstanceKey) -> bool:
+    """Check if provider_parameter selector matches an instance key."""
+    provider_id = selector.get("provider")
+    if provider_id and provider_id != key.provider_id:
+        return False
+
+    variant_id = selector.get("variant")
+    if variant_id and variant_id != key.variant_id:
+        return False
+
+    mode_id = selector.get("mode")
+    if mode_id and mode_id != key.mode_id:
+        return False
+
+    role_id = selector.get("role")
+    if role_id and role_id != key.role_id:
+        return False
+
+    region = selector.get("region")
+    if region and region != key.region:
+        return False
+
+    scope = selector.get("scope")
+    if scope is not None and scope != key.segment:
+        return False
+
+    return True
+
+
+def apply_provider_parameters(
+    instances: dict[InstanceKey, ProcessInstance],
+    model: dict,
+) -> None:
+    """Apply provider_parameters blocks to matching provider-mode instances."""
+    provider_params = model.get("provider_parameters") or []
+
+    override_keys = {
+        "existing_capacity",
+        "cap_bound",
+        "ncap_bound",
+        "activity_bound",
+        "stock",
+    }
+    merge_keys = {"emission_factors"}
+
+    for param_block in provider_params:
+        selector = param_block["selector"]
+        for key, instance in instances.items():
+            if not _provider_selector_matches(selector, key):
+                continue
+            for attr_key in override_keys:
+                if attr_key in param_block:
+                    instance.attrs[attr_key] = param_block[attr_key]
+            for attr_key in merge_keys:
+                if attr_key in param_block:
+                    existing = instance.attrs.get(attr_key, {})
+                    instance.attrs[attr_key] = {**existing, **param_block[attr_key]}
+
+
 def _produces_service(outputs: list[str], commodities: dict[str, dict]) -> bool:
     """Check if a list of output commodity IDs includes a service commodity."""
     for out_id in outputs:
@@ -470,8 +727,20 @@ def _generate_process_name(
         Deterministic process name
     """
     if registry:
-        return registry.get_process_symbol(key.variant_id, key.region, key.segment)
+        return registry.get_process_symbol(
+            key.variant_id,
+            key.region,
+            key.segment,
+            provider_kind=key.provider_kind,
+            provider_id=key.provider_id,
+            role_id=key.role_id,
+            mode_id=key.mode_id,
+        )
     parts = [key.variant_id, key.region]
+    if key.provider_id:
+        parts = [key.provider_id, key.role_id or "role", key.variant_id]
+        if key.mode_id:
+            parts.append(key.mode_id)
     if key.segment:
         parts.append(key.segment.replace(".", "_"))
     return "_".join(parts)
@@ -504,12 +773,13 @@ def lower_instances_to_tableir(
 
     for key, instance in sorted(instances.items()):
         variant = instance.variant
+        mode = instance.mode
         attrs = instance.attrs
 
         prc_name = _generate_process_name(key, registry)
 
         inputs_scoped = []
-        for inp_id in variant.inputs:
+        for inp_id in mode.inputs if mode else variant.inputs:
             comm = commodities.get(inp_id, {})
             tradable = comm.get("tradable", True)
             kind = comm.get("kind", "carrier")
@@ -521,7 +791,7 @@ def lower_instances_to_tableir(
             inputs_scoped.append(scoped_id)
 
         outputs_scoped = []
-        for out_id in variant.outputs:
+        for out_id in mode.outputs if mode else variant.outputs:
             comm = commodities.get(out_id, {})
             tradable = comm.get("tradable", True)
             kind = comm.get("kind", "carrier")
@@ -533,7 +803,7 @@ def lower_instances_to_tableir(
             outputs_scoped.append(scoped_id)
 
         sets = []
-        if _produces_service(variant.outputs, commodities):
+        if _produces_service(mode.outputs if mode else variant.outputs, commodities):
             sets.append("DMD")
 
         row: dict = {
@@ -588,7 +858,8 @@ def validate_demand_feasibility(
 
     producer_map: dict[tuple[str, str | None, str], list[str]] = {}
     for key, instance in instances.items():
-        for out_id in instance.variant.outputs:
+        outputs = instance.mode.outputs if instance.mode else instance.variant.outputs
+        for out_id in outputs:
             map_key = (key.region, key.segment, out_id)
             if map_key not in producer_map:
                 producer_map[map_key] = []

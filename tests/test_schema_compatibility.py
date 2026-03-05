@@ -309,16 +309,16 @@ class TestNewSchemaConstructs:
             "Top-level scoping property is missing!"
         )
 
-    def test_top_level_process_roles_property_exists(self, schema: dict):
-        """Top-level process_roles property must exist."""
-        assert "process_roles" in schema.get("properties", {}), (
-            "Top-level process_roles property is missing!"
+    def test_top_level_roles_property_exists(self, schema: dict):
+        """Top-level roles property must exist."""
+        assert "roles" in schema.get("properties", {}), (
+            "Top-level roles property is missing!"
         )
 
-    def test_top_level_process_variants_property_exists(self, schema: dict):
-        """Top-level process_variants property must exist."""
-        assert "process_variants" in schema.get("properties", {}), (
-            "Top-level process_variants property is missing!"
+    def test_top_level_variants_property_exists(self, schema: dict):
+        """Top-level variants property must exist."""
+        assert "variants" in schema.get("properties", {}), (
+            "Top-level variants property is missing!"
         )
 
     def test_top_level_availability_property_exists(self, schema: dict):

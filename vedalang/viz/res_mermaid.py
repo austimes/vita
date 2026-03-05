@@ -21,7 +21,7 @@ def build_res_graph(parsed: dict, include_variants: bool = False) -> dict:
 
     Args:
         parsed: The full parsed VedaLang document.
-        include_variants: If True, include process_variants as nodes within roles.
+        include_variants: If True, include variants as nodes within roles.
 
     Returns:
         A dict with 'nodes' and 'edges' lists representing the RES graph.
@@ -47,7 +47,7 @@ def build_res_graph(parsed: dict, include_variants: bool = False) -> dict:
 
     # Build role -> variants mapping
     role_variants: dict[str, list[dict]] = {}
-    for variant in parsed.get("process_variants", []) or []:
+    for variant in parsed.get("variants", []) or []:
         role_id = variant.get("role")
         if role_id:
             role_variants.setdefault(role_id, []).append(variant)
@@ -58,8 +58,8 @@ def build_res_graph(parsed: dict, include_variants: bool = False) -> dict:
                 return item
         return None
 
-    # Extract process_roles (new P4 syntax) - these define the RES topology
-    for role in parsed.get("process_roles", []) or []:
+    # Extract roles (new P4 syntax) - these define the RES topology
+    for role in parsed.get("roles", []) or []:
         rid = role.get("id") or role.get("name")
         if rid:
             role_activity_unit = role.get("activity_unit") or _first_non_empty(
