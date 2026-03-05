@@ -58,3 +58,30 @@ def test_viz_server_health_and_files_and_query():
     assert response["version"] == "1"
     assert response["status"] in {"ok", "partial"}
     assert response["graph"]["nodes"]
+
+    facility_file = EXAMPLES_DIR / "feature_demos/example_with_facilities.veda.yaml"
+    mode_query = client.post(
+        "/api/query",
+        json={
+            "version": "1",
+            "file": str(facility_file),
+            "mode": "source",
+            "granularity": "mode",
+            "lens": "system",
+            "filters": {
+                "regions": [],
+                "case": None,
+                "sectors": [],
+                "scopes": [],
+            },
+            "compiled": {
+                "truth": "auto",
+                "cache": True,
+                "allow_partial": True,
+            },
+        },
+    )
+    assert mode_query.status_code == 200
+    mode_response = mode_query.json()
+    assert mode_response["graph"]["nodes"]
+    assert any(node["type"] == "mode" for node in mode_response["graph"]["nodes"])

@@ -17,7 +17,7 @@ from .graph_models import (
 from .trade_view import build_compiled_trade_view, build_source_trade_view
 
 VALID_MODES = {"source", "compiled"}
-VALID_GRANULARITIES = {"role", "variant", "instance"}
+VALID_GRANULARITIES = {"role", "variant", "instance", "mode", "facility"}
 VALID_LENSES = {"system", "trade"}
 
 
@@ -128,7 +128,7 @@ def _empty_response(mode: str, diagnostics: list[dict[str, str]]) -> dict[str, A
             "cases": [],
             "sectors": [],
             "scopes": [],
-            "granularities": ["role", "variant", "instance"],
+            "granularities": ["role", "variant", "instance", "mode", "facility"],
             "lenses": ["system", "trade"],
         },
         "diagnostics": diagnostics,
@@ -275,9 +275,23 @@ def response_to_mermaid(response: dict[str, Any]) -> str:
             if isinstance(details_nodes, dict)
             else {}
         )
+        if node_type == "mode" and isinstance(detail, dict):
+            facility_id = detail.get("facility_id")
+            mode_id = detail.get("mode_id")
+            if (
+                isinstance(facility_id, str)
+                and facility_id
+                and isinstance(mode_id, str)
+                and mode_id
+            ):
+                label = f"{facility_id}\\n{mode_id}"
+        if node_type == "facility" and isinstance(detail, dict):
+            facility_id = detail.get("facility_id")
+            if isinstance(facility_id, str) and facility_id:
+                label = facility_id
         stage = detail.get("stage") if isinstance(detail, dict) else None
         if (
-            node_type in {"role", "variant", "instance"}
+            node_type in {"role", "variant", "instance", "mode", "facility"}
             and isinstance(stage, str)
             and stage
         ):

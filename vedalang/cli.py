@@ -294,7 +294,7 @@ def _add_res_parser(subparsers):
     )
     common.add_argument(
         "--granularity",
-        choices=["role", "variant", "instance"],
+        choices=["role", "variant", "instance", "mode", "facility"],
         default="role",
         help="Node granularity (default: role)",
     )
@@ -381,6 +381,12 @@ def _add_viz_parser(subparsers):
     )
     p.add_argument(
         "--variants", action="store_true", help="Include process variants in diagram"
+    )
+    p.add_argument(
+        "--granularity",
+        choices=["role", "variant", "instance", "mode", "facility"],
+        default=None,
+        help="Node granularity for --mermaid output (default: role)",
     )
     p.add_argument(
         "--debug", action="store_true", help="Print debug info about nodes and edges"
@@ -2210,11 +2216,14 @@ def cmd_viz(args) -> int:
         if file_path is None:
             print("Error: file is required when using --mermaid", file=sys.stderr)
             return 2
+        granularity = getattr(args, "granularity", None) or "role"
+        if getattr(args, "variants", False) and granularity == "role":
+            granularity = "variant"
         request = {
             "version": "1",
             "file": str(file_path.resolve()),
             "mode": "source",
-            "granularity": "variant" if getattr(args, "variants", False) else "role",
+            "granularity": granularity,
             "lens": "system",
             "filters": {"regions": [], "case": None, "sectors": [], "scopes": []},
             "compiled": {"truth": "auto", "cache": True, "allow_partial": True},

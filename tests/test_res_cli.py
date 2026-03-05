@@ -69,6 +69,29 @@ def test_cmd_res_mermaid_outputs_flowchart(capsys):
     assert output.startswith("flowchart LR")
 
 
+def test_cmd_res_mermaid_mode_granularity_outputs_facility_modes(capsys):
+    args = argparse.Namespace(
+        file=EXAMPLES_DIR / "feature_demos/example_with_facilities.veda.yaml",
+        mode="source",
+        granularity="mode",
+        lens="system",
+        region=[],
+        case=None,
+        sector=[],
+        scope=[],
+        no_cache=True,
+        strict_compiled=False,
+        json=False,
+    )
+
+    exit_code = cli.cmd_res_mermaid(args)
+    assert exit_code == 0
+
+    output = capsys.readouterr().out
+    assert output.startswith("flowchart LR")
+    assert "retrofit_to_ng" in output or "coal" in output
+
+
 def test_cmd_viz_stop_removes_stale_pid_file(tmp_path, monkeypatch, capsys):
     pid_file = tmp_path / "vedalang-viz-8765.pid"
     pid_file.write_text("12345\n", encoding="utf-8")

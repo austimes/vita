@@ -12,6 +12,8 @@ const GRANULARITY_OPTIONS = [
   { value: "role", label: "role" },
   { value: "variant", label: "variant" },
   { value: "instance", label: "instance" },
+  { value: "mode", label: "mode" },
+  { value: "facility", label: "facility" },
 ];
 
 const LENS_OPTIONS = [
@@ -21,7 +23,7 @@ const LENS_OPTIONS = [
 
 const STAGE_ORDER = ["supply", "conversion", "distribution", "storage", "end_use", "sink"];
 const STAGE_RANK = new Map(STAGE_ORDER.map((stage, index) => [stage, index]));
-const PROCESS_NODE_TYPES = new Set(["role", "variant", "instance"]);
+const PROCESS_NODE_TYPES = new Set(["role", "variant", "instance", "mode", "facility"]);
 const MAX_AUTO_FIT_ZOOM = 1.6;
 
 const state = {
@@ -127,6 +129,12 @@ function styleForNode(nodeType) {
   }
   if (nodeType === "variant") {
     return { shape: "round-rectangle", color: "#9333ea" };
+  }
+  if (nodeType === "mode") {
+    return { shape: "round-rectangle", color: "#f97316" };
+  }
+  if (nodeType === "facility") {
+    return { shape: "round-rectangle", color: "#0f766e" };
   }
   return { shape: "round-rectangle", color: "#16a34a" };
 }

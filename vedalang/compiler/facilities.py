@@ -593,6 +593,55 @@ def prepare_facilities(
     return transformed, context
 
 
+def build_facility_variant_metadata(
+    context: dict[str, Any],
+) -> dict[str, dict[str, Any]]:
+    """Build facility/mode metadata keyed by generated process variant id."""
+    metadata: dict[str, dict[str, Any]] = {}
+    for entity in context.get("entities", []):
+        facility_id = str(entity.get("facility_id", ""))
+        template_id = str(entity.get("template_id", ""))
+        class_name = str(entity.get("class_name", ""))
+        role = str(entity.get("role", ""))
+        scope = str(entity.get("scope", ""))
+        region = str(entity.get("region", ""))
+        cap_base = float(entity.get("cap_base", 0.0))
+        cap_unit = str(entity.get("cap_unit", ""))
+        capacity_coupling = str(entity.get("capacity_coupling", "le"))
+        no_backsliding = bool(entity.get("no_backsliding", True))
+
+        for variant_block in entity.get("variant_blocks", []):
+            template_variant_id = str(variant_block.get("variant_id", ""))
+            baseline_mode = str(variant_block.get("baseline_mode", ""))
+            mode_ladder = [str(mode) for mode in variant_block.get("mode_ladder", [])]
+            ladder_index = {mode_id: idx for idx, mode_id in enumerate(mode_ladder)}
+            for mode in variant_block.get("modes", []):
+                process_variant_id = str(mode.get("process_variant_id", ""))
+                if not process_variant_id:
+                    continue
+                mode_id = str(mode.get("mode_id", ""))
+                metadata[process_variant_id] = {
+                    "facility_id": facility_id,
+                    "template_id": template_id,
+                    "class_name": class_name,
+                    "role": role,
+                    "scope": scope,
+                    "region": region,
+                    "template_variant_id": template_variant_id,
+                    "mode_id": mode_id,
+                    "is_baseline_mode": bool(mode.get("is_baseline", False)),
+                    "baseline_mode": baseline_mode,
+                    "mode_ladder": list(mode_ladder),
+                    "mode_ladder_index": int(ladder_index.get(mode_id, -1)),
+                    "ramp_rate": mode.get("ramp_rate"),
+                    "cap_base": cap_base,
+                    "cap_unit": cap_unit,
+                    "capacity_coupling": capacity_coupling,
+                    "no_backsliding": no_backsliding,
+                }
+    return metadata
+
+
 def _intensity_path(
     safeguard: dict,
     model_years: list[int],

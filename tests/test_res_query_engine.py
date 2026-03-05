@@ -110,3 +110,73 @@ def test_compiled_trade_query_exposes_trade_edges_and_details():
     assert trade_edges
     first_edge_id = trade_edges[0]["id"]
     assert "ire_processes" in response["details"]["edges"][first_edge_id]
+
+
+def test_facility_source_mode_granularity_exposes_mode_nodes():
+    source_file = EXAMPLES_DIR / "feature_demos/example_with_facilities.veda.yaml"
+
+    response = query_res_graph(
+        {
+            "version": "1",
+            "file": str(source_file),
+            "mode": "source",
+            "granularity": "mode",
+            "lens": "system",
+            "filters": {"regions": [], "case": None, "sectors": [], "scopes": []},
+            "compiled": {"truth": "auto", "cache": True, "allow_partial": True},
+        }
+    )
+
+    assert response["status"] == "ok"
+    assert response["graph"]["nodes"]
+    mode_nodes = [n for n in response["graph"]["nodes"] if n["type"] == "mode"]
+    assert mode_nodes
+    first_mode_id = mode_nodes[0]["id"]
+    detail = response["details"]["nodes"][first_mode_id]
+    assert detail["facility_id"]
+    assert detail["mode_id"]
+
+
+def test_facility_compiled_mode_granularity_includes_facility_metadata():
+    source_file = EXAMPLES_DIR / "feature_demos/example_with_facilities.veda.yaml"
+
+    response = query_res_graph(
+        {
+            "version": "1",
+            "file": str(source_file),
+            "mode": "compiled",
+            "granularity": "mode",
+            "lens": "system",
+            "filters": {"regions": [], "case": None, "sectors": [], "scopes": []},
+            "compiled": {"truth": "auto", "cache": False, "allow_partial": True},
+        }
+    )
+
+    assert response["status"] in {"ok", "partial"}
+    mode_nodes = [n for n in response["graph"]["nodes"] if n["type"] == "mode"]
+    assert mode_nodes
+    first_mode_id = mode_nodes[0]["id"]
+    detail = response["details"]["nodes"][first_mode_id]
+    assert detail["facility_id"]
+    assert detail["template_variant_id"]
+    assert detail["mode_id"]
+
+
+def test_mermaid_mode_granularity_includes_facility_mode_label():
+    source_file = EXAMPLES_DIR / "feature_demos/example_with_facilities.veda.yaml"
+
+    response = query_res_graph(
+        {
+            "version": "1",
+            "file": str(source_file),
+            "mode": "source",
+            "granularity": "mode",
+            "lens": "system",
+            "filters": {"regions": [], "case": None, "sectors": [], "scopes": []},
+            "compiled": {"truth": "auto", "cache": True, "allow_partial": True},
+        }
+    )
+
+    mermaid = response_to_mermaid(response)
+    assert "[Conversion]" in mermaid
+    assert "retrofit_to_ng" in mermaid or "coal" in mermaid

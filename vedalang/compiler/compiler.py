@@ -23,7 +23,11 @@ from vedalang.conventions import (
 )
 
 from .demands import compile_demands
-from .facilities import generate_facility_artifacts, prepare_facilities
+from .facilities import (
+    build_facility_variant_metadata,
+    generate_facility_artifacts,
+    prepare_facilities,
+)
 from .ir import (
     apply_process_parameters,
     build_roles,
@@ -3476,7 +3480,13 @@ def _compile_new_syntax(
     registry = NamingRegistry()
 
     # Build solve-independent metadata map for diagnostics resolution
-    metadata_map = _build_metadata_map(instances, commodities, registry)
+    facility_variant_meta = build_facility_variant_metadata(facility_context)
+    metadata_map = _build_metadata_map(
+        instances,
+        commodities,
+        registry,
+        facility_variant_meta=facility_variant_meta,
+    )
     variant_symbol_map: dict[str, list[dict[str, str]]] = {}
     for process_symbol, meta in metadata_map.items():
         variant_symbol_map.setdefault(meta["variant"], []).append(
@@ -4076,6 +4086,7 @@ def _build_metadata_map(
     instances: dict,
     commodities: dict[str, dict],
     registry: NamingRegistry,
+    facility_variant_meta: dict[str, dict] | None = None,
 ) -> dict[str, dict]:
     """Build solve-independent metadata map for diagnostics boundary resolution."""
     metadata: dict[str, dict] = {}
@@ -4097,7 +4108,7 @@ def _build_metadata_map(
             commodities,
             instance.variant.outputs,
         )
-        metadata[symbol] = {
+        meta_entry = {
             "variant": key.variant_id,
             "region": key.region,
             "scope": key.segment,
@@ -4110,6 +4121,9 @@ def _build_metadata_map(
             "kind_source": "explicit" if "kind" in instance.attrs else "derived",
             "exclude_from_fuel_switch": False,
         }
+        if facility_variant_meta and key.variant_id in facility_variant_meta:
+            meta_entry["facility"] = dict(facility_variant_meta[key.variant_id])
+        metadata[symbol] = meta_entry
     return metadata
 
 
