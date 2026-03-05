@@ -190,24 +190,56 @@
       "type": "string",
       "enum": ["safeguard", "generator", "generic"]
     },
-    "facility_transition_edge": {
+    "facility_mode": {
       "type": "object",
-      "required": ["from", "to"],
-      "properties": {
-        "from": { "type": "string" },
-        "to": { "type": "string" }
-      },
-      "additionalProperties": false
-    },
-    "facility_template_input_group": {
-      "type": "object",
-      "required": ["id", "commodity_group"],
+      "required": ["id", "fuel_in", "capex", "existing"],
       "properties": {
         "id": {
           "type": "string",
           "pattern": "^[a-z][a-z0-9_-]*$"
         },
-        "commodity_group": { "type": "string" }
+        "fuel_in": { "type": "string" },
+        "capex": { "type": "number", "minimum": 0 },
+        "existing": { "type": "boolean" },
+        "efficiency": {
+          "oneOf": [
+            { "type": "number", "minimum": 0 },
+            { "$ref": "#/$defs/time_varying_value" }
+          ]
+        },
+        "emission_factors": {
+          "type": "object",
+          "additionalProperties": {
+            "oneOf": [
+              { "type": "number" },
+              { "$ref": "#/$defs/time_varying_value" }
+            ]
+          }
+        },
+        "ramp_rate": { "type": "number", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "facility_template_variant": {
+      "type": "object",
+      "required": ["id", "baseline_mode", "mode_ladder", "modes"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]*$"
+        },
+        "baseline_mode": { "type": "string" },
+        "mode_ladder": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" },
+          "uniqueItems": true
+        },
+        "modes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/facility_mode" },
+          "minItems": 1
+        }
       },
       "additionalProperties": false
     },
@@ -219,7 +251,7 @@
         "role",
         "sector",
         "primary_output_commodity",
-        "candidate_variants"
+        "variants"
       ],
       "properties": {
         "id": {
@@ -235,82 +267,20 @@
           "enum": ["RES", "COM", "IND", "TRN", "AGR", "NE", "OTH"]
         },
         "primary_output_commodity": { "type": "string" },
-        "candidate_variants": {
+        "variants": {
           "type": "array",
-          "items": { "type": "string" },
-          "minItems": 1,
-          "uniqueItems": true
-        },
-        "transition_graph": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/facility_transition_edge" }
-        },
-        "input_groups": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/facility_template_input_group" }
+          "items": { "$ref": "#/$defs/facility_template_variant" },
+          "minItems": 1
         }
       },
       "additionalProperties": false
     },
-    "facility_installed_state": {
+    "facility_cap_base": {
       "type": "object",
-      "required": ["variant"],
+      "required": ["value", "unit"],
       "properties": {
-        "variant": { "type": "string" },
-        "stock": {
-          "oneOf": [
-            { "type": "number", "minimum": 0 },
-            { "$ref": "#/$defs/time_varying_value" }
-          ]
-        },
-        "existing_capacity": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/past_investment" }
-        }
-      },
-      "additionalProperties": false
-    },
-    "facility_variant_policy": {
-      "type": "object",
-      "required": ["variant", "from_year"],
-      "properties": {
-        "variant": { "type": "string" },
-        "from_year": { "type": "integer", "minimum": 1900 },
-        "to_year": { "type": "integer", "minimum": 1900 },
-        "max_new_capacity_per_period": {
-          "type": "number",
-          "minimum": 0
-        }
-      },
-      "additionalProperties": false
-    },
-    "facility_input_mix_target": {
-      "type": "object",
-      "required": ["year", "shares"],
-      "properties": {
-        "year": { "type": "integer", "minimum": 1900 },
-        "shares": {
-          "type": "object",
-          "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 }
-        },
-        "hard": { "type": "boolean", "default": false },
-        "tolerance": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.05 }
-      },
-      "additionalProperties": false
-    },
-    "facility_input_mix": {
-      "type": "object",
-      "required": ["group", "baseline_shares"],
-      "properties": {
-        "group": { "type": "string" },
-        "baseline_shares": {
-          "type": "object",
-          "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 }
-        },
-        "targets": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/facility_input_mix_target" }
-        }
+        "value": { "type": "number", "minimum": 0 },
+        "unit": { "$ref": "#/$defs/unit_symbol" }
       },
       "additionalProperties": false
     },
@@ -351,7 +321,7 @@
         "class",
         "location_ref",
         "output_series",
-        "installed_state"
+        "cap_base"
       ],
       "properties": {
         "id": {
@@ -367,15 +337,13 @@
           "default": "individual"
         },
         "output_series": { "$ref": "#/$defs/time_series" },
-        "installed_state": { "$ref": "#/$defs/facility_installed_state" },
-        "variant_policies": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/facility_variant_policy" }
+        "cap_base": { "$ref": "#/$defs/facility_cap_base" },
+        "capacity_coupling": {
+          "type": "string",
+          "enum": ["le", "eq"],
+          "default": "le"
         },
-        "input_mix": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/facility_input_mix" }
-        },
+        "no_backsliding": { "type": "boolean", "default": true },
         "safeguard": { "$ref": "#/$defs/facility_safeguard" }
       },
       "allOf": [

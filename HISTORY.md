@@ -144,3 +144,18 @@ Pre-compilation checks that catch modeling patterns causing solver infeasibility
 - **Decision:** During pre-1.0 prototype phase, do not maintain migration guides or backward-compatibility scaffolding unless explicitly required for external release communication.
 - **Decision:** Prefer direct in-place design evolution (schema/compiler/examples/tests) with clear commits.
 - **Decision:** Use git history + concise dated decisions in `HISTORY.md` as the canonical change log and rationale record.
+
+## Facility Modes Refactor (2026-03-05)
+
+- **Breaking change:** Replaced facility primitive fuel switching based on
+  `candidate_variants` + `transition_graph` + `input_mix` + `variant_policies`
+  with mode-based template definitions (`facility_templates[].variants[].modes[]`).
+- **New facility semantics:** Added `cap_base`, `capacity_coupling` (`le|eq`),
+  and `no_backsliding` controls at facility level.
+- **Compiler lowering:** Facilities now compile to one synthetic process variant
+  per mode and emit LP-safe `UC_CAP` constraints for capacity coupling,
+  no-backsliding monotonicity, and ramp-rate limits.
+- **Cost accounting:** Retrofit costs represented as mode `investment_cost`
+  (`NCAP_COST`) on retrofit mode capacity.
+- **Removed old facility constraints:** `FAC_MIX_*` and `FAC_NB_*` no longer
+  generated for facility fuel switching.

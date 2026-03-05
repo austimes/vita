@@ -1,8 +1,8 @@
-"""Facility primitive lowering for VedaLang P4 syntax.
+"""Facility primitive lowering for VedaLang mode-based fuel switching.
 
-This module translates top-level facility/template declarations into existing
-compiler constructs (scoping, demands, availability, process parameters) and
-emits additional policy artifacts (TFM bounds and UC rows).
+This module translates top-level facility/template declarations into compiler
+constructs (demands, process variants, availability, process parameters) and
+emits additional policy artifacts (UC rows).
 """
 
 from __future__ import annotations
@@ -46,118 +46,46 @@ def _value_for_year(values: dict[str, float], year: int) -> float:
     return float(values[str(years[0])])
 
 
-def _topological_order(nodes: list[str], edges: list[dict[str, str]]) -> list[str]:
-    if not edges:
-        return list(nodes)
-
-    indegree = {n: 0 for n in nodes}
-    outgoing: dict[str, list[str]] = {n: [] for n in nodes}
-    for edge in edges:
-        src = edge["from"]
-        dst = edge["to"]
-        if src not in indegree or dst not in indegree:
-            raise VedaLangError(
-                "facility template transition_graph must reference "
-                "candidate_variants only"
-            )
-        outgoing[src].append(dst)
-        indegree[dst] += 1
-
-    queue = sorted([n for n, d in indegree.items() if d == 0])
-    order: list[str] = []
-    while queue:
-        cur = queue.pop(0)
-        order.append(cur)
-        for nxt in sorted(outgoing[cur]):
-            indegree[nxt] -= 1
-            if indegree[nxt] == 0:
-                queue.append(nxt)
-
-    if len(order) != len(nodes):
-        raise VedaLangError("facility template transition_graph must be acyclic")
-
-    return order
+@dataclass
+class ModeSpec:
+    id: str
+    fuel_in: str
+    capex: float
+    existing: bool
+    efficiency: Any | None
+    emission_factors: dict[str, Any]
+    ramp_rate: float | None
 
 
-def _validate_transition_graph_chain(
-    nodes: list[str],
-    edges: list[dict[str, str]],
-) -> None:
-    """Validate transition graph is a single directed chain when declared.
-
-    The no-backswitch prefix formulation assumes an ordered state ladder
-    v1 -> v2 -> ... -> vk. For v1 we enforce chain-shaped transitions to
-    avoid ambiguous partial-order semantics.
-    """
-    if not edges:
-        return
-
-    if len(nodes) <= 1:
-        return
-
-    incoming = {n: 0 for n in nodes}
-    outgoing = {n: 0 for n in nodes}
-    seen_pairs: set[tuple[str, str]] = set()
-
-    for edge in edges:
-        src = edge["from"]
-        dst = edge["to"]
-        if src == dst:
-            raise VedaLangError(
-                "facility template transition_graph cannot contain self-loops"
-            )
-        pair = (src, dst)
-        if pair in seen_pairs:
-            raise VedaLangError(
-                "facility template transition_graph contains duplicate edges"
-            )
-        seen_pairs.add(pair)
-        incoming[dst] += 1
-        outgoing[src] += 1
-
-    if len(edges) != len(nodes) - 1:
-        raise VedaLangError(
-            "facility template transition_graph must define a single chain "
-            "(exactly N-1 edges for N candidate_variants)"
-        )
-
-    for node in nodes:
-        if incoming[node] > 1 or outgoing[node] > 1:
-            raise VedaLangError(
-                "facility template transition_graph must be chain-shaped "
-                "(max one predecessor and one successor per variant)"
-            )
-
-    roots = [n for n in nodes if incoming[n] == 0]
-    leaves = [n for n in nodes if outgoing[n] == 0]
-    if len(roots) != 1 or len(leaves) != 1:
-        raise VedaLangError(
-            "facility template transition_graph must have one start and one end variant"
-        )
+@dataclass
+class FacilityVariantSpec:
+    id: str
+    baseline_mode: str
+    mode_ladder: list[str]
+    modes: list[ModeSpec]
 
 
-def _validated_share_map(
-    shares: dict[str, Any],
-    *,
-    label: str,
-    allowed_members: set[str],
-) -> dict[str, float]:
-    if not shares:
-        raise VedaLangError(f"{label} must define at least one share value")
+@dataclass
+class FacilityEntity:
+    """Internal resolved facility entity after selection and regional splitting."""
 
-    result: dict[str, float] = {}
-    for member, raw_value in shares.items():
-        if member not in allowed_members:
-            raise VedaLangError(
-                f"{label} references commodity '{member}' not present "
-                "in the group members"
-            )
-        result[member] = float(raw_value)
-
-    total = sum(result.values())
-    if abs(total - 1.0) > 1e-6:
-        raise VedaLangError(f"{label} must sum to 1.0 (got {total})")
-    return result
+    facility_id: str
+    class_name: str
+    template_id: str
+    role: str
+    scope: str
+    region: str
+    representation: str
+    output_series: dict[str, float]
+    output_interpolation: str
+    primary_output_commodity: str
+    cap_base: float
+    cap_unit: str
+    capacity_coupling: str
+    no_backsliding: bool
+    variants: list[FacilityVariantSpec]
+    safeguard: dict[str, Any] | None
+    ranking_metric: float
 
 
 def _resolve_spatial_mapping(
@@ -210,95 +138,137 @@ def _resolve_spatial_mapping(
     )
 
 
-@dataclass
-class FacilityEntity:
-    """Internal resolved facility entity after selection and regional splitting."""
-
-    facility_id: str
-    class_name: str
-    template_id: str
-    scope: str
-    region: str
-    representation: str
-    output_series: dict[str, float]
-    output_interpolation: str
-    installed_state: dict[str, Any]
-    candidate_variants: list[str]
-    variant_order: list[str]
-    variant_policies: list[dict[str, Any]]
-    primary_output_commodity: str
-    input_mix: list[dict[str, Any]]
-    input_groups: list[dict[str, Any]]
-    safeguard: dict[str, Any] | None
-    ranking_metric: float
+def _mode_variant_id(
+    facility_id: str,
+    role: str,
+    template_variant_id: str,
+    mode_id: str,
+) -> str:
+    return "_".join(
+        [
+            "fac",
+            _sanitize_scope_token(facility_id),
+            "role",
+            _sanitize_scope_token(role),
+            "var",
+            _sanitize_scope_token(template_variant_id),
+            "mode",
+            _sanitize_scope_token(mode_id),
+        ]
+    )
 
 
-def _merge_existing_capacity(entries: list[dict]) -> list[dict]:
-    merged: dict[int, float] = {}
-    for item in entries:
-        year = int(item["vintage"])
-        merged[year] = merged.get(year, 0.0) + float(item["capacity"])
-    return [{"vintage": y, "capacity": c} for y, c in sorted(merged.items())]
+def _normalize_template_variants(
+    template: dict,
+    template_id: str,
+    commodities: dict[str, dict],
+) -> list[FacilityVariantSpec]:
+    template_variants = template.get("variants") or []
+    if not template_variants:
+        raise VedaLangError(
+            f"Facility template '{template_id}' must define at least one variant"
+        )
 
+    result: list[FacilityVariantSpec] = []
+    seen_variant_ids: set[str] = set()
 
-def _merge_variant_policies(policies: list[list[dict]]) -> list[dict]:
-    by_variant: dict[str, dict[str, Any]] = {}
-    for policy_list in policies:
-        for p in policy_list:
-            variant = p["variant"]
-            rec = by_variant.setdefault(
-                variant,
-                {
-                    "variant": variant,
-                    "from_year": int(p["from_year"]),
-                    "to_year": p.get("to_year"),
-                    "max_new_capacity_per_period": p.get("max_new_capacity_per_period"),
-                },
+    for variant in template_variants:
+        variant_id = variant["id"]
+        if variant_id in seen_variant_ids:
+            raise VedaLangError(
+                f"Facility template '{template_id}' has duplicate variant "
+                f"'{variant_id}'"
             )
-            rec["from_year"] = max(rec["from_year"], int(p["from_year"]))
-            to_year = p.get("to_year")
-            if to_year is not None:
-                rec["to_year"] = (
-                    to_year
-                    if rec.get("to_year") is None
-                    else min(rec["to_year"], to_year)
-                )
-            cap = p.get("max_new_capacity_per_period")
-            if cap is not None:
-                rec_cap = rec.get("max_new_capacity_per_period")
-                rec["max_new_capacity_per_period"] = (
-                    cap if rec_cap is None else min(rec_cap, cap)
-                )
-    return [by_variant[k] for k in sorted(by_variant)]
+        seen_variant_ids.add(variant_id)
 
-
-def _merge_input_mix(mixes: list[list[dict]], weights: list[float]) -> list[dict]:
-    if not mixes:
-        return []
-    by_group: dict[str, dict[str, Any]] = {}
-    for idx, mix_list in enumerate(mixes):
-        w = weights[idx]
-        for mix in mix_list:
-            group = mix["group"]
-            rec = by_group.setdefault(
-                group, {"group": group, "baseline_shares": {}, "targets": []}
+        modes = variant.get("modes") or []
+        if not modes:
+            raise VedaLangError(
+                f"Facility template '{template_id}' variant '{variant_id}' "
+                "must define modes"
             )
-            for comm, share in (mix.get("baseline_shares") or {}).items():
-                rec["baseline_shares"][comm] = rec["baseline_shares"].get(
-                    comm, 0.0
-                ) + w * float(share)
-    for rec in by_group.values():
-        total = sum(rec["baseline_shares"].values())
-        if total > 0:
-            rec["baseline_shares"] = {
-                comm: val / total
-                for comm, val in sorted(rec["baseline_shares"].items())
-            }
-    return [by_group[g] for g in sorted(by_group)]
+
+        mode_specs: list[ModeSpec] = []
+        mode_ids: set[str] = set()
+        for mode in modes:
+            mode_id = mode["id"]
+            if mode_id in mode_ids:
+                raise VedaLangError(
+                    f"Facility template '{template_id}' variant '{variant_id}' "
+                    f"has duplicate mode '{mode_id}'"
+                )
+            mode_ids.add(mode_id)
+
+            fuel = mode["fuel_in"]
+            commodity = commodities.get(fuel)
+            if commodity is None:
+                raise VedaLangError(
+                    f"Facility template '{template_id}' variant '{variant_id}' mode "
+                    f"'{mode_id}' references unknown fuel '{fuel}'"
+                )
+            if commodity.get("kind") == "emission":
+                raise VedaLangError(
+                    f"Facility template '{template_id}' variant '{variant_id}' mode "
+                    f"'{mode_id}' cannot use emission commodity '{fuel}' as fuel_in"
+                )
+
+            mode_specs.append(
+                ModeSpec(
+                    id=mode_id,
+                    fuel_in=fuel,
+                    capex=float(mode.get("capex", 0.0)),
+                    existing=bool(mode.get("existing", False)),
+                    efficiency=deepcopy(mode.get("efficiency")),
+                    emission_factors=deepcopy(mode.get("emission_factors") or {}),
+                    ramp_rate=(
+                        float(mode["ramp_rate"])
+                        if mode.get("ramp_rate") is not None
+                        else None
+                    ),
+                )
+            )
+
+        baseline_mode = variant["baseline_mode"]
+        if baseline_mode not in mode_ids:
+            raise VedaLangError(
+                f"Facility template '{template_id}' variant '{variant_id}' "
+                f"baseline_mode '{baseline_mode}' must reference one of its modes"
+            )
+
+        mode_ladder = list(variant.get("mode_ladder") or [])
+        if set(mode_ladder) != mode_ids:
+            raise VedaLangError(
+                f"Facility template '{template_id}' variant '{variant_id}' mode_ladder "
+                "must contain each mode exactly once"
+            )
+
+        baseline_spec = next(m for m in mode_specs if m.id == baseline_mode)
+        if not baseline_spec.existing:
+            raise VedaLangError(
+                f"Facility template '{template_id}' variant '{variant_id}' baseline "
+                f"mode '{baseline_mode}' must set existing=true"
+            )
+
+        existing_count = sum(1 for m in mode_specs if m.existing)
+        if existing_count != 1:
+            raise VedaLangError(
+                f"Facility template '{template_id}' variant '{variant_id}' must have "
+                "exactly one mode with existing=true"
+            )
+
+        result.append(
+            FacilityVariantSpec(
+                id=variant_id,
+                baseline_mode=baseline_mode,
+                mode_ladder=mode_ladder,
+                modes=mode_specs,
+            )
+        )
+
+    return result
 
 
 def _entity_aggregation_key(entity: FacilityEntity, keys: list[str]) -> tuple:
-    installed_variant = entity.installed_state.get("variant", "")
     values: list[Any] = []
     for key in keys:
         if key == "template":
@@ -309,8 +279,6 @@ def _entity_aggregation_key(entity: FacilityEntity, keys: list[str]) -> tuple:
             values.append(entity.region)
         elif key == "primary_output_commodity":
             values.append(entity.primary_output_commodity)
-        elif key == "installed_variant":
-            values.append(installed_variant)
         else:
             raise VedaLangError(
                 f"Unsupported facility_selection.aggregation_key '{key}'"
@@ -329,29 +297,13 @@ def _aggregate_entities(
     result: list[FacilityEntity] = []
     for idx, (_, group) in enumerate(sorted(grouped.items())):
         base = group[0]
+
         output_values: dict[str, float] = {}
         for entity in group:
             for y, v in entity.output_series.items():
                 output_values[y] = output_values.get(y, 0.0) + float(v)
 
-        merged_installed = {
-            "variant": base.installed_state.get("variant"),
-        }
-        stock_total = sum(float(e.installed_state.get("stock", 0.0)) for e in group)
-        if stock_total:
-            merged_installed["stock"] = stock_total
-
-        all_pasti = []
-        for entity in group:
-            all_pasti.extend(entity.installed_state.get("existing_capacity", []))
-        if all_pasti:
-            merged_installed["existing_capacity"] = _merge_existing_capacity(all_pasti)
-
-        weights = [sum(float(v) for v in e.output_series.values()) for e in group]
-        if sum(weights) == 0:
-            weights = [1.0 for _ in group]
-        norm = sum(weights)
-        weights = [w / norm for w in weights]
+        total_cap = sum(float(entity.cap_base) for entity in group)
 
         safeguard = None
         if base.safeguard:
@@ -377,20 +329,18 @@ def _aggregate_entities(
                 facility_id=f"agg_{base.template_id}_{base.region}_{idx + 1}",
                 class_name=base.class_name,
                 template_id=base.template_id,
+                role=base.role,
                 scope=f"{base.scope}_agg{idx + 1}",
                 region=base.region,
                 representation="archetype",
                 output_series=output_values,
                 output_interpolation=base.output_interpolation,
-                installed_state=merged_installed,
-                candidate_variants=list(base.candidate_variants),
-                variant_order=list(base.variant_order),
-                variant_policies=_merge_variant_policies(
-                    [e.variant_policies for e in group]
-                ),
                 primary_output_commodity=base.primary_output_commodity,
-                input_mix=_merge_input_mix([e.input_mix for e in group], weights),
-                input_groups=deepcopy(base.input_groups),
+                cap_base=total_cap,
+                cap_unit=base.cap_unit,
+                capacity_coupling=base.capacity_coupling,
+                no_backsliding=base.no_backsliding,
+                variants=deepcopy(base.variants),
                 safeguard=safeguard,
                 ranking_metric=sum(e.ranking_metric for e in group),
             )
@@ -402,16 +352,11 @@ def _aggregate_entities(
 def prepare_facilities(
     source: dict,
     commodities: dict[str, dict],
-    variants: dict[str, Variant],
     model_years: list[int],
 ) -> tuple[dict, dict]:
-    """Materialize facilities into source-level demands/availability/parameters.
-
-    Returns transformed source and facility context used for post-instance artifact
-    generation.
-    """
+    """Materialize facilities into source-level demands/availability/parameters."""
     if not source.get("facilities"):
-        return source, {"entities": [], "template_map": {}, "commodity_groups": {}}
+        return source, {"entities": [], "template_map": {}, "model_years": []}
 
     transformed = deepcopy(source)
 
@@ -419,9 +364,11 @@ def prepare_facilities(
     if not template_map:
         raise VedaLangError("facilities requires facility_templates")
 
-    commodity_groups = {g["id"]: g for g in transformed.get("commodity_groups", [])}
-
-    raw_variant_map = {v["id"]: v for v in transformed.get("process_variants", [])}
+    template_variants: dict[str, list[FacilityVariantSpec]] = {}
+    for template_id, template in template_map.items():
+        template_variants[template_id] = _normalize_template_variants(
+            template, template_id, commodities
+        )
 
     entities: list[FacilityEntity] = []
 
@@ -429,144 +376,30 @@ def prepare_facilities(
         facility_id = facility["id"]
         template_id = facility["template"]
         template = template_map.get(template_id)
-        if not template:
+        if template is None:
             raise VedaLangError(
                 f"Facility '{facility_id}' references unknown template '{template_id}'"
             )
 
         class_name = facility["class"]
-        if template.get("class") != class_name:
+        if class_name != template["class"]:
             raise VedaLangError(
                 f"Facility '{facility_id}' class '{class_name}' does not "
-                f"match template class '{template.get('class')}'"
+                f"match template class '{template['class']}'"
             )
 
-        role_id = template["role"]
-        primary_output = template["primary_output_commodity"]
-        comm = commodities.get(primary_output)
-        if not comm or comm.get("type") != "service":
+        output_values = _series_values(facility.get("output_series") or {})
+        if not output_values:
             raise VedaLangError(
-                f"Facility template '{template_id}' "
-                f"primary_output_commodity '{primary_output}' must be "
-                "a service commodity"
+                f"Facility '{facility_id}' output_series.values must not be empty"
             )
+        output_interp = (facility.get("output_series") or {}).get(
+            "interpolation", "interp_extrap"
+        )
 
-        candidate_variants = list(template.get("candidate_variants", []))
-        if not candidate_variants:
-            raise VedaLangError(
-                f"Facility template '{template_id}' must define candidate_variants"
-            )
-        for variant_id in candidate_variants:
-            variant = variants.get(variant_id)
-            if not variant:
-                raise VedaLangError(
-                    f"Facility template '{template_id}' references "
-                    f"unknown variant '{variant_id}'"
-                )
-            if variant.role.id != role_id:
-                raise VedaLangError(
-                    f"Facility template '{template_id}' variant "
-                    f"'{variant_id}' role mismatch (expected '{role_id}')"
-                )
-
-        transition_graph = template.get("transition_graph") or []
-        _validate_transition_graph_chain(candidate_variants, transition_graph)
-        variant_order = _topological_order(candidate_variants, transition_graph)
-        input_groups = deepcopy(template.get("input_groups", []))
-        for group in input_groups:
-            if group["commodity_group"] not in commodity_groups:
-                raise VedaLangError(
-                    f"Facility template '{template_id}' references "
-                    "unknown commodity_group "
-                    f"'{group['commodity_group']}'"
-                )
-
-        for variant_id in candidate_variants:
-            raw_variant = raw_variant_map.get(variant_id, {})
-            output_commodities = [
-                o.get("commodity") for o in (raw_variant.get("outputs") or [])
-            ]
-            if primary_output not in output_commodities:
-                raise VedaLangError(
-                    f"Facility template '{template_id}' variant '{variant_id}' "
-                    f"must produce primary_output_commodity '{primary_output}'"
-                )
-            service_outputs = [
-                out_id
-                for out_id in output_commodities
-                if commodities.get(out_id, {}).get("type") == "service"
-            ]
-            if service_outputs != [primary_output]:
-                raise VedaLangError(
-                    f"Facility template '{template_id}' variant "
-                    f"'{variant_id}' must have "
-                    "exactly one service output equal to primary_output_commodity"
-                )
-
-        installed_state = deepcopy(facility.get("installed_state") or {})
-        installed_variant = installed_state.get("variant")
-        if installed_variant not in candidate_variants:
-            raise VedaLangError(
-                f"Facility '{facility_id}' installed_state.variant "
-                f"'{installed_variant}' must be one of "
-                "template candidate_variants"
-            )
-
-        output_series = facility.get("output_series") or {}
-        output_values = _series_values(output_series)
-        output_interp = output_series.get("interpolation", "interp_extrap")
-        variant_policies = deepcopy(facility.get("variant_policies", []))
-        for policy in variant_policies:
-            if policy["variant"] not in candidate_variants:
-                raise VedaLangError(
-                    f"Facility '{facility_id}' variant_policies entry references "
-                    f"unknown template variant '{policy['variant']}'"
-                )
-            from_year = int(policy["from_year"])
-            to_year = policy.get("to_year")
-            if to_year is not None and int(to_year) < from_year:
-                raise VedaLangError(
-                    f"Facility '{facility_id}' variant_policies for variant "
-                    f"'{policy['variant']}' has to_year earlier than from_year"
-                )
-        input_mix = deepcopy(facility.get("input_mix", []))
-        template_group_ids = {group["id"] for group in input_groups}
-        group_to_members: dict[str, set[str]] = {}
-        for group in input_groups:
-            group_id = group["id"]
-            commodity_group_id = group["commodity_group"]
-            group_to_members[group_id] = set(
-                commodity_groups[commodity_group_id]["members"]
-            )
-        for mix in input_mix:
-            group_id = mix["group"]
-            if group_id not in template_group_ids:
-                raise VedaLangError(
-                    f"Facility '{facility_id}' input_mix group '{mix['group']}' "
-                    "must exist in facility_template.input_groups"
-                )
-            allowed_members = group_to_members[group_id]
-            mix["baseline_shares"] = _validated_share_map(
-                mix.get("baseline_shares") or {},
-                label=(
-                    f"Facility '{facility_id}' input_mix baseline_shares "
-                    f"for group '{group_id}'"
-                ),
-                allowed_members=allowed_members,
-            )
-            validated_targets = []
-            for target in mix.get("targets", []):
-                validated_target = dict(target)
-                validated_target["shares"] = _validated_share_map(
-                    target.get("shares") or {},
-                    label=(
-                        f"Facility '{facility_id}' input_mix target shares for "
-                        f"group '{group_id}' year {target.get('year')}"
-                    ),
-                    allowed_members=allowed_members,
-                )
-                validated_targets.append(validated_target)
-            mix["targets"] = validated_targets
+        cap_base_decl = facility.get("cap_base") or {}
+        cap_base = float(cap_base_decl.get("value", 0.0))
+        cap_unit = str(cap_base_decl.get("unit", ""))
 
         safeguard = (
             deepcopy(facility.get("safeguard")) if class_name == "safeguard" else None
@@ -586,35 +419,23 @@ def prepare_facilities(
             scope_token = _sanitize_scope_token(piece_id)
             scope = f"{template['sector']}.{scope_token}"
 
-            scaled_installed = deepcopy(installed_state)
-            if "stock" in scaled_installed:
-                scaled_installed["stock"] = float(scaled_installed["stock"]) * share
-            if "existing_capacity" in scaled_installed:
-                scaled_installed["existing_capacity"] = [
-                    {
-                        "vintage": int(item["vintage"]),
-                        "capacity": float(item["capacity"]) * share,
-                    }
-                    for item in scaled_installed["existing_capacity"]
-                ]
-
             entities.append(
                 FacilityEntity(
                     facility_id=piece_id,
                     class_name=class_name,
                     template_id=template_id,
+                    role=template["role"],
                     scope=scope,
                     region=region,
                     representation=facility.get("representation", "individual"),
                     output_series=_scale_series(output_values, share),
                     output_interpolation=output_interp,
-                    installed_state=scaled_installed,
-                    candidate_variants=candidate_variants,
-                    variant_order=variant_order,
-                    variant_policies=variant_policies,
-                    primary_output_commodity=primary_output,
-                    input_mix=input_mix,
-                    input_groups=input_groups,
+                    primary_output_commodity=template["primary_output_commodity"],
+                    cap_base=cap_base * share,
+                    cap_unit=cap_unit,
+                    capacity_coupling=facility.get("capacity_coupling", "le"),
+                    no_backsliding=bool(facility.get("no_backsliding", True)),
+                    variants=deepcopy(template_variants[template_id]),
                     safeguard=safeguard,
                     ranking_metric=baseline_metric * share,
                 )
@@ -629,13 +450,13 @@ def prepare_facilities(
         raise VedaLangError(
             f"Unsupported facility_selection.ranking_metric '{ranking_metric}'"
         )
+
     n_individual = selection.get("n_individual")
     aggregation_keys = selection.get("aggregation_keys") or [
         "template",
         "class",
         "region",
         "primary_output_commodity",
-        "installed_variant",
     ]
     mandatory_keys = {"template", "primary_output_commodity"}
     if not mandatory_keys.issubset(set(aggregation_keys)):
@@ -661,12 +482,13 @@ def prepare_facilities(
     if to_aggregate:
         selected_entities.extend(_aggregate_entities(to_aggregate, aggregation_keys))
 
-    # Mutate source with generated constructs used by existing compiler pipeline.
     demands = list(transformed.get("demands") or [])
     availability = list(transformed.get("availability") or [])
     process_parameters = list(transformed.get("process_parameters") or [])
+    process_variants = list(transformed.get("process_variants") or [])
 
-    seen_availability: set[tuple[str, str, str]] = set()
+    existing_variant_ids = {v["id"] for v in process_variants}
+    context_entities = []
 
     for entity in selected_entities:
         demands.append(
@@ -679,59 +501,92 @@ def prepare_facilities(
             }
         )
 
-        for variant_id in entity.candidate_variants:
-            key = (variant_id, entity.region, entity.scope)
-            if key in seen_availability:
-                continue
-            seen_availability.add(key)
-            availability.append(
+        variant_blocks = []
+        for template_variant in entity.variants:
+            mode_entries = []
+            for mode in template_variant.modes:
+                synthetic_variant_id = _mode_variant_id(
+                    entity.facility_id,
+                    entity.role,
+                    template_variant.id,
+                    mode.id,
+                )
+                if synthetic_variant_id in existing_variant_ids:
+                    raise VedaLangError(
+                        "Facility-generated mode variant id collision: "
+                        f"'{synthetic_variant_id}'"
+                    )
+                existing_variant_ids.add(synthetic_variant_id)
+
+                process_variant = {
+                    "id": synthetic_variant_id,
+                    "role": entity.role,
+                    "inputs": [{"commodity": mode.fuel_in}],
+                    "outputs": [{"commodity": entity.primary_output_commodity}],
+                    "investment_cost": float(mode.capex),
+                }
+                if mode.efficiency is not None:
+                    process_variant["efficiency"] = deepcopy(mode.efficiency)
+                if mode.emission_factors:
+                    process_variant["emission_factors"] = deepcopy(
+                        mode.emission_factors
+                    )
+                process_variants.append(process_variant)
+
+                availability.append(
+                    {
+                        "variant": synthetic_variant_id,
+                        "regions": [entity.region],
+                        "scopes": [entity.scope],
+                    }
+                )
+
+                mode_entries.append(
+                    {
+                        "mode_id": mode.id,
+                        "process_variant_id": synthetic_variant_id,
+                        "is_baseline": mode.id == template_variant.baseline_mode,
+                        "ramp_rate": mode.ramp_rate,
+                        "emission_factors": deepcopy(mode.emission_factors),
+                    }
+                )
+
+            variant_blocks.append(
                 {
-                    "variant": variant_id,
-                    "regions": [entity.region],
-                    "scopes": [entity.scope],
+                    "variant_id": template_variant.id,
+                    "baseline_mode": template_variant.baseline_mode,
+                    "mode_ladder": list(template_variant.mode_ladder),
+                    "modes": mode_entries,
                 }
             )
 
-        installed_variant = entity.installed_state.get("variant")
-        param = {
-            "selector": {
-                "variant": installed_variant,
-                "region": entity.region,
+        context_entities.append(
+            {
+                "facility_id": entity.facility_id,
+                "class_name": entity.class_name,
+                "template_id": entity.template_id,
+                "role": entity.role,
                 "scope": entity.scope,
-            },
-        }
-        if "existing_capacity" in entity.installed_state:
-            param["existing_capacity"] = entity.installed_state["existing_capacity"]
-        if "stock" in entity.installed_state:
-            param["stock"] = entity.installed_state["stock"]
-        process_parameters.append(param)
+                "region": entity.region,
+                "primary_output_commodity": entity.primary_output_commodity,
+                "cap_base": float(entity.cap_base),
+                "cap_unit": entity.cap_unit,
+                "capacity_coupling": entity.capacity_coupling,
+                "no_backsliding": bool(entity.no_backsliding),
+                "variant_blocks": variant_blocks,
+                "safeguard": entity.safeguard,
+                "output_series": entity.output_series,
+            }
+        )
 
     transformed["demands"] = demands
     transformed["availability"] = availability
     transformed["process_parameters"] = process_parameters
+    transformed["process_variants"] = process_variants
 
     context = {
-        "entities": [
-            {
-                "facility_id": e.facility_id,
-                "class_name": e.class_name,
-                "template_id": e.template_id,
-                "scope": e.scope,
-                "region": e.region,
-                "candidate_variants": e.candidate_variants,
-                "variant_order": e.variant_order,
-                "variant_policies": e.variant_policies,
-                "primary_output_commodity": e.primary_output_commodity,
-                "input_mix": e.input_mix,
-                "input_groups": e.input_groups,
-                "safeguard": e.safeguard,
-                "output_series": e.output_series,
-            }
-            for e in selected_entities
-        ],
+        "entities": context_entities,
         "template_map": template_map,
-        "commodity_groups": commodity_groups,
-        "raw_variant_map": raw_variant_map,
         "model_years": list(model_years),
     }
 
@@ -777,25 +632,14 @@ def _intensity_path(
     return path
 
 
-def _variant_output_coefficient(
-    raw_variant: dict,
-    output_commodity: str,
-) -> float:
-    for out in raw_variant.get("outputs") or []:
-        if out.get("commodity") == output_commodity:
-            coeff = out.get("coefficient")
-            return float(coeff) if coeff is not None else 1.0
-    return 1.0
-
-
-def _variant_emission_factor(
-    variant: Variant,
+def _mode_emission_factor(
+    mode: dict[str, Any],
     emission_commodity: str,
+    year: int,
 ) -> float:
-    factors = variant.attrs.get("emission_factors") or {}
+    factors = mode.get("emission_factors") or {}
     value = factors.get(emission_commodity)
     if value is None and emission_commodity.endswith(":co2"):
-        # Backward-compat fallback for sparse models still using bare key.
         value = factors.get("co2")
     if value is None:
         return 0.0
@@ -803,24 +647,26 @@ def _variant_emission_factor(
         values = value.get("values") or {}
         if not values:
             return 0.0
-        first_year = sorted(values.keys())[0]
-        return float(values[first_year])
+        normalized = {str(k): float(v) for k, v in values.items()}
+        return _value_for_year(normalized, year)
     return float(value)
 
 
-def _variants_for_member(
-    member: str,
-    candidate_variants: list[str],
-    raw_variant_map: dict[str, dict],
-) -> set[str]:
-    result: set[str] = set()
-    for variant_id in candidate_variants:
-        raw = raw_variant_map.get(variant_id, {})
-        for inp in raw.get("inputs") or []:
-            if inp.get("commodity") == member:
-                result.add(variant_id)
-                break
-    return result
+def _append_constraint(
+    constraints: list[dict],
+    uc_name: str,
+    rows: list[dict],
+) -> None:
+    if not rows:
+        return
+    constraints.append(
+        {
+            "name": uc_name,
+            "type": "__uc_rows__",
+            "category": "policies",
+            "rows": rows,
+        }
+    )
 
 
 def generate_facility_artifacts(
@@ -828,11 +674,11 @@ def generate_facility_artifacts(
     variants: dict[str, Variant],
     process_symbol_map: dict[tuple[str, str, str | None], str],
 ) -> tuple[list[dict], list[dict]]:
-    """Generate extra TFM_INS rows and internal UC constraints for facilities."""
+    """Generate extra UC constraints for facilities."""
+    del variants  # variant objects are not required by mode-based facility lowering.
+
     entities = context.get("entities", [])
-    model_years = [int(y) for y in context.get("model_years", [])]
-    commodity_groups = context.get("commodity_groups", {})
-    raw_variant_map = context.get("raw_variant_map", {})
+    model_years = sorted(int(y) for y in context.get("model_years", []))
 
     tfm_rows: list[dict] = []
     constraints: list[dict] = []
@@ -841,125 +687,193 @@ def generate_facility_artifacts(
         facility_id = entity["facility_id"]
         region = entity["region"]
         scope = entity["scope"]
-        candidate_variants = entity["candidate_variants"]
-        variant_order = entity["variant_order"]
+        cap_base = float(entity.get("cap_base", 0.0))
+        no_backsliding = bool(entity.get("no_backsliding", True))
+        coupling = entity.get("capacity_coupling", "le")
+        coupling_limtype = "FX" if coupling == "eq" else "UP"
 
-        # Timing windows and optional max new capacity.
-        for policy in entity.get("variant_policies", []):
-            variant_id = policy["variant"]
-            symbol = process_symbol_map.get((variant_id, region, scope))
-            if not symbol:
+        for variant_block in entity.get("variant_blocks", []):
+            variant_id = variant_block["variant_id"]
+            mode_rows = []
+            for mode in variant_block.get("modes", []):
+                symbol = process_symbol_map.get(
+                    (mode["process_variant_id"], region, scope)
+                )
+                if not symbol:
+                    continue
+                mode_rows.append({**mode, "process_symbol": symbol})
+
+            if not mode_rows:
                 continue
-            from_year = int(policy["from_year"])
-            to_year = (
-                int(policy.get("to_year"))
-                if policy.get("to_year") is not None
-                else None
-            )
-            cap_limit = policy.get("max_new_capacity_per_period")
 
             for year in model_years:
-                if year < from_year or (to_year is not None and year > to_year):
-                    for attr in ("NCAP_BND", "ACT_BND"):
-                        tfm_rows.append(
-                            {
-                                "region": region,
-                                "process": symbol,
-                                "year": year,
-                                "attribute": attr,
-                                "limtype": "FX",
-                                "value": 0,
-                            }
-                        )
-                elif cap_limit is not None:
-                    tfm_rows.append(
-                        {
-                            "region": region,
-                            "process": symbol,
-                            "year": year,
-                            "attribute": "NCAP_BND",
-                            "limtype": "UP",
-                            "value": float(cap_limit),
-                        }
+                uc_name = f"FAC_CAP_COUPLE_{facility_id}_{variant_id}_{year}"
+                rows = [
+                    {
+                        "uc_n": uc_name,
+                        "description": f"Facility capacity coupling for {facility_id}",
+                        "region": region,
+                        "year": year,
+                        "process": mode["process_symbol"],
+                        "commodity": "",
+                        "side": "LHS",
+                        "uc_cap": 1,
+                    }
+                    for mode in mode_rows
+                ]
+                rows.append(
+                    {
+                        "uc_n": uc_name,
+                        "description": f"Facility capacity coupling for {facility_id}",
+                        "region": region,
+                        "year": year,
+                        "process": "",
+                        "commodity": "",
+                        "limtype": coupling_limtype,
+                        "uc_rhsrt": cap_base,
+                    }
+                )
+                _append_constraint(constraints, uc_name, rows)
+
+            if model_years:
+                y0 = model_years[0]
+                for mode in mode_rows:
+                    init_value = cap_base if mode.get("is_baseline") else 0.0
+                    uc_name = (
+                        f"FAC_CAP_INIT_{facility_id}_{variant_id}_{mode['mode_id']}_{y0}"
                     )
-
-        # LP-safe no-backswitch prefix constraints.
-        if len(variant_order) > 1:
-            for idx in range(1, len(model_years)):
-                prev_year = model_years[idx - 1]
-                year = model_years[idx]
-                for prefix_idx in range(1, len(variant_order)):
-                    prefix = variant_order[:prefix_idx]
-                    uc_name = f"FAC_NB_{facility_id}_{prefix_idx}_{year}"
-                    rows = []
-                    for variant_id in prefix:
-                        current_symbol = process_symbol_map.get(
-                            (variant_id, region, scope)
-                        )
-                        if not current_symbol:
-                            continue
-                    rows.append(
+                    init_desc = f"Facility initial mode capacity for {facility_id}"
+                    rows = [
                         {
                             "uc_n": uc_name,
-                            "description": (
-                                f"No-backswitch prefix {prefix_idx} "
-                                f"for {facility_id}"
-                            ),
+                            "description": init_desc,
                             "region": region,
-                            "year": year,
-                            "process": current_symbol,
-                                "commodity": "",
-                                "side": "LHS",
-                                "uc_act": 1,
-                            }
-                        )
-                    rows.append(
+                            "year": y0,
+                            "process": mode["process_symbol"],
+                            "commodity": "",
+                            "side": "LHS",
+                            "uc_cap": 1,
+                        },
                         {
                             "uc_n": uc_name,
-                            "description": (
-                                f"No-backswitch prefix {prefix_idx} "
-                                f"for {facility_id}"
-                            ),
+                            "description": init_desc,
                             "region": region,
-                            "year": prev_year,
-                            "process": current_symbol,
-                                "commodity": "",
-                                "side": "LHS",
-                                "uc_act": -1,
-                            }
-                        )
-
-                    if not rows:
-                        continue
-                    rows.append(
-                        {
-                            "uc_n": uc_name,
-                            "description": (
-                                f"No-backswitch prefix {prefix_idx} "
-                                f"for {facility_id}"
-                            ),
-                            "region": region,
+                            "year": y0,
                             "process": "",
                             "commodity": "",
-                            "limtype": "UP",
-                            "uc_rhs": 0,
-                        }
-                    )
-                    constraints.append(
-                        {
-                            "name": uc_name,
-                            "type": "__uc_rows__",
-                            "category": "policies",
-                            "rows": rows,
-                        }
-                    )
+                            "limtype": "FX",
+                            "uc_rhsrt": init_value,
+                        },
+                    ]
+                    _append_constraint(constraints, uc_name, rows)
 
-        # Safeguard intensity constraints.
+            if no_backsliding and len(model_years) > 1:
+                for mode in mode_rows:
+                    if mode.get("is_baseline"):
+                        continue
+                    for idx in range(1, len(model_years)):
+                        prev_year = model_years[idx - 1]
+                        year = model_years[idx]
+                        uc_name = (
+                            "FAC_CAP_MONO_"
+                            f"{facility_id}_{variant_id}_{mode['mode_id']}_{year}"
+                        )
+                        mono_desc = f"Facility no-backslide for {facility_id}"
+                        rows = [
+                            {
+                                "uc_n": uc_name,
+                                "description": mono_desc,
+                                "region": region,
+                                "year": year,
+                                "process": mode["process_symbol"],
+                                "commodity": "",
+                                "side": "LHS",
+                                "uc_cap": 1,
+                            },
+                            {
+                                "uc_n": uc_name,
+                                "description": mono_desc,
+                                "region": region,
+                                "year": prev_year,
+                                "process": mode["process_symbol"],
+                                "commodity": "",
+                                "side": "LHS",
+                                "uc_cap": -1,
+                            },
+                            {
+                                "uc_n": uc_name,
+                                "description": mono_desc,
+                                "region": region,
+                                "year": year,
+                                "process": "",
+                                "commodity": "",
+                                "limtype": "LO",
+                                "uc_rhsrt": 0,
+                            },
+                        ]
+                        _append_constraint(constraints, uc_name, rows)
+
+            if len(model_years) > 1:
+                for mode in mode_rows:
+                    ramp_rate = mode.get("ramp_rate")
+                    if ramp_rate is None:
+                        continue
+                    ramp_limit = float(ramp_rate) * cap_base
+                    for idx in range(1, len(model_years)):
+                        prev_year = model_years[idx - 1]
+                        year = model_years[idx]
+                        uc_name = (
+                            "FAC_CAP_RAMP_"
+                            f"{facility_id}_{variant_id}_{mode['mode_id']}_{year}"
+                        )
+                        rows = [
+                            {
+                                "uc_n": uc_name,
+                                "description": f"Facility ramp limit for {facility_id}",
+                                "region": region,
+                                "year": year,
+                                "process": mode["process_symbol"],
+                                "commodity": "",
+                                "side": "LHS",
+                                "uc_cap": 1,
+                            },
+                            {
+                                "uc_n": uc_name,
+                                "description": f"Facility ramp limit for {facility_id}",
+                                "region": region,
+                                "year": prev_year,
+                                "process": mode["process_symbol"],
+                                "commodity": "",
+                                "side": "LHS",
+                                "uc_cap": -1,
+                            },
+                            {
+                                "uc_n": uc_name,
+                                "description": f"Facility ramp limit for {facility_id}",
+                                "region": region,
+                                "year": year,
+                                "process": "",
+                                "commodity": "",
+                                "limtype": "UP",
+                                "uc_rhsrt": ramp_limit,
+                            },
+                        ]
+                        _append_constraint(constraints, uc_name, rows)
+
         safeguard = entity.get("safeguard")
         if safeguard:
             intensity_path = _intensity_path(safeguard, model_years)
-            output_commodity = entity["primary_output_commodity"]
             emission_commodity = safeguard.get("emission_commodity", "emission:co2")
+
+            safeguard_modes = []
+            for variant_block in entity.get("variant_blocks", []):
+                for mode in variant_block.get("modes", []):
+                    symbol = process_symbol_map.get(
+                        (mode["process_variant_id"], region, scope)
+                    )
+                    if not symbol:
+                        continue
+                    safeguard_modes.append({**mode, "process_symbol": symbol})
 
             for year in model_years:
                 target_intensity = float(
@@ -967,19 +881,9 @@ def generate_facility_artifacts(
                 )
                 uc_name = f"FAC_INT_{facility_id}_{year}"
                 rows = []
-                for variant_id in candidate_variants:
-                    symbol = process_symbol_map.get((variant_id, region, scope))
-                    if not symbol:
-                        continue
-                    variant = variants.get(variant_id)
-                    if not variant:
-                        continue
-                    raw_variant = raw_variant_map.get(variant_id, {})
-                    ef = _variant_emission_factor(variant, emission_commodity)
-                    out_coeff = _variant_output_coefficient(
-                        raw_variant, output_commodity
-                    )
-                    coef = ef - target_intensity * out_coeff
+                for mode in safeguard_modes:
+                    ef = _mode_emission_factor(mode, emission_commodity, year)
+                    coef = ef - target_intensity
                     if abs(coef) < 1e-12:
                         continue
                     rows.append(
@@ -988,7 +892,7 @@ def generate_facility_artifacts(
                             "description": f"Safeguard intensity for {facility_id}",
                             "region": region,
                             "year": year,
-                            "process": symbol,
+                            "process": mode["process_symbol"],
                             "commodity": "",
                             "side": "LHS",
                             "uc_act": coef,
@@ -1008,127 +912,6 @@ def generate_facility_artifacts(
                         "uc_rhsrt": 0,
                     }
                 )
-                constraints.append(
-                    {
-                        "name": uc_name,
-                        "type": "__uc_rows__",
-                        "category": "policies",
-                        "rows": rows,
-                    }
-                )
-
-        # Fuel mix constraints (base-year hard + optional bounded targets).
-        baseline_year = (
-            model_years[0] if not safeguard else int(safeguard["baseline_year"])
-        )
-        baseline_year = min(model_years, key=lambda y: abs(y - baseline_year))
-
-        for mix in entity.get("input_mix", []):
-            group_id = mix.get("group")
-            group = next(
-                (g for g in entity.get("input_groups", []) if g.get("id") == group_id),
-                None,
-            )
-            if not group:
-                continue
-            commodity_group = commodity_groups.get(group.get("commodity_group"))
-            if not commodity_group:
-                continue
-
-            members = commodity_group.get("members", [])
-            variants_total = set()
-            variants_by_member: dict[str, set[str]] = {}
-            for member in members:
-                member_variants = _variants_for_member(
-                    member, candidate_variants, raw_variant_map
-                )
-                variants_by_member[member] = member_variants
-                variants_total.update(member_variants)
-
-            if not variants_total:
-                continue
-
-            member_signatures = {
-                tuple(sorted(variants_by_member.get(member, set())))
-                for member in members
-            }
-            if len(members) > 1 and len(member_signatures) <= 1:
-                raise VedaLangError(
-                    "Facility input_mix requires fuel-distinguishable variants. "
-                    "All commodity_group members map to the same variant set, "
-                    "so share/no-backslide constraints are not identifiable. "
-                    "Define separate process_variants per alternate fuel."
-                )
-
-            def add_mix_constraint(
-                member: str, share: float, year: int, limtype: str, suffix: str
-            ) -> None:
-                uc_name = f"FAC_MIX_{facility_id}_{group_id}_{member}_{year}_{suffix}"
-                rows = []
-                for variant_id in sorted(variants_total):
-                    symbol = process_symbol_map.get((variant_id, region, scope))
-                    if not symbol:
-                        continue
-                    coef = (
-                        (1.0 - share)
-                        if variant_id in variants_by_member.get(member, set())
-                        else -share
-                    )
-                    rows.append(
-                        {
-                            "uc_n": uc_name,
-                            "description": f"Facility mix for {facility_id} ({member})",
-                            "region": region,
-                            "year": year,
-                            "process": symbol,
-                            "commodity": "",
-                            "side": "LHS",
-                            "uc_act": coef,
-                        }
-                    )
-                if not rows:
-                    return
-                rows.append(
-                    {
-                        "uc_n": uc_name,
-                        "description": f"Facility mix for {facility_id} ({member})",
-                        "region": region,
-                        "year": year,
-                        "process": "",
-                        "commodity": "",
-                        "limtype": limtype,
-                        "uc_rhsrt": 0,
-                    }
-                )
-                constraints.append(
-                    {
-                        "name": uc_name,
-                        "type": "__uc_rows__",
-                        "category": "policies",
-                        "rows": rows,
-                    }
-                )
-
-            for member, share in (mix.get("baseline_shares") or {}).items():
-                share_value = float(share)
-                add_mix_constraint(member, share_value, baseline_year, "LO", "BASE_LO")
-                add_mix_constraint(member, share_value, baseline_year, "UP", "BASE_UP")
-
-            for target in mix.get("targets", []):
-                year = int(target["year"])
-                if year not in model_years:
-                    continue
-                hard = bool(target.get("hard", False))
-                tol = float(target.get("tolerance", 0.05))
-                for member, share in (target.get("shares") or {}).items():
-                    share_value = float(share)
-                    if hard or tol <= 0:
-                        add_mix_constraint(member, share_value, year, "LO", "TGT_LO")
-                        add_mix_constraint(member, share_value, year, "UP", "TGT_UP")
-                    else:
-                        lo = max(0.0, share_value - tol)
-                        up = min(1.0, share_value + tol)
-                        add_mix_constraint(member, lo, year, "LO", "TGT_BAND_LO")
-                        add_mix_constraint(member, up, year, "UP", "TGT_BAND_UP")
+                _append_constraint(constraints, uc_name, rows)
 
     return tfm_rows, constraints

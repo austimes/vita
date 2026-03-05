@@ -7,8 +7,8 @@ Typical contents:
 - one-feature-per-file demos
 - regression examples for specific schema/compiler features
 - `example_with_facilities.veda.yaml` demonstrates facility templates,
-  top-N selection + aggregation, safeguard intensity constraints,
-  no-backswitch transition ordering, and fuel-mix constraints.
-- Facility fuel switching currently requires separate `process_variants` per
-  fuel option. A single variant that lists multiple alternate fuel inputs cannot
-  express optimizer-selected fuel shares or no-backslide constraints.
+  top-N selection + aggregation, safeguard intensity constraints, and
+  mode-based fuel switching constraints (`UC_CAP` coupling/no-backslide/ramp).
+- Facility fuel switching now uses template `variants[].modes[]` and compiles
+  one physical process per mode. Retrofit costs are represented as `NCAP_COST`
+  on retrofit modes; no capability commodities are introduced.

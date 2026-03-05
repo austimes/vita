@@ -3450,17 +3450,17 @@ def _compile_new_syntax(
         commodities,
     )
 
-    # Build variants from process_variants
-    variants = build_variants(source, roles, commodities)
-
     # Expand facility primitives into existing demands/availability/parameters.
     source, facility_context = prepare_facilities(
         source,
         commodities,
-        variants,
         milestone_years,
     )
     model = source["model"]
+
+    # Build variants from process_variants (after facility expansion so generated
+    # mode variants are included).
+    variants = build_variants(source, roles, commodities)
 
     # Build scope keys (after facility expansion so generated scopes are included)
     scoping_cfg = source.get("scoping") or {}

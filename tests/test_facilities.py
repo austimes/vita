@@ -1,4 +1,4 @@
-"""Tests for facility primitive v1 lowering."""
+"""Tests for facility primitive mode-based lowering."""
 
 from __future__ import annotations
 
@@ -29,7 +29,12 @@ def _base_source() -> dict:
             "milestone_years": [2025, 2030, 2035],
             "commodities": [
                 {"id": "primary:coal", "type": "fuel", "combustible": False},
-                {"id": "primary:natural_gas", "type": "fuel", "combustible": False},
+                {
+                    "id": "primary:natural_gas",
+                    "type": "fuel",
+                    "combustible": False,
+                },
+                {"id": "primary:hydrogen", "type": "fuel", "combustible": False},
                 {"id": "service:alumina_output", "type": "service", "unit": "PJ"},
                 {"id": "emission:co2", "type": "emission", "unit": "Mt"},
             ],
@@ -45,32 +50,6 @@ def _base_source() -> dict:
                 "required_outputs": [{"commodity": "service:alumina_output"}],
             }
         ],
-        "process_variants": [
-            {
-                "id": "alumina_coal",
-                "role": "produce_alumina",
-                "inputs": [{"commodity": "primary:coal"}],
-                "outputs": [{"commodity": "service:alumina_output"}],
-                "efficiency": 0.9,
-                "emission_factors": {"emission:co2": 0.12},
-            },
-            {
-                "id": "alumina_gas",
-                "role": "produce_alumina",
-                "inputs": [{"commodity": "primary:natural_gas"}],
-                "outputs": [{"commodity": "service:alumina_output"}],
-                "efficiency": 0.95,
-                "emission_factors": {"emission:co2": 0.08},
-            },
-        ],
-        "commodity_groups": [
-            {
-                "id": "high_temp_heat",
-                "members": ["primary:coal", "primary:natural_gas"],
-                "unit": "PJ",
-                "dimension": "energy",
-            }
-        ],
         "facility_templates": [
             {
                 "id": "alumina_template",
@@ -78,10 +57,41 @@ def _base_source() -> dict:
                 "role": "produce_alumina",
                 "sector": "IND",
                 "primary_output_commodity": "service:alumina_output",
-                "candidate_variants": ["alumina_coal", "alumina_gas"],
-                "transition_graph": [{"from": "alumina_coal", "to": "alumina_gas"}],
-                "input_groups": [
-                    {"id": "heat_input", "commodity_group": "high_temp_heat"}
+                "variants": [
+                    {
+                        "id": "calciner_standard",
+                        "baseline_mode": "coal",
+                        "mode_ladder": ["coal", "retrofit_to_ng", "retrofit_to_h2"],
+                        "modes": [
+                            {
+                                "id": "coal",
+                                "fuel_in": "primary:coal",
+                                "capex": 0,
+                                "existing": True,
+                                "efficiency": 0.9,
+                                "emission_factors": {"emission:co2": 0.12},
+                                "ramp_rate": 0.0,
+                            },
+                            {
+                                "id": "retrofit_to_ng",
+                                "fuel_in": "primary:natural_gas",
+                                "capex": 1200,
+                                "existing": False,
+                                "efficiency": 0.95,
+                                "emission_factors": {"emission:co2": 0.08},
+                                "ramp_rate": 0.5,
+                            },
+                            {
+                                "id": "retrofit_to_h2",
+                                "fuel_in": "primary:hydrogen",
+                                "capex": 2500,
+                                "existing": False,
+                                "efficiency": 0.98,
+                                "emission_factors": {"emission:co2": 0.02},
+                                "ramp_rate": 0.2,
+                            },
+                        ],
+                    }
                 ],
             }
         ],
@@ -103,41 +113,13 @@ def _base_source() -> dict:
                 "class": "safeguard",
                 "location_ref": "aus/qld/gladstone_lga",
                 "representation": "individual",
+                "cap_base": {"value": 8.0, "unit": "GW"},
+                "capacity_coupling": "le",
+                "no_backsliding": True,
                 "output_series": {
                     "interpolation": "interp_extrap",
                     "values": {"2025": 100, "2030": 95, "2035": 90},
                 },
-                "installed_state": {
-                    "variant": "alumina_coal",
-                    "existing_capacity": [{"vintage": 2018, "capacity": 8.0}],
-                },
-                "variant_policies": [
-                    {
-                        "variant": "alumina_gas",
-                        "from_year": 2030,
-                        "max_new_capacity_per_period": 2.0,
-                    }
-                ],
-                "input_mix": [
-                    {
-                        "group": "heat_input",
-                        "baseline_shares": {
-                            "primary:coal": 0.8,
-                            "primary:natural_gas": 0.2,
-                        },
-                        "targets": [
-                            {
-                                "year": 2035,
-                                "shares": {
-                                    "primary:coal": 0.2,
-                                    "primary:natural_gas": 0.8,
-                                },
-                                "hard": False,
-                                "tolerance": 0.1,
-                            }
-                        ],
-                    }
-                ],
                 "safeguard": {
                     "baseline_intensity": 0.1,
                     "baseline_year": 2025,
@@ -170,7 +152,7 @@ def test_facility_schema_requires_safeguard_block():
         jsonschema.validate(data, schema)
 
 
-def test_facility_lowering_generates_scoped_demand_and_availability():
+def test_facility_lowering_generates_scoped_demand_and_mode_processes():
     tableir = compile_vedalang_to_tableir(_base_source())
 
     demand_rows = [r for r in _collect_rows(tableir, "~TFM_DINS-AT") if "com_proj" in r]
@@ -182,31 +164,38 @@ def test_facility_lowering_generates_scoped_demand_and_availability():
 
     process_rows = _collect_rows(tableir, "~FI_PROCESS")
     process_names = {row["process"] for row in process_rows}
-    assert any(
-        "alumina_coal_AUS_IND_sgf_alumina_gladstone" in name for name in process_names
-    )
-    assert any(
-        "alumina_gas_AUS_IND_sgf_alumina_gladstone" in name for name in process_names
-    )
+    assert any("mode_coal" in name for name in process_names)
+    assert any("mode_retrofit_to_ng" in name for name in process_names)
+    assert any("mode_retrofit_to_h2" in name for name in process_names)
 
 
-def test_facility_generates_policy_bounds_and_constraints():
+def test_facility_generates_cap_coupling_no_backslide_and_ramp_constraints():
     tableir = compile_vedalang_to_tableir(_base_source())
-
-    tfm_rows = _collect_rows(tableir, "~TFM_INS")
-    gas_bounds = [
-        r
-        for r in tfm_rows
-        if "alumina_gas_AUS_IND_sgf_alumina_gladstone" in str(r.get("process", ""))
-        and r.get("attribute") in {"NCAP_BND", "ACT_BND"}
-    ]
-    assert any(r.get("year") == 2025 and r.get("limtype") == "FX" for r in gas_bounds)
 
     uc_rows = _collect_rows(tableir, "~UC_T")
     uc_names = {row["uc_n"] for row in uc_rows}
+
+    assert any(
+        name.startswith("FAC_CAP_COUPLE_sgf_alumina_gladstone")
+        for name in uc_names
+    )
+    assert any(
+        name.startswith("FAC_CAP_MONO_sgf_alumina_gladstone")
+        for name in uc_names
+    )
+    assert any(
+        name.startswith("FAC_CAP_RAMP_sgf_alumina_gladstone")
+        for name in uc_names
+    )
     assert any(name.startswith("FAC_INT_sgf_alumina_gladstone") for name in uc_names)
-    assert any(name.startswith("FAC_NB_sgf_alumina_gladstone") for name in uc_names)
-    assert any(name.startswith("FAC_MIX_sgf_alumina_gladstone") for name in uc_names)
+
+    assert not any(
+        name.startswith("FAC_MIX_sgf_alumina_gladstone") for name in uc_names
+    )
+    assert not any(name.startswith("FAC_NB_sgf_alumina_gladstone") for name in uc_names)
+
+    cap_rows = [r for r in uc_rows if str(r.get("uc_n", "")).startswith("FAC_CAP_")]
+    assert any("uc_cap" in r for r in cap_rows)
 
 
 def test_facility_top_n_aggregation_keeps_one_individual_plus_one_aggregate():
@@ -218,13 +207,10 @@ def test_facility_top_n_aggregation_keeps_one_individual_plus_one_aggregate():
             "class": "safeguard",
             "location_ref": "aus/qld/gladstone_lga",
             "representation": "individual",
+            "cap_base": {"value": 1.5, "unit": "GW"},
             "output_series": {
                 "interpolation": "interp_extrap",
                 "values": {"2025": 20, "2030": 18, "2035": 17},
-            },
-            "installed_state": {
-                "variant": "alumina_coal",
-                "existing_capacity": [{"vintage": 2010, "capacity": 1.0}],
             },
             "safeguard": {
                 "baseline_intensity": 0.1,
@@ -243,49 +229,14 @@ def test_facility_top_n_aggregation_keeps_one_individual_plus_one_aggregate():
         if "com_proj" in r and r.get("year") == 2025
     ]
     scopes = {r["cset_cn"] for r in demand_rows if "@IND." in r.get("cset_cn", "")}
-    # One selected individual + one aggregated long-tail facility entity.
     assert len(scopes) == 2
     assert any("_agg" in scope for scope in scopes)
-
-
-def test_facility_input_mix_shares_must_sum_to_one():
-    source = _base_source()
-    source["facilities"][0]["input_mix"][0]["baseline_shares"] = {"primary:coal": 0.7}
-
-    with pytest.raises(VedaLangError, match="must sum to 1.0"):
-        compile_vedalang_to_tableir(source)
-
-
-def test_facility_transition_graph_must_be_chain():
-    source = _base_source()
-    source["process_variants"].append(
-        {
-            "id": "alumina_h2",
-            "role": "produce_alumina",
-            "inputs": [{"commodity": "primary:natural_gas"}],
-            "outputs": [{"commodity": "service:alumina_output"}],
-            "efficiency": 0.97,
-            "emission_factors": {"emission:co2": 0.02},
-        }
-    )
-    source["facility_templates"][0]["candidate_variants"] = [
-        "alumina_coal",
-        "alumina_gas",
-        "alumina_h2",
-    ]
-    source["facility_templates"][0]["transition_graph"] = [
-        {"from": "alumina_coal", "to": "alumina_gas"},
-        {"from": "alumina_coal", "to": "alumina_h2"},
-    ]
-
-    with pytest.raises(VedaLangError, match="chain-shaped"):
-        compile_vedalang_to_tableir(source)
 
 
 def test_facility_scopes_do_not_expand_existing_sector_availability():
     source = _base_source()
     source["scoping"] = {"sectors": ["IND"], "end_uses": ["existing_scope"]}
-    source["process_variants"].append(
+    source["process_variants"] = [
         {
             "id": "alumina_generic",
             "role": "produce_alumina",
@@ -294,7 +245,7 @@ def test_facility_scopes_do_not_expand_existing_sector_availability():
             "efficiency": 0.92,
             "emission_factors": {"emission:co2": 0.09},
         }
-    )
+    ]
     source["availability"] = [
         {
             "variant": "alumina_generic",
@@ -313,25 +264,33 @@ def test_facility_scopes_do_not_expand_existing_sector_availability():
     assert generic_processes == ["alumina_generic_AUS_IND_existing_scope"]
 
 
-def test_facility_input_mix_requires_fuel_distinguishable_variants():
+def test_facility_template_mode_ladder_must_cover_all_modes():
     source = _base_source()
-    source["process_variants"] = [
-        {
-            "id": "alumina_multi_fuel",
-            "role": "produce_alumina",
-            "inputs": [
-                {"commodity": "primary:coal"},
-                {"commodity": "primary:natural_gas"},
-            ],
-            "outputs": [{"commodity": "service:alumina_output"}],
-            "efficiency": 0.9,
-            "emission_factors": {"emission:co2": 0.1},
-        }
+    source["facility_templates"][0]["variants"][0]["mode_ladder"] = [
+        "coal",
+        "retrofit_to_ng",
     ]
-    source["facility_templates"][0]["candidate_variants"] = ["alumina_multi_fuel"]
-    source["facility_templates"][0].pop("transition_graph", None)
-    source["facilities"][0]["installed_state"]["variant"] = "alumina_multi_fuel"
-    source["facilities"][0].pop("variant_policies", None)
 
-    with pytest.raises(VedaLangError, match="fuel-distinguishable variants"):
+    with pytest.raises(VedaLangError, match="mode_ladder"):
         compile_vedalang_to_tableir(source)
+
+
+def test_facility_no_backsliding_false_disables_mono_constraints():
+    source = _base_source()
+    source["facilities"][0]["no_backsliding"] = False
+
+    tableir = compile_vedalang_to_tableir(source)
+    uc_rows = _collect_rows(tableir, "~UC_T")
+    uc_names = {row["uc_n"] for row in uc_rows}
+
+    assert not any(
+        name.startswith("FAC_CAP_MONO_sgf_alumina_gladstone")
+        for name in uc_names
+    )
+
+
+def test_facility_mode_lowering_uses_only_physical_commodities():
+    tableir = compile_vedalang_to_tableir(_base_source())
+    comm_rows = _collect_rows(tableir, "~FI_COMM")
+    commodities = {row["commodity"] for row in comm_rows}
+    assert not any("capability" in commodity for commodity in commodities)
