@@ -261,7 +261,8 @@ Point-of-use basis must be declared on fields that can be basis-sensitive:
 - Variant emissions: `emission_factor_basis` (when combustible flows are present)
 - Scenario commodity prices: `scenario_parameters[*].value_basis`
 - Case fuel price overrides: `fuel_price_overrides[*].value_basis`
-- Case variant cost overrides: `variant_overrides[*].variable_om_cost_basis`
+- Case provider override costs:
+  `provider_overrides[*].variable_om_cost_basis`
 
 Recommended authoring pattern:
 

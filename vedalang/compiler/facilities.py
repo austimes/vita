@@ -1,7 +1,7 @@
 """Facility primitive lowering for VedaLang mode-based fuel switching.
 
 This module translates top-level facility/template declarations into compiler
-constructs (demands, process variants, availability, process parameters) and
+constructs (demands, process variants, providers, provider_parameters) and
 emits additional policy artifacts (UC rows).
 """
 
@@ -20,6 +20,14 @@ def _sanitize_scope_token(value: str) -> str:
     token = re.sub(r"[^a-z0-9_]+", "_", value.lower())
     token = token.strip("_")
     return token or "facility"
+
+
+def _provider_id(kind: str, value: str) -> str:
+    token = re.sub(r"[^A-Za-z0-9_.-]+", "_", value)
+    token = token.strip("._-")
+    if not token:
+        token = "generated"
+    return f"{kind}.{token}"
 
 
 def _series_values(series: dict) -> dict[str, float]:
@@ -141,6 +149,7 @@ def _resolve_spatial_mapping(
 def _mode_variant_id(
     facility_id: str,
     role: str,
+    template_id: str,
     template_variant_id: str,
     mode_id: str,
 ) -> str:
@@ -150,6 +159,8 @@ def _mode_variant_id(
             _sanitize_scope_token(facility_id),
             "role",
             _sanitize_scope_token(role),
+            "tpl",
+            _sanitize_scope_token(template_id),
             "var",
             _sanitize_scope_token(template_variant_id),
             "mode",
@@ -354,7 +365,7 @@ def prepare_facilities(
     commodities: dict[str, dict],
     model_years: list[int],
 ) -> tuple[dict, dict]:
-    """Materialize facilities into source-level demands/availability/parameters."""
+    """Materialize facilities into source-level demands/providers/parameters."""
     if not source.get("facilities"):
         return source, {"entities": [], "template_map": {}, "model_years": []}
 
@@ -485,9 +496,12 @@ def prepare_facilities(
     demands = list(transformed.get("demands") or [])
     availability = list(transformed.get("availability") or [])
     process_parameters = list(transformed.get("process_parameters") or [])
+    providers = list(transformed.get("providers") or [])
+    provider_parameters = list(transformed.get("provider_parameters") or [])
     variants = list(transformed.get("variants") or [])
 
     existing_variant_ids = {v["id"] for v in variants}
+    existing_provider_ids = {p["id"] for p in providers}
     context_entities = []
 
     for entity in selected_entities:
@@ -501,44 +515,55 @@ def prepare_facilities(
             }
         )
 
+        provider_kind = (
+            "fleet" if entity.representation == "archetype" else "facility"
+        )
+        provider_id = _provider_id(provider_kind, entity.facility_id)
+        if provider_id in existing_provider_ids:
+            raise VedaLangError(
+                f"Facility-generated provider id collision: '{provider_id}'"
+            )
+        existing_provider_ids.add(provider_id)
+
         variant_blocks = []
+        provider_offerings = []
         for template_variant in entity.variants:
             mode_entries = []
             for mode in template_variant.modes:
                 synthetic_variant_id = _mode_variant_id(
                     entity.facility_id,
                     entity.role,
+                    entity.template_id,
                     template_variant.id,
                     mode.id,
                 )
-                if synthetic_variant_id in existing_variant_ids:
-                    raise VedaLangError(
-                        "Facility-generated mode variant id collision: "
-                        f"'{synthetic_variant_id}'"
-                    )
-                existing_variant_ids.add(synthetic_variant_id)
-
-                process_variant = {
-                    "id": synthetic_variant_id,
-                    "role": entity.role,
-                    "inputs": [{"commodity": mode.fuel_in}],
-                    "outputs": [{"commodity": entity.primary_output_commodity}],
-                    "investment_cost": float(mode.capex),
-                }
-                if mode.efficiency is not None:
-                    process_variant["efficiency"] = deepcopy(mode.efficiency)
-                if mode.emission_factors:
-                    process_variant["emission_factors"] = deepcopy(
-                        mode.emission_factors
-                    )
-                variants.append(process_variant)
-
-                availability.append(
-                    {
-                        "variant": synthetic_variant_id,
-                        "regions": [entity.region],
-                        "scopes": [entity.scope],
+                if synthetic_variant_id not in existing_variant_ids:
+                    existing_variant_ids.add(synthetic_variant_id)
+                    mode_block: dict[str, Any] = {
+                        "id": mode.id,
+                        "inputs": [{"commodity": mode.fuel_in}],
+                        "outputs": [
+                            {"commodity": entity.primary_output_commodity}
+                        ],
+                        "investment_cost": float(mode.capex),
                     }
+                    if mode.efficiency is not None:
+                        mode_block["efficiency"] = deepcopy(mode.efficiency)
+                    if mode.emission_factors:
+                        mode_block["emission_factors"] = deepcopy(
+                            mode.emission_factors
+                        )
+                    variants.append(
+                        {
+                            "id": synthetic_variant_id,
+                            "role": entity.role,
+                            "default_mode": mode.id,
+                            "modes": [mode_block],
+                        }
+                    )
+
+                provider_offerings.append(
+                    {"variant": synthetic_variant_id, "modes": [mode.id]}
                 )
 
                 mode_entries.append(
@@ -560,9 +585,22 @@ def prepare_facilities(
                 }
             )
 
+        providers.append(
+            {
+                "id": provider_id,
+                "kind": provider_kind,
+                "role": entity.role,
+                "region": entity.region,
+                "scopes": [entity.scope],
+                "offerings": provider_offerings,
+            }
+        )
+
         context_entities.append(
             {
                 "facility_id": entity.facility_id,
+                "provider_id": provider_id,
+                "provider_kind": provider_kind,
                 "class_name": entity.class_name,
                 "template_id": entity.template_id,
                 "role": entity.role,
@@ -582,6 +620,8 @@ def prepare_facilities(
     transformed["demands"] = demands
     transformed["availability"] = availability
     transformed["process_parameters"] = process_parameters
+    transformed["providers"] = providers
+    transformed["provider_parameters"] = provider_parameters
     transformed["variants"] = variants
 
     context = {

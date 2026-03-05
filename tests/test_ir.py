@@ -444,6 +444,53 @@ class TestProviderExpansion:
         assert key in instances
         assert instances[key].attrs["efficiency"] == 0.9
 
+    def test_build_providers_rejects_kind_prefix_mismatch(self):
+        role = Role(id="heat_service", required_inputs=[], required_outputs=["x"])
+        mode = Mode(id="m", attrs={}, inputs=[], outputs=["x"])
+        variants = {
+            "boiler": Variant(
+                id="boiler",
+                role=role,
+                modes={"m": mode},
+                default_mode="m",
+                inputs=[],
+                outputs=["x"],
+            )
+        }
+        model = {
+            "providers": [
+                {
+                    "id": "fleet.bad_id",
+                    "kind": "facility",
+                    "role": "heat_service",
+                    "region": "VIC",
+                    "offerings": [{"variant": "boiler", "modes": ["m"]}],
+                }
+            ]
+        }
+        with pytest.raises(IRError, match="must use id prefix"):
+            build_providers(model, {"heat_service": role}, variants)
+
+    def test_build_variants_rejects_mode_scope_markers(self):
+        role = Role(id="heat_service", required_inputs=[], required_outputs=["x"])
+        model = {
+            "variants": [
+                {
+                    "id": "boiler",
+                    "role": "heat_service",
+                    "modes": [
+                        {
+                            "id": "RES.bad_mode",
+                            "inputs": [],
+                            "outputs": [{"commodity": "x"}],
+                        }
+                    ],
+                }
+            ]
+        }
+        with pytest.raises(IRError, match="must not contain scope markers"):
+            build_variants(model, {"heat_service": role})
+
     def test_apply_provider_parameters(self):
         role = Role(id="r", required_inputs=[], required_outputs=["service:x"])
         mode = Mode(id="m", attrs={"efficiency": 1.0}, inputs=[], outputs=["service:x"])
@@ -497,6 +544,59 @@ class TestProviderExpansion:
             },
         )
         assert instances[key].attrs["stock"] == 42
+
+    def test_apply_provider_parameters_conflict_raises(self):
+        role = Role(id="r", required_inputs=[], required_outputs=["service:x"])
+        mode = Mode(id="m", attrs={"efficiency": 1.0}, inputs=[], outputs=["service:x"])
+        variant = Variant(
+            id="v",
+            role=role,
+            modes={"m": mode},
+            default_mode="m",
+            inputs=[],
+            outputs=["service:x"],
+        )
+        key = InstanceKey(
+            "v",
+            "R1",
+            "RES",
+            provider_id="fleet.r.R1.RES",
+            mode_id="m",
+            provider_kind="fleet",
+            role_id="r",
+        )
+        instances = {
+            key: ProcessInstance(
+                key=key,
+                role=role,
+                variant=variant,
+                mode=mode,
+                provider=Provider(
+                    id="fleet.r.R1.RES",
+                    kind="fleet",
+                    role="r",
+                    region="R1",
+                    scopes=["RES"],
+                ),
+                attrs={"efficiency": 1.0},
+            )
+        }
+        with pytest.raises(IRError, match="Conflicting provider_parameters overrides"):
+            apply_provider_parameters(
+                instances,
+                {
+                    "provider_parameters": [
+                        {
+                            "selector": {"provider": "fleet.r.R1.RES"},
+                            "stock": 1,
+                        },
+                        {
+                            "selector": {"provider": "fleet.r.R1.RES", "mode": "m"},
+                            "stock": 2,
+                        },
+                    ]
+                },
+            )
 
     def test_availability_with_sectors_coarse(self):
         """Availability with sectors (no end_uses) expands to sectors."""

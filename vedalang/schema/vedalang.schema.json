@@ -1422,12 +1422,12 @@
           },
           "description": "Per-case enable/disable and parameter overrides for constraints"
         },
-        "variant_overrides": {
+        "provider_overrides": {
           "type": "array",
           "items": {
-            "$ref": "#/$defs/case_variant_override"
+            "$ref": "#/$defs/case_provider_override"
           },
-          "description": "Per-case variant overrides (cost/performance, or disable via generated bounds)"
+          "description": "Per-case provider-selector overrides (cost/performance, or disable via generated bounds)"
         }
       },
       "additionalProperties": false
@@ -1958,14 +1958,14 @@
       },
       "additionalProperties": false
     },
-    "case_variant_override": {
+    "case_provider_override": {
       "type": "object",
       "required": [
-        "variant"
+        "selector"
       ],
       "properties": {
-        "variant": {
-          "type": "string"
+        "selector": {
+          "$ref": "#/$defs/provider_selector"
         },
         "enabled": {
           "type": "boolean",
@@ -2652,9 +2652,6 @@
     },
     "provider_selector": {
       "type": "object",
-      "required": [
-        "provider"
-      ],
       "properties": {
         "provider": {
           "type": "string",
@@ -2676,6 +2673,38 @@
           "type": "string"
         }
       },
+      "anyOf": [
+        {
+          "required": [
+            "provider"
+          ]
+        },
+        {
+          "required": [
+            "role"
+          ]
+        },
+        {
+          "required": [
+            "variant"
+          ]
+        },
+        {
+          "required": [
+            "mode"
+          ]
+        },
+        {
+          "required": [
+            "region"
+          ]
+        },
+        {
+          "required": [
+            "scope"
+          ]
+        }
+      ],
       "additionalProperties": false
     },
     "provider_parameter": {

@@ -839,6 +839,54 @@ def test_process_parameters_validates():
     jsonschema.validate(data, schema)
 
 
+def test_provider_parameters_validates_with_variant_selector():
+    """Provider parameters selector supports provider-aware fields."""
+    schema = load_schema()
+    data = {
+        "model": {
+            "name": "ProviderParamTest",
+            "regions": ["R1"],
+            "commodities": [],
+        },
+        "provider_parameters": [
+            {
+                "selector": {
+                    "variant": "boiler_ng",
+                    "region": "R1",
+                    "scope": "RES",
+                },
+                "ncap_bound": {"up": 100},
+            }
+        ],
+    }
+    jsonschema.validate(data, schema)
+
+
+def test_case_provider_overrides_validates():
+    """Cases use provider_overrides with provider-aware selectors."""
+    schema = load_schema()
+    data = {
+        "model": {
+            "name": "CaseOverrideTest",
+            "regions": ["R1"],
+            "commodities": [],
+            "cases": [
+                {
+                    "name": "baseline",
+                    "is_baseline": True,
+                    "provider_overrides": [
+                        {
+                            "selector": {"variant": "boiler_ng"},
+                            "enabled": False,
+                        }
+                    ],
+                }
+            ],
+        }
+    }
+    jsonschema.validate(data, schema)
+
+
 def test_demands_validates():
     """Demands block should validate against schema."""
     schema = load_schema()

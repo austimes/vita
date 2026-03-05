@@ -1235,8 +1235,9 @@ def collect_new_syntax_cost_unit_diagnostics(
 
     for case in source.get("model", {}).get("cases", []) or []:
         case_name = case.get("name", "<case>")
-        for idx, override in enumerate(case.get("variant_overrides", []) or []):
-            variant_id = override.get("variant")
+        for idx, override in enumerate(case.get("provider_overrides", []) or []):
+            selector = override.get("selector") or {}
+            variant_id = selector.get("variant")
             units = variant_units.get(variant_id)
             if units is None:
                 continue
@@ -1252,7 +1253,7 @@ def collect_new_syntax_cost_unit_diagnostics(
                     value=override[field_name],
                     location=(
                         "model.cases["
-                        f"{case_name}].variant_overrides[{idx}].{field_name}"
+                        f"{case_name}].provider_overrides[{idx}].{field_name}"
                     ),
                     field_name=field_name,
                     expected_denominator=expected_denominator,
@@ -1830,24 +1831,45 @@ def _normalize_new_syntax_monetary_costs(source: dict) -> tuple[dict, dict]:
                     require_per_year=require_per_year,
                 )
 
+    def _uses_literal_cost(value) -> bool:
+        if isinstance(value, str):
+            return True
+        if isinstance(value, dict) and "values" in value:
+            return any(isinstance(v, str) for v in value.get("values", {}).values())
+        return False
+
     for case in model.get("cases", []) or []:
         case_name = case.get("name", "<case>")
-        for idx, override in enumerate(case.get("variant_overrides", []) or []):
-            variant_id = override.get("variant")
-            if variant_id not in units_by_variant:
-                continue
-            activity_unit, capacity_unit = units_by_variant[variant_id]
+        for idx, override in enumerate(case.get("provider_overrides", []) or []):
+            selector = override.get("selector") or {}
+            variant_id = selector.get("variant")
+            units = units_by_variant.get(variant_id)
             cost_specs = (
-                ("variable_om_cost", activity_unit, False),
-                ("investment_cost", capacity_unit, False),
-                ("fixed_om_cost", capacity_unit, True),
+                ("variable_om_cost", False),
+                ("investment_cost", False),
+                ("fixed_om_cost", True),
             )
-            for field_name, denominator, require_per_year in cost_specs:
+            for field_name, require_per_year in cost_specs:
                 if field_name not in override:
                     continue
                 field_path = (
                     "model.cases["
-                    f"{case_name}].variant_overrides[{idx}].{field_name}"
+                    f"{case_name}].provider_overrides[{idx}].{field_name}"
+                )
+                if units is None:
+                    if _uses_literal_cost(override[field_name]):
+                        raise SemanticValidationError(
+                            [
+                                f"{field_path} uses literal cost syntax but selector "
+                                "does not resolve a known variant. Set "
+                                "selector.variant explicitly."
+                            ]
+                        )
+                    continue
+                activity_unit, capacity_unit = units
+                denominator = (
+                    activity_unit if field_name == "variable_om_cost"
+                    else capacity_unit
                 )
                 if policy.get("enabled"):
                     override[field_name] = _normalize_cost_value(
@@ -1877,7 +1899,7 @@ def _normalize_new_syntax_heating_basis_values(source: dict) -> dict:
     - variants[*].emission_factors
     - model.scenario_parameters[*] where type=commodity_price
     - model.cases[*].fuel_price_overrides[*]
-    - model.cases[*].variant_overrides[*].variable_om_cost
+    - model.cases[*].provider_overrides[*].variable_om_cost
     """
     normalized = deepcopy(source)
     model = normalized.get("model", {})
@@ -2093,18 +2115,19 @@ def _normalize_new_syntax_heating_basis_values(source: dict) -> dict:
             )
             override["value_basis"] = "HHV"
 
-        # Case variant overrides: same rule as variants variable_om_cost.
-        for idx, override in enumerate(case.get("variant_overrides", []) or []):
+        # Case provider overrides: same rule as variants variable_om_cost.
+        for idx, override in enumerate(case.get("provider_overrides", []) or []):
             if "variable_om_cost" not in override:
                 continue
-            variant_id = override.get("variant")
+            selector = override.get("selector") or {}
+            variant_id = selector.get("variant")
             meta = variant_meta.get(variant_id)
             if not meta:
                 continue
             if not (meta["combustible_refs"] and meta["activity_is_energy"]):
                 continue
             field_path = (
-                f"model.cases[{case_name}].variant_overrides[{idx}].variable_om_cost"
+                f"model.cases[{case_name}].provider_overrides[{idx}].variable_om_cost"
             )
             value_basis = override.get("variable_om_cost_basis")
             if value_basis not in ENERGY_BASES:
@@ -3263,15 +3286,19 @@ def validate_cross_references(
                     f" unknown constraint '{name}'"
                 )
 
-        variant_override_names: set[str] = set()
-        for override in case.get("variant_overrides", []):
-            variant = override["variant"]
-            if variant in variant_override_names:
+        provider_override_selectors: set[tuple[str, ...]] = set()
+        for idx, override in enumerate(case.get("provider_overrides", [])):
+            selector = override.get("selector") or {}
+            selector_key = tuple(
+                str(selector.get(field, ""))
+                for field in ("provider", "role", "variant", "mode", "region", "scope")
+            )
+            if selector_key in provider_override_selectors:
                 errors.append(
-                    f"Case '{case_name}' has duplicate variant_overrides"
-                    f" for variant '{variant}'"
+                    f"Case '{case_name}' has duplicate provider_overrides selector"
+                    f" at index {idx}: {selector}"
                 )
-            variant_override_names.add(variant)
+            provider_override_selectors.add(selector_key)
 
     if source:
         role_units = {
@@ -3437,8 +3464,10 @@ def _compile_new_syntax(
     This is the new compilation pipeline that uses:
     - roles: abstract transformations (topology)
     - variants: concrete technologies with parameters
-    - availability: where variants exist (region/sector/scope)
-    - process_parameters: selector-based parameter overrides
+    - availability: optional legacy placement declarations
+    - process_parameters: optional legacy selector-based overrides
+    - providers: provider-native object declarations
+    - provider_parameters: provider-selector parameter overrides
     - demands: service commodity demands
 
     Args:
@@ -3487,14 +3516,22 @@ def _compile_new_syntax(
     scoping_cfg = source.get("scoping") or {}
     segment_keys = build_segments({"scoping": scoping_cfg})
 
+    instances = {}
     if source.get("providers"):
         providers = build_providers(source, roles, variants)
-        instances = expand_provider_instances(providers, variants)
-        apply_provider_parameters(instances, source)
-    else:
-        # Legacy pathway retained while examples/tests migrate to providers.
-        instances = expand_availability(source, variants, segment_keys)
-        apply_process_parameters(instances, source)
+        provider_instances = expand_provider_instances(providers, variants)
+        apply_provider_parameters(provider_instances, source)
+        instances.update(provider_instances)
+    if source.get("availability"):
+        availability_instances = expand_availability(source, variants, segment_keys)
+        apply_process_parameters(availability_instances, source)
+        for key, instance in availability_instances.items():
+            if key in instances:
+                raise VedaLangError(
+                    "Duplicate process instance key while combining providers and "
+                    f"availability: {key}"
+                )
+            instances[key] = instance
 
     # Create naming registry for deterministic symbols
     registry = NamingRegistry()
@@ -3507,14 +3544,6 @@ def _compile_new_syntax(
         registry,
         facility_variant_meta=facility_variant_meta,
     )
-    variant_symbol_map: dict[str, list[dict[str, str]]] = {}
-    for process_symbol, meta in metadata_map.items():
-        variant_symbol_map.setdefault(meta["variant"], []).append(
-            {
-                "process": process_symbol,
-                "region": meta["region"],
-            }
-        )
     process_symbol_map: dict[tuple[str, str, str | None], str] = {}
     for process_symbol, meta in metadata_map.items():
         process_symbol_map[(meta["variant"], meta["region"], meta.get("scope"))] = (
@@ -3854,7 +3883,7 @@ def _compile_new_syntax(
         regions,
         milestone_years,
         default_region,
-        variant_symbol_map=variant_symbol_map,
+        process_metadata_map=metadata_map,
     )
 
     # Trade links
@@ -4678,7 +4707,7 @@ def compile_vedalang_to_tableir(
         regions,
         model_years,
         default_region,
-        variant_symbol_map=None,
+        process_metadata_map=None,
     )
 
     # Compile timeslices — always emit at least ANNUAL
@@ -5421,15 +5450,19 @@ def _validate_case_overlay_configuration(
                     f" constraint '{name}'"
                 )
 
-        variant_override_names: set[str] = set()
-        for override in case.get("variant_overrides", []):
-            variant = override["variant"]
-            if variant in variant_override_names:
+        provider_override_selectors: set[tuple[str, ...]] = set()
+        for idx, override in enumerate(case.get("provider_overrides", [])):
+            selector = override.get("selector") or {}
+            selector_key = tuple(
+                str(selector.get(field, ""))
+                for field in ("provider", "role", "variant", "mode", "region", "scope")
+            )
+            if selector_key in provider_override_selectors:
                 raise VedaLangError(
-                    f"Case '{case_name}' has duplicate variant_overrides"
-                    f" for variant '{variant}'"
+                    f"Case '{case_name}' has duplicate provider_overrides selector"
+                    f" at index {idx}: {selector}"
                 )
-            variant_override_names.add(variant)
+            provider_override_selectors.add(selector_key)
 
 
 def _constraints_for_case(base_constraints: list[dict], case: dict) -> list[dict]:
@@ -5455,13 +5488,32 @@ def _constraints_for_case(base_constraints: list[dict], case: dict) -> list[dict
     return resolved
 
 
-def _variant_override_tfm_rows(
+def _provider_override_selector_matches_process(
+    selector: dict,
+    meta: dict,
+) -> bool:
+    if selector.get("provider") and selector.get("provider") != meta.get("provider"):
+        return False
+    if selector.get("role") and selector.get("role") != meta.get("role"):
+        return False
+    if selector.get("variant") and selector.get("variant") != meta.get("variant"):
+        return False
+    if selector.get("mode") and selector.get("mode") != meta.get("mode"):
+        return False
+    if selector.get("region") and selector.get("region") != meta.get("region"):
+        return False
+    if selector.get("scope") and selector.get("scope") != meta.get("scope"):
+        return False
+    return True
+
+
+def _provider_override_tfm_rows(
     case: dict,
-    variant_symbol_map: dict[str, list[dict[str, str]]] | None,
+    process_metadata_map: dict[str, dict] | None,
     model_years: list[int],
 ) -> list[dict]:
-    """Build ~TFM_INS rows for case-level variant overrides."""
-    if not variant_symbol_map:
+    """Build ~TFM_INS rows for case-level provider-selector overrides."""
+    if not process_metadata_map:
         return []
 
     attr_map = {
@@ -5473,20 +5525,42 @@ def _variant_override_tfm_rows(
     }
 
     rows: list[dict] = []
-    for override in case.get("variant_overrides", []):
-        variant = override["variant"]
-        entries = variant_symbol_map.get(variant, [])
+    applied_targets: dict[tuple[str, int, str], str] = {}
+    process_entries = [
+        {"process": symbol, "meta": meta}
+        for symbol, meta in sorted(process_metadata_map.items())
+    ]
+
+    for idx, override in enumerate(case.get("provider_overrides", [])):
+        selector = override.get("selector") or {}
+        selector_label = (
+            f"case '{case['name']}' provider_overrides[{idx}] selector={selector}"
+        )
+        entries = [
+            entry
+            for entry in process_entries
+            if _provider_override_selector_matches_process(selector, entry["meta"])
+        ]
         if not entries:
             raise VedaLangError(
-                f"case '{case['name']}' references unknown"
-                f" or unavailable variant '{variant}'"
+                f"{selector_label} matched zero processes"
             )
 
         if override.get("enabled", True) is False:
             for entry in entries:
                 symbol = entry["process"]
-                region = entry["region"]
+                region = entry["meta"]["region"]
                 for year in model_years:
+                    for attr in ("NCAP_BND", "ACT_BND"):
+                        target = (symbol, int(year), attr)
+                        if target in applied_targets:
+                            raise VedaLangError(
+                                "Conflicting provider_overrides targets for "
+                                f"process '{symbol}', year {year}, attribute "
+                                f"'{attr}': {applied_targets[target]} and "
+                                f"{selector_label}"
+                            )
+                        applied_targets[target] = selector_label
                     rows.append(
                         {
                             "region": region,
@@ -5526,8 +5600,17 @@ def _variant_override_tfm_rows(
 
             for entry in entries:
                 symbol = entry["process"]
-                region = entry["region"]
+                region = entry["meta"]["region"]
                 for year, attr_value in sorted(dense_values.items()):
+                    target = (symbol, int(year), times_attr)
+                    if target in applied_targets:
+                        raise VedaLangError(
+                            "Conflicting provider_overrides targets for "
+                            f"process '{symbol}', year {year}, attribute "
+                            f"'{times_attr}': {applied_targets[target]} and "
+                            f"{selector_label}"
+                        )
+                    applied_targets[target] = selector_label
                     rows.append(
                         {
                             "region": region,
@@ -5548,7 +5631,7 @@ def _compile_scenario_files(
     regions: list[str],
     model_years: list[int],
     default_region: str,
-    variant_symbol_map: dict[str, list[dict[str, str]]] | None = None,
+    process_metadata_map: dict[str, dict] | None = None,
 ) -> tuple[list[dict], list[dict]]:
     """
     Compile scenario parameters and constraints into case-organized files.
@@ -5586,9 +5669,9 @@ def _compile_scenario_files(
             model_years,
         )
         case_constraints = _constraints_for_case(constraints, case)
-        variant_rows = _variant_override_tfm_rows(
+        provider_rows = _provider_override_tfm_rows(
             case,
-            variant_symbol_map,
+            process_metadata_map,
             model_years,
         )
 
@@ -5649,12 +5732,12 @@ def _compile_scenario_files(
                     "uc_sets": {"R_E": "AllRegions", "T_E": ""},
                 })
 
-        if variant_rows:
+        if provider_rows:
             params_by_category["technology_assumptions"].append(
                 {
-                    "name": f"{case_name}_variant_overrides",
-                    "description": "Generated from case.variant_overrides",
-                    "rows": variant_rows,
+                    "name": f"{case_name}_provider_overrides",
+                    "description": "Generated from case.provider_overrides",
+                    "rows": provider_rows,
                     "tag": "~TFM_INS",
                 }
             )

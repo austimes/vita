@@ -13,9 +13,12 @@ from vedalang.compiler.facilities import (
 )
 from vedalang.compiler.ir import (
     apply_process_parameters,
+    apply_provider_parameters,
+    build_providers,
     build_roles,
     build_variants,
     expand_availability,
+    expand_provider_instances,
 )
 from vedalang.compiler.naming import NamingRegistry
 from vedalang.compiler.segments import build_segments
@@ -327,8 +330,22 @@ def build_source_system_graph(
 
     roles = build_roles(prepared_source, commodities)
     variants = build_variants(prepared_source, roles, commodities)
-    instances = expand_availability(prepared_source, variants, segment_keys)
-    apply_process_parameters(instances, prepared_source)
+
+    instances = {}
+    if prepared_source.get("providers"):
+        providers = build_providers(prepared_source, roles, variants)
+        provider_instances = expand_provider_instances(providers, variants)
+        apply_provider_parameters(provider_instances, prepared_source)
+        instances.update(provider_instances)
+    if prepared_source.get("availability"):
+        availability_instances = expand_availability(
+            prepared_source, variants, segment_keys
+        )
+        apply_process_parameters(availability_instances, prepared_source)
+        for key, instance in availability_instances.items():
+            if key in instances:
+                continue
+            instances[key] = instance
 
     registry = NamingRegistry()
     variant_to_role = {

@@ -20,6 +20,11 @@ VedaLang uses precise terminology to avoid ambiguity:
 | **Category** | Logical grouping of scenario parameters (canonical enum below) |
 | **Case** | A named combination of scenario parameters for a specific model run (e.g., `baseline`, `ambitious`) |
 | **Study** | A collection of cases for comparison |
+| **Role** | Process type contract (what transformation/service is provided) |
+| **Variant** | Technology type that implements a role |
+| **Mode** | Operating state nested under a variant |
+| **Provider** | Concrete facility/fleet object that offers variants/modes |
+| **Scope** | Commodity market partition only (never process/type identity) |
 
 <!-- GENERATED:scenario-categories:start -->
 **Canonical scenario categories:** `demands` | `prices` | `policies` | `technology_assumptions` | `resource_availability` | `global_settings`
@@ -136,18 +141,36 @@ for the complete unit mapping and cost denominator expectations.
 model:
   name: MinimalExample
   regions: [REG1]
+  milestone_years: [2020]
   
   commodities:
-    - name: ELC
+    - id: secondary:electricity
       type: energy
       unit: PJ
-
-  processes:
-    - name: PP_GEN
-      sets: [ELE]
-      primary_commodity_group: NRGO
-      outputs:
-        - commodity: ELC
+roles:
+  - id: generate_electricity
+    stage: supply
+    activity_unit: PJ
+    capacity_unit: GW
+    required_inputs: []
+    required_outputs:
+      - commodity: secondary:electricity
+variants:
+  - id: grid_supply
+    role: generate_electricity
+    modes:
+      - id: base
+        inputs: []
+        outputs:
+          - commodity: secondary:electricity
+providers:
+  - id: fleet.grid_supply.reg1
+    kind: fleet
+    role: generate_electricity
+    region: REG1
+    offerings:
+      - variant: grid_supply
+        modes: [base]
 ```
 
 ---

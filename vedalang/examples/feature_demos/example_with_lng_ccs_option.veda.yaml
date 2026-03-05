@@ -49,8 +49,9 @@ model:
 
     - name: decarbonise_lng
       description: CO2 cap drives uptake of the CCS LNG pathway
-      variant_overrides:
-        - variant: lng_boiler_with_ccs
+      provider_overrides:
+        - selector:
+            variant: lng_boiler_with_ccs
           investment_cost: 45 MUSD24/GW
 
 scoping:

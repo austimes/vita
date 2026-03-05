@@ -168,6 +168,10 @@ def test_facility_lowering_generates_scoped_demand_and_mode_processes():
     assert any("mode_retrofit_to_ng" in name for name in process_names)
     assert any("mode_retrofit_to_h2" in name for name in process_names)
 
+    providers = tableir.get("provider_report", {}).get("providers", [])
+    assert providers
+    assert any(provider["provider_kind"] == "facility" for provider in providers)
+
 
 def test_facility_generates_cap_coupling_no_backslide_and_ramp_constraints():
     tableir = compile_vedalang_to_tableir(_base_source())
@@ -231,6 +235,10 @@ def test_facility_top_n_aggregation_keeps_one_individual_plus_one_aggregate():
     scopes = {r["cset_cn"] for r in demand_rows if "@IND." in r.get("cset_cn", "")}
     assert len(scopes) == 2
     assert any("_agg" in scope for scope in scopes)
+
+    providers = tableir.get("provider_report", {}).get("providers", [])
+    assert any(provider["provider_kind"] == "facility" for provider in providers)
+    assert any(provider["provider_kind"] == "fleet" for provider in providers)
 
 
 def test_facility_scopes_do_not_expand_existing_sector_availability():

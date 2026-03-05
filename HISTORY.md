@@ -172,3 +172,9 @@ Pre-compilation checks that catch modeling patterns causing solver infeasibility
 - **Compiler/reporting:** Added provider-centric reporting payloads so outputs can be audited by provider identity (`provider_id`, `provider_kind`, role/variant/mode membership, scope/region/process links).
 - **RES visualization/query:** Added independent commodity view controls (`scoped`, `collapse_scope`) decoupled from process granularity; preserved underlying scoped commodity provenance on collapsed nodes/edges.
 - **UX alignment:** CLI, web viz, and LSP request contract now expose provider hierarchy granularities with commodity-view controls for consistent behavior.
+- **Case overlays:** Replaced case `variant_overrides` with provider-aware
+  `provider_overrides` selectors (`provider|role|variant|mode|region|scope`)
+  and deterministic conflict detection in compiled scenario rows.
+- **Facility lowering:** Facility templates now lower to provider objects
+  (`kind: facility|fleet`) with provider offerings, while preserving
+  facility-level UC constraint generation and provider-centric reporting keys.

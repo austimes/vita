@@ -42,8 +42,9 @@ class TestLint:
             "  cases:",
             "    - name: base",
             "      is_baseline: true",
-            "      variant_overrides:",
-            "        - variant: gen",
+            "      provider_overrides:",
+            "        - selector:",
+            "            variant: gen",
         ]
         if override_investment_cost is not None:
             lines.append(

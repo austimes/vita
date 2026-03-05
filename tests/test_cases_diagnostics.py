@@ -55,9 +55,9 @@ def _minimal_new_syntax_source() -> dict:
                     "constraint_overrides": [
                         {"name": "co2_cap", "enabled": False}
                     ],
-                    "variant_overrides": [
+                    "provider_overrides": [
                         {
-                            "variant": "heat_pump",
+                            "selector": {"variant": "heat_pump"},
                             "enabled": False,
                             "investment_cost": 123,
                         }
@@ -448,4 +448,34 @@ def test_case_include_exclude_overlap_raises_error():
     source["model"]["cases"][1]["excludes"] = ["base_price"]
 
     with pytest.raises(VedaLangError, match="includes and excludes"):
+        compile_vedalang_to_tableir(source)
+
+
+def test_provider_overrides_conflicting_targets_raise_error():
+    source = _minimal_new_syntax_source()
+    source["model"]["cases"][1]["provider_overrides"] = [
+        {
+            "selector": {"variant": "heat_pump"},
+            "enabled": False,
+        },
+        {
+            "selector": {"variant": "heat_pump", "region": "REG1"},
+            "enabled": False,
+        },
+    ]
+
+    with pytest.raises(VedaLangError, match="Conflicting provider_overrides targets"):
+        compile_vedalang_to_tableir(source)
+
+
+def test_provider_overrides_unmatched_selector_raises_error():
+    source = _minimal_new_syntax_source()
+    source["model"]["cases"][1]["provider_overrides"] = [
+        {
+            "selector": {"provider": "facility.missing"},
+            "enabled": False,
+        }
+    ]
+
+    with pytest.raises(VedaLangError, match="matched zero processes"):
         compile_vedalang_to_tableir(source)

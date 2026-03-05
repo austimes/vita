@@ -24,6 +24,13 @@ from .segments import (
     normalize_commodity,
 )
 
+SCOPE_MARKERS = ("@", "RES.", "COM.", "IND.", "TRN.", "AGR.", "NE.", "OTH.")
+
+
+def _contains_scope_marker(identifier: str) -> bool:
+    upper = identifier.upper()
+    return any(marker in upper for marker in SCOPE_MARKERS)
+
 
 @dataclass
 class Role:
@@ -173,6 +180,11 @@ def build_roles(
 
     for raw in role_entries:
         role_id = raw["id"]
+        if _contains_scope_marker(role_id):
+            raise IRError(
+                f"Role id '{role_id}' must not contain scope markers "
+                "(e.g. '@', 'RES.*')."
+            )
 
         if role_id in roles_by_id:
             raise IRError(f"Duplicate role id: {role_id}")
@@ -270,6 +282,11 @@ def build_variants(
     for raw in variant_entries:
         variant_id = raw["id"]
         role_id = raw["role"]
+        if _contains_scope_marker(variant_id):
+            raise IRError(
+                f"Variant id '{variant_id}' must not contain scope markers "
+                "(e.g. '@', 'RES.*')."
+            )
 
         if variant_id in variants_by_id:
             raise IRError(f"Duplicate variant id: {variant_id}")
@@ -297,6 +314,11 @@ def build_variants(
 
         for raw_mode in mode_entries:
             mode_id = raw_mode["id"]
+            if _contains_scope_marker(mode_id):
+                raise IRError(
+                    f"Variant '{variant_id}' mode id '{mode_id}' must not "
+                    "contain scope markers (e.g. '@', 'RES.*')."
+                )
             if mode_id in modes_by_id:
                 raise IRError(
                     f"Variant '{variant_id}' has duplicate mode id: {mode_id}"
@@ -466,6 +488,18 @@ def build_providers(
 
     for raw in provider_entries:
         provider_id = raw["id"]
+        kind = raw["kind"]
+        expected_prefix = f"{kind}."
+        if not provider_id.startswith(expected_prefix):
+            raise IRError(
+                f"Provider '{provider_id}' kind '{kind}' must use id prefix "
+                f"'{expected_prefix}'."
+            )
+        if _contains_scope_marker(provider_id):
+            raise IRError(
+                f"Provider id '{provider_id}' must not contain scope markers "
+                "(e.g. '@', 'RES.*')."
+            )
         if provider_id in providers_by_id:
             raise IRError(f"Duplicate provider id: {provider_id}")
 
@@ -516,7 +550,7 @@ def build_providers(
 
         providers_by_id[provider_id] = Provider(
             id=provider_id,
-            kind=raw["kind"],
+            kind=kind,
             role=role_id,
             region=raw["region"],
             scopes=scopes,
@@ -685,15 +719,25 @@ def apply_provider_parameters(
         "stock",
     }
     merge_keys = {"emission_factors"}
+    applied: dict[tuple[InstanceKey, str], str] = {}
 
-    for param_block in provider_params:
+    for idx, param_block in enumerate(provider_params):
         selector = param_block["selector"]
+        selector_label = f"provider_parameters[{idx}] selector={selector}"
         for key, instance in instances.items():
             if not _provider_selector_matches(selector, key):
                 continue
             for attr_key in override_keys:
                 if attr_key in param_block:
+                    conflict_key = (key, attr_key)
+                    if conflict_key in applied:
+                        raise IRError(
+                            "Conflicting provider_parameters overrides for "
+                            f"instance '{key}' attribute '{attr_key}': "
+                            f"{applied[conflict_key]} and {selector_label}"
+                        )
                     instance.attrs[attr_key] = param_block[attr_key]
+                    applied[conflict_key] = selector_label
             for attr_key in merge_keys:
                 if attr_key in param_block:
                     existing = instance.attrs.get(attr_key, {})
