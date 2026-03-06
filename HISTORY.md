@@ -178,3 +178,21 @@ Pre-compilation checks that catch modeling patterns causing solver infeasibility
 - **Facility lowering:** Facility templates now lower to provider objects
   (`kind: facility|fleet`) with provider offerings, while preserving
   facility-level UC constraint generation and provider-centric reporting keys.
+
+## Post-v2 Canonicalization and Eval Parity (2026-03-06)
+
+- **Trade lens UX:** Added deterministic `NO_TRADE_LINKS` query diagnostic when
+  the trade lens is requested but `model.trade_links` is unconfigured.
+- **Units eval parity:** Re-enabled deterministic references for
+  component-scoped units eval cases by deriving component-filtered deterministic
+  diagnostics and mapping deterministic compiler codes to controlled unit
+  taxonomy codes (`UNIT_*` families).
+- **Parity scoring refinement:** `parity_score` now compares mapped error-code
+  overlap when available, instead of only binary presence parity.
+- **LSP docs canonicalization:** Updated schema hover docs/examples to canonical
+  namespaces (`primary:/secondary:/service:/material:/emission:/resource:/money`)
+  and commodity `type` wording, removing legacy C:/S:/E and
+  TRADABLE/SERVICE/EMISSION language.
+- **Runtime helper migration:** Updated registry/json emitter and legacy graph
+  builder runtime IDs away from legacy C/S/E token generation, including
+  canonical provider-symbol parsing support in registry emission.

@@ -8,8 +8,13 @@ import json
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
+from vedalang.compiler.naming import parse_process_symbol
 from vedalang.compiler.template_resolver import ResolvedProcess
-from vedalang.identity.parser import parse_process_id
+from vedalang.conventions import (
+    commodity_namespace_enum,
+    is_legacy_commodity_namespace,
+    split_commodity_namespace,
+)
 from vedalang.identity.registry import AbbreviationRegistry
 
 
@@ -62,62 +67,134 @@ class RegistryEmitter:
         self._abbrev = abbreviation_registry
 
     def _map_commodity_kind(self, commodity_type: str) -> str:
-        """Map VedaLang commodity type to kind."""
+        """Map VedaLang commodity type to canonical semantic kind."""
         mapping = {
-            "energy": "TRADABLE",
-            "material": "TRADABLE",
-            "demand": "SERVICE",
-            "emission": "EMISSION",
+            "fuel": "carrier",
+            "energy": "carrier",
+            "service": "service",
+            "demand": "service",
+            "material": "material",
+            "emission": "emission",
+            "money": "money",
+            "other": "resource",
         }
-        return mapping.get(commodity_type, "TRADABLE")
+        return mapping.get(commodity_type, "carrier")
 
-    def _build_commodity_id(
-        self, name: str, kind: str, context: str | None = None
-    ) -> str:
-        """Build a full commodity ID with prefix."""
-        prefix_map = {"TRADABLE": "C", "SERVICE": "S", "EMISSION": "E"}
-        prefix = prefix_map.get(kind, "C")
-        if kind == "SERVICE" and context:
-            return f"{prefix}:{name}:{context}"
-        return f"{prefix}:{name}"
+    def _namespace_for_commodity_type(self, commodity_type: str) -> str:
+        mapping = {
+            "fuel": "primary",
+            "energy": "secondary",
+            "service": "service",
+            "demand": "service",
+            "material": "material",
+            "emission": "emission",
+            "money": "money",
+            "other": "resource",
+        }
+        return mapping.get(commodity_type, "secondary")
+
+    def _build_commodity_id(self, name: str, commodity_type: str) -> str:
+        """Build canonical namespaced commodity ID."""
+        namespace, base = split_commodity_namespace(name)
+        if namespace in set(commodity_namespace_enum()):
+            return name
+        if namespace and is_legacy_commodity_namespace(namespace):
+            if namespace == "E":
+                code = base.split(":", 1)[0]
+                return f"emission:{code}"
+            if namespace == "S":
+                code = base.split(":", 1)[0]
+                return f"service:{code}"
+            if namespace == "C":
+                code = base.split(":", 1)[0]
+                return f"secondary:{code}"
+        canonical_ns = self._namespace_for_commodity_type(commodity_type)
+        if not name:
+            return f"{canonical_ns}:unknown"
+        return f"{canonical_ns}:{name}"
 
     def _parse_commodity_id(self, commodity_id: str) -> tuple[str, str, str | None]:
-        """Parse a commodity ID into (code, kind, context)."""
-        parts = commodity_id.split(":")
-        prefix = parts[0] if parts else ""
+        """Parse commodity ID into (base_code, kind, optional_context)."""
+        namespace, base = split_commodity_namespace(commodity_id)
+        if namespace and namespace in set(commodity_namespace_enum()):
+            kind_map = {
+                "primary": "carrier",
+                "secondary": "carrier",
+                "resource": "resource",
+                "material": "material",
+                "service": "service",
+                "emission": "emission",
+                "money": "money",
+            }
+            kind = kind_map.get(namespace, "carrier")
+            return base, kind, None
+        if namespace and is_legacy_commodity_namespace(namespace):
+            parts = commodity_id.split(":")
+            if namespace == "S":
+                return parts[1] if len(parts) > 1 else "", "service", (
+                    parts[2] if len(parts) > 2 else None
+                )
+            if namespace == "E":
+                return parts[1] if len(parts) > 1 else "", "emission", None
+            return parts[1] if len(parts) > 1 else "", "carrier", None
+        return commodity_id, "carrier", None
 
-        kind_map = {"C": "TRADABLE", "S": "SERVICE", "E": "EMISSION"}
-        kind = kind_map.get(prefix, "TRADABLE")
-
-        code = parts[1] if len(parts) > 1 else commodity_id
-        context = parts[2] if len(parts) > 2 else None
-
-        return code, kind, context
+    def _parse_legacy_process_id(self, process_id: str) -> dict[str, str | None] | None:
+        parts = process_id.split(":")
+        if len(parts) < 4 or parts[0] != "P":
+            return None
+        technology = parts[1]
+        role = parts[2]
+        geo = parts[3]
+        segment = None
+        variant = None
+        vintage = None
+        remaining = parts[4:]
+        if role == "EUS" and remaining:
+            segment = remaining[0]
+            remaining = remaining[1:]
+        for part in remaining:
+            if part in {"EXIST", "NEW"} and vintage is None:
+                vintage = part
+            elif segment is None and "." in part:
+                segment = part
+            elif variant is None:
+                variant = part
+            elif vintage is None:
+                vintage = part
+        return {
+            "technology": technology,
+            "role": role,
+            "geo": geo,
+            "segment": segment,
+            "variant": variant,
+            "vintage": vintage,
+            "provider_kind": None,
+            "provider_id": None,
+            "mode": None,
+        }
 
     def emit_commodity(self, commodity: dict) -> CommodityRegistryEntry:
         """Create registry entry for a commodity.
 
-        - Extract code from ID (after C:, S:, E: prefix)
-        - Look up key (expanded name) from abbreviation registry
+        - Emit canonical namespaced IDs
+        - Preserve semantic kind and optional context
         - Include all metadata
         """
-        name = commodity.get("name", "")
+        raw_name = commodity.get("id") or commodity.get("name", "")
         commodity_type = commodity.get("type", "energy")
-        kind = self._map_commodity_kind(commodity_type)
+        full_id = self._build_commodity_id(str(raw_name), str(commodity_type))
+        code, parsed_kind, parsed_context = self._parse_commodity_id(full_id)
+        kind = self._map_commodity_kind(str(commodity_type)) or parsed_kind
+        context = commodity.get("context") or parsed_context
 
-        context = None
-        if kind == "SERVICE":
-            context = commodity.get("context", "RES.ALL")
-
-        full_id = self._build_commodity_id(name, kind, context)
-
-        abbrev = self._abbrev.find_commodity_by_code(name)
+        abbrev = self._abbrev.find_commodity_by_code(code)
         key = abbrev.key if abbrev else None
 
         return CommodityRegistryEntry(
             id=full_id,
             kind=kind,
-            code=name,
+            code=code,
             key=key,
             context=context,
             unit=commodity.get("unit"),
@@ -137,27 +214,46 @@ class RegistryEmitter:
         description = process.get("description")
         tags = process.get("tags", {})
 
+        canonical = parse_process_symbol(name)
+        if canonical:
+            region = process.get("region", "SINGLE")
+            return ProcessRegistryEntry(
+                id=name,
+                template=None,
+                parsed={
+                    "technology": canonical["variant_id"],
+                    "role": canonical["role_id"],
+                    "geo": str(region),
+                    "segment": None,
+                    "variant": canonical["variant_id"],
+                    "vintage": None,
+                    "provider_kind": canonical["provider_kind"],
+                    "provider_id": canonical["provider_id"],
+                    "mode": canonical["mode_id"],
+                },
+                region=str(region),
+                technology=canonical["variant_id"],
+                role=canonical["role_id"],
+                segment=None,
+                variant=canonical["variant_id"],
+                vintage=None,
+                sankey_stage=process.get("sankey_stage"),
+                description=description,
+                tags=tags,
+            )
         if name.startswith("P:"):
-            validation = parse_process_id(name)
-            if validation.valid and validation.parsed:
-                parsed = validation.parsed
+            parsed = self._parse_legacy_process_id(name)
+            if parsed is not None:
                 return ProcessRegistryEntry(
                     id=name,
                     template=None,
-                    parsed={
-                        "technology": parsed.technology,
-                        "role": parsed.role,
-                        "geo": parsed.geo,
-                        "segment": parsed.segment,
-                        "variant": parsed.variant,
-                        "vintage": parsed.vintage,
-                    },
-                    region=parsed.geo,
-                    technology=parsed.technology,
-                    role=parsed.role,
-                    segment=parsed.segment,
-                    variant=parsed.variant,
-                    vintage=parsed.vintage,
+                    parsed=parsed,
+                    region=str(parsed["geo"]),
+                    technology=str(parsed["technology"]),
+                    role=str(parsed["role"]),
+                    segment=parsed["segment"],
+                    variant=parsed["variant"],
+                    vintage=parsed["vintage"],
                     sankey_stage=process.get("sankey_stage"),
                     description=description,
                     tags=tags,
@@ -205,22 +301,41 @@ class RegistryEmitter:
 
     def emit_resolved_process(self, resolved: ResolvedProcess) -> ProcessRegistryEntry:
         """Create registry entry from a ResolvedProcess."""
+        canonical = parse_process_symbol(resolved.veda_id)
+        parsed = {
+            "technology": resolved.technology,
+            "role": resolved.role,
+            "geo": resolved.region,
+            "segment": resolved.segment,
+            "variant": resolved.variant,
+            "vintage": resolved.vintage,
+        }
+        role = resolved.role
+        variant = resolved.variant
+        technology = resolved.technology
+        if canonical:
+            parsed.update(
+                {
+                    "technology": canonical["variant_id"],
+                    "role": canonical["role_id"],
+                    "variant": canonical["variant_id"],
+                    "provider_kind": canonical["provider_kind"],
+                    "provider_id": canonical["provider_id"],
+                    "mode": canonical["mode_id"],
+                }
+            )
+            role = canonical["role_id"]
+            variant = canonical["variant_id"]
+            technology = canonical["variant_id"]
         return ProcessRegistryEntry(
             id=resolved.veda_id,
             template=resolved.template_name,
-            parsed={
-                "technology": resolved.technology,
-                "role": resolved.role,
-                "geo": resolved.region,
-                "segment": resolved.segment,
-                "variant": resolved.variant,
-                "vintage": resolved.vintage,
-            },
+            parsed=parsed,
             region=resolved.region,
-            technology=resolved.technology,
-            role=resolved.role,
+            technology=technology,
+            role=role,
             segment=resolved.segment,
-            variant=resolved.variant,
+            variant=variant,
             vintage=resolved.vintage,
             sankey_stage=resolved.sankey_stage,
             description=None,

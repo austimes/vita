@@ -112,6 +112,27 @@ def test_compiled_trade_query_exposes_trade_edges_and_details():
     assert "ire_processes" in response["details"]["edges"][first_edge_id]
 
 
+def test_trade_lens_reports_missing_trade_links_diagnostic():
+    source_file = EXAMPLES_DIR / "design_challenges/dc5_two_regions.veda.yaml"
+
+    response = query_res_graph(
+        {
+            "version": "1",
+            "file": str(source_file),
+            "mode": "source",
+            "granularity": "instance",
+            "lens": "trade",
+            "filters": {"regions": [], "case": None, "sectors": [], "scopes": []},
+            "compiled": {"truth": "auto", "cache": True, "allow_partial": True},
+        }
+    )
+
+    assert response["status"] == "ok"
+    assert response["graph"]["nodes"] == []
+    assert response["graph"]["edges"] == []
+    assert any(d.get("code") == "NO_TRADE_LINKS" for d in response["diagnostics"])
+
+
 def test_facility_source_mode_granularity_exposes_mode_nodes():
     source_file = EXAMPLES_DIR / "feature_demos/example_with_facilities.veda.yaml"
 

@@ -13,6 +13,7 @@ DEFAULT_CAPACITY_UNIT = "GW"
 DEFAULT_COMMODITY_UNITS = {
     "fuel": "PJ",
     "energy": "PJ",
+    "demand": "PJ",
     "service": "PJ",
     "material": "Mt",
     "emission": "Mt",
@@ -64,7 +65,7 @@ def _build_commodity_nodes(model: dict[str, Any]) -> list[dict[str, Any]]:
         unit = comm.get("unit") or DEFAULT_COMMODITY_UNITS.get(ctype, "PJ")
         nodes.append({
             "data": {
-                "id": f"C:{name}",
+                "id": f"commodity:{name}",
                 "label": f"{name}\n({unit})",
                 "type": "commodity",
                 "commodityType": ctype,
@@ -91,7 +92,7 @@ def _build_process_nodes(model: dict[str, Any]) -> list[dict[str, Any]]:
 
         nodes.append({
             "data": {
-                "id": f"P:{name}",
+                "id": f"process:{name}",
                 "label": f"{name}\ncap: {capacity_unit} | act: {activity_unit}",
                 "type": "process",
                 "processClass": process_class,
@@ -137,15 +138,15 @@ def _build_process_edges(model: dict[str, Any]) -> list[dict[str, Any]]:
 
     for proc in processes:
         proc_name = proc.get("name", "")
-        proc_id = f"P:{proc_name}"
+        proc_id = f"process:{proc_name}"
 
         inputs = _normalize_flows(proc.get("input"), proc.get("inputs", []))
         for flow in inputs:
             comm_name = flow.get("commodity", "")
             edges.append({
                 "data": {
-                    "id": f"E:{comm_name}->{proc_name}",
-                    "source": f"C:{comm_name}",
+                    "id": f"edge:{comm_name}->{proc_name}:input",
+                    "source": f"commodity:{comm_name}",
                     "target": proc_id,
                     "kind": "input",
                     "commodity": comm_name,
@@ -159,9 +160,9 @@ def _build_process_edges(model: dict[str, Any]) -> list[dict[str, Any]]:
 
             edges.append({
                 "data": {
-                    "id": f"E:{proc_name}->{comm_name}",
+                    "id": f"edge:{proc_name}->{comm_name}:output",
                     "source": proc_id,
-                    "target": f"C:{comm_name}",
+                    "target": f"commodity:{comm_name}",
                     "kind": "emission" if is_emission else "output",
                     "commodity": comm_name,
                     "emissionFactor": flow.get("emission_factor"),
@@ -202,12 +203,12 @@ def _build_trade_edges(model: dict[str, Any]) -> list[dict[str, Any]]:
         comm = link.get("commodity", "")
         bidirectional = link.get("bidirectional", False)
 
-        edge_id = f"T:{comm}:{origin}->{dest}"
+        edge_id = f"trade:{comm}:{origin}->{dest}"
         edges.append({
             "data": {
                 "id": edge_id,
-                "source": f"C:{comm}",
-                "target": f"C:{comm}",
+                "source": f"commodity:{comm}",
+                "target": f"commodity:{comm}",
                 "kind": "trade",
                 "commodity": comm,
                 "origin": origin,

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import threading
 import time
+from pathlib import Path
 
 from tools.veda_dev.evals.config import (
     CandidateSpec,
@@ -12,7 +13,11 @@ from tools.veda_dev.evals.config import (
 )
 from tools.veda_dev.evals.dataset import cases_for_profile, load_dataset
 from tools.veda_dev.evals.judge import parse_judge_response
-from tools.veda_dev.evals.runner import compare_runs, run_eval
+from tools.veda_dev.evals.runner import (
+    _deterministic_reference,
+    compare_runs,
+    run_eval,
+)
 from tools.veda_dev.evals.scoring import (
     deterministic_breakdown,
     label_metrics,
@@ -418,6 +423,53 @@ def test_parity_score_is_neutral_when_reference_missing():
         deterministic_diagnostics=None,
     )
     assert breakdown["parity_score"] == 100.0
+
+
+def test_parity_score_uses_error_code_overlap_when_available():
+    diagnostics = [
+        {
+            "code": "LLM_UNIT_CHECK",
+            "context": {"error_code": "UNIT_VARIABLE_COST_DENOM_MISMATCH"},
+        }
+    ]
+    deterministic = [
+        {
+            "code": "E_UNIT_VARIABLE_COST_DENOM_MISMATCH",
+            "context": {"error_code": "UNIT_VARIABLE_COST_DENOM_MISMATCH"},
+        },
+        {
+            "code": "W_ENERGY_MASS_BASIS_REQUIRED",
+            "context": {"error_code": "UNIT_BASIS_MISSING"},
+        },
+    ]
+    score = parity_score(diagnostics, deterministic)
+    assert 60.0 <= score <= 70.0
+
+
+def test_deterministic_reference_units_is_component_scoped():
+    dataset = load_dataset()
+    case = dataset.cases["u12"]
+    source_path = case.source
+    from vedalang.compiler.compiler import load_vedalang
+
+    source = load_vedalang(Path(source_path))
+    reference = _deterministic_reference(
+        source,
+        "units",
+        check_id=case.check_id,
+        component=case.component,
+    )
+    assert reference is not None
+    assert reference
+    assert all(
+        f"variants[{case.component}]" in str(d.get("location", ""))
+        or f"variants[{case.component}]" in str(d.get("message", ""))
+        for d in reference
+    )
+    assert any(
+        (d.get("context") or {}).get("error_code") == "UNIT_BASIS_MISSING"
+        for d in reference
+    )
 
 
 def test_run_eval_parallelizes_rows(monkeypatch, tmp_path):

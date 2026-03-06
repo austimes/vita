@@ -55,9 +55,40 @@ def parity_score(
 ) -> float:
     if deterministic_diagnostics is None:
         return 100.0
+    llm_codes = _diagnostic_error_codes(diagnostics)
+    det_codes = _diagnostic_error_codes(deterministic_diagnostics)
+    if llm_codes or det_codes:
+        if not llm_codes and not det_codes:
+            return 100.0
+        if not llm_codes or not det_codes:
+            return 0.0
+        tp = len(llm_codes & det_codes)
+        if tp == 0:
+            return 0.0
+        fp = len(llm_codes - det_codes)
+        fn = len(det_codes - llm_codes)
+        precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+        recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+        if precision + recall == 0:
+            return 0.0
+        return 100.0 * ((2.0 * precision * recall) / (precision + recall))
     llm_present = len(diagnostics) > 0
     det_present = len(deterministic_diagnostics) > 0
     return 100.0 if llm_present == det_present else 0.0
+
+
+def _diagnostic_error_codes(diagnostics: list[dict[str, Any]]) -> set[str]:
+    codes: set[str] = set()
+    for diag in diagnostics:
+        context = diag.get("context")
+        if isinstance(context, dict):
+            error_code = context.get("error_code")
+            if isinstance(error_code, str) and error_code:
+                codes.add(error_code)
+        code = diag.get("code")
+        if isinstance(code, str) and code.startswith("UNIT_"):
+            codes.add(code)
+    return codes
 
 
 @dataclass(frozen=True)

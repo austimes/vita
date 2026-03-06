@@ -112,7 +112,7 @@ class TestHoverFormatting:
         """Context field doc should explain its purpose."""
         context_doc = SCHEMA_FIELD_DOCS.get("context")
         assert context_doc is not None
-        assert "SERVICE" in context_doc
+        assert "type = service" in context_doc
         assert "sector" in context_doc.lower() or "scope" in context_doc.lower()
 
     def test_format_times_attribute_hover(self):

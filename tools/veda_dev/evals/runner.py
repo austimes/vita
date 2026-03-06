@@ -15,7 +15,12 @@ from threading import Lock
 from time import perf_counter
 from typing import Any
 
-from vedalang.compiler.compiler import load_vedalang, validate_vedalang
+from vedalang.compiler.compiler import (
+    collect_new_syntax_cost_unit_diagnostics,
+    collect_new_syntax_structural_diagnostics,
+    load_vedalang,
+    validate_vedalang,
+)
 from vedalang.lint.code_categories import collect_structural_by_category
 from vedalang.lint.diagnostics import with_meta
 from vedalang.lint.llm_assessment import CHECK_ID as STRUCTURE_CHECK_ID
@@ -54,6 +59,21 @@ class ExpandedCase:
 
 
 ProgressCallback = Callable[[dict[str, Any]], None]
+
+_UNIT_DETERMINISTIC_TO_TAXONOMY = {
+    "E_UNIT_VARIABLE_COST_DENOM_MISMATCH": "UNIT_VARIABLE_COST_DENOM_MISMATCH",
+    "E_UNIT_INVESTMENT_COST_DENOM_MISMATCH": "UNIT_INVESTMENT_COST_DENOM_MISMATCH",
+    "E_UNIT_FIXED_OM_COST_DENOM_MISMATCH": "UNIT_INVESTMENT_COST_DENOM_MISMATCH",
+    "E_ENERGY_MASS_BASIS_REQUIRED": "UNIT_BASIS_MISSING",
+    "W_ENERGY_MASS_BASIS_REQUIRED": "UNIT_BASIS_MISSING",
+}
+
+_UNIT_ERROR_FAMILY = {
+    "UNIT_VARIABLE_COST_DENOM_MISMATCH": "cost_denominator",
+    "UNIT_INVESTMENT_COST_DENOM_MISMATCH": "cost_denominator",
+    "UNIT_BASIS_MISSING": "basis",
+    "UNIT_CAPACITY_DENOM_MISMATCH": "capacity_alignment",
+}
 
 
 def _emit_progress(
@@ -239,6 +259,160 @@ def _normalize_units_diagnostics(
     return diagnostics
 
 
+def _map_unit_diagnostic_code(
+    code: str,
+    message: str,
+) -> str | None:
+    mapped = _UNIT_DETERMINISTIC_TO_TAXONOMY.get(code)
+    if mapped:
+        return mapped
+    if code in {"E_PROCESS_UNITS", "W_PROCESS_UNITS", "E_UNIT_TRANSFORM_PROCESS"}:
+        lowered = message.lower()
+        if "capacity" in lowered or "capact" in lowered or "incompatible" in lowered:
+            return "UNIT_CAPACITY_DENOM_MISMATCH"
+    return None
+
+
+def _diagnostic_mentions_component(diag: dict[str, Any], component: str) -> bool:
+    token = f"variants[{component}]"
+    location = str(diag.get("location", ""))
+    message = str(diag.get("message", ""))
+    return token in location or token in message
+
+
+def _parse_exception_diagnostics(
+    exc: Exception,
+    *,
+    category: str,
+) -> list[dict[str, Any]]:
+    text = str(exc)
+    parsed: list[dict[str, Any]] = []
+    for line in text.splitlines():
+        match = re.search(r"\[(?P<code>[EW]_[A-Z0-9_]+)\]", line)
+        if not match:
+            continue
+        code = match.group("code")
+        remainder = line.split("]", 1)[-1].strip()
+        if remainder.startswith("-"):
+            remainder = remainder[1:].strip()
+        location = ""
+        message = remainder
+        if ":" in remainder:
+            maybe_location, rest = remainder.split(":", 1)
+            if "[" in maybe_location or "." in maybe_location:
+                location = maybe_location.strip()
+                message = rest.strip()
+        severity = "warning" if code.startswith("W_") else "error"
+        parsed.append(
+            with_meta(
+                {
+                    "code": code,
+                    "severity": severity,
+                    "message": message,
+                    "location": location,
+                },
+                category=category,
+                engine="code",
+                check_id=f"code.{category}.compiler_semantics",
+            )
+        )
+    return parsed
+
+
+def _component_unit_reference(source: dict, component: str) -> list[dict[str, Any]]:
+    diagnostics: list[dict[str, Any]] = []
+
+    unit_errors, unit_warnings = collect_new_syntax_cost_unit_diagnostics(source)
+    for issue in [*unit_errors, *unit_warnings]:
+        if not _diagnostic_mentions_component(issue, component):
+            continue
+        mapped = _map_unit_diagnostic_code(
+            str(issue.get("code", "")),
+            str(issue.get("message", "")),
+        )
+        if mapped is None:
+            continue
+        context = {
+            "error_code": mapped,
+            "error_family": _UNIT_ERROR_FAMILY.get(mapped, "other"),
+        }
+        diagnostics.append(
+            with_meta(
+                {
+                    "code": str(issue.get("code", "")),
+                    "severity": (
+                        "warning"
+                        if str(issue.get("code", "")).startswith("W_")
+                        else "error"
+                    ),
+                    "message": str(issue.get("message", "")),
+                    "location": str(issue.get("location", "")),
+                    "context": context,
+                },
+                category="units",
+                engine="code",
+                check_id="code.units.cost_denominator",
+            )
+        )
+
+    structural_diags: list[dict[str, Any]]
+    try:
+        struct_errors, struct_warnings = collect_new_syntax_structural_diagnostics(
+            source
+        )
+        structural_diags = [
+            with_meta(
+                {
+                    "code": d["code"],
+                    "severity": "error",
+                    "message": d["message"],
+                    "location": d["location"],
+                },
+                category="units",
+                engine="code",
+                check_id="code.units.compiler_semantics",
+            )
+            for d in struct_errors
+        ] + [
+            with_meta(
+                {
+                    "code": d["code"],
+                    "severity": "warning",
+                    "message": d["message"],
+                    "location": d["location"],
+                },
+                category="units",
+                engine="code",
+                check_id="code.units.compiler_semantics",
+            )
+            for d in struct_warnings
+        ]
+    except Exception as exc:
+        structural_diags = _parse_exception_diagnostics(exc, category="units")
+
+    for diag in structural_diags:
+        if not _diagnostic_mentions_component(diag, component):
+            continue
+        mapped = _map_unit_diagnostic_code(
+            str(diag.get("code", "")),
+            str(diag.get("message", "")),
+        )
+        if mapped is None:
+            continue
+        context = dict(diag.get("context") or {})
+        context.update(
+            {
+                "error_code": mapped,
+                "error_family": _UNIT_ERROR_FAMILY.get(mapped, "other"),
+            }
+        )
+        diag = dict(diag)
+        diag["context"] = context
+        diagnostics.append(diag)
+
+    return diagnostics
+
+
 def _deterministic_reference(
     source: dict,
     category: str,
@@ -247,38 +421,14 @@ def _deterministic_reference(
     component: str | None = None,
 ) -> list[dict[str, Any]] | None:
     if check_id == UNITS_CHECK_ID and component:
-        # Component-scoped unit eval cases should not be compared against
-        # whole-source deterministic presence parity.
-        return None
+        return _component_unit_reference(source, component)
     if category not in {"structure", "units"}:
         return []
     try:
         grouped = collect_structural_by_category(source)
         return list(grouped.get(category, []))
     except Exception as exc:
-        text = str(exc)
-        parsed: list[dict[str, Any]] = []
-        for line in text.splitlines():
-            match = re.search(r"\[(?P<code>[EW]_[A-Z0-9_]+)\]", line)
-            if not match:
-                continue
-            code = match.group("code")
-            message = line.split("]", 1)[-1].strip()
-            if message.startswith("-"):
-                message = message[1:].strip()
-            severity = "warning" if code.startswith("W_") else "error"
-            parsed.append(
-                with_meta(
-                    {
-                        "code": code,
-                        "severity": severity,
-                        "message": message,
-                    },
-                    category=category,
-                    engine="code",
-                    check_id=f"code.{category}.compiler_semantics",
-                )
-            )
+        parsed = _parse_exception_diagnostics(exc, category=category)
         if parsed:
             return parsed
         return [

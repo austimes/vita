@@ -24,7 +24,7 @@ model:
       lhv_mj_per_unit: 50.0
       hhv_mj_per_unit: 55.0
     - id: material:steam
-      type: other
+      type: material
       unit: Mt
       combustible: false
 

@@ -12,7 +12,7 @@ VedaLang is a typed DSL that compiles to VEDA Excel tables for TIMES energy mode
 | xl2times diagnostics | ✅ Hardened |
 | Design challenges (DC1-DC5) | ✅ All passing |
 | Schema evolution policy | ✅ In place |
-| Test coverage | ✅ 1028 tests passing, 38 skipped |
+| Test coverage | ✅ 1033 tests passing, 38 skipped |
 | Primitives Exploration | ✅ Complete |
 | Schema Extensions | ✅ All implemented |
 | MiniSystem Stress Test | ✅ Complete |
@@ -30,17 +30,16 @@ Core design phases remain complete. Active work is concentrated on post-rollout 
 
 ### Active Work
 
-| Issue | Priority | Description | Status |
-|-------|----------|-------------|--------|
-| `vedalang-rm5` | P2 | Trade lens empty-graph diagnostic or example alignment | Open |
-| `vedalang-1gf` | P2 | Phase 2: full deterministic parity with llm unit taxonomy | Open |
-| `vedalang-2kz` | P2 | Update LSP schema docs/examples to canonical namespace conventions | Open |
-| `vedalang-4k8` | P2 | Migrate remaining C/S/E runtime helpers to canonical commodity namespaces | Open |
+No open `bd` issues at this time.
 
 ### Recently Completed
 
 | Issue | Priority | Description | Status |
 |-------|----------|-------------|--------|
+| `vedalang-rm5` | P2 | Trade lens now emits `NO_TRADE_LINKS` diagnostic for empty trade graph without links | ✓ Closed |
+| `vedalang-1gf` | P2 | Component-scoped deterministic unit parity + deterministic→taxonomy mapping + richer parity scoring | ✓ Closed |
+| `vedalang-2kz` | P2 | LSP schema docs/examples migrated to canonical namespaces and commodity.type wording | ✓ Closed |
+| `vedalang-4k8` | P2 | Runtime helpers migrated off legacy C/S/E semantics (registry emitter + graph builder + tests) | ✓ Closed |
 | `vedalang-cgl` | P1 | Core abstraction v2 epic completed across schema/compiler/viz/tests/docs | ✓ Closed |
 | `vedalang-hh4` | P1 | Schema v2 provider model + provider-aware case override contract | ✓ Closed |
 | `vedalang-3gm` | P1 | Compiler provider-native instance expansion + mixed source merge path | ✓ Closed |
@@ -55,12 +54,7 @@ Core design phases remain complete. Active work is concentrated on post-rollout 
 
 ### Future Work (P4+)
 
-| Issue | Description |
-|-------|-------------|
-| `vedalang-1gf` | Full deterministic parity with llm unit-check taxonomy |
-| `vedalang-2kz` | LSP schema docs/examples canonical namespace migration |
-| `vedalang-4k8` | Runtime helper migration to canonical commodity namespaces |
-| `vedalang-rm5` | Trade-lens empty-graph diagnostics/example alignment |
+Planned work remains in the P4 roadmap (`vedalang-6qs`, `vedalang-9xy`, `vedalang-a9m`) rather than currently open `bd` tickets.
 
 ---
 
@@ -157,9 +151,6 @@ All 10 energy system primitives explored and implemented:
 
 | Concept | Issue | Priority |
 |---------|-------|----------|
-| Deterministic parity with llm unit taxonomy | `vedalang-1gf` | P2 |
-| Canonical LSP docs/examples | `vedalang-2kz` | P2 |
-| Canonical runtime helper migration | `vedalang-4k8` | P2 |
 | Vintage/age tracking | — | Future |
 | Growth rate constraints | — | Future |
 
@@ -238,7 +229,7 @@ vedalang/
 │   ├── veda_run_times/       # TIMES solver runner
 │   └── vedalang_lsp/         # Language server
 ├── rules/                    # Pattern library
-├── tests/                    # 1028 tests (+ skipped)
+├── tests/                    # 1033 tests (+ skipped)
 ├── fixtures/                 # MiniVEDA2 + golden fixtures
 └── xl2times/                 # Validation oracle (third-party)
 ```

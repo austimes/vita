@@ -26,8 +26,8 @@ def emitter(registry):
 class TestCommodityEmission:
     """Tests for commodity registry entry emission."""
 
-    def test_emit_tradable_commodity_with_key_lookup(self, emitter, registry):
-        """Test emitting a TRADABLE commodity with key lookup."""
+    def test_emit_energy_commodity_with_key_lookup(self, emitter, registry):
+        """Test emitting a canonical carrier commodity with key lookup."""
         commodity = {
             "name": "ELC",
             "type": "energy",
@@ -37,8 +37,8 @@ class TestCommodityEmission:
 
         entry = emitter.emit_commodity(commodity)
 
-        assert entry.id == "C:ELC"
-        assert entry.kind == "TRADABLE"
+        assert entry.id == "secondary:ELC"
+        assert entry.kind == "carrier"
         assert entry.code == "ELC"
         assert entry.context is None
         assert entry.unit == "PJ"
@@ -51,7 +51,7 @@ class TestCommodityEmission:
             assert entry.key is None
 
     def test_emit_service_commodity_with_context(self, emitter):
-        """Test emitting a SERVICE commodity with context."""
+        """Test emitting a canonical service commodity with context."""
         commodity = {
             "name": "RSD",
             "type": "demand",
@@ -62,14 +62,14 @@ class TestCommodityEmission:
 
         entry = emitter.emit_commodity(commodity)
 
-        assert entry.id == "S:RSD:RES.ALL"
-        assert entry.kind == "SERVICE"
+        assert entry.id == "service:RSD"
+        assert entry.kind == "service"
         assert entry.code == "RSD"
         assert entry.context == "RES.ALL"
         assert entry.unit == "PJ"
 
     def test_emit_emission_commodity(self, emitter):
-        """Test emitting an EMISSION commodity."""
+        """Test emitting a canonical emission commodity."""
         commodity = {
             "name": "CO2",
             "type": "emission",
@@ -79,8 +79,8 @@ class TestCommodityEmission:
 
         entry = emitter.emit_commodity(commodity)
 
-        assert entry.id == "E:CO2"
-        assert entry.kind == "EMISSION"
+        assert entry.id == "emission:CO2"
+        assert entry.kind == "emission"
         assert entry.code == "CO2"
         assert entry.context is None
         assert entry.unit == "Mt"
@@ -88,6 +88,27 @@ class TestCommodityEmission:
 
 class TestProcessEmission:
     """Tests for process registry entry emission."""
+
+    def test_emit_canonical_provider_process(self, emitter):
+        """Canonical provider symbols should parse without legacy parser paths."""
+        process = {
+            "name": (
+                "FAC::port_kembla_steel::ROLE::steel_primary_production::"
+                "VAR::bf_bof::MODE::coal"
+            ),
+            "region": "NSW",
+            "description": "Blast furnace route",
+        }
+
+        entry = emitter.emit_process(process)
+
+        assert entry.id.startswith("FAC::")
+        assert entry.parsed["provider_kind"] == "FAC"
+        assert entry.parsed["provider_id"] == "port_kembla_steel"
+        assert entry.parsed["role"] == "steel_primary_production"
+        assert entry.parsed["variant"] == "bf_bof"
+        assert entry.parsed["mode"] == "coal"
+        assert entry.region == "NSW"
 
     def test_emit_inline_process_parsed_from_id(self, emitter):
         """Test emitting an inline process with full VEDA ID."""
@@ -184,8 +205,8 @@ class TestModelEmission:
         assert len(registry.commodities) == 2
         assert len(registry.processes) == 1
 
-        assert registry.commodities[0].id == "C:ELC"
-        assert registry.commodities[1].id == "E:CO2"
+        assert registry.commodities[0].id == "secondary:ELC"
+        assert registry.commodities[1].id == "emission:CO2"
 
     def test_emit_model_with_resolved_processes(self, emitter):
         """Test emitting model with resolved processes."""
@@ -261,10 +282,10 @@ class TestJSONSerialization:
         assert len(parsed["commodities"]) == 2
         assert len(parsed["processes"]) == 1
 
-        assert parsed["commodities"][0]["id"] == "C:ELC"
-        assert parsed["commodities"][0]["kind"] == "TRADABLE"
-        assert parsed["commodities"][1]["id"] == "S:RSD:RES.ALL"
-        assert parsed["commodities"][1]["kind"] == "SERVICE"
+        assert parsed["commodities"][0]["id"] == "secondary:ELC"
+        assert parsed["commodities"][0]["kind"] == "carrier"
+        assert parsed["commodities"][1]["id"] == "service:RSD"
+        assert parsed["commodities"][1]["kind"] == "service"
 
         assert parsed["processes"][0]["id"] == "P:CCG:GEN:SINGLE"
         assert parsed["processes"][0]["parsed"]["technology"] == "CCG"
@@ -295,11 +316,12 @@ class TestJSONSerialization:
 class TestEdgeCases:
     """Tests for edge cases and error handling."""
 
-    def test_commodity_without_type_defaults_to_tradable(self, emitter):
-        """Test that commodities without type default to TRADABLE."""
+    def test_commodity_without_type_defaults_to_carrier(self, emitter):
+        """Test that commodities without type default to carrier semantics."""
         commodity = {"name": "X", "unit": "PJ"}
         entry = emitter.emit_commodity(commodity)
-        assert entry.kind == "TRADABLE"
+        assert entry.id == "secondary:X"
+        assert entry.kind == "carrier"
 
     def test_process_without_sets_infers_gen_role(self, emitter):
         """Test that processes without sets default to GEN role."""

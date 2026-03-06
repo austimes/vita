@@ -37,7 +37,7 @@ model:
 Identifier or human-readable name, depending on context:
 
 - **model.name** – model identifier.
-- **commodity.name** – commodity identifier (e.g., `C:ELC`, `S:HEAT:RES.ALL`).
+- **commodity.name** – commodity identifier (e.g., `secondary:electricity`, `service:space_heat`).
 - **process.name** – process identifier (e.g., `PP_CCGT`, `IMP_NG`).
 - **process_template.name** – reusable technology template name (e.g., `CCGT_GEN`).
 - **process_instance.name** – instance label (for documentation; not a TIMES ID).
@@ -135,18 +135,18 @@ model:
 **Required**: yes on `model`
 
 List of commodity definitions (energy, materials, demands, emissions, etc.).
-Each entry must at least define `name` and `kind`.
+Each entry must at least define `id`/`name` and `type`.
 
 **Example**:
 ```yaml
 model:
   commodities:
-    - name: C:ELC
-      kind: TRADABLE
+    - id: secondary:electricity
+      type: energy
       unit: PJ
       description: Electricity
-    - name: S:HEAT:RES.ALL
-      kind: SERVICE
+    - id: service:space_heat
+      type: service
       context: RES.ALL
       unit: PJ
 ```
@@ -187,8 +187,8 @@ model:
     - name: PP_CCGT
       sets: [ELE]
       efficiency: 0.55
-      input: C:GAS
-      output: C:ELC
+      input: primary:natural_gas
+      output: secondary:electricity
 
     - name: R1_CCGT_1
       template: CCGT_GEN
@@ -209,7 +209,7 @@ model:
   scenario_parameters:
     - name: elec_demand_ref
       type: demand_projection
-      commodity: S:ELC:RES.ALL
+      commodity: service:residential_electricity
       category: demands
       interpolation: interp_extrap
       values:
@@ -230,7 +230,7 @@ model:
   trade_links:
     - origin: R1
       destination: R2
-      commodity: C:ELC
+      commodity: secondary:electricity
       bidirectional: true
       efficiency: 0.95
 ```
@@ -249,7 +249,7 @@ model:
   constraints:
     - name: CO2_CAP
       type: emission_cap
-      commodity: E:CO2
+      commodity: emission:co2
       limit: 50
       limtype: up
 ```
@@ -433,13 +433,13 @@ Selects a defined commodity as the target of a constraint, price path, trade lin
 **Examples**:
 ```yaml
 constraints:
-  - commodity: E:CO2
+  - commodity: emission:co2
 
 scenario_parameters:
-  - commodity: C:ELC
+  - commodity: secondary:electricity
 
 trade_links:
-  - commodity: C:NG
+  - commodity: primary:natural_gas
 ```
 """,
     "limit": """\
@@ -456,7 +456,7 @@ Can be overridden or made time-varying using `years`.
 constraints:
   - name: CO2_CAP
     type: emission_cap
-    commodity: E:CO2
+    commodity: emission:co2
     limit: 50   # e.g. Mt CO2
 ```
 """,
@@ -531,7 +531,7 @@ Year-specific RHS values that **override** the scalar `limit` for given years.
 constraints:
   - name: CO2_CAP
     type: emission_cap
-    commodity: E:CO2
+    commodity: emission:co2
     years:
       "2030": 45
       "2040": 30
@@ -579,7 +579,7 @@ Origin region of an inter-regional trade link. Must be in `model.regions`.
 trade_links:
   - origin: R1
     destination: R2
-    commodity: C:ELC
+    commodity: secondary:electricity
 ```
 """,
     "destination": """\
@@ -705,7 +705,7 @@ Use schema-aware hover/completion in the LSP for the current location's allowed 
 ## VedaLang: `context`
 
 **Type**: string matching `^[A-Z]{3}\\.[A-Z0-9_]+(\\.[A-Z0-9_]+)?$`
-**Used in**: `commodity` (only when `kind = SERVICE`), `process_instance`
+**Used in**: `commodity` (only when `type = service`), `process_instance`
 
 Sectoral/segment context for **service** commodities, typically:
 
@@ -719,8 +719,8 @@ Examples:
 
 **Rules**:
 
-- REQUIRED when `kind = SERVICE`.
-- Forbidden for `TRADABLE` and `EMISSION` commodities.
+- REQUIRED when `type = service`.
+- Forbidden for non-service commodity types.
 """,
     "unit": """\
 ## VedaLang: `unit`
@@ -734,7 +734,7 @@ Cost, price, and emission factor units are interpreted relative to this.
 **Example**:
 ```yaml
 commodities:
-  - name: C:ELC
+  - name: secondary:electricity
     unit: PJ
 ```
 """,
@@ -844,7 +844,7 @@ Equivalent to `inputs: [{commodity: <name>}]`.
 ```yaml
 processes:
   - name: PP_CCGT
-    input: C:GAS
+    input: primary:natural_gas
 ```
 """,
     "inputs": """\
@@ -861,8 +861,8 @@ Each flow may define a `share` and/or `emission_factor`.
 processes:
   - name: BOILER
     inputs:
-      - commodity: C:GAS
-      - commodity: C:OIL
+      - commodity: primary:natural_gas
+      - commodity: primary:oil
         share: 0.2
 ```
 """,
@@ -888,7 +888,7 @@ Detailed specification of output commodity flows.
 processes:
   - name: PP_CCGT
     outputs:
-      - commodity: C:ELC
+      - commodity: secondary:electricity
 ```
 """,
     "investment_cost": """\
@@ -1226,9 +1226,9 @@ Share of a **non-emission** flow among multiple outputs.
 Example:
 ```yaml
 outputs:
-  - commodity: C:ELC
+  - commodity: secondary:electricity
     share: 0.8
-  - commodity: C:HEAT
+  - commodity: service:space_heat
     share: 0.2
 ```
 """,
@@ -1249,7 +1249,7 @@ Use this instead of `share` for emission commodities.
 **Example**:
 ```yaml
 outputs:
-  - commodity: E:CO2
+  - commodity: emission:co2
     emission_factor: 0.07   # Mt CO2 per PJ activity
 ```
 """,

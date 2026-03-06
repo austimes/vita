@@ -170,6 +170,19 @@ def _empty_response(mode: str, diagnostics: list[dict[str, str]]) -> dict[str, A
     }
 
 
+def _trade_links_configured(source: dict[str, Any]) -> bool:
+    links = source.get("model", {}).get("trade_links", [])
+    if not isinstance(links, list):
+        return False
+    return any(
+        isinstance(link, dict)
+        and bool(link.get("origin"))
+        and bool(link.get("destination"))
+        and bool(link.get("commodity"))
+        for link in links
+    )
+
+
 def query_res_graph(request: dict[str, Any]) -> dict[str, Any]:
     """Run a graph query and return a stable JSON response contract."""
     req = _normalize_request(request)
@@ -279,6 +292,21 @@ def query_res_graph(request: dict[str, Any]) -> dict[str, Any]:
             _diagnostic("GRAPH_BUILD_FAILED", "error", "No graph was produced.")
         )
         return _empty_response(mode_used, diagnostics)
+    if req["lens"] == "trade":
+        graph = built.get("graph", {})
+        nodes = graph.get("nodes", []) if isinstance(graph, dict) else []
+        edges = graph.get("edges", []) if isinstance(graph, dict) else []
+        if not nodes and not edges and not _trade_links_configured(source):
+            diagnostics.append(
+                _diagnostic(
+                    "NO_TRADE_LINKS",
+                    "warning",
+                    (
+                        "Trade lens is empty because model.trade_links has no "
+                        "configured links."
+                    ),
+                )
+            )
 
     return {
         "version": "1",
