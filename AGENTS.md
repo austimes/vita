@@ -93,6 +93,30 @@ Build a **safer, typed DSL** that compiles to VEDA tables — analogous to how T
 
 VEDA Excel tables become a **compiled artifact**, not the source. xl2times validates the compiled output.
 
+## Current Project Status
+
+As of **2026-03-07**, the original core phases (**P0-P3**) remain complete, but
+the active workstream has shifted to the `vedalang-txa` rollout tree for the
+new **package/run/CSIR/CPIR** architecture tracked in `bd`.
+
+What this means for design-agent work:
+- Treat the current public authoring surface as a **legacy frontend slated for replacement**.
+- Do **not** extend the older public DSL shape unless it is required to preserve backend parity while the reset lands.
+- Prefer the new object-model terminology and architecture:
+  `package`, `run`, `commodity`, `technology`, `technology_role`,
+  `stock_characterization`, `site`, `facility`, `fleet`, `opportunity`,
+  `network`, `CSIR`, `CPIR`, `explain.json`.
+- Preserve end-to-end backend parity during the reset: compiled artifacts still
+  need to reach Excel, `xl2times`, and TIMES successfully.
+
+The active rollout epics are:
+- `vedalang-txa.1` — governance and version contract
+- `vedalang-txa.3` — public schema and AST reset
+- `vedalang-txa.4` — package/run/spatial/stock resolution
+- `vedalang-txa.5` — CSIR/CPIR/explain artifacts
+- `vedalang-txa.6` — backend parity through Excel/xl2times/TIMES
+- `vedalang-txa.7` — diagnostics, tooling, docs, and regression coverage
+
 ## Terminology
 
 VedaLang uses precise terminology to avoid ambiguity in the VEDA ecosystem:
@@ -123,26 +147,32 @@ This terminology maps to VEDA concepts:
 ## Architecture Overview
 
 ```
-VedaLang Source (.veda.yaml)
+Authored VedaLang package (.veda.yaml)
     │
     │  (1) Parse + schema-validate
     ▼
-VedaLang AST  ──►  TableIR (in-memory)
-    │                  │
-    │  (2) Type check  │  (3) Deterministic Excel emission
-    ▼                  ▼
-Typed VedaLang    VEDA Excel (.xlsx)
-                      │
-                      │  (4) xl2times --diagnostics-json
-                      ▼
-               TIMES DD files + Diagnostics
-                      │
-                      │  (5) vedalang-dev run-times
-                      ▼
-               GAMS/TIMES Solution (.gdx)
+Public AST / package graph
+    │
+    │  (2) Resolve one run
+    ▼
+CSIR (Canonical Semantic IR)
+    │
+    │  (3) Lower semantics to explicit process form
+    ▼
+CPIR (Canonical Process IR)
+    │
+    │  (4) Bridge to existing backend path
+    ▼
+TableIR  ──►  VEDA Excel (.xlsx)  ──►  xl2times  ──►  TIMES DD files
+                                                     │
+                                                     │  (5) vedalang-dev run-times
+                                                     ▼
+                                              GAMS/TIMES Solution (.gdx)
 ```
 
-**Key insight**: VedaLang is the source; Excel is compiled output; xl2times validates; GAMS solves.
+**Key insight**: the active frontend target is `package/run -> CSIR -> CPIR`,
+but the existing backend path through TableIR/Excel/xl2times remains the parity
+target until the reset is complete.
 
 ## Toolchain Build Order
 
@@ -151,8 +181,8 @@ Tools needed for an agent to **design VedaLang itself**:
 | Order | Tool | Purpose |
 |-------|------|---------|
 | **T1** | `xl2times` + JSON outputs | Validation oracle — "Is this valid VEDA?" |
-| **T2** | `vedalang-dev emit-excel` | TableIR → Excel emitter (test VEDA patterns) |
-| **T3** | `vedalang` compiler | VedaLang → TableIR → Excel |
+| **T2** | `vedalang-dev emit-excel` | Existing backend emitter (TableIR → Excel) |
+| **T3** | `vedalang` compiler | Active frontend under reset: source → CSIR/CPIR → backend path |
 | **T4** | `vedalang validate` | Orchestration wrapper with unified diagnostics |
 | **T5** | `vedalang-dev run-times` | Run DD files through GAMS/TIMES solver |
 
@@ -171,7 +201,7 @@ We are NOT porting legacy models. This is for new model development.
 ### 1. Language Mechanics (VedaLang)
 - Syntax, types, allowed constructs
 - Schema-defined (JSON Schema)
-- Compiler lowers to TableIR → Excel
+- Compiler lowers through CSIR/CPIR and then the existing TableIR → Excel path
 
 ### 2. Modeling Decisions (Heuristics)
 - "Given intent X, which tags/files/fields do I use?"
@@ -439,6 +469,9 @@ The agent discovers and refines these heuristics through experimentation.
 - VedaLang schema is evolving — propose improvements via schema changes
 - Decision heuristics are learned, not hardcoded
 - TableIR is your experimentation layer before committing to VedaLang syntax
+- The active design target is the package/run/CSIR/CPIR reset; avoid adding new
+  public features to the legacy provider-era DSL unless required as temporary
+  backend-compat plumbing
 
 ---
 
@@ -476,7 +509,9 @@ uv run vedalang-dev validate-tableir tables.yaml
 
 ---
 
-## Design Phases
+## Design Status
+
+### Historical Completed Phases
 
 | Phase | Name | Focus | Status |
 |-------|------|-------|--------|
@@ -484,7 +519,27 @@ uv run vedalang-dev validate-tableir tables.yaml
 | **P1** | TableIR Experimentation | Learn valid VEDA patterns via trial | ✅ DONE |
 | **P2** | Primitives Exploration | All energy system primitives | ✅ DONE |
 | **P3** | MiniSystem Stress Test | Real model validation | ✅ DONE |
-| **P4** | Advanced Features | Time-series, scenario composition | PLANNED |
+
+### Active Workstream: DSL Reset
+
+The current priority is the `vedalang-txa` rollout tree for the hard-cut public
+DSL reset. This supersedes the older "P4" framing as the main design target.
+
+| Epic | Focus |
+|------|-------|
+| `vedalang-txa.1` | Governance, versioning, and legacy rejection |
+| `vedalang-txa.3` | Public schema and AST reset |
+| `vedalang-txa.4` | Resolution: imports, runs, spatial/stock/site logic |
+| `vedalang-txa.5` | Canonical artifacts: CSIR, CPIR, explain.json |
+| `vedalang-txa.6` | Backend parity through Excel/xl2times/TIMES |
+| `vedalang-txa.7` | Diagnostics, tooling, docs, and regression coverage |
+
+### Longer-Term Backlog
+
+The older P4 ideas still exist as secondary backlog after the reset:
+- `vedalang-6qs` — Time-varying process attributes
+- `vedalang-9xy` — Scenario composition
+- `vedalang-a9m` — Units and dimension checking
 
 ### P0: Validate Toolchain (DONE)
 - ✅ `vedalang compile` works
@@ -508,11 +563,6 @@ All 10 energy system primitives explored and schema extensions implemented:
 - ✅ MiniSystem model specification designed
 - ✅ MiniSystem implemented in VedaLang
 - ✅ Golden CI test wired and passing
-
-### P4: Advanced Features (PLANNED)
-- `vedalang-6qs` — Time-varying process attributes
-- `vedalang-9xy` — Scenario composition
-- `vedalang-a9m` — Units and dimension checking
 
 ---
 
@@ -582,6 +632,7 @@ bd create "H0XX: <descriptive name>" --label heuristics
 | H001 | FixedNewCapShortLife | Fixed ncap_bound with lifetime < horizon |
 | H002 | DemandDeviceNoStock | Demand devices without stock/capacity |
 | H003 | BaseYearCapacityAdequacy | Insufficient base year capacity for demand |
+| H004 | StockCoversAllDemand | Stock can satisfy nearly all projected demand |
 
 **When to add a new heuristic:**
 - Pattern reliably causes solver infeasibility
@@ -694,18 +745,19 @@ The living status document is [`docs/project-status/STATUS.md`](docs/project-sta
 
 ```bash
 # Generate status summary from bd issues
+# Note: verify against bd JSON until vedalang-txa.7.6 lands.
 uv run python tools/sync_status.py
 
 # Show current open issues
-bd list --all | grep " open "
+bd list --all --json | jq '.[] | select(.status=="open") | {id, priority, issue_type, title}'
 
-# Count closed issues  
-bd list --all | grep " closed " | wc -l
+# Count closed issues
+bd list --all --json | jq '[.[] | select(.status=="closed")] | length'
 ```
 
 ### What to Update
 
-1. **Open Tasks table** — Must match `bd list --all | grep " open "`
+1. **Open Tasks table** — Must match `bd list --all --json | jq '.[] | select(.status=="open")'`
 2. **Closed count** — Update "X issues closed" number
 3. **Current Phase** — Update when epic completes
 4. **Capabilities table** — Add new features as implemented
