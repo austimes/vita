@@ -5,9 +5,6 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).parent.parent
 SCHEMA_PATH = PROJECT_ROOT / "vedalang" / "schema" / "vedalang.schema.json"
-LEGACY_SCHEMA_PATH = (
-    PROJECT_ROOT / "vedalang" / "schema" / "vedalang.legacy.schema.json"
-)
 
 
 def load_schema(path: Path) -> dict:
@@ -154,40 +151,3 @@ class TestV0_2SchemaContract:
         basis = self.schema["$defs"]["flow_spec"]["properties"]["basis"]
         assert basis["type"] == "string"
         assert basis["enum"] == ["HHV", "LHV"]
-
-
-class TestLegacySchemaIsolation:
-    """Verify the legacy schema remains available only for deterministic rejection."""
-
-    @classmethod
-    def setup_class(cls) -> None:
-        cls.legacy_schema = load_schema(LEGACY_SCHEMA_PATH)
-
-    def test_legacy_schema_still_recognizes_legacy_root(self) -> None:
-        assert self.legacy_schema.get("required") == ["model"]
-
-    def test_legacy_schema_retains_removed_public_surface(self) -> None:
-        legacy_properties = set(self.legacy_schema.get("properties", {}))
-        missing = LEGACY_TOP_LEVEL_PROPERTIES - legacy_properties
-        assert not missing, (
-            "Legacy compatibility schema lost expected public properties: "
-            f"{sorted(missing)}"
-        )
-
-    def test_legacy_schema_retains_removed_type_definitions(self) -> None:
-        defs = self.legacy_schema.get("$defs", {})
-        for definition in [
-            "process_role",
-            "process_variant",
-            "flow",
-            "scenario_parameter",
-            "timeslices",
-            "timeslice_level",
-            "scoping",
-            "availability_entry",
-            "process_parameter",
-            "demand",
-        ]:
-            assert definition in defs, (
-                f"Legacy compatibility schema lost definition: {definition}"
-            )

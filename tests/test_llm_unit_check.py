@@ -9,62 +9,122 @@ from vedalang import cli
 from vedalang.lint import llm_unit_check
 
 SOURCE = {
-    "model": {
-        "name": "UnitCheckTest",
-        "regions": ["R1"],
-        "commodities": [
-            {"id": "primary:natural_gas", "type": "fuel", "unit": "PJ"},
-            {"id": "secondary:electricity", "type": "energy", "unit": "TWh"},
-        ],
-    },
-    "roles": [
-        {
-            "id": "generate_electricity",
-            "activity_unit": "PJ",
-            "capacity_unit": "GW",
-            "required_inputs": [{"commodity": "primary:natural_gas"}],
-            "required_outputs": [{"commodity": "secondary:electricity"}],
-        }
+    "dsl_version": "0.2",
+    "commodities": [
+        {"id": "primary:natural_gas", "kind": "primary"},
+        {"id": "secondary:electricity", "kind": "secondary"},
     ],
-    "variants": [
+    "technologies": [
         {
             "id": "ccgt",
-            "role": "generate_electricity",
-            "inputs": [{"commodity": "primary:natural_gas", "coefficient": 6.4}],
+            "provides": "secondary:electricity",
+            "inputs": [
+                {
+                    "commodity": "primary:natural_gas",
+                    "coefficient": 6.4,
+                    "basis": "HHV",
+                }
+            ],
             "outputs": [{"commodity": "secondary:electricity", "coefficient": 1.0}],
-            "efficiency": 0.55,
+            "performance": {"kind": "efficiency", "value": 0.55},
+        }
+    ],
+    "technology_roles": [
+        {
+            "id": "electricity_supply",
+            "primary_service": "secondary:electricity",
+            "technologies": ["ccgt"],
+        }
+    ],
+    "spatial_layers": [
+        {
+            "id": "geo.demo",
+            "kind": "polygon",
+            "key": "region_id",
+            "geometry_file": "data/regions.geojson",
+        }
+    ],
+    "region_partitions": [
+        {
+            "id": "single_region",
+            "layer": "geo.demo",
+            "members": ["R1"],
+            "mapping": {"kind": "constant", "value": "R1"},
+        }
+    ],
+    "sites": [
+        {
+            "id": "hub",
+            "location": {"point": {"lat": 0.0, "lon": 0.0}},
+            "membership_overrides": {"region_partitions": {"single_region": "R1"}},
+        }
+    ],
+    "facilities": [
+        {
+            "id": "grid_supply",
+            "site": "hub",
+            "technology_role": "electricity_supply",
+            "stock": {
+                "items": [
+                    {
+                        "technology": "ccgt",
+                        "metric": "installed_capacity",
+                        "observed": {"value": "1 GW", "year": 2025},
+                    }
+                ]
+            },
+        }
+    ],
+    "runs": [
+        {
+            "id": "r1_2025",
+            "base_year": 2025,
+            "currency_year": 2024,
+            "region_partition": "single_region",
         }
     ],
 }
 
 SOURCE_WITH_MONETARY = {
-    "model": {
-        "name": "UnitCheckMonetary",
-        "regions": ["R1"],
-        "monetary": {
-            "canonical": "MAUD24",
-            "fx_table": "rules/monetary/fx_aud_usd_world_bank_pa_nus_fcrf.yaml",
-        },
-        "commodities": [
-            {"id": "secondary:electricity", "type": "energy", "unit": "PJ"},
-        ],
-    },
-    "roles": [
-        {
-            "id": "supply_power",
-            "activity_unit": "PJ",
-            "capacity_unit": "PJ/yr",
-            "required_inputs": [],
-            "required_outputs": [{"commodity": "secondary:electricity"}],
-        }
-    ],
-    "variants": [
+    "dsl_version": "0.2",
+    "commodities": [{"id": "secondary:electricity", "kind": "secondary"}],
+    "technologies": [
         {
             "id": "grid_import",
-            "role": "supply_power",
-            "inputs": [],
+            "provides": "secondary:electricity",
             "outputs": [{"commodity": "secondary:electricity"}],
-            "variable_om_cost": "6.944444 MUSD24/PJ",
+            "variable_om": "6.944444 MAUD24/MWh",
+        }
+    ],
+    "technology_roles": [
+        {
+            "id": "power_supply",
+            "primary_service": "secondary:electricity",
+            "technologies": ["grid_import"],
+        }
+    ],
+    "runs": [
+        {
+            "id": "r1_2025",
+            "base_year": 2025,
+            "currency_year": 2024,
+            "region_partition": "single_region",
+        }
+    ],
+    "spatial_layers": [
+        {
+            "id": "geo.demo",
+            "kind": "polygon",
+            "key": "region_id",
+            "geometry_file": "data/regions.geojson",
+        }
+    ],
+    "region_partitions": [
+        {
+            "id": "single_region",
+            "layer": "geo.demo",
+            "members": ["R1"],
+            "mapping": {"kind": "constant", "value": "R1"},
         }
     ],
 }
@@ -87,7 +147,7 @@ def _certified_result(
 def test_component_fingerprint_changes_on_component_edit():
     fp1 = llm_unit_check.component_fingerprint(SOURCE, "ccgt")
     mutated = json.loads(json.dumps(SOURCE))
-    mutated["variants"][0]["efficiency"] = 0.6
+    mutated["technologies"][0]["performance"]["value"] = 0.6
     fp2 = llm_unit_check.component_fingerprint(mutated, "ccgt")
     assert fp1 != fp2
 
@@ -225,7 +285,7 @@ def test_parse_unit_check_response_keeps_concrete_unit_other():
                         "Missing explicit coefficient linking electricity PJ "
                         "input to mobility Bvkm activity."
                     ),
-                    "suggestion": "Add input coefficient in PJ/Bvkm on the variant.",
+                    "suggestion": "Add input coefficient in PJ/Bvkm on the technology.",
                 }
             ],
         }
@@ -239,9 +299,9 @@ def test_parse_unit_check_response_keeps_concrete_unit_other():
 def test_assemble_unit_prompt_includes_unit_enums_and_policy():
     system_prompt, user_prompt = llm_unit_check.assemble_unit_prompt(SOURCE, "ccgt")
     assert "status" in system_prompt
-    assert "activity_unit must be an extensive (non-rate) unit" in system_prompt
+    assert "unit checks apply to v0.2 `technologies`" in system_prompt
     assert "Allowed unit enums from schema" in user_prompt
-    assert "capacity_unit must be power or '<unit>/yr'" in user_prompt
+    assert "investment_cost -> stock or capacity denominator" in user_prompt
     assert "Model unit policy" in user_prompt
     assert "energy_unit" in user_prompt
 
@@ -251,13 +311,13 @@ def test_assemble_unit_prompt_includes_monetary_literal_guidance():
         SOURCE_WITH_MONETARY,
         "grid_import",
     )
-    assert "currency-year tokens" in system_prompt
+    assert "currency-year literals" in system_prompt
     assert "Monetary literal syntax and policy" in user_prompt
     assert "MAUD24" in user_prompt
     assert "cost_rate_literal_pattern" in user_prompt
     assert "Model monetary policy" in user_prompt
-    assert '"canonical": "MAUD24"' in user_prompt
-    assert '"activity_unit": "PJ"' in user_prompt
+    assert '"currency_years": [' in user_prompt
+    assert '"basis_policy": "explicit_at_flow_site"' in user_prompt
 
 
 def test_run_component_unit_check_needs_review_on_split_votes():

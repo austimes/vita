@@ -245,7 +245,7 @@ cases:
     expected:
       required_code_substrings: []
       forbidden_code_substrings: []
-      expected_deterministic_codes: [W_ENERGY_MASS_BASIS_REQUIRED]
+      expected_deterministic_codes: []
       labels:
         - error_code: UNIT_BASIS_MISSING
           error_family: basis
@@ -409,7 +409,7 @@ cases:
     expected:
       required_code_substrings: []
       forbidden_code_substrings: []
-      expected_deterministic_codes: [W_ENERGY_MASS_BASIS_REQUIRED]
+      expected_deterministic_codes: []
       labels:
         - error_code: UNIT_BASIS_MISSING
           error_family: basis

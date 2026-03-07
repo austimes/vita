@@ -14,30 +14,24 @@ from vedalang.conventions import (
 from vedalang.lint.llm_assessment import assemble_prompt
 
 MINIMAL_SOURCE = {
-    "model": {
-        "name": "conventions_sync_test",
-        "regions": ["R1"],
-        "commodities": [
-            {"id": "secondary:electricity", "type": "energy"},
-            {"id": "service:space_heat", "type": "service"},
-        ],
-    },
-    "roles": [
-        {
-            "id": "provide_space_heat",
-            "activity_unit": "PJ",
-            "capacity_unit": "GW",
-            "stage": "end_use",
-            "required_inputs": [{"commodity": "secondary:electricity"}],
-            "required_outputs": [{"commodity": "service:space_heat"}],
-        }
+    "dsl_version": "0.2",
+    "commodities": [
+        {"id": "secondary:electricity", "kind": "secondary"},
+        {"id": "service:space_heat", "kind": "service"},
     ],
-    "variants": [
+    "technologies": [
         {
             "id": "heat_pump",
-            "role": "provide_space_heat",
+            "provides": "service:space_heat",
             "inputs": [{"commodity": "secondary:electricity"}],
             "outputs": [{"commodity": "service:space_heat"}],
+        }
+    ],
+    "technology_roles": [
+        {
+            "id": "space_heat_supply",
+            "primary_service": "service:space_heat",
+            "technologies": ["heat_pump"],
         }
     ],
 }

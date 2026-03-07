@@ -1,26 +1,17 @@
-model:
-  name: EvalStructureSinkLedgerClean
-  regions: [R1]
-  milestone_years: [2020, 2030]
-  commodities:
-    - id: emission:co2
-      type: emission
-      unit: Mt
-      combustible: false
-
-roles:
-  - id: remove_co2
-    stage: sink
-    activity_unit: Mt
-    capacity_unit: Mt/yr
-    required_inputs: []
-    required_outputs: []
-
-variants:
+dsl_version: "0.2"
+commodities:
+  - id: emission:co2
+    kind: emission
+technologies:
   - id: dac_ledger_sink
-    role: remove_co2
-    inputs: []
-    outputs: []
-    efficiency: 1.0
-    emission_factors:
-      emission:co2: -1.0
+    provides: emission:co2
+    emissions:
+      - commodity: emission:co2
+        factor: -1.0 t/t
+    performance:
+      kind: efficiency
+      value: 1.0
+technology_roles:
+  - id: remove_co2
+    primary_service: emission:co2
+    technologies: [dac_ledger_sink]

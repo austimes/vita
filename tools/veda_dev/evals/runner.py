@@ -275,7 +275,7 @@ def _map_unit_diagnostic_code(
 
 
 def _diagnostic_mentions_component(diag: dict[str, Any], component: str) -> bool:
-    token = f"variants[{component}]"
+    token = f"technologies[{component}]"
     location = str(diag.get("location", ""))
     message = str(diag.get("message", ""))
     return token in location or token in message

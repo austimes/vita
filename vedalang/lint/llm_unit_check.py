@@ -21,9 +21,10 @@ from vedalang.lint.llm_runtime import (
     canonical_model_name,
 )
 from vedalang.lint.prompt_registry import load_prompt_template
+from vedalang.versioning import looks_like_v0_2_source
 
 CHECK_ID = "llm.units.component_quorum"
-DEFAULT_PROMPT_VERSION = "v3"
+DEFAULT_PROMPT_VERSION = "v4"
 DEFAULT_MODELS = ("gpt-5-nano",)
 DEFAULT_MAX_OUTPUT_TOKENS = 2200
 
@@ -186,74 +187,111 @@ def save_store(path: Path, store: dict[str, Any]) -> None:
 
 
 def list_components(source: dict) -> list[str]:
-    """List component IDs for certification (P4 variants or legacy processes)."""
-    variants = source.get("variants") or []
-    if variants:
-        return [v["id"] for v in variants if "id" in v]
-    model = source.get("model", {})
-    return [p["name"] for p in model.get("processes", []) if "name" in p]
+    """List v0.2 technology IDs for certification."""
+    if not looks_like_v0_2_source(source):
+        raise ValueError("LLM unit checks now support only the v0.2 object model")
+    return [
+        str(technology["id"])
+        for technology in source.get("technologies") or []
+        if isinstance(technology, dict) and technology.get("id")
+    ]
 
 
 def _component_payload(source: dict, component: str) -> dict[str, Any]:
     """Build canonical payload used for fingerprinting and LLM review."""
-    model = source.get("model", {})
+    if not looks_like_v0_2_source(source):
+        raise ValueError("LLM unit checks now support only the v0.2 object model")
+
     commodities = {
-        (c.get("id") or c.get("name")): c for c in model.get("commodities", [])
+        str(c.get("id")): c
+        for c in source.get("commodities", []) or []
+        if isinstance(c, dict) and c.get("id")
     }
-    roles = {r.get("id"): r for r in source.get("roles", []) if "id" in r}
+    technologies = {
+        str(t.get("id")): t
+        for t in source.get("technologies", []) or []
+        if isinstance(t, dict) and t.get("id")
+    }
+    technology_roles = [
+        role
+        for role in source.get("technology_roles", []) or []
+        if isinstance(role, dict) and component in (role.get("technologies") or [])
+    ]
+    stock_uses = []
+    for family in ("facilities", "fleets"):
+        for asset in source.get(family, []) or []:
+            if not isinstance(asset, dict):
+                continue
+            for item in ((asset.get("stock") or {}).get("items") or []):
+                if isinstance(item, dict) and str(item.get("technology")) == component:
+                    stock_uses.append(
+                        {
+                            "family": family[:-1],
+                            "id": asset.get("id"),
+                            "technology_role": asset.get("technology_role"),
+                            "metric": item.get("metric"),
+                            "observed": item.get("observed"),
+                        }
+                    )
+    opportunity_uses = [
+        {
+            "id": opportunity.get("id"),
+            "technology": opportunity.get("technology"),
+            "max_new_capacity": opportunity.get("max_new_capacity"),
+            "siting": opportunity.get("siting"),
+        }
+        for opportunity in source.get("opportunities", []) or []
+        if isinstance(opportunity, dict)
+        and str(opportunity.get("technology")) == component
+    ]
+    run_currency_years = [
+        run.get("currency_year")
+        for run in source.get("runs", []) or []
+        if isinstance(run, dict) and run.get("currency_year") is not None
+    ]
     payload: dict[str, Any] = {
-        "model": model.get("name"),
-        "unit_policy": model.get("unit_policy", {}),
-        "monetary_policy": model.get("monetary", {}),
+        "dsl_version": source.get("dsl_version", "0.2"),
+        "unit_policy": {
+            "basis_policy": "explicit_at_flow_site",
+            "activity_capacity_units": "derived_from_stock_metric_and_cost_denominator",
+        },
+        "monetary_policy": {
+            "currency_years": sorted({int(year) for year in run_currency_years}),
+        },
         "cost_basis": {
-            "investment_cost": "currency per capacity_unit",
-            "fixed_om_cost": "currency per capacity_unit per year",
-            "variable_om_cost": "currency per activity_unit",
+            "investment_cost": "currency per stock or capacity denominator",
+            "fixed_om": "currency per stock or capacity denominator per year",
+            "variable_om": "currency per activity or service denominator",
         },
     }
+    technology = technologies.get(component)
+    if technology is None:
+        raise ValueError(f"Unknown component '{component}'")
 
-    for variant in source.get("variants", []):
-        if variant.get("id") != component:
-            continue
-        comm_refs = [
-            f["commodity"] for f in (variant.get("inputs") or []) if "commodity" in f
-        ]
-        comm_refs.extend(
-            f["commodity"] for f in (variant.get("outputs") or []) if "commodity" in f
-        )
-        payload["component"] = variant
-        role = roles.get(variant.get("role"))
-        if role is not None:
-            payload["role"] = role
-            payload["process_units"] = {
-                "activity_unit": role.get("activity_unit"),
-                "capacity_unit": role.get("capacity_unit"),
-            }
-        payload["commodities"] = {
-            cid: commodities[cid]
-            for cid in sorted(set(comm_refs))
-            if cid in commodities
-        }
-        return payload
-
-    for process in model.get("processes", []):
-        if process.get("name") != component:
-            continue
-        comm_refs = [
-            f["commodity"] for f in (process.get("inputs") or []) if "commodity" in f
-        ]
-        comm_refs.extend(
-            f["commodity"] for f in (process.get("outputs") or []) if "commodity" in f
-        )
-        payload["component"] = process
-        payload["commodities"] = {
-            cid: commodities[cid]
-            for cid in sorted(set(comm_refs))
-            if cid in commodities
-        }
-        return payload
-
-    raise ValueError(f"Unknown component '{component}'")
+    commodity_refs = [
+        str(flow["commodity"])
+        for section in ("inputs", "outputs", "emissions")
+        for flow in technology.get(section) or []
+        if isinstance(flow, dict) and flow.get("commodity")
+    ]
+    primary_services = [
+        str(role.get("primary_service"))
+        for role in technology_roles
+        if role.get("primary_service")
+    ]
+    commodity_refs.extend(primary_services)
+    payload["component"] = technology
+    payload["technology_roles"] = technology_roles
+    payload["deployment"] = {
+        "stock_uses": stock_uses,
+        "opportunities": opportunity_uses,
+    }
+    payload["commodities"] = {
+        commodity_id: commodities[commodity_id]
+        for commodity_id in sorted(set(commodity_refs))
+        if commodity_id in commodities
+    }
+    return payload
 
 
 def component_fingerprint(source: dict, component: str) -> str:
@@ -433,9 +471,8 @@ def assemble_unit_prompt(
 ) -> tuple[str, str]:
     """Assemble system and user prompts for one component."""
     payload = _component_payload(source, component)
-    model = source.get("model", {})
-    unit_policy = model.get("unit_policy", {})
-    monetary_policy = model.get("monetary", {})
+    unit_policy = payload.get("unit_policy", {})
+    monetary_policy = payload.get("monetary_policy", {})
     unit_reference = _schema_unit_reference()
 
     system_prompt = load_prompt_template(CHECK_ID, prompt_version, "system.txt")

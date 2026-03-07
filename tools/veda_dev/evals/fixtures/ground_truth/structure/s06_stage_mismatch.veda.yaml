@@ -1,35 +1,21 @@
-model:
-  name: EvalStructureStageMismatch
-  regions: [R1]
-  milestone_years: [2020, 2030]
-  commodities:
-    - id: secondary:electricity
-      type: energy
-      unit: PJ
-      combustible: false
-    - id: primary:natural_gas
-      type: fuel
-      unit: PJ
-      combustible: true
-      lhv_mj_per_unit: 50.0
-      hhv_mj_per_unit: 55.0
-
-roles:
-  - id: export_power
-    stage: supply
-    activity_unit: PJ
-    capacity_unit: GW
-    required_inputs:
-      - commodity: primary:natural_gas
-    required_outputs:
-      - commodity: secondary:electricity
-
-variants:
+dsl_version: "0.2"
+commodities:
+  - id: secondary:electricity
+    kind: secondary
+  - id: primary:natural_gas
+    kind: primary
+technologies:
   - id: odd_supply_ccgt
-    role: export_power
+    provides: secondary:electricity
     inputs:
       - commodity: primary:natural_gas
         basis: HHV
     outputs:
       - commodity: secondary:electricity
-    efficiency: 0.55
+    performance:
+      kind: efficiency
+      value: 0.55
+technology_roles:
+  - id: export_power
+    primary_service: secondary:electricity
+    technologies: [odd_supply_ccgt]

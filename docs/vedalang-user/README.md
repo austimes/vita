@@ -88,7 +88,7 @@ engines:
 
 - `core` — parse/schema/cross-reference integrity
 - `identity` — naming/ID convention checks
-- `structure` — RES architecture and stage/role/variant consistency
+- `structure` — RES architecture and stage/role/technology consistency
 - `units` — units, basis, coefficients, and denominator plausibility
 - `emissions` — emission namespace/type/factor checks
 - `feasibility` — pre-solve heuristic risk checks

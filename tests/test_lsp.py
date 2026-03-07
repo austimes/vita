@@ -101,19 +101,21 @@ class TestHoverFormatting:
     def test_schema_field_docs_loaded(self):
         """Schema field docs should be loaded with comprehensive coverage."""
         assert len(SCHEMA_FIELD_DOCS) >= 50
-        # Check key fields are documented
-        assert "context" in SCHEMA_FIELD_DOCS
+        # Check active v0.2 fields are documented
+        assert "commodities" in SCHEMA_FIELD_DOCS
+        assert "technologies" in SCHEMA_FIELD_DOCS
+        assert "technology_roles" in SCHEMA_FIELD_DOCS
+        assert "runs" in SCHEMA_FIELD_DOCS
         assert "kind" in SCHEMA_FIELD_DOCS
-        assert "role" in SCHEMA_FIELD_DOCS
-        assert "scope" in SCHEMA_FIELD_DOCS
+        assert "description" in SCHEMA_FIELD_DOCS
         assert "interpolation" in SCHEMA_FIELD_DOCS
 
-    def test_schema_field_docs_context_content(self):
-        """Context field doc should explain its purpose."""
-        context_doc = SCHEMA_FIELD_DOCS.get("context")
-        assert context_doc is not None
-        assert "type = service" in context_doc
-        assert "sector" in context_doc.lower() or "scope" in context_doc.lower()
+    def test_schema_field_docs_technology_roles_content(self):
+        """Technology role doc should reflect the v0.2 object model."""
+        role_doc = SCHEMA_FIELD_DOCS.get("technology_roles")
+        assert role_doc is not None
+        assert "service-oriented role contracts" in role_doc.lower()
+        assert "primary_service" in role_doc
 
     def test_format_times_attribute_hover(self):
         """TIMES attribute hover should include description."""
@@ -488,72 +490,60 @@ technology_roles:
 class TestSchemaDrivenEnums:
     """Tests for schema-driven enum hover/completion/diagnostics behavior."""
 
-    def test_process_variant_kind_enum_includes_network(self):
-        """Schema enum for variants.kind should include network."""
-        schema_node = schema_for_path(["variants", 0, "kind"])
+    def test_network_kind_enum_includes_transmission(self):
+        """Schema enum for networks.kind should expose the v0.2 values."""
+        schema_node = schema_for_path(["networks", 0, "kind"])
         assert schema_node is not None
         enum_values = enum_values_from_schema(schema_node)
-        assert "network" in enum_values
-        assert "generator" in enum_values
+        assert "transmission" in enum_values
+        assert "pipeline" in enum_values
 
-    def test_schema_lookup_for_kind_uses_process_variant_context(self):
-        """Context lookup should resolve variants.kind correctly."""
-        source = """model:
-  name: test
-  regions: [R1]
-  commodities:
-    - id: secondary:electricity
-      type: energy
-  processes: []
-roles:
-  - id: deliver_power
-    required_inputs:
-      - commodity: secondary:electricity
-    required_outputs:
-      - commodity: secondary:electricity
-variants:
-  - id: grid_distribution
-    role: deliver_power
-    inputs:
-      - commodity: secondary:electricity
-    outputs:
-      - commodity: secondary:electricity
-    kind: network
+    def test_schema_lookup_for_kind_uses_network_context(self):
+        """Context lookup should resolve networks.kind correctly."""
+        source = """dsl_version: "0.2"
+commodities:
+  - id: secondary:electricity
+    kind: secondary
+networks:
+  - id: grid
+    kind: transmission
+    node_basis:
+      kind: sites
+    links:
+      - id: n_s
+        from: north_hub
+        to: south_hub
+        commodity: secondary:electricity
 """
         doc = MockTextDocument(source)
-        line_idx = next(i for i, line in enumerate(doc.lines) if "kind:" in line)
+        line_idx = next(
+            i for i, line in enumerate(doc.lines) if "kind: transmission" in line
+        )
         key_start = doc.lines[line_idx].index("kind")
         path, schema_node = schema_for_key_at_position(
             doc, types.Position(line=line_idx, character=key_start), "kind"
         )
         assert path is not None
-        assert path[-3:] == ["variants", 0, "kind"]
+        assert path[-3:] == ["networks", 0, "kind"]
         assert schema_node is not None
-        assert "network" in enum_values_from_schema(schema_node)
+        assert "transmission" in enum_values_from_schema(schema_node)
 
-    def test_validate_invalid_process_variant_kind_emits_schema_error(self):
-        """Invalid enum value should be diagnosed by schema validation."""
-        source = """model:
-  name: test
-  regions: [R1]
-  commodities:
-    - id: secondary:electricity
-      type: energy
-  processes: []
-roles:
-  - id: deliver_power
-    required_inputs:
-      - commodity: secondary:electricity
-    required_outputs:
-      - commodity: secondary:electricity
-variants:
-  - id: grid_distribution
-    role: deliver_power
-    inputs:
-      - commodity: secondary:electricity
-    outputs:
-      - commodity: secondary:electricity
+    def test_validate_invalid_network_kind_emits_schema_error(self):
+        """Invalid network kind should be diagnosed by schema validation."""
+        source = """dsl_version: "0.2"
+commodities:
+  - id: secondary:electricity
+    kind: secondary
+networks:
+  - id: grid
     kind: invalid_kind
+    node_basis:
+      kind: sites
+    links:
+      - id: n_s
+        from: north_hub
+        to: south_hub
+        commodity: secondary:electricity
 """
         doc = MockTextDocument(source)
         diagnostics = validate_document(server, doc)
@@ -563,29 +553,22 @@ variants:
         ]
         assert len(schema_errors) >= 1
 
-    def test_validate_network_process_variant_kind_is_accepted(self):
+    def test_validate_network_kind_is_accepted(self):
         """Valid network enum should not produce a schema error."""
-        source = """model:
-  name: test
-  regions: [R1]
-  commodities:
-    - id: secondary:electricity
-      type: energy
-  processes: []
-roles:
-  - id: deliver_power
-    required_inputs:
-      - commodity: secondary:electricity
-    required_outputs:
-      - commodity: secondary:electricity
-variants:
-  - id: grid_distribution
-    role: deliver_power
-    inputs:
-      - commodity: secondary:electricity
-    outputs:
-      - commodity: secondary:electricity
-    kind: network
+        source = """dsl_version: "0.2"
+commodities:
+  - id: secondary:electricity
+    kind: secondary
+networks:
+  - id: grid
+    kind: transmission
+    node_basis:
+      kind: sites
+    links:
+      - id: n_s
+        from: north_hub
+        to: south_hub
+        commodity: secondary:electricity
 """
         doc = MockTextDocument(source)
         diagnostics = validate_document(server, doc)

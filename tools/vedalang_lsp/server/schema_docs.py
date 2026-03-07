@@ -12,209 +12,183 @@ SCHEMA_FIELD_DOCS: dict[str, str] = {
     "model": """\
 ## VedaLang: `model`
 
-**Type**: object
-**Required**: yes (root key)
+**Status**: legacy archive surface
 
-Container for the entire VedaLang model definition.
-All other sections (`regions`, `commodities`, `processes`, etc.) live under this key.
-
-**Example**:
-```yaml
-model:
-  name: my_model
-  regions: [R1, R2]
-  milestone_years: [2020, 2030, 2040, 2050]
-  commodities: []
-  processes: []
-```
+The active public DSL is v0.2 and no longer uses a `model:` root block.
+Use top-level objects such as `commodities`, `technologies`,
+`technology_roles`, `sites`, `facilities`, `fleets`, `opportunities`,
+`networks`, and `runs`.
 """,
     "name": """\
 ## VedaLang: `name`
 
 **Type**: string
-**Used in**: `model`, `commodity`, `process`, `process_template`, `process_instance`, `scenario_parameter`, `case`, `study`
+**Used in**: active v0.2 objects such as `commodity`, `technology`, `technology_role`, `site`, `facility`, `fleet`, `opportunity`, `network`, and `run`
 
-Identifier or human-readable name, depending on context:
+Identifier or human-readable label, depending on context.
 
-- **model.name** – model identifier.
-- **commodity.name** – commodity identifier (e.g., `secondary:electricity`, `service:space_heat`).
-- **process.name** – process identifier (e.g., `PP_CCGT`, `IMP_NG`).
-- **process_template.name** – reusable technology template name (e.g., `CCGT_GEN`).
-- **process_instance.name** – instance label (for documentation; not a TIMES ID).
-- **scenario_parameter.name** – scenario parameter identifier.
-- **case.name** – case identifier (must match `^[a-z][a-z0-9_]*$`).
-- **study.name** – study name.
+For the active v0.2 DSL, prefer `id` for stable references and use `name` only
+where an object supports a human-readable label.
 
-**Notes**:
-- Names are used for reference and must be unique within their collections.
-- `case.name` is used in filenames: `Scen_{case}_{category}.xlsx`.
+Legacy `model/process/process_template/process_instance/case/study` meanings are
+archive-only and are not part of the active public authoring surface.
 """,
     "description": """\
 ## VedaLang: `description`
 
 **Type**: string
-**Used in**: most objects (`model`, `commodity`, `process`, `process_template`, `scenario_parameter`, `constraint`, `case`, `study`)
+**Used in**: v0.2 objects that support human-readable documentation
 
 Optional human-readable description to document the purpose of the object.
 
 **Example**:
 ```yaml
-processes:
-  - name: PP_CCGT
+technologies:
+  - id: ccgt
     description: Combined-cycle gas turbine for baseload electricity
 ```
 """,
     "regions": """\
 ## VedaLang: `regions`
 
-**Type**: array of string
-**Required**: yes on `model`
+**Status**: legacy archive field
 
-List of region codes used in the model.
-All region references (e.g., `process_instance.region`, `trade_link.origin`) must come from this list.
+The active v0.2 DSL does not use `model.regions`.
+Define spatial context through `spatial_layers`, `region_partitions`, `sites`,
+and `runs`.
 
 **Example**:
 ```yaml
-model:
-  regions: [R1, R2, R3]
+runs:
+  - id: single_2025
+    region_partition: single_region
 ```
 """,
     "milestone_years": """\
 ## VedaLang: `milestone_years`
 
-**Type**: array of integer (>= 1900)
-**Required**: recommended on `model` (schema requires >=1 item)
+**Status**: legacy archive field
 
-Ordered list of **model milestone years**.
-The **first year** is the model start year; later years define the planning horizon.
+The active v0.2 DSL no longer defines milestone years on `model`.
+Use `runs[*].base_year` plus explicit year-indexed values in stock and temporal
+objects instead of an implicit model-root year list.
 
 **Example**:
 ```yaml
-model:
-  milestone_years: [2020, 2030, 2040, 2050]
+runs:
+  - id: single_2025
+    base_year: 2025
 ```
 """,
     "timeslices": """\
 ## VedaLang: `timeslices`
 
-**Type**: object (`season`, `weekly`, `daynite`, `fractions`)
-**Used in**: `model`
+**Status**: legacy archive field
 
-Defines intra-annual temporal resolution, mapped to TIMES timeslices.
-
-- `season`: seasonal codes (e.g., summer/winter).
-- `weekly`: optional weekly codes.
-- `daynite`: within-day codes (e.g., day/night).
-- `fractions`: year fraction of each **composite** timeslice. Must sum to 1.0.
-
-**Example**:
-```yaml
-model:
-  timeslices:
-    season:
-      - code: S
-        name: Summer
-      - code: W
-        name: Winter
-    daynite:
-      - code: D
-        name: Day
-      - code: N
-        name: Night
-    fractions:
-      SD: 0.25
-      SN: 0.25
-      WD: 0.25
-      WN: 0.25
-```
+The active v0.2 public schema uses temporal reference objects such as
+`temporal_index_series` rather than `model.timeslices`.
 """,
     "commodities": """\
 ## VedaLang: `commodities`
 
 **Type**: array of `commodity` objects
-**Required**: yes on `model`
+**Used in**: v0.2 root
 
-List of commodity definitions (energy, materials, demands, emissions, etc.).
-Each entry must at least define `id`/`name` and `type`.
+List of v0.2 commodity definitions.
+Each entry defines an `id` and `kind`.
 
 **Example**:
 ```yaml
-model:
-  commodities:
-    - id: secondary:electricity
-      type: energy
-      unit: PJ
-      description: Electricity
-    - id: service:space_heat
-      type: service
-      context: RES.ALL
-      unit: PJ
+commodities:
+  - id: secondary:electricity
+    kind: secondary
+  - id: service:space_heat
+    kind: service
+```
+""",
+    "technologies": """\
+## VedaLang: `technologies`
+
+**Type**: array of `technology` objects
+**Used in**: v0.2 root
+
+Concrete implementation pathways.
+Technologies declare physical inputs/outputs, performance, costs, lifetime,
+and emissions.
+
+**Example**:
+```yaml
+technologies:
+  - id: heat_pump
+    provides: service:space_heat
+    inputs:
+      - commodity: secondary:electricity
+    performance:
+      kind: cop
+      value: 3.0
+```
+""",
+    "technology_roles": """\
+## VedaLang: `technology_roles`
+
+**Type**: array of `technology_role` objects
+**Used in**: v0.2 root
+
+Service-oriented role contracts that group substitutable technologies around
+one `primary_service`.
+
+**Example**:
+```yaml
+technology_roles:
+  - id: space_heat_supply
+    primary_service: service:space_heat
+    technologies: [gas_heater, heat_pump]
+```
+""",
+    "runs": """\
+## VedaLang: `runs`
+
+**Type**: array of `run` objects
+**Used in**: v0.2 root
+
+Defines the compiled model context: base year, currency year, and region
+partition.
+
+**Example**:
+```yaml
+runs:
+  - id: single_2025
+    base_year: 2025
+    currency_year: 2024
+    region_partition: single_region
 ```
 """,
     "process_templates": """\
 ## VedaLang: `process_templates`
 
-**Type**: array of `process_template` objects
+**Status**: legacy archive surface
 
-Region-agnostic process/technology templates reused across regions.
-Templates capture technology-level attributes; region-specific overrides go in `process_instance`.
-
-**Example**:
-```yaml
-model:
-  process_templates:
-    - name: CCGT_GEN
-      technology: CCG
-      role: GEN
-      efficiency: 0.55
-```
+The active v0.2 DSL does not use `process_templates`.
+Author concrete pathways in `technologies` and group substitutions in
+`technology_roles`.
 """,
     "processes": """\
 ## VedaLang: `processes`
 
-**Type**: array of `process` or `process_instance` objects
-**Required**: recommended on `model`
+**Status**: legacy archive surface
 
-Collection of:
-
-- **Inline processes** (`process`) – full definition inside the model.
-- **Process instances** (`process_instance`) – region-specific instantiation of a `process_template`.
-
-**Example**:
-```yaml
-model:
-  processes:
-    - name: PP_CCGT
-      sets: [ELE]
-      efficiency: 0.55
-      input: primary:natural_gas
-      output: secondary:electricity
-
-    - name: R1_CCGT_1
-      template: CCGT_GEN
-      region: R1
-```
+The active v0.2 DSL does not use `processes`.
+Author technologies at the top level and place stock/build options through
+`facilities`, `fleets`, `opportunities`, and `networks`.
 """,
     "scenario_parameters": """\
 ## VedaLang: `scenario_parameters`
 
-**Type**: array of `scenario_parameter` objects
+**Status**: legacy archive surface
 
-Atomic assumptions like demand projections or price paths, grouped by `category`.
-Replaces the deprecated `scenarios` section.
-
-**Example**:
-```yaml
-model:
-  scenario_parameters:
-    - name: elec_demand_ref
-      type: demand_projection
-      commodity: service:residential_electricity
-      category: demands
-      interpolation: interp_extrap
-      values:
-        "2020": 10
-        "2030": 12
+The active v0.2 public schema does not expose `scenario_parameters`.
+Represent active temporal and run-specific context through v0.2 run, stock, and
+reference-data objects instead.
 ```
 """,
     "trade_links": """\
@@ -696,7 +670,7 @@ timeslices:
 ## VedaLang: `kind`
 
 **Type**: string enum (context-dependent)
-**Used in**: multiple sections (for example `variants.kind`)
+**Used in**: multiple v0.2 sections (for example `commodities.kind`, `networks.kind`, `performance.kind`)
 
 `kind` does not have one global enum. The valid values depend on where the field appears.
 Use schema-aware hover/completion in the LSP for the current location's allowed values.
@@ -704,23 +678,11 @@ Use schema-aware hover/completion in the LSP for the current location's allowed 
     "context": """\
 ## VedaLang: `context`
 
-**Type**: string matching `^[A-Z]{3}\\.[A-Z0-9_]+(\\.[A-Z0-9_]+)?$`
-**Used in**: `commodity` (only when `type = service`), `process_instance`
+**Status**: legacy archive field
 
-Sectoral/segment context for **service** commodities, typically:
-
-`{SECTOR}.{SEGMENT}[.{SUBSEGMENT}]`
-
-Examples:
-
-- `RES.ALL` – residential, all dwellings.
-- `COM.OFFICE` – commercial, office buildings.
-- `IND.METALS.ALUMINA` – industrial, metals, alumina segment.
-
-**Rules**:
-
-- REQUIRED when `type = service`.
-- Forbidden for non-service commodity types.
+The active v0.2 DSL does not use `context` on commodities or process
+instances. Prefer explicit spatial placement with `sites`, `facilities`,
+`fleets`, `region_partitions`, and `runs`.
 """,
     "unit": """\
 ## VedaLang: `unit`
@@ -1126,37 +1088,28 @@ This is purely for visualization/reporting.
     "template": """\
 ## VedaLang: `template`
 
-**Type**: string (reference to `process_template.name`)
-**Used in**: `process_instance`
+**Status**: legacy archive field
 
-Selects which **process_template** this instance is based on.
-The instance can then override costs, lifetimes, bounds, etc.
+The active v0.2 DSL does not use `process_instance.template`.
+Use `technology_role`, `technology`, and deployment objects instead.
 """,
     "region": """\
 ## VedaLang: `region`
 
-**Type**: string (region code)
-**Used in**: `process_instance`
+**Status**: mixed field; legacy process field plus active network/site context
 
-Region where this process instance exists.
-Must be a member of `model.regions`.
+In the active v0.2 DSL, region-like placement is expressed through
+`region_partitions`, `sites`, `membership_overrides`, and `networks`.
+Legacy `process_instance.region` usage is archive-only.
 """,
     "variant": """\
 ## VedaLang: `variant`
 
-**Type**: string
-**Used in**: `process_instance`
+**Status**: legacy archive field
 
-Variant code differentiating instances of the same template/technology.
-Often used for technology options like different CCS capture rates or sizes.
-
-**Example**:
-```yaml
-processes:
-  - name: R1_CCGT_CCS90
-    template: CCGT_GEN
-    variant: CCS90
-```
+The active v0.2 public DSL does not expose a top-level `variant` field.
+Technology alternatives should be modeled as separate `technologies` linked by
+one `technology_role`.
 """,
     "vintage": """\
 ## VedaLang: `vintage`

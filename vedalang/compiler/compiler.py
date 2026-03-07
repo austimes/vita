@@ -4028,7 +4028,6 @@ def _compile_new_syntax(
         ],
         "cases": cases_json,
         "metadata_map": {"processes": metadata_map},
-        "provider_report": _build_provider_report(metadata_map),
         "diagnostics_export": diagnostics_export,
         "convention_diagnostics": {
             "contract": "res_conventions_v1",
@@ -4418,54 +4417,6 @@ def _resolve_diagnostics_boundaries(
         "metrics": diagnostics.get("metrics", []),
         "warnings": warnings,
     }
-
-
-def _build_provider_report(metadata_map: dict[str, dict]) -> dict[str, list[dict]]:
-    """Build provider-centric reporting payload from process metadata."""
-    grouped: dict[str, dict] = {}
-    for process_symbol, meta in metadata_map.items():
-        provider_id = meta.get("provider")
-        if not provider_id:
-            continue
-        entry = grouped.setdefault(
-            provider_id,
-            {
-                "provider_id": provider_id,
-                "provider_kind": meta.get("provider_kind"),
-                "role": meta.get("role"),
-                "region": meta.get("region"),
-                "scopes": set(),
-                "variants": set(),
-                "modes": set(),
-                "processes": [],
-            },
-        )
-        scope = meta.get("scope")
-        if scope:
-            entry["scopes"].add(scope)
-        variant = meta.get("variant")
-        if variant:
-            entry["variants"].add(variant)
-        mode = meta.get("mode")
-        if mode:
-            entry["modes"].add(mode)
-        entry["processes"].append(process_symbol)
-
-    providers = []
-    for provider_id, entry in sorted(grouped.items()):
-        providers.append(
-            {
-                "provider_id": provider_id,
-                "provider_kind": entry.get("provider_kind"),
-                "role": entry.get("role"),
-                "region": entry.get("region"),
-                "scopes": sorted(entry["scopes"]),
-                "variants": sorted(entry["variants"]),
-                "modes": sorted(entry["modes"]),
-                "processes": sorted(entry["processes"]),
-            }
-        )
-    return {"providers": providers}
 
 
 def compile_vedalang_to_tableir(

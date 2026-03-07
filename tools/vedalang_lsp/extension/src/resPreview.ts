@@ -14,13 +14,7 @@ interface ResGraphResponse {
 }
 
 type SourceMode = "source" | "compiled";
-type Granularity =
-  | "role"
-  | "provider"
-  | "provider_variant"
-  | "provider_variant_mode"
-  | "instance"
-  | "variant";
+type Granularity = "role" | "instance";
 type CommodityView = "collapse_scope" | "scoped";
 
 export class ResPreviewPanel {
@@ -176,9 +170,6 @@ export class ResPreviewPanel {
           commodityView: this.commodityView,
           lens: "system",
           regions: this.selectedRegions,
-          includeVariants:
-            this.granularity === "variant" ||
-            this.granularity === "provider_variant",
         }
       );
 
@@ -214,13 +205,6 @@ export class ResPreviewPanel {
     const modeSourceSelected = this.mode === "source" ? "selected" : "";
     const modeCompiledSelected = this.mode === "compiled" ? "selected" : "";
     const roleSelected = this.granularity === "role" ? "selected" : "";
-    const providerSelected = this.granularity === "provider" ? "selected" : "";
-    const variantSelected =
-      this.granularity === "provider_variant" || this.granularity === "variant"
-        ? "selected"
-        : "";
-    const modeSelected =
-      this.granularity === "provider_variant_mode" ? "selected" : "";
     const instanceSelected = this.granularity === "instance" ? "selected" : "";
     const collapseScopeSelected =
       this.commodityView === "collapse_scope" ? "selected" : "";
@@ -333,9 +317,6 @@ export class ResPreviewPanel {
         <label class="control">Granularity
             <select onchange="setGranularity(this.value)">
               <option value="role" ${roleSelected}>role</option>
-              <option value="provider" ${providerSelected}>provider</option>
-              <option value="provider_variant" ${variantSelected}>provider×variant</option>
-              <option value="provider_variant_mode" ${modeSelected}>provider×variant×mode</option>
               <option value="instance" ${instanceSelected}>instance</option>
             </select>
         </label>

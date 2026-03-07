@@ -1,26 +1,14 @@
-model:
-  name: EvalStructureZeroInput
-  regions: [R1]
-  milestone_years: [2020, 2030]
-  commodities:
-    - id: service:heat
-      type: service
-      unit: PJ
-      combustible: false
-
-roles:
-  - id: provide_heat
-    stage: end_use
-    activity_unit: PJ
-    capacity_unit: GW
-    required_inputs: []
-    required_outputs:
-      - commodity: service:heat
-
-variants:
+dsl_version: "0.2"
+commodities:
+  - id: service:heat
+    kind: service
+technologies:
   - id: heat_service_device
-    role: provide_heat
-    inputs: []
-    outputs:
-      - commodity: service:heat
-    efficiency: 1.0
+    provides: service:heat
+    performance:
+      kind: efficiency
+      value: 1.0
+technology_roles:
+  - id: heat_supply
+    primary_service: service:heat
+    technologies: [heat_service_device]

@@ -1,0 +1,77 @@
+{
+  "type": "object",
+  "required": [
+    "status",
+    "findings"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": [
+        "pass",
+        "fail",
+        "needs_review"
+      ]
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "severity",
+          "error_code",
+          "error_family",
+          "difficulty",
+          "message"
+        ],
+        "additionalProperties": true,
+        "properties": {
+          "severity": {
+            "type": "string",
+            "enum": [
+              "critical",
+              "warning",
+              "suggestion"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "error_code": {
+            "type": "string"
+          },
+          "error_family": {
+            "type": "string"
+          },
+          "difficulty": {
+            "type": "string",
+            "enum": [
+              "easy",
+              "medium",
+              "hard"
+            ]
+          },
+          "field": {
+            "type": "string"
+          },
+          "suggestion": {
+            "type": "string"
+          },
+          "expected_process_units": {
+            "type": "object"
+          },
+          "expected_commodity_units": {
+            "type": "object"
+          },
+          "observed_units": {
+            "type": "object"
+          },
+          "model_expectation": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

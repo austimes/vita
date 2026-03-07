@@ -1,54 +1,31 @@
-model:
-  name: EvalStructureFragmentedRoles
-  regions: [R1]
-  milestone_years: [2020, 2030]
-  commodities:
-    - id: service:heat
-      type: service
-      unit: PJ
-      combustible: false
-    - id: secondary:electricity
-      type: energy
-      unit: PJ
-      combustible: false
-    - id: primary:natural_gas
-      type: fuel
-      unit: PJ
-      combustible: true
-      lhv_mj_per_unit: 50.0
-      hhv_mj_per_unit: 55.0
-
-roles:
-  - id: provide_heat_from_power
-    stage: end_use
-    activity_unit: PJ
-    capacity_unit: GW
-    required_inputs:
-      - commodity: secondary:electricity
-    required_outputs:
-      - commodity: service:heat
-  - id: provide_heat_from_gas
-    stage: end_use
-    activity_unit: PJ
-    capacity_unit: GW
-    required_inputs:
-      - commodity: primary:natural_gas
-    required_outputs:
-      - commodity: service:heat
-
-variants:
+dsl_version: "0.2"
+commodities:
+  - id: service:heat
+    kind: service
+  - id: secondary:electricity
+    kind: secondary
+  - id: primary:natural_gas
+    kind: primary
+technologies:
   - id: electric_heater
-    role: provide_heat_from_power
+    provides: service:heat
     inputs:
       - commodity: secondary:electricity
-    outputs:
-      - commodity: service:heat
-    efficiency: 1.0
+    performance:
+      kind: efficiency
+      value: 1.0
   - id: gas_heater
-    role: provide_heat_from_gas
+    provides: service:heat
     inputs:
       - commodity: primary:natural_gas
         basis: HHV
-    outputs:
-      - commodity: service:heat
-    efficiency: 0.9
+    performance:
+      kind: efficiency
+      value: 0.9
+technology_roles:
+  - id: provide_heat_from_power
+    primary_service: service:heat
+    technologies: [electric_heater]
+  - id: provide_heat_from_gas
+    primary_service: service:heat
+    technologies: [gas_heater]

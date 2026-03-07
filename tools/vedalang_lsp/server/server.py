@@ -24,7 +24,6 @@ from .schema_docs import SCHEMA_FIELD_DOCS
 # Load schemas and attribute data
 SCHEMA_DIR = Path(__file__).parent.parent.parent.parent / "vedalang" / "schema"
 VEDALANG_SCHEMA_PATH = SCHEMA_DIR / "vedalang.schema.json"
-VEDALANG_LEGACY_SCHEMA_PATH = SCHEMA_DIR / "vedalang.legacy.schema.json"
 
 
 def load_attribute_master() -> dict:
@@ -44,38 +43,17 @@ def load_vedalang_schema() -> dict:
         with open(path) as f:
             return json.load(f)
     return {}
-
-
-def load_legacy_vedalang_schema() -> dict:
-    """Load the legacy VedaLang JSON schema."""
-    path = VEDALANG_LEGACY_SCHEMA_PATH
-    if path.exists():
-        with open(path) as f:
-            return json.load(f)
-    return {}
-
-
 ATTR_MASTER = load_attribute_master()
 VEDALANG_SCHEMA = load_vedalang_schema()
-VEDALANG_LEGACY_SCHEMA = load_legacy_vedalang_schema()
 SCHEMA_VALIDATOR = Draft7Validator(VEDALANG_SCHEMA) if VEDALANG_SCHEMA else None
-LEGACY_SCHEMA_VALIDATOR = (
-    Draft7Validator(VEDALANG_LEGACY_SCHEMA) if VEDALANG_LEGACY_SCHEMA else None
-)
 SCHEMA_MTIME = (
     VEDALANG_SCHEMA_PATH.stat().st_mtime if VEDALANG_SCHEMA_PATH.exists() else None
-)
-LEGACY_SCHEMA_MTIME = (
-    VEDALANG_LEGACY_SCHEMA_PATH.stat().st_mtime
-    if VEDALANG_LEGACY_SCHEMA_PATH.exists()
-    else None
 )
 
 
 def refresh_schema_cache() -> None:
     """Reload schema/validator when the schema file changes on disk."""
     global VEDALANG_SCHEMA, SCHEMA_VALIDATOR, SCHEMA_MTIME
-    global VEDALANG_LEGACY_SCHEMA, LEGACY_SCHEMA_VALIDATOR, LEGACY_SCHEMA_MTIME
 
     if not VEDALANG_SCHEMA_PATH.exists():
         return
@@ -87,18 +65,6 @@ def refresh_schema_cache() -> None:
             Draft7Validator(VEDALANG_SCHEMA) if VEDALANG_SCHEMA else None
         )
         SCHEMA_MTIME = current_mtime
-
-    if not VEDALANG_LEGACY_SCHEMA_PATH.exists():
-        return
-    legacy_mtime = VEDALANG_LEGACY_SCHEMA_PATH.stat().st_mtime
-    if LEGACY_SCHEMA_MTIME is None or legacy_mtime != LEGACY_SCHEMA_MTIME:
-        VEDALANG_LEGACY_SCHEMA = load_legacy_vedalang_schema()
-        LEGACY_SCHEMA_VALIDATOR = (
-            Draft7Validator(VEDALANG_LEGACY_SCHEMA)
-            if VEDALANG_LEGACY_SCHEMA
-            else None
-        )
-        LEGACY_SCHEMA_MTIME = legacy_mtime
 
 
 def _resolve_schema_ref_in_root(schema_node: dict, schema_root: dict) -> dict:
@@ -434,21 +400,16 @@ def _schema_child_for_token_in_root(
 def schema_for_path(path: list[str | int]) -> dict | None:
     """Resolve the JSON Schema node for a YAML path."""
     refresh_schema_cache()
-    candidates = (VEDALANG_SCHEMA, VEDALANG_LEGACY_SCHEMA)
-    for root in candidates:
-        if not isinstance(root, dict) or not root:
-            continue
-        node: dict = root
-        matched = True
-        for token in path:
-            child = _schema_child_for_token_in_root(node, token, root)
-            if not isinstance(child, dict):
-                matched = False
-                break
-            node = child
-        if matched:
-            return _resolve_schema_ref_in_root(node, root)
-    return None
+    root = VEDALANG_SCHEMA
+    if not isinstance(root, dict) or not root:
+        return None
+    node: dict = root
+    for token in path:
+        child = _schema_child_for_token_in_root(node, token, root)
+        if not isinstance(child, dict):
+            return None
+        node = child
+    return _resolve_schema_ref_in_root(node, root)
 
 
 def _position_in_node(node: Node, position: types.Position) -> bool:
@@ -688,11 +649,7 @@ def schema_validation_diagnostics(
 ) -> list[types.Diagnostic]:
     """Run JSON Schema validation and return diagnostics."""
     refresh_schema_cache()
-    validator = (
-        SCHEMA_VALIDATOR
-        if looks_like_v0_2_source(parsed)
-        else LEGACY_SCHEMA_VALIDATOR
-    )
+    validator = SCHEMA_VALIDATOR if looks_like_v0_2_source(parsed) else None
     if validator is None:
         return []
 

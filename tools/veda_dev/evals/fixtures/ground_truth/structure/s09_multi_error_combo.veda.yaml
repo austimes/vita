@@ -1,40 +1,24 @@
-model:
-  name: EvalStructureMultiError
-  regions: [R1]
-  milestone_years: [2020, 2030]
-  commodities:
-    - id: service:heat
-      type: service
-      unit: PJ
-      combustible: false
-    - id: primary:natural_gas
-      type: other
-      unit: PJ
-      combustible: true
-      lhv_mj_per_unit: 50.0
-      hhv_mj_per_unit: 55.0
-
-roles:
-  - id: provide_heat_from_gas
-    stage: end_use
-    activity_unit: PJ
-    capacity_unit: GW
-    required_inputs: []
-    required_outputs:
-      - commodity: service:heat
-
-variants:
+dsl_version: "0.2"
+commodities:
+  - id: service:heat
+    kind: service
+  - id: primary:natural_gas
+    kind: material
+technologies:
   - id: baseline
-    role: provide_heat_from_gas
-    inputs: []
-    outputs:
-      - commodity: service:heat
-    efficiency: 0.9
+    provides: service:heat
+    performance:
+      kind: efficiency
+      value: 0.9
   - id: feed_additives
-    role: provide_heat_from_gas
+    provides: service:heat
     inputs:
       - commodity: primary:natural_gas
         basis: HHV
-    outputs:
-      - commodity: service:heat
-    efficiency: 0.95
+    performance:
+      kind: efficiency
+      value: 0.95
+technology_roles:
+  - id: provide_heat_from_gas
+    primary_service: service:heat
+    technologies: [baseline, feed_additives]

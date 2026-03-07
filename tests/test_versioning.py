@@ -68,26 +68,6 @@ def test_validate_vedalang_rejects_legacy_sources_by_default() -> None:
         validate_vedalang(legacy)
 
 
-def test_validate_vedalang_allows_explicit_legacy_schema_opt_in() -> None:
-    legacy = {
-        "model": {
-            "name": "Legacy",
-            "regions": ["R1"],
-            "commodities": [
-                {
-                    "id": "secondary:electricity",
-                    "type": "energy",
-                    "unit": "PJ",
-                }
-            ],
-        },
-        "roles": [],
-        "variants": [],
-    }
-
-    validate_vedalang(legacy, legacy=True)
-
-
 def test_public_dsl_contract_rejects_legacy_roles_surface() -> None:
     legacy = {
         "model": {"name": "Legacy", "regions": ["R1"], "commodities": []},

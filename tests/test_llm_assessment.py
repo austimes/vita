@@ -23,33 +23,49 @@ from vedalang.lint.llm_assessment import (
 # ---------------------------------------------------------------------------
 
 MINIMAL_SOURCE = {
-    "model": {
-        "name": "test_model",
-        "regions": ["R1"],
-        "milestone_years": [2020, 2030],
-        "commodities": [
-            {"id": "gas", "type": "fuel"},
-            {"id": "electricity", "type": "energy"},
-            {"id": "space_heat", "type": "service"},
-        ],
-    },
-    "roles": [
-        {
-            "id": "provide_space_heat",
-            "activity_unit": "PJ",
-            "capacity_unit": "GW",
-            "stage": "end_use",
-            "required_inputs": [{"commodity": "electricity"}],
-            "required_outputs": [{"commodity": "space_heat"}],
-        },
+    "dsl_version": "0.2",
+    "commodities": [
+        {"id": "primary:natural_gas", "kind": "primary"},
+        {"id": "secondary:electricity", "kind": "secondary"},
+        {"id": "service:space_heat", "kind": "service"},
     ],
-    "variants": [
+    "technologies": [
         {
             "id": "heat_pump",
-            "role": "provide_space_heat",
-            "inputs": [{"commodity": "electricity"}],
-            "outputs": [{"commodity": "space_heat"}],
+            "provides": "service:space_heat",
+            "inputs": [{"commodity": "secondary:electricity"}],
         },
+    ],
+    "technology_roles": [
+        {
+            "id": "space_heat_supply",
+            "primary_service": "service:space_heat",
+            "technologies": ["heat_pump"],
+        },
+    ],
+    "spatial_layers": [
+        {
+            "id": "geo.demo",
+            "kind": "polygon",
+            "key": "region_id",
+            "geometry_file": "data/regions.geojson",
+        }
+    ],
+    "region_partitions": [
+        {
+            "id": "single_region",
+            "layer": "geo.demo",
+            "members": ["R1"],
+            "mapping": {"kind": "constant", "value": "R1"},
+        }
+    ],
+    "runs": [
+        {
+            "id": "r1_2025",
+            "base_year": 2025,
+            "currency_year": 2024,
+            "region_partition": "single_region",
+        }
     ],
 }
 
@@ -61,8 +77,8 @@ RESPONSE_WITH_FINDINGS = json.dumps({
             "severity": "critical",
             "category": "fuel_pathway_roles",
             "message": "Roles heat_from_gas and heat_from_elec share output",
-            "location": "roles",
-            "suggestion": "Merge into provide_space_heat",
+            "location": "technology_roles",
+            "suggestion": "Merge into space_heat_supply",
         },
         {
             "severity": "warning",
@@ -109,8 +125,8 @@ class TestParseLLMResponse:
         assert critical.severity == "critical"
         assert critical.category == "fuel_pathway_roles"
         assert "heat_from_gas" in critical.message
-        assert critical.location == "roles"
-        assert critical.suggestion == "Merge into provide_space_heat"
+        assert critical.location == "technology_roles"
+        assert critical.suggestion == "Merge into space_heat_supply"
 
     def test_markdown_fenced_response(self):
         result = parse_llm_response(RESPONSE_WITH_FENCES)
@@ -184,14 +200,14 @@ class TestSerialization:
             severity="critical",
             category="fuel_pathway_roles",
             message="Test message",
-            location="roles[0]",
+            location="technology_roles[0]",
             suggestion="Fix it",
         )
         d = finding.to_dict()
         assert d["code"] == "LLM_FUEL_PATHWAY_ROLES"
         assert d["severity"] == "critical"
         assert d["message"] == "Test message"
-        assert d["location"] == "roles[0]"
+        assert d["location"] == "technology_roles[0]"
         assert d["suggestion"] == "Fix it"
 
     def test_finding_to_dict_minimal(self):
@@ -235,7 +251,7 @@ class TestAssemblePrompt:
     def test_user_prompt_contains_res_json(self):
         _, user = assemble_prompt(MINIMAL_SOURCE)
         assert '"commodities"' in user
-        assert "provide_space_heat" in user
+        assert "space_heat_supply" in user
 
     def test_user_prompt_contains_mermaid(self):
         _, user = assemble_prompt(MINIMAL_SOURCE)
@@ -308,7 +324,7 @@ class TestRunLLMAssessment:
 
         run_llm_assessment(MINIMAL_SOURCE, llm_callable=mock_llm)
         assert "structural assessment" in captured["system"].lower()
-        assert "provide_space_heat" in captured["user"]
+        assert "space_heat_supply" in captured["user"]
 
     def test_findings_integrate_as_lint_diagnostics(self):
         """Findings can be serialized as lint diagnostics."""
