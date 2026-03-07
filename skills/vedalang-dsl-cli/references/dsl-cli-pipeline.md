@@ -29,10 +29,10 @@ uv run vedalang fmt model.veda.yaml
 uv run vedalang lint model.veda.yaml
 
 # Full end-to-end validation
-uv run vedalang validate model.veda.yaml
+uv run vedalang validate model.veda.yaml --run <run_id>
 
 # Compile only
-uv run vedalang compile model.veda.yaml --out output/
+uv run vedalang compile model.veda.yaml --run <run_id> --out output/
 
 # Design-agent full pipeline (no solver)
 uv run vedalang-dev pipeline model.veda.yaml --no-solver
@@ -41,5 +41,7 @@ uv run vedalang-dev pipeline model.veda.yaml --no-solver
 ## Reliability Rules
 
 - Always run `validate` before treating model output as valid.
+- Prefer explicit run selection with `--run`, even when the file currently has
+  one run.
 - Prefer explicit milestone-year values over implicit interpolation.
 - Keep emissions in `emission_factors`; do not model `emission:*` as physical flows.

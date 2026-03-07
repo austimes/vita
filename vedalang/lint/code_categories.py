@@ -7,9 +7,14 @@ from vedalang.compiler.compiler import (
     collect_new_syntax_structural_diagnostics,
     validate_cross_references,
 )
+from vedalang.compiler.v0_2_diagnostics import (
+    category_for_v0_2_code,
+    collect_v0_2_diagnostics,
+)
 from vedalang.heuristics.linter import run_heuristics
 from vedalang.identity.lint_rules import lint_naming_conventions
 from vedalang.lint.diagnostics import with_meta
+from vedalang.versioning import looks_like_v0_2_source
 
 
 def _category_for_structural_code(code: str) -> str:
@@ -64,6 +69,10 @@ def run_core(source: dict) -> list[dict]:
 
 def run_identity(source: dict) -> list[dict]:
     """Run naming/identity checks."""
+    if looks_like_v0_2_source(source):
+        grouped = collect_structural_by_category(source)
+        return list(grouped.get("identity", []))
+
     diagnostics: list[dict] = []
     for diag in lint_naming_conventions(source):
         data = diag.to_dict()
@@ -102,6 +111,20 @@ def collect_structural_by_category(source: dict) -> dict[str, list[dict]]:
         "units": [],
         "emissions": [],
     }
+    if looks_like_v0_2_source(source):
+        grouped["identity"] = []
+        for d in collect_v0_2_diagnostics(source):
+            category = category_for_v0_2_code(d["code"])
+            grouped.setdefault(category, []).append(
+                with_meta(
+                    d,
+                    category=category,
+                    engine="code",
+                    check_id=f"code.{category}.v0_2_prd_section_14",
+                )
+            )
+        return grouped
+
     semantic_errors, semantic_warnings = (
         collect_new_syntax_structural_diagnostics(source)
     )

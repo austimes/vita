@@ -1,160 +1,137 @@
 # Your First VedaLang Model
 
-This tutorial walks you through creating a simple energy system model in VedaLang. You'll build a minimal model with a natural gas power plant that generates electricity.
+This tutorial uses the v0.2 DSL. You will build a minimal space-heating model
+with one service commodity, one technology, one facility, and one run.
 
 ## Step 1: Create a Minimal Model File
 
-Create a file called `my_first_model.veda.yaml` with this content:
+Create `my_first_model.veda.yaml` with this content:
 
 ```yaml
-model:
-  name: MyFirstModel
-  description: A simple power plant model
-
-  regions:
-    - REG1
-
-  milestone_years: [2020, 2030]
-
-  commodities:
-    - id: secondary:electricity
-      type: energy
-      unit: PJ
-      description: Electricity
-
-    - id: primary:natural_gas
-      type: fuel
-      unit: PJ
-      description: Natural Gas
-
-roles:
-  - id: generate_electricity
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: conversion
-    required_inputs:
+dsl_version: "0.2"
+commodities:
+  - id: primary:natural_gas
+    kind: primary
+  - id: service:space_heat
+    kind: service
+technologies:
+  - id: gas_heater
+    provides: service:space_heat
+    inputs:
       - commodity: primary:natural_gas
-    required_outputs:
-      - commodity: secondary:electricity
-
-variants:
-  - id: gas_plant
-    role: generate_electricity
-    modes:
-      - id: ng
-        inputs:
-          - commodity: primary:natural_gas
-        outputs:
-          - commodity: secondary:electricity
-        efficiency: 0.50
-
-providers:
-  - id: fleet.generate_electricity.REG1
-    kind: fleet
-    role: generate_electricity
-    region: REG1
-    offerings:
-      - variant: gas_plant
-        modes: [ng]
+        basis: HHV
+    performance:
+      kind: efficiency
+      value: 0.9
+technology_roles:
+  - id: space_heat_supply
+    primary_service: service:space_heat
+    technologies: [gas_heater]
+spatial_layers:
+  - id: geo.demo
+    kind: polygon
+    key: region_id
+    geometry_file: data/regions.geojson
+region_partitions:
+  - id: toy_region
+    layer: geo.demo
+    members: [QLD]
+    mapping:
+      kind: constant
+      value: QLD
+sites:
+  - id: brisbane_home
+    location:
+      point:
+        lat: -27.47
+        lon: 153.02
+    membership_overrides:
+      region_partitions:
+        toy_region: QLD
+facilities:
+  - id: brisbane_space_heat
+    site: brisbane_home
+    technology_role: space_heat_supply
+    stock:
+      items:
+        - technology: gas_heater
+          metric: installed_capacity
+          observed:
+            value: 12 kW
+            year: 2025
+runs:
+  - id: toy_region_2025
+    base_year: 2025
+    currency_year: 2024
+    region_partition: toy_region
 ```
 
 ### What Each Section Does
 
-- **model.regions**: Geographic regions in your model
-- **model.milestone_years**: Time periods the model solves for
-- **model.commodities**: Energy carriers, services, and emissions — with namespace prefixes (e.g., `secondary:`, `service:`, `emission:`)
-- **roles**: Process type contracts (what service/transformation is provided)
-- **variants**: Technology pathways implementing each role
-- **modes**: Operating states nested under each variant
-- **providers**: Concrete facility/fleet objects that host role/variant/mode choices
+- `commodities`: declares the physical inputs and service outputs
+- `technologies`: concrete technology definitions and coefficients
+- `technology_roles`: service-oriented role contracts that group allowed technologies
+- `sites` and `facilities`: concrete assets and their existing stock
+- `runs`: compile-time selection of base year, currency year, and region partition
 
-## Step 2: Validate Your Model
+## Step 2: Validate the Model
 
-Run the validation command:
+Use the run-scoped validation path:
 
 ```bash
-uv run vedalang validate my_first_model.veda.yaml
+uv run vedalang validate my_first_model.veda.yaml --run toy_region_2025
 ```
 
-If successful, you'll see output like:
-
-```
-✓ Lint passed
-✓ Compile passed
-✓ xl2times validation passed
-```
-
-## Step 3: Understanding the Output
-
-When you validate a model, VedaLang:
-
-1. **Lints** the source file (checks for common modeling mistakes)
-2. **Compiles** to Excel files in a temporary directory
-3. **Validates** the Excel through xl2times
-
-Generated files include:
-- `base/base.xlsx` — Process definitions and topology
-- `syssettings/syssettings.xlsx` — Model settings and timeslices
-
-Use `--keep-workdir` to inspect generated files:
+For compile-only output:
 
 ```bash
-uv run vedalang validate my_first_model.veda.yaml --keep-workdir
+uv run vedalang compile my_first_model.veda.yaml --run toy_region_2025 --out out/
 ```
 
-## Step 4: Common Errors and How to Fix Them
+That compile writes the run-scoped artifacts:
 
-### Missing Required Fields
+- `toy_region_2025.csir.yaml`
+- `toy_region_2025.cpir.yaml`
+- `toy_region_2025.explain.json`
 
-**Error**: `'id' is a required property`
+## Step 3: What Validation Does
 
-**Fix**: Every commodity, process_role, and process_variant needs an `id`:
+`vedalang validate` runs three stages:
 
-```yaml
-commodities:
-  - id: secondary:electricity  # ← Required
-    type: energy
-    unit: PJ
+1. Lint and schema validation
+2. v0.2 compilation to CSIR, CPIR, TableIR, and Excel
+3. xl2times validation of the emitted Excel
+
+Use `--keep-workdir` if you want to inspect the generated Excel and artifact
+files.
+
+## Step 4: Common v0.2 Errors
+
+### Wrong Primary Service
+
+**Error**: `E004 technology_role.primary_service must reference a service commodity`
+
+**Fix**: point `technology_roles[*].primary_service` at a `service:*` commodity.
+
+### Missing Run Selection
+
+**Error**: compilation asks for `--run`
+
+**Fix**: pass the run id explicitly:
+
+```bash
+uv run vedalang compile my_first_model.veda.yaml --run toy_region_2025 --out out/
 ```
 
-### Invalid Commodity References
+### Unresolved Stock Conversion
 
-**Error**: `Unknown commodity 'elec' in process_role 'generate_electricity'`
+**Error**: `E012 asset_count lowering requires a stock_characterization`
 
-**Fix**: Ensure commodity IDs in `inputs`/`outputs` match defined commodities:
-
-```yaml
-commodities:
-  - id: secondary:electricity  # ← Defined here
-    type: energy
-    unit: PJ
-
-roles:
-  - id: generate_electricity
-    outputs:
-      - commodity: secondary:electricity  # ← Must match exactly
-```
-
-### Missing Providers
-
-**Error**: Heuristic warning about unused process variants
-
-**Fix**: Add a `providers` entry that offers the variant and mode:
-
-```yaml
-providers:
-  - id: fleet.generate_electricity.REG1
-    kind: fleet
-    role: generate_electricity
-    region: REG1
-    offerings:
-      - variant: gas_plant
-        modes: [ng]
-```
+**Fix**: if you declare fleet/facility stock in `asset_count`, add a
+`stock_characterizations` entry that converts to the required lowering metrics.
 
 ## Next Steps
 
-- **[DSL + CLI skill](../../skills/vedalang-dsl-cli/SKILL.md)** — Canonical operational guidance
-- **[vedalang/examples/](../../vedalang/examples/)** — More example models
-- **[rules/patterns.yaml](../../rules/patterns.yaml)** — Pattern library for common modeling idioms
-- **[attribute_mapping.md](attribute_mapping.md)** — How VedaLang maps to VEDA/TIMES
+- [DSL + CLI skill](../../skills/vedalang-dsl-cli/SKILL.md)
+- [/Users/gre538/code/vedalang/vedalang/examples/v0_2/mini_space_heat.veda.yaml](/Users/gre538/code/vedalang/vedalang/examples/v0_2/mini_space_heat.veda.yaml)
+- [/Users/gre538/code/vedalang/vedalang/examples/v0_2/toy_heat_network.veda.yaml](/Users/gre538/code/vedalang/vedalang/examples/v0_2/toy_heat_network.veda.yaml)

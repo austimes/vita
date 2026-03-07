@@ -2,9 +2,9 @@
 name: vedalang-modeling-conventions
 description: >-
   Advisory VedaLang modeling conventions for service-oriented, physical-only
-  RES design. Use when authoring or reviewing toy_*/example models for
-  role/variant structure, stage and commodity typing, cases overlays, and
-  diagnostics boundaries.
+  RES design. Use when authoring or reviewing v0.2 example models for
+  technology_role/technology structure, asset stock declarations, run-scoped
+  compilation, and diagnostics boundaries.
 ---
 
 # VedaLang Modeling Conventions (Skill)
@@ -20,14 +20,14 @@ That file is symlinked to the canonical conventions document in `docs/`.
 Read that file before authoring or reviewing any VedaLang model. It covers:
 
 - Three-layer framework (guidance → lint → compiler)
-- Service-level roles and technology variants
+- Service-level technology roles and technologies
 - Primary supply roles (zero-input supply is valid)
 - Physical-only RES by default (no pseudo-technology carveouts)
-- Naming conventions (snake_case, verb-noun roles, descriptive variants)
+- Naming conventions (snake_case, service-oriented role IDs, descriptive technology IDs)
 - Stage and commodity typing discipline
 - Explicit process unit semantics (activity as extensive, capacity as power or `<unit>/yr`)
 - Emissions as attributes (emission_factors, not outputs)
 - Commodity namespace conventions (primary:, secondary:, service:, emission:, etc.)
-- Cases as scenario overlays
+- Runs as compile selections and scenario overlays where present
 - Solve-independent diagnostics
 - Authoring checklist

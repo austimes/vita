@@ -1889,7 +1889,21 @@ def cmd_compile(args) -> int:
         _error(f"Semantic error: {e}", output_json, str(file_path))
         return 2
     except V0_2ResolutionError as e:
-        _error(f"{e.code}: {e.message}", output_json, str(file_path), code=e.code)
+        diagnostics = [e.as_diagnostic()]
+        _attach_source_positions(diagnostics, source=source, file_path=file_path)
+        diag = diagnostics[0]
+        _error(
+            f"{e.code}: {e.message}",
+            output_json,
+            str(file_path),
+            code=e.code,
+            object_id=diag.get("object_id"),
+            location=diag.get("location"),
+            line=diag.get("line"),
+            column=diag.get("column"),
+            source_excerpt=diag.get("source_excerpt"),
+            suggestion=diag.get("suggestion"),
+        )
         return 2
     except Exception as e:
         _error(f"Compile error: {e}", output_json, str(file_path))
@@ -2087,7 +2101,11 @@ def _error(
     source: str,
     *,
     code: str | None = None,
+    object_id: str | None = None,
     location: str | None = None,
+    line: int | None = None,
+    column: int | None = None,
+    source_excerpt: dict[str, Any] | None = None,
     suggestion: str | None = None,
 ):
     """Print error message."""
@@ -2101,8 +2119,16 @@ def _error(
         }
         if code is not None:
             payload["code"] = code
+        if object_id is not None:
+            payload["object_id"] = object_id
         if location is not None:
             payload["location"] = location
+        if line is not None:
+            payload["line"] = line
+        if column is not None:
+            payload["column"] = column
+        if source_excerpt is not None:
+            payload["source_excerpt"] = source_excerpt
         if suggestion is not None:
             payload["suggestion"] = suggestion
         print(json.dumps(payload))

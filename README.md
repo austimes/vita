@@ -5,7 +5,7 @@ A typed DSL that compiles to VEDA tables for TIMES energy system models.
 VedaLang provides type safety, schema validation, and clear error messages while compiling to VEDA Excel tables that can be processed by xl2times and solved with GAMS/TIMES.
 
 ```
-VedaLang Source (.veda.yaml) → Compiler → VEDA Excel (.xlsx) → xl2times → TIMES DD files
+VedaLang Source (.veda.yaml) → CSIR/CPIR → VEDA Excel (.xlsx) → xl2times → TIMES DD files
 ```
 
 ---
@@ -20,11 +20,11 @@ VedaLang uses precise terminology to avoid ambiguity:
 | **Category** | Logical grouping of scenario parameters (canonical enum below) |
 | **Case** | A named combination of scenario parameters for a specific model run (e.g., `baseline`, `ambitious`) |
 | **Study** | A collection of cases for comparison |
-| **Role** | Process type contract (what transformation/service is provided) |
-| **Variant** | Technology type that implements a role |
-| **Mode** | Operating state nested under a variant |
-| **Provider** | Concrete facility/fleet object that offers variants/modes |
-| **Scope** | Commodity market partition only (never process/type identity) |
+| **Technology Role** | Service-oriented contract listing the technologies that may satisfy it |
+| **Technology** | Concrete implementation with flows, performance, costs, and emissions |
+| **Site** | Physical location anchor for facility assets |
+| **Facility / Fleet** | Asset declarations that carry stock, allowed technologies, and policies |
+| **Run** | Selected base-year/currency-year/region-partition compilation target |
 
 <!-- GENERATED:scenario-categories:start -->
 **Canonical scenario categories:** `demands` | `prices` | `policies` | `technology_assumptions` | `resource_availability` | `global_settings`
@@ -92,7 +92,7 @@ cd vedalang
 uv sync
 
 # Validate a model
-uv run vedalang validate model.veda.yaml
+uv run vedalang validate model.veda.yaml --run <run_id>
 
 # Check formatting for VedaLang YAML
 bun run format:veda:check
@@ -101,76 +101,93 @@ bun run format:veda:check
 uv run vedalang lint model.veda.yaml
 
 # Compile to Excel only
-uv run vedalang compile model.veda.yaml --out output/
+uv run vedalang compile model.veda.yaml --run <run_id> --out output/
 
 # Run full pipeline (VedaLang → Excel → DD → TIMES)
 uv run vedalang-dev pipeline model.veda.yaml --no-solver
 ```
 
-### Explicit Unit Semantics
+### Explicit Quantities and Basis
 
-VedaLang uses explicit, explainable process unit rules:
+VedaLang v0.2 uses explicit quantity strings and no implicit basis/defaulting:
 
-- `activity_unit` must be an **extensive annual quantity** unit:
-  `PJ`, `TJ`, `GJ`, `MWh`, `GWh`, `TWh`, `MTOE`, `KTOE`, `Bvkm`, `Mt`, `kt`, `t`, `Gt`
-- `capacity_unit` must be either:
-  - a **power** unit: `GW`, `MW`, `kW`, `TW`
-  - an explicit **annual throughput rate**: `<activity-like unit>/yr`
-    (for example: `PJ/yr`, `GWh/yr`, `Bvkm/yr`, `Mt/yr`)
-- Ambiguous non-power capacity units like `capacity_unit: PJ` are rejected.
-
-Capacity-to-activity conversion is explicit and deterministic:
-
-- `PRC_CAPACT = convert(1 * capacity_unit * 1 yr -> activity_unit)`
-- Example: `GW -> PJ` gives `31.536`
-- Example: `PJ/yr -> PJ` gives `1.0`
+- stock, costs, transfer capacities, and opportunity bounds carry explicit unit
+  strings at the point where the value is authored
+- combustible technology inputs must declare `basis: HHV|LHV` at the flow site
+- asset-count stock requires an explicit `stock_characterization` before the
+  compiler can lower it to installed-capacity or annual-activity views
+- run-scoped compilation emits deterministic CSIR/CPIR/TableIR outputs rather
+  than relying on implicit TIMES interpolation
 
 See [docs/vedalang-user/attribute_mapping.md](docs/vedalang-user/attribute_mapping.md)
-for the complete unit mapping and cost denominator expectations.
+for supported quantity strings and backend attribute mapping details.
 
 ### CLI Command Boundaries
 
 - `uv run vedalang fmt <path>`: canonical formatting (deterministic ordering + layout/blank-lines/indentation)
 - `uv run vedalang lint <model>.veda.yaml`: semantic/modeling diagnostics
-- `uv run vedalang compile <model>.veda.yaml --out <dir>`: compilation only
-- `uv run vedalang validate <model>.veda.yaml`: full compile + oracle validation
+- `uv run vedalang compile <model>.veda.yaml --run <run_id> --out <dir>`: run-scoped compilation
+- `uv run vedalang validate <model>.veda.yaml --run <run_id>`: full compile + oracle validation
 
 ### Minimal Example
 
 ```yaml
-model:
-  name: MinimalExample
-  regions: [REG1]
-  milestone_years: [2020]
-  
-  commodities:
-    - id: secondary:electricity
-      type: energy
-      unit: PJ
-roles:
-  - id: generate_electricity
-    stage: supply
-    activity_unit: PJ
-    capacity_unit: GW
-    required_inputs: []
-    required_outputs:
-      - commodity: secondary:electricity
-variants:
-  - id: grid_supply
-    role: generate_electricity
-    modes:
-      - id: base
-        inputs: []
-        outputs:
-          - commodity: secondary:electricity
-providers:
-  - id: fleet.grid_supply.reg1
-    kind: fleet
-    role: generate_electricity
-    region: REG1
-    offerings:
-      - variant: grid_supply
-        modes: [base]
+dsl_version: "0.2"
+commodities:
+  - id: primary:natural_gas
+    kind: primary
+  - id: service:space_heat
+    kind: service
+technologies:
+  - id: gas_heater
+    provides: service:space_heat
+    inputs:
+      - commodity: primary:natural_gas
+        basis: HHV
+    performance:
+      kind: efficiency
+      value: 0.9
+technology_roles:
+  - id: space_heat_supply
+    primary_service: service:space_heat
+    technologies: [gas_heater]
+spatial_layers:
+  - id: geo.demo
+    kind: polygon
+    key: region_id
+    geometry_file: data/regions.geojson
+region_partitions:
+  - id: toy_region
+    layer: geo.demo
+    members: [QLD]
+    mapping:
+      kind: constant
+      value: QLD
+sites:
+  - id: brisbane_home
+    location:
+      point:
+        lat: -27.47
+        lon: 153.02
+    membership_overrides:
+      region_partitions:
+        toy_region: QLD
+facilities:
+  - id: brisbane_space_heat
+    site: brisbane_home
+    technology_role: space_heat_supply
+    stock:
+      items:
+        - technology: gas_heater
+          metric: installed_capacity
+          observed:
+            value: 12 kW
+            year: 2025
+runs:
+  - id: toy_region_2025
+    base_year: 2025
+    currency_year: 2024
+    region_partition: toy_region
 ```
 
 ---
@@ -212,8 +229,8 @@ bun run format:veda:check
 # Run linter
 uv run ruff check .
 
-# Validate the mini_plant example
-uv run vedalang validate vedalang/examples/quickstart/mini_plant.veda.yaml
+# Validate a v0.2 example
+uv run vedalang validate vedalang/examples/v0_2/mini_space_heat.veda.yaml --run toy_region_2025
 ```
 
 ---

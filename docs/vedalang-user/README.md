@@ -47,14 +47,10 @@ uv run vedalang fmt your_model.veda.yaml
 uv run vedalang fmt --check your_model.veda.yaml
 
 # Full validation (lint + compile + xl2times)
-uv run vedalang validate your_model.veda.yaml
+uv run vedalang validate your_model.veda.yaml --run your_run_id
 
-# Validate only selected case(s)
-uv run vedalang validate your_model.veda.yaml --case baseline
-uv run vedalang validate your_model.veda.yaml --case baseline --case policy
-
-# Compile only selected case(s)
-uv run vedalang compile your_model.veda.yaml --out out/ --case policy
+# Compile only
+uv run vedalang compile your_model.veda.yaml --run your_run_id --out out/
 
 # Lint all deterministic categories
 uv run vedalang lint your_model.veda.yaml
@@ -82,8 +78,8 @@ Command responsibilities:
 
 - `fmt`: formatting only (style/layout)
 - `lint`: semantic/modeling checks
-- `compile`: VedaLang to Excel/TableIR emission
-- `validate`: full pipeline validation through xl2times
+- `compile`: v0.2 run-scoped artifact, TableIR, and Excel emission
+- `validate`: full pipeline validation through xl2times for the selected run
 
 ## Lint Taxonomy
 

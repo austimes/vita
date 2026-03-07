@@ -463,6 +463,27 @@ class TestValidation:
         duplicate_errors = [e for e in errors if "duplicate" in e.message.lower()]
         assert len(duplicate_errors) > 0
 
+    def test_validate_v0_2_document_uses_section14_diagnostics(self):
+        """v0.2 documents should validate through the shared compiler diagnostics."""
+        source = """dsl_version: "0.2"
+commodities:
+  - id: secondary:electricity
+    kind: secondary
+technologies:
+  - id: gas_heater
+    provides: secondary:electricity
+technology_roles:
+  - id: gas_heater
+    primary_service: secondary:electricity
+    technologies: [gas_heater]
+"""
+        doc = MockTextDocument(source)
+        diagnostics = validate_document(server, doc)
+        err_sev = types.DiagnosticSeverity.Error
+        errors = [d for d in diagnostics if d.severity == err_sev]
+        assert any(d.code == "E004" for d in errors)
+        assert all("Missing required 'model' key" not in d.message for d in diagnostics)
+
 
 class TestSchemaDrivenEnums:
     """Tests for schema-driven enum hover/completion/diagnostics behavior."""

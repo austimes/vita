@@ -34,11 +34,35 @@ QUANTITY_RE = re.compile(r"^\s*([+-]?\d+(?:\.\d+)?)\s*(.*)\s*$")
 class V0_2ResolutionError(Exception):
     """Deterministic resolution error with a PRD-aligned code."""
 
-    def __init__(self, code: str, object_id: str, message: str) -> None:
+    def __init__(
+        self,
+        code: str,
+        object_id: str,
+        message: str,
+        *,
+        location: str | None = None,
+        suggestion: str | None = None,
+    ) -> None:
         self.code = code
         self.object_id = object_id
         self.message = message
+        self.location = location
+        self.suggestion = suggestion
         super().__init__(f"{code} {object_id}: {message}")
+
+    def as_diagnostic(self) -> dict[str, Any]:
+        """Convert the error into a machine-readable diagnostic payload."""
+        payload: dict[str, Any] = {
+            "code": self.code,
+            "severity": "error",
+            "message": self.message,
+            "object_id": self.object_id,
+        }
+        if self.location:
+            payload["location"] = self.location
+        if self.suggestion:
+            payload["suggestion"] = self.suggestion
+        return payload
 
 
 @dataclass(frozen=True)

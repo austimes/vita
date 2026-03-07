@@ -209,3 +209,15 @@ Pre-compilation checks that catch modeling patterns causing solver infeasibility
 - **Public CLI guardrail:** CLI-facing entrypoints now reject legacy
   process-based public syntax deterministically instead of silently compiling it
   through the old front door.
+
+## v0.2 Rollout Completion (2026-03-07)
+
+- **Diagnostics:** Landed PRD Section 14 diagnostic coverage, including
+  PRD-coded hard errors/warnings, shared YAML source maps, JSON source excerpts,
+  and LSP consumption of the same v0.2 diagnostics.
+- **Tooling surfaces:** RES query/viz and the LSP now understand the run-scoped
+  CSIR/CPIR artifact flow while preserving legacy behavior for older examples.
+- **Flagship docs/examples:** Added self-contained v0.2 flagship examples and
+  rewrote the primary tutorial and DSL/CLI skills to the object-model surface.
+- **Regression matrix:** Added Section 16 worked-example regression coverage,
+  byte-stability checks, and dedicated tests for legacy-syntax rejection.

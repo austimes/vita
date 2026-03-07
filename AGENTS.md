@@ -95,21 +95,19 @@ VEDA Excel tables become a **compiled artifact**, not the source. xl2times valid
 
 ## Current Project Status
 
-As of **2026-03-07**, the original core phases (**P0-P3**) remain complete, but
-the active workstream has shifted to the `vedalang-txa` rollout tree for the
-new **package/run/CSIR/CPIR** architecture tracked in `bd`.
+As of **2026-03-07**, the original core phases (**P0-P3**) remain complete and
+the **package/run/CSIR/CPIR** reset has landed as the active public DSL.
 
 What this means for design-agent work:
-- Treat the current public authoring surface as a **legacy frontend slated for replacement**.
-- Do **not** extend the older public DSL shape unless it is required to preserve backend parity while the reset lands.
-- Prefer the new object-model terminology and architecture:
+- Treat the older provider-era public DSL as **legacy**.
+- Prefer the current object-model terminology and architecture:
   `package`, `run`, `commodity`, `technology`, `technology_role`,
   `stock_characterization`, `site`, `facility`, `fleet`, `opportunity`,
   `network`, `CSIR`, `CPIR`, `explain.json`.
-- Preserve end-to-end backend parity during the reset: compiled artifacts still
-  need to reach Excel, `xl2times`, and TIMES successfully.
+- Keep the run-scoped frontend and the Excel/xl2times/TIMES backend path in
+  parity when making changes.
 
-The active rollout epics are:
+The completed rollout epics were:
 - `vedalang-txa.1` — governance and version contract
 - `vedalang-txa.3` — public schema and AST reset
 - `vedalang-txa.4` — package/run/spatial/stock resolution
@@ -171,8 +169,8 @@ TableIR  ──►  VEDA Excel (.xlsx)  ──►  xl2times  ──►  TIMES DD
 ```
 
 **Key insight**: the active frontend target is `package/run -> CSIR -> CPIR`,
-but the existing backend path through TableIR/Excel/xl2times remains the parity
-target until the reset is complete.
+and the existing backend path through TableIR/Excel/xl2times remains the
+required parity target.
 
 ## Toolchain Build Order
 
@@ -520,13 +518,13 @@ uv run vedalang-dev validate-tableir tables.yaml
 | **P2** | Primitives Exploration | All energy system primitives | ✅ DONE |
 | **P3** | MiniSystem Stress Test | Real model validation | ✅ DONE |
 
-### Active Workstream: DSL Reset
+### Landed Public DSL
 
-The current priority is the `vedalang-txa` rollout tree for the hard-cut public
-DSL reset. This supersedes the older "P4" framing as the main design target.
+The `vedalang-txa` rollout tree is complete. The hard-cut public DSL reset is
+now the baseline design surface rather than an active migration.
 
-| Epic | Focus |
-|------|-------|
+| Landed Epic | Result |
+|-------------|--------|
 | `vedalang-txa.1` | Governance, versioning, and legacy rejection |
 | `vedalang-txa.3` | Public schema and AST reset |
 | `vedalang-txa.4` | Resolution: imports, runs, spatial/stock/site logic |

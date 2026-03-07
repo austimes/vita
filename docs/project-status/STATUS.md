@@ -4,7 +4,7 @@
 
 ## Executive Summary
 
-VedaLang is a typed DSL that compiles to VEDA Excel tables for TIMES energy models. **All core phases (P0–P3) remain complete**, and the v0.2 DSL reset has now landed through backend parity. The remaining rollout work is concentrated on diagnostics, downstream tooling surfaces, examples/docs, and golden regressions, with 6 open issues and 105 closed issues.
+VedaLang is a typed DSL that compiles to VEDA Excel tables for TIMES energy models. **All core phases (P0–P3) remain complete**, and the v0.2 package/run/CSIR/CPIR rollout is now complete end-to-end, with 0 open issues and 112 closed issues.
 
 | Milestone | Status |
 |-----------|--------|
@@ -12,7 +12,7 @@ VedaLang is a typed DSL that compiles to VEDA Excel tables for TIMES energy mode
 | xl2times diagnostics | ✅ Hardened |
 | Design challenges (DC1-DC5) | ✅ All passing |
 | Schema evolution policy | ✅ In place |
-| Test coverage | ✅ 1033 tests passing, 38 skipped |
+| Test coverage | ✅ Regression suites green |
 | Primitives Exploration | ✅ Complete |
 | Schema Extensions | ✅ All implemented |
 | MiniSystem Stress Test | ✅ Complete |
@@ -22,28 +22,28 @@ VedaLang is a typed DSL that compiles to VEDA Excel tables for TIMES energy mode
 | Emissions Refactor | ✅ Complete |
 | Progressive Fixtures (ms1-8) | ✅ All passing |
 | v0.2 backend parity | ✅ Complete |
-| v0.2 rollout backlog | 🚧 Diagnostics/tooling/docs remaining |
+| v0.2 rollout backlog | ✅ Complete |
 
 ---
 
-## Current Status: v0.2 Tooling and Regression Finish-Out
-Core design phases remain complete. The v0.2 frontend, IR, and backend parity work are closed in `bd`; the remaining rollout work is concentrated on diagnostics, downstream tooling surfaces, examples/docs, and golden regressions.
+## Current Status: v0.2 Rollout Complete
+Core design phases remain complete. The v0.2 frontend, diagnostics, downstream tooling surfaces, flagship examples/docs, and regression matrix are all closed in `bd`, and the rollout now compiles through the existing Excel/xl2times/TIMES path.
 
 ### Active Work
 
-| Issue | Priority | Type | Title |
-|-------|----------|------|-------|
-| `vedalang-txa` | P1 | epic | VedaLang v0.2 rollout: package/run/CSIR/CPIR DSL reset |
-| `vedalang-txa.7` | P1 | epic | diagnostics, tooling surfaces, docs, and regression coverage |
-| `vedalang-txa.7.1` | P1 | task | Implement PRD Section 14 hard errors, warnings, and source maps |
-| `vedalang-txa.7.2` | P1 | task | Port query, viz, reporting, and LSP consumers to CSIR/CPIR-era data |
-| `vedalang-txa.7.3` | P1 | task | Rewrite examples, tutorials, and skills to v0.2 DSL and compile them in CI |
-| `vedalang-txa.7.4` | P1 | task | Add golden regression matrix for Section 16, determinism, and legacy rejection |
+No open `bd` issues remain. The v0.2 rollout umbrella and its child epics are closed.
 
 ### Recently Completed
 
 | Issue | Priority | Description | Status |
 |-------|----------|-------------|--------|
+| `vedalang-txa` | P1 | Umbrella v0.2 rollout completed across schema, resolution, IR, backend, diagnostics, tooling, docs, and regressions | ✓ Closed |
+| `vedalang-txa.7` | P1 | Diagnostics/tooling/docs/regression epic completed with Section 14 diagnostics, CSIR/CPIR consumers, flagship docs/examples, and Section 16 golden tests | ✓ Closed |
+| `vedalang-txa.7.5` | P2 | Synced README, AGENTS, STATUS, and HISTORY to the landed v0.2 architecture | ✓ Closed |
+| `vedalang-txa.7.4` | P1 | Added Section 16 worked-example regressions, byte-stability checks, and dedicated legacy rejection coverage | ✓ Closed |
+| `vedalang-txa.7.3` | P1 | Rewrote flagship examples/tutorial/skills to the v0.2 DSL and compile-tested the example set in regression tests | ✓ Closed |
+| `vedalang-txa.7.2` | P1 | Ported query/viz/LSP consumers to v0.2 CSIR/CPIR-era data while preserving legacy compatibility | ✓ Closed |
+| `vedalang-txa.7.1` | P1 | Landed PRD Section 14 hard errors, warnings, and shared source-map diagnostics across CLI/lint/LSP | ✓ Closed |
 | `vedalang-txa.6` | P1 | Backend parity completed with CPIR->TableIR lowering, run-scoped artifact emission, and xl2times-successful v0.2 fixture coverage | ✓ Closed |
 | `vedalang-txa.6.3` | P1 | Added flagship v0.2 parity fixture plus xl2times regressions for opportunity/network and emission-bearing backend paths | ✓ Closed |
 | `vedalang-txa.6.2` | P1 | Compile/validate and vedalang-dev pipeline now emit run-scoped CSIR/CPIR/explain artifacts alongside backend outputs | ✓ Closed |
@@ -80,7 +80,7 @@ Core design phases remain complete. The v0.2 frontend, IR, and backend parity wo
 
 ### Future Work (P4+)
 
-The longer-term P4 roadmap (`vedalang-6qs`, `vedalang-9xy`, `vedalang-a9m`) still exists, but it is now secondary to the active `vedalang-txa` v0.2 reset backlog above.
+The longer-term P4 roadmap (`vedalang-6qs`, `vedalang-9xy`, `vedalang-a9m`) still exists, but it is now a secondary backlog after completion of the `vedalang-txa` v0.2 reset.
 
 ---
 
@@ -255,7 +255,7 @@ vedalang/
 │   ├── veda_run_times/       # TIMES solver runner
 │   └── vedalang_lsp/         # Language server
 ├── rules/                    # Pattern library
-├── tests/                    # 1033 tests (+ skipped)
+├── tests/                    # Regression suites
 ├── fixtures/                 # MiniVEDA2 + golden fixtures
 └── xl2times/                 # Validation oracle (third-party)
 ```

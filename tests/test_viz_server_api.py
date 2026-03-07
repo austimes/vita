@@ -85,3 +85,29 @@ def test_viz_server_health_and_files_and_query():
     mode_response = mode_query.json()
     assert mode_response["graph"]["nodes"]
     assert any(node["type"] == "mode" for node in mode_response["graph"]["nodes"])
+
+    v0_2_file = EXAMPLES_DIR / "v0_2/mini_space_heat.veda.yaml"
+    v0_2_query = client.post(
+        "/api/query",
+        json={
+            "version": "1",
+            "file": str(v0_2_file),
+            "mode": "source",
+            "granularity": "role",
+            "lens": "system",
+            "filters": {
+                "regions": [],
+                "case": None,
+                "sectors": [],
+                "scopes": [],
+            },
+            "compiled": {
+                "truth": "auto",
+                "cache": False,
+                "allow_partial": True,
+            },
+        },
+    )
+    assert v0_2_query.status_code == 200
+    v0_2_response = v0_2_query.json()
+    assert any(node["type"] == "role" for node in v0_2_response["graph"]["nodes"])

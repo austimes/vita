@@ -5,8 +5,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from vedalang.compiler.compiler import load_vedalang
+from vedalang.compiler.compiler import compile_vedalang_bundle, load_vedalang
 from vedalang.conventions import stage_label
+from vedalang.versioning import looks_like_v0_2_source
 
 from .compiled_artifacts import resolve_compiled_artifacts
 from .graph_models import (
@@ -15,6 +16,11 @@ from .graph_models import (
     build_source_system_graph,
 )
 from .trade_view import build_compiled_trade_view, build_source_trade_view
+from .v0_2_graph import (
+    build_v0_2_system_graph,
+    build_v0_2_trade_graph,
+    infer_run_id,
+)
 
 VALID_MODES = {"source", "compiled"}
 VALID_GRANULARITIES = {
@@ -103,6 +109,39 @@ def _filters_from_request(
     source: dict,
 ) -> tuple[FilterSpec, list[dict[str, str]]]:
     diagnostics: list[dict[str, str]] = []
+    if looks_like_v0_2_source(source):
+        model_regions = set()
+        run_id = infer_run_id(source)
+        if run_id:
+            for run in source.get("runs", []) or []:
+                if run.get("id") == run_id:
+                    partition_ref = run.get("region_partition")
+                    for partition in source.get("region_partitions", []) or []:
+                        if partition.get("id") == partition_ref:
+                            model_regions = set(partition.get("members", []) or [])
+                            break
+                    break
+        requested_regions = set(req["filters"]["regions"])
+        regions = requested_regions or model_regions
+        unknown_regions = sorted(regions - model_regions) if model_regions else []
+        if unknown_regions:
+            diagnostics.append(
+                _diagnostic(
+                    "UNKNOWN_REGION_FILTER",
+                    "warning",
+                    f"Ignoring unknown regions: {', '.join(unknown_regions)}",
+                )
+            )
+            regions = regions - set(unknown_regions)
+        return (
+            FilterSpec(
+                regions=regions,
+                sectors=set(req["filters"]["sectors"]),
+                scopes=set(req["filters"]["scopes"]),
+            ),
+            diagnostics,
+        )
+
     model_regions = set(source.get("model", {}).get("regions", []))
     requested_regions = set(req["filters"]["regions"])
     regions = requested_regions or model_regions
@@ -171,6 +210,16 @@ def _empty_response(mode: str, diagnostics: list[dict[str, str]]) -> dict[str, A
 
 
 def _trade_links_configured(source: dict[str, Any]) -> bool:
+    if looks_like_v0_2_source(source):
+        links = source.get("networks", [])
+        if not isinstance(links, list):
+            return False
+        return any(
+            isinstance(network, dict)
+            and isinstance(network.get("links"), list)
+            and bool(network.get("links"))
+            for network in links
+        )
     links = source.get("model", {}).get("trade_links", [])
     if not isinstance(links, list):
         return False
@@ -219,6 +268,156 @@ def query_res_graph(request: dict[str, Any]) -> dict[str, Any]:
 
     mode_used = req["mode"]
     artifacts: dict[str, str] = {}
+
+    if looks_like_v0_2_source(source):
+        run_id = infer_run_id(source)
+        if run_id is None:
+            diagnostics.append(
+                _diagnostic(
+                    "RUN_SELECTION_REQUIRED",
+                    "error",
+                    "v0.2 graph queries currently require a source with exactly "
+                    "one run.",
+                )
+            )
+            return _empty_response(req["mode"], diagnostics)
+
+        if req["mode"] == "source":
+            try:
+                bundle = compile_vedalang_bundle(
+                    source,
+                    validate=True,
+                    selected_run=run_id,
+                )
+            except Exception as exc:  # pragma: no cover - defensive
+                diagnostics.append(
+                    _diagnostic(
+                        "SOURCE_GRAPH_BUILD_FAILED",
+                        "error",
+                        f"Failed to compile v0.2 source graph: {exc}",
+                    )
+                )
+                return _empty_response(req["mode"], diagnostics)
+            artifacts["run_id"] = run_id
+            if bundle.csir and bundle.cpir:
+                if req["lens"] == "trade":
+                    built = build_v0_2_trade_graph(csir=bundle.csir, cpir=bundle.cpir)
+                else:
+                    built = build_v0_2_system_graph(
+                        csir=bundle.csir,
+                        cpir=bundle.cpir,
+                        granularity=req["granularity"],
+                        commodity_view=req["commodity_view"],
+                    )
+                return {
+                    "version": "1",
+                    "status": "ok",
+                    "mode_used": mode_used,
+                    "artifacts": artifacts,
+                    "graph": built["graph"],
+                    "facets": built["facets"],
+                    "diagnostics": diagnostics,
+                    "details": built["details"],
+                }
+            diagnostics.append(
+                _diagnostic(
+                    "V0_2_ARTIFACTS_UNAVAILABLE",
+                    "error",
+                    "v0.2 source compilation did not produce CSIR/CPIR artifacts.",
+                )
+            )
+            return _empty_response(req["mode"], diagnostics)
+
+        compiled = resolve_compiled_artifacts(
+            file_path=file_path,
+            workspace_root=file_path.parent,
+            case_name=req["filters"].get("case"),
+            run_id=run_id,
+            truth=req["compiled"].get("truth", "auto"),
+            use_cache=req["compiled"].get("cache", True),
+        )
+        diagnostics.extend(compiled.diagnostics)
+        artifacts.update(compiled.artifacts)
+        if compiled.csir is not None and compiled.cpir is not None:
+            if req["lens"] == "trade":
+                built = build_v0_2_trade_graph(csir=compiled.csir, cpir=compiled.cpir)
+            else:
+                built = build_v0_2_system_graph(
+                    csir=compiled.csir,
+                    cpir=compiled.cpir,
+                    granularity=req["granularity"],
+                    commodity_view=req["commodity_view"],
+                )
+            status = compiled.status
+        elif req["compiled"].get("allow_partial", True):
+            mode_used = "source"
+            try:
+                bundle = compile_vedalang_bundle(
+                    source,
+                    validate=True,
+                    selected_run=run_id,
+                )
+            except Exception as exc:  # pragma: no cover - defensive
+                diagnostics.append(
+                    _diagnostic(
+                        "COMPILED_GRAPH_UNAVAILABLE",
+                        "error",
+                        f"Compiled graph unavailable and source fallback failed: {exc}",
+                    )
+                )
+                return _empty_response(mode_used, diagnostics)
+            built = (
+                build_v0_2_trade_graph(csir=bundle.csir, cpir=bundle.cpir)
+                if req["lens"] == "trade"
+                else build_v0_2_system_graph(
+                    csir=bundle.csir or {},
+                    cpir=bundle.cpir or {},
+                    granularity=req["granularity"],
+                    commodity_view=req["commodity_view"],
+                )
+            )
+            status = "partial"
+            diagnostics.append(
+                _diagnostic(
+                    "COMPILED_SOURCE_FALLBACK",
+                    "warning",
+                    "Compiled artifacts unavailable; returned v0.2 source-mode "
+                    "graph fallback.",
+                )
+            )
+        else:
+            diagnostics.append(
+                _diagnostic(
+                    "COMPILED_GRAPH_UNAVAILABLE",
+                    "error",
+                    "Compiled graph unavailable and source fallback disabled.",
+                )
+            )
+            return _empty_response(mode_used, diagnostics)
+
+        if req["lens"] == "trade":
+            graph = built.get("graph", {})
+            nodes = graph.get("nodes", []) if isinstance(graph, dict) else []
+            edges = graph.get("edges", []) if isinstance(graph, dict) else []
+            if not nodes and not edges and not _trade_links_configured(source):
+                diagnostics.append(
+                    _diagnostic(
+                        "NO_TRADE_LINKS",
+                        "warning",
+                        "Trade lens is empty because the v0.2 source defines no "
+                        "configured networks.",
+                    )
+                )
+        return {
+            "version": "1",
+            "status": status,
+            "mode_used": mode_used,
+            "artifacts": artifacts,
+            "graph": built["graph"],
+            "facets": built["facets"],
+            "diagnostics": diagnostics,
+            "details": built["details"],
+        }
 
     def build_source_graph() -> dict[str, Any]:
         if req["lens"] == "trade":

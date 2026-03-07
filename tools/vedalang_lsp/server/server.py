@@ -15,11 +15,16 @@ from pygls.lsp.server import LanguageServer
 from pygls.workspace import TextDocument
 from yaml.nodes import MappingNode, Node, SequenceNode
 
+from vedalang.compiler.source_maps import attach_source_positions
+from vedalang.compiler.v0_2_diagnostics import collect_v0_2_diagnostics
+from vedalang.versioning import looks_like_v0_2_source
+
 from .schema_docs import SCHEMA_FIELD_DOCS
 
 # Load schemas and attribute data
 SCHEMA_DIR = Path(__file__).parent.parent.parent.parent / "vedalang" / "schema"
 VEDALANG_SCHEMA_PATH = SCHEMA_DIR / "vedalang.schema.json"
+VEDALANG_LEGACY_SCHEMA_PATH = SCHEMA_DIR / "vedalang.legacy.schema.json"
 
 
 def load_attribute_master() -> dict:
@@ -41,28 +46,78 @@ def load_vedalang_schema() -> dict:
     return {}
 
 
+def load_legacy_vedalang_schema() -> dict:
+    """Load the legacy VedaLang JSON schema."""
+    path = VEDALANG_LEGACY_SCHEMA_PATH
+    if path.exists():
+        with open(path) as f:
+            return json.load(f)
+    return {}
+
+
 ATTR_MASTER = load_attribute_master()
 VEDALANG_SCHEMA = load_vedalang_schema()
+VEDALANG_LEGACY_SCHEMA = load_legacy_vedalang_schema()
 SCHEMA_VALIDATOR = Draft7Validator(VEDALANG_SCHEMA) if VEDALANG_SCHEMA else None
+LEGACY_SCHEMA_VALIDATOR = (
+    Draft7Validator(VEDALANG_LEGACY_SCHEMA) if VEDALANG_LEGACY_SCHEMA else None
+)
 SCHEMA_MTIME = (
     VEDALANG_SCHEMA_PATH.stat().st_mtime if VEDALANG_SCHEMA_PATH.exists() else None
+)
+LEGACY_SCHEMA_MTIME = (
+    VEDALANG_LEGACY_SCHEMA_PATH.stat().st_mtime
+    if VEDALANG_LEGACY_SCHEMA_PATH.exists()
+    else None
 )
 
 
 def refresh_schema_cache() -> None:
     """Reload schema/validator when the schema file changes on disk."""
     global VEDALANG_SCHEMA, SCHEMA_VALIDATOR, SCHEMA_MTIME
+    global VEDALANG_LEGACY_SCHEMA, LEGACY_SCHEMA_VALIDATOR, LEGACY_SCHEMA_MTIME
 
     if not VEDALANG_SCHEMA_PATH.exists():
         return
 
     current_mtime = VEDALANG_SCHEMA_PATH.stat().st_mtime
-    if SCHEMA_MTIME is not None and current_mtime == SCHEMA_MTIME:
-        return
+    if SCHEMA_MTIME is None or current_mtime != SCHEMA_MTIME:
+        VEDALANG_SCHEMA = load_vedalang_schema()
+        SCHEMA_VALIDATOR = (
+            Draft7Validator(VEDALANG_SCHEMA) if VEDALANG_SCHEMA else None
+        )
+        SCHEMA_MTIME = current_mtime
 
-    VEDALANG_SCHEMA = load_vedalang_schema()
-    SCHEMA_VALIDATOR = Draft7Validator(VEDALANG_SCHEMA) if VEDALANG_SCHEMA else None
-    SCHEMA_MTIME = current_mtime
+    if not VEDALANG_LEGACY_SCHEMA_PATH.exists():
+        return
+    legacy_mtime = VEDALANG_LEGACY_SCHEMA_PATH.stat().st_mtime
+    if LEGACY_SCHEMA_MTIME is None or legacy_mtime != LEGACY_SCHEMA_MTIME:
+        VEDALANG_LEGACY_SCHEMA = load_legacy_vedalang_schema()
+        LEGACY_SCHEMA_VALIDATOR = (
+            Draft7Validator(VEDALANG_LEGACY_SCHEMA)
+            if VEDALANG_LEGACY_SCHEMA
+            else None
+        )
+        LEGACY_SCHEMA_MTIME = legacy_mtime
+
+
+def _resolve_schema_ref_in_root(schema_node: dict, schema_root: dict) -> dict:
+    """Resolve local $ref pointers against a specific schema document."""
+    current = schema_node
+    while isinstance(current, dict) and "$ref" in current:
+        ref = current.get("$ref")
+        if not isinstance(ref, str) or not ref.startswith("#/"):
+            break
+        pointer = [_decode_json_pointer_segment(p) for p in ref[2:].split("/")]
+        target = schema_root
+        for part in pointer:
+            if not isinstance(target, dict) or part not in target:
+                return current
+            target = target[part]
+        if not isinstance(target, dict):
+            return current
+        current = target
+    return current if isinstance(current, dict) else {}
 
 # VedaLang semantic attribute → TIMES attribute mapping
 SEMANTIC_TO_TIMES = {
@@ -79,19 +134,21 @@ SEMANTIC_TO_TIMES = {
 
 # Top-level VedaLang keywords for completion
 VEDALANG_KEYWORDS = [
-    "model",
-    "name",
-    "description",
-    "regions",
-    "milestone_years",
-    "timeslices",
     "commodities",
-    "processes",
-    "scenario_parameters",
-    "trade_links",
-    "constraints",
-    "cases",
-    "studies",
+    "technologies",
+    "technology_roles",
+    "stock_characterizations",
+    "spatial_layers",
+    "spatial_measure_sets",
+    "temporal_index_series",
+    "region_partitions",
+    "zone_overlays",
+    "sites",
+    "facilities",
+    "fleets",
+    "opportunities",
+    "networks",
+    "runs",
 ]
 
 # Process-level keywords
@@ -287,21 +344,7 @@ def _decode_json_pointer_segment(segment: str) -> str:
 
 def _resolve_schema_ref(schema_node: dict) -> dict:
     """Resolve local $ref pointers in the loaded VedaLang schema."""
-    current = schema_node
-    while isinstance(current, dict) and "$ref" in current:
-        ref = current.get("$ref")
-        if not isinstance(ref, str) or not ref.startswith("#/"):
-            break
-        pointer = [_decode_json_pointer_segment(p) for p in ref[2:].split("/")]
-        target = VEDALANG_SCHEMA
-        for part in pointer:
-            if not isinstance(target, dict) or part not in target:
-                return current
-            target = target[part]
-        if not isinstance(target, dict):
-            return current
-        current = target
-    return current if isinstance(current, dict) else {}
+    return _resolve_schema_ref_in_root(schema_node, VEDALANG_SCHEMA)
 
 
 def _schema_child_for_token(schema_node: dict, token: str | int) -> dict | None:
@@ -344,19 +387,68 @@ def _schema_child_for_token(schema_node: dict, token: str | int) -> dict | None:
     return None
 
 
+def _schema_child_for_token_in_root(
+    schema_node: dict,
+    token: str | int,
+    schema_root: dict,
+) -> dict | None:
+    """Follow a schema node for one token using a specific schema root."""
+    node = _resolve_schema_ref_in_root(schema_node, schema_root)
+
+    if isinstance(token, int):
+        if isinstance(node.get("items"), dict):
+            return node["items"]
+    elif isinstance(token, str):
+        props = node.get("properties")
+        if (
+            isinstance(props, dict)
+            and token in props
+            and isinstance(props[token], dict)
+        ):
+            return props[token]
+
+        pattern_props = node.get("patternProperties")
+        if isinstance(pattern_props, dict):
+            for pattern, sub_schema in pattern_props.items():
+                if re.match(pattern, token) and isinstance(sub_schema, dict):
+                    return sub_schema
+
+        additional = node.get("additionalProperties")
+        if isinstance(additional, dict):
+            return additional
+
+    for branch_key in ("oneOf", "anyOf", "allOf"):
+        branches = node.get(branch_key)
+        if not isinstance(branches, list):
+            continue
+        for branch in branches:
+            if not isinstance(branch, dict):
+                continue
+            child = _schema_child_for_token_in_root(branch, token, schema_root)
+            if child:
+                return child
+
+    return None
+
+
 def schema_for_path(path: list[str | int]) -> dict | None:
     """Resolve the JSON Schema node for a YAML path."""
     refresh_schema_cache()
-    if not VEDALANG_SCHEMA:
-        return None
-
-    node: dict = VEDALANG_SCHEMA
-    for token in path:
-        child = _schema_child_for_token(node, token)
-        if not isinstance(child, dict):
-            return None
-        node = child
-    return _resolve_schema_ref(node)
+    candidates = (VEDALANG_SCHEMA, VEDALANG_LEGACY_SCHEMA)
+    for root in candidates:
+        if not isinstance(root, dict) or not root:
+            continue
+        node: dict = root
+        matched = True
+        for token in path:
+            child = _schema_child_for_token_in_root(node, token, root)
+            if not isinstance(child, dict):
+                matched = False
+                break
+            node = child
+        if matched:
+            return _resolve_schema_ref_in_root(node, root)
+    return None
 
 
 def _position_in_node(node: Node, position: types.Position) -> bool:
@@ -596,11 +688,16 @@ def schema_validation_diagnostics(
 ) -> list[types.Diagnostic]:
     """Run JSON Schema validation and return diagnostics."""
     refresh_schema_cache()
-    if SCHEMA_VALIDATOR is None:
+    validator = (
+        SCHEMA_VALIDATOR
+        if looks_like_v0_2_source(parsed)
+        else LEGACY_SCHEMA_VALIDATOR
+    )
+    if validator is None:
         return []
 
     diagnostics: list[types.Diagnostic] = []
-    errors = sorted(SCHEMA_VALIDATOR.iter_errors(parsed), key=lambda e: list(e.path))
+    errors = sorted(validator.iter_errors(parsed), key=lambda e: list(e.path))
     for err in errors:
         diagnostics.append(
             types.Diagnostic(
@@ -1231,6 +1328,50 @@ def validate_document(
 
     # Re-index after successful parse
     parse_and_index(ls, document)
+
+    if looks_like_v0_2_source(parsed):
+        diagnostics.extend(schema_validation_diagnostics(document, parsed))
+        raw_diagnostics = collect_v0_2_diagnostics(parsed)
+        attach_source_positions(
+            raw_diagnostics,
+            source=parsed,
+            source_text=source,
+        )
+        for diag in raw_diagnostics:
+            line = int(diag.get("line", 1)) - 1
+            end_line = int(diag.get("end_line", line + 1)) - 1
+            column = int(diag.get("column", 1)) - 1
+            end_column = int(diag.get("end_column", column + 1)) - 1
+            range_ = types.Range(
+                start=types.Position(line=max(0, line), character=max(0, column)),
+                end=types.Position(
+                    line=max(0, end_line),
+                    character=max(column + 1, end_column),
+                ),
+            )
+            object_id = diag.get("object_id")
+            code = diag.get("code")
+            message = str(diag.get("message", ""))
+            if code and object_id:
+                rendered = f"{code} {object_id}: {message}"
+            elif code:
+                rendered = f"{code}: {message}"
+            else:
+                rendered = message
+            severity = types.DiagnosticSeverity.Warning
+            if str(diag.get("severity", "warning")).lower() == "error":
+                severity = types.DiagnosticSeverity.Error
+            diagnostics.append(
+                types.Diagnostic(
+                    range=range_,
+                    message=rendered,
+                    severity=severity,
+                    source="vedalang",
+                    code=code,
+                    data=diag,
+                )
+            )
+        return diagnostics
 
     # Check for required 'model' key
     if "model" not in parsed:

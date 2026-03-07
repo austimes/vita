@@ -244,3 +244,50 @@ def test_compiled_commodity_view_collapse_scope_merges_scoped_nodes():
 
     assert any("@" in label for label in scoped_commodities)
     assert all("@" not in label for label in collapsed_commodities)
+
+
+def test_v0_2_source_query_returns_role_graph():
+    source_file = EXAMPLES_DIR / "v0_2/mini_space_heat.veda.yaml"
+
+    response = query_res_graph(
+        {
+            "version": "1",
+            "file": str(source_file),
+            "mode": "source",
+            "granularity": "role",
+            "lens": "system",
+            "filters": {"regions": [], "case": None, "sectors": [], "scopes": []},
+            "compiled": {"truth": "auto", "cache": True, "allow_partial": True},
+        }
+    )
+
+    assert response["status"] == "ok"
+    assert any(node["type"] == "role" for node in response["graph"]["nodes"])
+    assert response["facets"]["regions"] == ["QLD"]
+
+
+def test_v0_2_compiled_trade_query_exposes_network_arcs():
+    source_file = EXAMPLES_DIR / "v0_2/toy_heat_network.veda.yaml"
+
+    response = query_res_graph(
+        {
+            "version": "1",
+            "file": str(source_file),
+            "mode": "compiled",
+            "granularity": "instance",
+            "lens": "trade",
+            "filters": {
+                "regions": ["NSW", "QLD"],
+                "case": None,
+                "sectors": [],
+                "scopes": [],
+            },
+            "compiled": {"truth": "auto", "cache": False, "allow_partial": True},
+        }
+    )
+
+    assert response["status"] in {"ok", "partial"}
+    trade_edges = [e for e in response["graph"]["edges"] if e["type"] == "trade"]
+    assert trade_edges
+    first = response["details"]["edges"][trade_edges[0]["id"]]
+    assert first["source_network"] == "east_coast_power"

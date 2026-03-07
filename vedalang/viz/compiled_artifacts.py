@@ -26,6 +26,9 @@ class CompiledArtifacts:
     diagnostics: list[dict[str, str]] = field(default_factory=list)
     tableir: dict[str, Any] | None = None
     manifest: dict[str, Any] | None = None
+    csir: dict[str, Any] | None = None
+    cpir: dict[str, Any] | None = None
+    explain: dict[str, Any] | None = None
 
 
 def _diagnostic(code: str, severity: str, message: str) -> dict[str, str]:
@@ -36,13 +39,19 @@ def _cache_root(workspace_root: Path) -> Path:
     return workspace_root / ".cache" / "vedalang" / "res_viewer"
 
 
-def _hash_key(file_path: Path, case_name: str | None, truth: str) -> str:
+def _hash_key(
+    file_path: Path,
+    case_name: str | None,
+    truth: str,
+    run_id: str | None,
+) -> str:
     content = file_path.read_bytes()
     digest = hashlib.sha256()
     digest.update(content)
     digest.update(CACHE_VERSION.encode("utf-8"))
     digest.update((case_name or "").encode("utf-8"))
     digest.update(truth.encode("utf-8"))
+    digest.update((run_id or "").encode("utf-8"))
     return digest.hexdigest()
 
 
@@ -74,11 +83,17 @@ def _resolve_from_index(index: dict[str, Any]) -> CompiledArtifacts | None:
     artifacts = index.get("artifacts", {})
     tableir_path = Path(artifacts.get("tableir_file", ""))
     manifest_path = Path(artifacts.get("manifest_file", ""))
+    csir_path = Path(artifacts.get("csir_file", ""))
+    cpir_path = Path(artifacts.get("cpir_file", ""))
+    explain_path = Path(artifacts.get("explain_file", ""))
 
     tableir = _load_tableir(tableir_path) if tableir_path else None
     manifest = _load_json(manifest_path) if manifest_path else None
+    csir = _load_tableir(csir_path) if csir_path else None
+    cpir = _load_tableir(cpir_path) if cpir_path else None
+    explain = _load_json(explain_path) if explain_path else None
 
-    if tableir is None and manifest is None:
+    if tableir is None and manifest is None and csir is None and cpir is None:
         return None
 
     status = "ok" if manifest is not None else "partial"
@@ -98,6 +113,9 @@ def _resolve_from_index(index: dict[str, Any]) -> CompiledArtifacts | None:
         diagnostics=diagnostics,
         tableir=tableir,
         manifest=manifest,
+        csir=csir,
+        cpir=cpir,
+        explain=explain,
     )
 
 
@@ -106,6 +124,7 @@ def resolve_compiled_artifacts(
     file_path: Path,
     workspace_root: Path,
     case_name: str | None,
+    run_id: str | None = None,
     truth: str = "auto",
     use_cache: bool = True,
 ) -> CompiledArtifacts:
@@ -115,7 +134,7 @@ def resolve_compiled_artifacts(
     file_path = file_path.resolve()
     workspace_root = workspace_root.resolve()
     cache_root = _cache_root(workspace_root)
-    cache_key = _hash_key(file_path, case_name, truth)
+    cache_key = _hash_key(file_path, case_name, truth, run_id)
     cache_dir = cache_root / cache_key
     index_path = cache_dir / "index.json"
 
@@ -137,6 +156,7 @@ def resolve_compiled_artifacts(
     result = run_pipeline(
         file_path,
         input_kind="vedalang",
+        run_id=run_id,
         no_solver=True,
         keep_workdir=True,
         work_dir=work_dir,
@@ -149,6 +169,10 @@ def resolve_compiled_artifacts(
         "excel_dir": result.artifacts.get("excel_dir", ""),
         "dd_dir": result.artifacts.get("dd_dir", ""),
     })
+    for key in ("run_id", "csir_file", "cpir_file", "explain_file"):
+        value = result.artifacts.get(key, "")
+        if isinstance(value, str) and value:
+            artifacts[key] = value
 
     xl_step = result.steps.get("xl2times")
     manifest_file = ""
@@ -170,10 +194,13 @@ def resolve_compiled_artifacts(
 
     tableir = _load_tableir(Path(artifacts.get("tableir_file", "")))
     manifest = _load_json(Path(manifest_file)) if manifest_file else None
+    csir = _load_tableir(Path(artifacts.get("csir_file", "")))
+    cpir = _load_tableir(Path(artifacts.get("cpir_file", "")))
+    explain = _load_json(Path(artifacts.get("explain_file", "")))
 
     if manifest is not None:
         status = "ok"
-    elif tableir is not None:
+    elif tableir is not None or csir is not None or cpir is not None:
         status = "partial"
         diagnostics.append(
             _diagnostic(
@@ -208,4 +235,7 @@ def resolve_compiled_artifacts(
         diagnostics=diagnostics,
         tableir=tableir,
         manifest=manifest,
+        csir=csir,
+        cpir=cpir,
+        explain=explain,
     )

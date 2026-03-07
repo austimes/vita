@@ -504,6 +504,37 @@ def compile_v0_2_bundle(
         raise ValueError("compile_v0_2_bundle requires a v0.2 source")
     if validate_source is not None:
         validate_source(source)
+    from .v0_2_diagnostics import collect_v0_2_diagnostics
+
+    diagnostics = collect_v0_2_diagnostics(
+        source,
+        selected_run=selected_run,
+        packages=packages,
+        site_region_memberships=site_region_memberships,
+        site_zone_memberships=site_zone_memberships,
+        measure_weights=measure_weights,
+        custom_weights=custom_weights,
+    )
+    first_error = next(
+        (diag for diag in diagnostics if diag.get("severity") == "error"),
+        None,
+    )
+    if first_error is not None:
+        raise V0_2ResolutionError(
+            str(first_error.get("code", "E002")),
+            str(first_error.get("object_id", "<unknown>")),
+            str(first_error.get("message", "v0.2 compilation failed")),
+            location=(
+                str(first_error["location"])
+                if first_error.get("location") is not None
+                else None
+            ),
+            suggestion=(
+                str(first_error["suggestion"])
+                if first_error.get("suggestion") is not None
+                else None
+            ),
+        )
     parsed = parse_v0_2_source(source)
     graph = resolve_imports(parsed, _normalize_packages(packages))
     run = resolve_selected_run(graph, _require_selected_run(graph, selected_run))

@@ -17,11 +17,14 @@ Then execute with this order:
 1. Author/edit model YAML (`.veda.yaml`)
 2. Format: `uv run vedalang fmt <model>.veda.yaml`
 3. Lint quickly: `uv run vedalang lint <model>.veda.yaml`
-4. Full validation: `uv run vedalang validate <model>.veda.yaml`
-5. If needed, compile only: `uv run vedalang compile <model>.veda.yaml --out <dir>`
+4. Full validation: `uv run vedalang validate <model>.veda.yaml --run <run_id>`
+5. If needed, compile only: `uv run vedalang compile <model>.veda.yaml --run <run_id> --out <dir>`
 
 Hard rules:
 - Treat schema as authoritative for valid syntax.
 - Use canonical modeling conventions from
   `skills/vedalang-modeling-conventions/references/modeling-conventions.md`.
 - When in doubt, trust `vedalang validate` diagnostics over assumptions.
+- Prefer the v0.2 object families: `commodities`, `technologies`,
+  `technology_roles`, `sites`, `facilities`, `fleets`, `opportunities`,
+  `networks`, and `runs`.
