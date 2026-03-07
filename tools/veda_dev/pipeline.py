@@ -124,6 +124,29 @@ def _tail_text(text: str, *, max_lines: int = 20, max_chars: int = 2000) -> str:
     return tail
 
 
+def _update_result_artifacts(
+    result: PipelineResult,
+    *,
+    work_dir: Path,
+    tableir_file: Path | None,
+    excel_dir: Path | None,
+    dd_dir: Path | None,
+) -> None:
+    """Refresh top-level pipeline artifact pointers from step outputs."""
+    result.artifacts["work_dir"] = str(work_dir)
+    if tableir_file:
+        result.artifacts["tableir_file"] = str(tableir_file)
+    compile_step = result.steps.get("compile")
+    if compile_step:
+        for key in ("run_id", "csir_file", "cpir_file", "explain_file"):
+            if key in compile_step.artifacts:
+                result.artifacts[key] = compile_step.artifacts[key]
+    if excel_dir:
+        result.artifacts["excel_dir"] = str(excel_dir)
+    if dd_dir:
+        result.artifacts["dd_dir"] = str(dd_dir)
+
+
 def _extract_licensing_excerpt(lst_file: Path, *, max_lines: int = 6) -> list[str]:
     """Extract key licensing lines from a GAMS listing file."""
     if not lst_file.exists():
@@ -147,6 +170,7 @@ def run_pipeline(
     input_path: Path,
     *,
     input_kind: str | None = None,
+    run_id: str | None = None,
     case: str = "scenario",
     times_src: Path | None = None,
     gams_binary: str = "gams",
@@ -225,7 +249,8 @@ def run_pipeline(
             try:
                 from vedalang.compiler import (
                     PublicDSLContractError,
-                    compile_vedalang_to_tableir,
+                    V0_2ResolutionError,
+                    compile_vedalang_bundle,
                     load_vedalang,
                     validate_public_dsl_contract,
                 )
@@ -239,7 +264,12 @@ def run_pipeline(
                     else load_vedalang(input_path)
                 )
                 validate_public_dsl_contract(source)
-                tableir = compile_vedalang_to_tableir(source, validate=True)
+                bundle = compile_vedalang_bundle(
+                    source,
+                    validate=True,
+                    selected_run=run_id,
+                )
+                tableir = bundle.tableir
 
                 tableir_file = work_dir / "model.tableir.yaml"
                 import yaml
@@ -249,10 +279,33 @@ def run_pipeline(
 
                 compile_result.artifacts["tableir_file"] = str(tableir_file)
                 compile_result.artifacts["file_count"] = len(tableir.get("files", []))
+                if bundle.run_id and bundle.csir and bundle.cpir and bundle.explain:
+                    csir_file = work_dir / f"{bundle.run_id}.csir.yaml"
+                    cpir_file = work_dir / f"{bundle.run_id}.cpir.yaml"
+                    explain_file = work_dir / f"{bundle.run_id}.explain.json"
+                    csir_file.write_text(
+                        yaml.safe_dump(bundle.csir, sort_keys=False),
+                        encoding="utf-8",
+                    )
+                    cpir_file.write_text(
+                        yaml.safe_dump(bundle.cpir, sort_keys=False),
+                        encoding="utf-8",
+                    )
+                    explain_file.write_text(
+                        json.dumps(bundle.explain, indent=2) + "\n",
+                        encoding="utf-8",
+                    )
+                    compile_result.artifacts["run_id"] = bundle.run_id
+                    compile_result.artifacts["csir_file"] = str(csir_file)
+                    compile_result.artifacts["cpir_file"] = str(cpir_file)
+                    compile_result.artifacts["explain_file"] = str(explain_file)
                 if verbose:
                     count = compile_result.artifacts["file_count"]
                     print(f"[compile] Created TableIR with {count} files")
             except PublicDSLContractError as e:
+                compile_result.success = False
+                compile_result.errors.append(f"{e.code}: {e.message}")
+            except V0_2ResolutionError as e:
                 compile_result.success = False
                 compile_result.errors.append(f"{e.code}: {e.message}")
             except Exception as e:
@@ -265,6 +318,13 @@ def run_pipeline(
         result.steps["compile"] = compile_result
 
         if not compile_result.success:
+            _update_result_artifacts(
+                result,
+                work_dir=work_dir,
+                tableir_file=tableir_file,
+                excel_dir=excel_dir,
+                dd_dir=dd_dir,
+            )
             return result
 
         # Step 2: Emit Excel
@@ -295,6 +355,13 @@ def run_pipeline(
         result.steps["emit_excel"] = emit_result
 
         if not emit_result.success:
+            _update_result_artifacts(
+                result,
+                work_dir=work_dir,
+                tableir_file=tableir_file,
+                excel_dir=excel_dir,
+                dd_dir=dd_dir,
+            )
             return result
 
         # Step 3: xl2times (Excel -> DD)
@@ -310,8 +377,9 @@ def run_pipeline(
                 regions = None
                 if vedalang_source:
                     model_regions = vedalang_source.get("model", {}).get("regions", [])
-                    regions = ",".join(model_regions)
-                elif tableir_file and tableir_file.exists():
+                    if model_regions:
+                        regions = ",".join(model_regions)
+                if not regions and tableir_file and tableir_file.exists():
                     # Try to extract from TableIR - look for BOOKREGIONS_MAP
                     import yaml
                     with open(tableir_file) as f:
@@ -387,6 +455,13 @@ def run_pipeline(
         result.steps["xl2times"] = xl2times_result
 
         if not xl2times_result.success:
+            _update_result_artifacts(
+                result,
+                work_dir=work_dir,
+                tableir_file=tableir_file,
+                excel_dir=excel_dir,
+                dd_dir=dd_dir,
+            )
             return result
 
         # Step 4: Run TIMES solver
@@ -544,13 +619,13 @@ def run_pipeline(
         )
 
         # Collect top-level artifacts
-        result.artifacts["work_dir"] = str(work_dir)
-        if tableir_file:
-            result.artifacts["tableir_file"] = str(tableir_file)
-        if excel_dir:
-            result.artifacts["excel_dir"] = str(excel_dir)
-        if dd_dir:
-            result.artifacts["dd_dir"] = str(dd_dir)
+        _update_result_artifacts(
+            result,
+            work_dir=work_dir,
+            tableir_file=tableir_file,
+            excel_dir=excel_dir,
+            dd_dir=dd_dir,
+        )
         if sankey_result.artifacts.get("sankey_file"):
             result.artifacts["sankey_file"] = sankey_result.artifacts["sankey_file"]
 

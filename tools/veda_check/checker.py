@@ -12,7 +12,8 @@ from tools.veda_check.invariants import check_tableir_invariants
 from tools.veda_emit_excel import emit_excel, load_tableir
 from vedalang.compiler import (
     PublicDSLContractError,
-    compile_vedalang_to_tableir,
+    V0_2ResolutionError,
+    compile_vedalang_bundle,
     load_vedalang,
     validate_public_dsl_contract,
 )
@@ -43,6 +44,7 @@ def run_check(
     from_tableir: bool = False,
     project_root: Path | None = None,
     selected_cases: list[str] | None = None,
+    selected_run: str | None = None,
 ) -> CheckResult:
     """
     Run the full validation pipeline.
@@ -66,10 +68,12 @@ def run_check(
         if from_vedalang:
             source = load_vedalang(input_path)
             validate_public_dsl_contract(source)
-            tableir = compile_vedalang_to_tableir(
+            bundle = compile_vedalang_bundle(
                 source,
                 selected_cases=selected_cases,
+                selected_run=selected_run,
             )
+            tableir = bundle.tableir
             result.dsl_version = source.get("dsl_version", DSL_VERSION)
         elif from_tableir:
             tableir = load_tableir(input_path)
@@ -147,6 +151,19 @@ def run_check(
                     "message": e.message,
                     "location": e.location,
                     "suggestion": e.suggestion,
+                }
+            ]
+        }
+    except V0_2ResolutionError as e:
+        result.errors += 1
+        result.error_messages.append(f"{e.code}: {e.message}")
+        result.diagnostics = {
+            "diagnostics": [
+                {
+                    "severity": "error",
+                    "code": e.code,
+                    "message": e.message,
+                    "object_id": e.object_id,
                 }
             ]
         }

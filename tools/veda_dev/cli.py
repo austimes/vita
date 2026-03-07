@@ -39,6 +39,10 @@ def main():
         help="Case/scenario name (default: scenario)",
     )
     pipeline_parser.add_argument(
+        "--run",
+        help="Selected v0.2 run when compiling VedaLang input",
+    )
+    pipeline_parser.add_argument(
         "--times-src",
         type=Path,
         help="Path to TIMES source code",
@@ -110,6 +114,10 @@ def main():
         "--from-tableir",
         action="store_true",
         help="Input is TableIR",
+    )
+    check_parser.add_argument(
+        "--run",
+        help="Selected v0.2 run when validating VedaLang input",
     )
     check_parser.add_argument(
         "--json",
@@ -516,6 +524,7 @@ def run_pipeline_command(args):
     result = run_pipeline(
         input_path=args.input,
         input_kind=args.input_kind,
+        run_id=args.run,
         case=args.case,
         times_src=args.times_src,
         gams_binary=args.gams_binary,
@@ -548,6 +557,7 @@ def run_check_command(args):
         args.input,
         from_vedalang=args.from_vedalang,
         from_tableir=args.from_tableir,
+        selected_run=args.run,
     )
 
     if args.json_output:

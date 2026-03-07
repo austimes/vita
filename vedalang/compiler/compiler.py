@@ -47,6 +47,7 @@ from .ir import (
 from .naming import NamingRegistry
 from .registry import VedaLangError, get_registry
 from .segments import build_segments, normalize_commodity
+from .v0_2_backend import CompileBundle, compile_v0_2_bundle
 
 SCHEMA_DIR = Path(__file__).parent.parent / "schema"
 
@@ -3504,6 +3505,53 @@ def validate_vedalang(source: dict, *, legacy: bool | None = None) -> None:
     jsonschema.validate(source, schema)
 
 
+def compile_vedalang_bundle(
+    source: dict,
+    validate: bool = True,
+    selected_cases: list[str] | None = None,
+    selected_run: str | None = None,
+    packages: dict | None = None,
+    site_region_memberships: dict[str, str | list[str]] | None = None,
+    site_zone_memberships: dict[str, dict[str, str | list[str]]] | None = None,
+    measure_weights: dict[str, dict[str, float]] | None = None,
+    custom_weights: dict[str, dict[str, float]] | None = None,
+) -> CompileBundle:
+    """Compile either legacy/new syntax or v0.2 syntax into a normalized bundle."""
+    if looks_like_v0_2_source(source):
+        bundle = compile_v0_2_bundle(
+            source,
+            validate_source=validate_vedalang if validate else None,
+            selected_run=selected_run,
+            packages=packages,
+            site_region_memberships=site_region_memberships,
+            site_zone_memberships=site_zone_memberships,
+            measure_weights=measure_weights,
+            custom_weights=custom_weights,
+        )
+        if validate:
+            _validate_compiled_tableir(bundle.tableir)
+        return bundle
+    return CompileBundle(
+        tableir=compile_vedalang_to_tableir(
+            source,
+            validate=validate,
+            selected_cases=selected_cases,
+        )
+    )
+
+
+def _validate_compiled_tableir(tableir: dict) -> None:
+    """Validate a compiled TableIR artifact against schema and table contracts."""
+    tableir_schema = load_tableir_schema()
+    jsonschema.validate(tableir, tableir_schema)
+
+    from .table_schemas import TableValidationError, validate_tableir
+
+    table_errors = validate_tableir(tableir)
+    if table_errors:
+        raise TableValidationError(table_errors)
+
+
 def _compile_new_syntax(
     source: dict,
     validate: bool = True,
@@ -4399,6 +4447,7 @@ def compile_vedalang_to_tableir(
     source: dict,
     validate: bool = True,
     selected_cases: list[str] | None = None,
+    selected_run: str | None = None,
 ) -> dict:
     """
     Transform VedaLang source to TableIR structure.
@@ -4414,6 +4463,16 @@ def compile_vedalang_to_tableir(
         jsonschema.ValidationError: If source doesn't match VedaLang schema
         SemanticValidationError: If cross-references are invalid
     """
+    if looks_like_v0_2_source(source):
+        bundle = compile_v0_2_bundle(
+            source,
+            validate_source=validate_vedalang if validate else None,
+            selected_run=selected_run,
+        )
+        if validate:
+            _validate_compiled_tableir(bundle.tableir)
+        return bundle.tableir
+
     if validate:
         validate_vedalang(source)
 
@@ -4843,15 +4902,7 @@ def compile_vedalang_to_tableir(
     annotate_tableir(tableir, source=source)
 
     if validate:
-        tableir_schema = load_tableir_schema()
-        jsonschema.validate(tableir, tableir_schema)
-
-        # Validate against VEDA table schemas (canonical column names only)
-        from .table_schemas import TableValidationError, validate_tableir
-
-        table_errors = validate_tableir(tableir)
-        if table_errors:
-            raise TableValidationError(table_errors)
+        _validate_compiled_tableir(tableir)
 
     return tableir
 

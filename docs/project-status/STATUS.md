@@ -4,7 +4,7 @@
 
 ## Executive Summary
 
-VedaLang is a typed DSL that compiles to VEDA Excel tables for TIMES energy models. **All core phases (P0–P3) remain complete**, but the active workstream has shifted to a new **v0.2 DSL reset** based on the 2026-03-07 PRD. The tracker now contains a full rollout hierarchy for the package/run/CSIR/CPIR architecture, with 10 open issues, 1 in-progress issue, and 100 closed issues.
+VedaLang is a typed DSL that compiles to VEDA Excel tables for TIMES energy models. **All core phases (P0–P3) remain complete**, and the v0.2 DSL reset has now landed through backend parity. The remaining rollout work is concentrated on diagnostics, downstream tooling surfaces, examples/docs, and golden regressions, with 6 open issues and 105 closed issues.
 
 | Milestone | Status |
 |-----------|--------|
@@ -21,38 +21,33 @@ VedaLang is a typed DSL that compiles to VEDA Excel tables for TIMES energy mode
 | LSP / VSCode Plugin | ✅ Complete |
 | Emissions Refactor | ✅ Complete |
 | Progressive Fixtures (ms1-8) | ✅ All passing |
-| v0.2 DSL reset backlog | 🚧 Planned in `bd` |
+| v0.2 backend parity | ✅ Complete |
+| v0.2 rollout backlog | 🚧 Diagnostics/tooling/docs remaining |
 
 ---
 
-## Current Status: v0.2 DSL Reset Planning
-Core design phases remain complete. Active work is now concentrated on the `vedalang-txa` rollout tree for the v0.2 package/run/CSIR/CPIR DSL reset.
+## Current Status: v0.2 Tooling and Regression Finish-Out
+Core design phases remain complete. The v0.2 frontend, IR, and backend parity work are closed in `bd`; the remaining rollout work is concentrated on diagnostics, downstream tooling surfaces, examples/docs, and golden regressions.
 
 ### Active Work
 
 | Issue | Priority | Type | Title |
 |-------|----------|------|-------|
 | `vedalang-txa` | P1 | epic | VedaLang v0.2 rollout: package/run/CSIR/CPIR DSL reset |
-| `vedalang-txa.6` | P1 | epic | backend parity through Excel/xl2times/TIMES |
-| `vedalang-txa.6.1` | P1 | task | Map CPIR to existing TableIR and Excel emission path |
-| `vedalang-txa.6.2` | P1 | task | Update compile/validate CLI for run-scoped multi-artifact builds |
-| `vedalang-txa.6.3` | P1 | task | Restore xl2times and TIMES parity for flagship v0.2 fixtures |
 | `vedalang-txa.7` | P1 | epic | diagnostics, tooling surfaces, docs, and regression coverage |
 | `vedalang-txa.7.1` | P1 | task | Implement PRD Section 14 hard errors, warnings, and source maps |
 | `vedalang-txa.7.2` | P1 | task | Port query, viz, reporting, and LSP consumers to CSIR/CPIR-era data |
 | `vedalang-txa.7.3` | P1 | task | Rewrite examples, tutorials, and skills to v0.2 DSL and compile them in CI |
 | `vedalang-txa.7.4` | P1 | task | Add golden regression matrix for Section 16, determinism, and legacy rejection |
 
-### In Progress
-
-| Issue | Priority | Type | Title |
-|-------|----------|------|-------|
-| `vedalang-txa.7.5` | P2 | task | Sync README, AGENTS, STATUS, and HISTORY with the v0.2 rollout |
-
 ### Recently Completed
 
 | Issue | Priority | Description | Status |
 |-------|----------|-------------|--------|
+| `vedalang-txa.6` | P1 | Backend parity completed with CPIR->TableIR lowering, run-scoped artifact emission, and xl2times-successful v0.2 fixture coverage | ✓ Closed |
+| `vedalang-txa.6.3` | P1 | Added flagship v0.2 parity fixture plus xl2times regressions for opportunity/network and emission-bearing backend paths | ✓ Closed |
+| `vedalang-txa.6.2` | P1 | Compile/validate and vedalang-dev pipeline now emit run-scoped CSIR/CPIR/explain artifacts alongside backend outputs | ✓ Closed |
+| `vedalang-txa.6.1` | P1 | Added v0.2 backend bridge from resolved CPIR into TableIR/Excel with facility/fleet/opportunity/network coverage | ✓ Closed |
 | `vedalang-txa.5` | P1 | Canonical IR tranche completed with CSIR/CPIR/explain schemas, emitters, lowering, and deterministic artifact tests | ✓ Closed |
 | `vedalang-txa.5.4` | P1 | Added CSIR-to-CPIR lowering for process specs, transition edges, opportunity processes, and network arcs | ✓ Closed |
 | `vedalang-txa.5.3` | P1 | Added explain artifact emission for provenance, temporal adjustment, spatial allocation, stock characterization, and lowering traces | ✓ Closed |
@@ -191,13 +186,13 @@ All 10 energy system primitives explored and implemented:
 
 ```bash
 # Validate a VedaLang model (lint + compile + xl2times)
-uv run vedalang validate model.veda.yaml --json
+uv run vedalang validate model.veda.yaml --run <run_id> --json
 
 # Lint for heuristic issues only
 uv run vedalang lint model.veda.yaml --json
 
 # Compile to TableIR only
-uv run vedalang compile model.veda.yaml --tableir output.yaml
+uv run vedalang compile model.veda.yaml --run <run_id> --tableir output.yaml
 
 # Emit Excel from TableIR (design agent)
 uv run vedalang-dev emit-excel tableir.yaml --out output_dir/

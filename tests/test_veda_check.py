@@ -2,6 +2,9 @@
 
 from pathlib import Path
 
+import yaml
+
+from tests.test_v0_2_backend import _v0_2_backend_source
 from tools.veda_check import run_check
 
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -94,3 +97,19 @@ def test_result_has_table_info():
     )
     # Should have some tables
     assert len(result.tables) >= 1
+
+
+def test_check_v0_2_run_scoped_source(tmp_path):
+    """Run-scoped v0.2 sources compile through veda_check."""
+    src = tmp_path / "toy_v0_2.veda.yaml"
+    src.write_text(yaml.safe_dump(_v0_2_backend_source()), encoding="utf-8")
+
+    result = run_check(
+        src,
+        from_vedalang=True,
+        selected_run="toy_states_2025",
+    )
+
+    assert result.dsl_version == "0.2"
+    assert len(result.tables) > 0
+    assert result.total_rows > 0

@@ -240,6 +240,9 @@ def emit_csir(
                 "id": opportunity_id,
                 "technology": opportunity.technology,
                 "model_region": opportunity.model_region,
+                "max_new_capacity": _quantity_dict(
+                    parse_quantity(graph.opportunities[opportunity_id].max_new_capacity)
+                ),
                 "trace_ids": [trace_id],
             }
         )
@@ -463,7 +466,7 @@ def lower_csir_to_cpir(
                 "model_region": opportunity["model_region"],
                 "model_stock_metric": "installed_capacity",
                 "initial_stock": {"amount": 0.0, "unit": ""},
-                "max_new_capacity": {"amount": 0.0, "unit": ""},
+                "max_new_capacity": dict(opportunity.get("max_new_capacity") or {}),
                 "flows": _technology_flows(technology),
             }
         )

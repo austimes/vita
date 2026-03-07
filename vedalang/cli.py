@@ -28,11 +28,12 @@ from yaml.nodes import MappingNode, Node, SequenceNode
 from vedalang.compiler.compiler import (
     PublicDSLContractError,
     SemanticValidationError,
-    compile_vedalang_to_tableir,
+    compile_vedalang_bundle,
     load_vedalang,
     validate_public_dsl_contract,
     validate_vedalang,
 )
+from vedalang.compiler.v0_2_resolution import V0_2ResolutionError
 from vedalang.lint.code_categories import (
     CATEGORY_RUNNERS as CODE_CATEGORY_RUNNERS,
 )
@@ -234,6 +235,10 @@ def _add_compile_parser(subparsers):
         action="append",
         help="Compile only the specified case (repeatable)",
     )
+    p.add_argument(
+        "--run",
+        help="Compile the specified v0.2 run",
+    )
     p.add_argument("--no-lint", action="store_true", help="Skip linting before compile")
     p.add_argument("--json", action="store_true", help="Output JSON format")
 
@@ -272,6 +277,10 @@ def _add_validate_parser(subparsers):
         "--case",
         action="append",
         help="Validate only the specified case (repeatable)",
+    )
+    p.add_argument(
+        "--run",
+        help="Validate the specified v0.2 run",
     )
     p.add_argument("--json", action="store_true", help="Output JSON format")
     p.add_argument(
@@ -1828,6 +1837,7 @@ def cmd_compile(args) -> int:
     out_dir: Path | None = args.out
     tableir_path: Path | None = args.tableir
     selected_cases: list[str] | None = args.case
+    selected_run: str | None = args.run
     skip_lint: bool = args.no_lint
     output_json: bool = args.json
 
@@ -1855,11 +1865,13 @@ def cmd_compile(args) -> int:
     try:
         source = load_vedalang(file_path)
         validate_public_dsl_contract(source)
-        tableir = compile_vedalang_to_tableir(
+        bundle = compile_vedalang_bundle(
             source,
             validate=True,
             selected_cases=selected_cases,
+            selected_run=selected_run,
         )
+        tableir = bundle.tableir
     except jsonschema.ValidationError as e:
         _error(f"Schema error: {e.message}", output_json, str(file_path))
         return 2
@@ -1876,11 +1888,42 @@ def cmd_compile(args) -> int:
     except SemanticValidationError as e:
         _error(f"Semantic error: {e}", output_json, str(file_path))
         return 2
+    except V0_2ResolutionError as e:
+        _error(f"{e.code}: {e.message}", output_json, str(file_path), code=e.code)
+        return 2
     except Exception as e:
         _error(f"Compile error: {e}", output_json, str(file_path))
         return 2
 
     created_files: list[str] = []
+    artifact_dir = out_dir or (tableir_path.parent if tableir_path else None)
+
+    if (
+        artifact_dir
+        and bundle.run_id
+        and bundle.csir
+        and bundle.cpir
+        and bundle.explain
+    ):
+        import yaml
+
+        artifact_dir.mkdir(parents=True, exist_ok=True)
+        csir_path = artifact_dir / f"{bundle.run_id}.csir.yaml"
+        cpir_path = artifact_dir / f"{bundle.run_id}.cpir.yaml"
+        explain_path = artifact_dir / f"{bundle.run_id}.explain.json"
+        csir_path.write_text(
+            yaml.safe_dump(bundle.csir, sort_keys=False),
+            encoding="utf-8",
+        )
+        cpir_path.write_text(
+            yaml.safe_dump(bundle.cpir, sort_keys=False),
+            encoding="utf-8",
+        )
+        explain_path.write_text(
+            json.dumps(bundle.explain, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        created_files.extend([str(csir_path), str(cpir_path), str(explain_path)])
 
     if tableir_path:
         import yaml
@@ -1901,6 +1944,7 @@ def cmd_compile(args) -> int:
             "artifact_version": CHECK_OUTPUT_VERSION,
             "success": True,
             "source": str(file_path),
+            "run_id": bundle.run_id,
             "files": created_files,
         }, indent=2))
     else:
@@ -1917,6 +1961,7 @@ def cmd_validate(args) -> int:
     output_json: bool = args.json
     keep_workdir: bool = args.keep_workdir
     selected_cases: list[str] | None = args.case
+    selected_run: str | None = args.run
 
     if not file_path.exists():
         _error(f"File not found: {file_path}", output_json, str(file_path))
@@ -1935,6 +1980,7 @@ def cmd_validate(args) -> int:
         file_path,
         from_vedalang=True,
         selected_cases=selected_cases,
+        selected_run=selected_run,
     )
 
     if output_json:

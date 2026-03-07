@@ -6,6 +6,8 @@ from pathlib import Path
 
 import yaml
 
+from tests.test_v0_2_backend import _v0_2_backend_source
+
 EXAMPLES_DIR = Path(__file__).parent.parent / "vedalang" / "examples"
 MINI_PLANT = EXAMPLES_DIR / "quickstart/mini_plant.veda.yaml"
 MINISYSTEM = EXAMPLES_DIR / "minisystem/minisystem8.veda.yaml"
@@ -404,6 +406,34 @@ class TestLint:
 
 
 class TestCompile:
+    def test_vedalang_compile_v0_2_run_outputs_multi_artifacts(self, tmp_path):
+        """v0.2 compile emits run-scoped CSIR/CPIR/explain artifacts."""
+        src = tmp_path / "toy_v0_2.veda.yaml"
+        src.write_text(yaml.safe_dump(_v0_2_backend_source()), encoding="utf-8")
+
+        out_dir = tmp_path / "excel_out"
+        tableir_path = tmp_path / "toy.tableir.yaml"
+        result = run_vedalang(
+            "compile",
+            str(src),
+            "--run",
+            "toy_states_2025",
+            "--out",
+            str(out_dir),
+            "--tableir",
+            str(tableir_path),
+            "--json",
+            "--no-lint",
+        )
+        assert result.returncode == 0
+
+        data = json.loads(result.stdout)
+        assert data["run_id"] == "toy_states_2025"
+        assert any(path.endswith(".csir.yaml") for path in data["files"])
+        assert any(path.endswith(".cpir.yaml") for path in data["files"])
+        assert any(path.endswith(".explain.json") for path in data["files"])
+        assert tableir_path.exists()
+
     def test_vedalang_compile_basic(self, tmp_path):
         """Compile creates Excel files."""
         out_dir = tmp_path / "excel_out"
@@ -486,6 +516,25 @@ class TestCompile:
 
 
 class TestValidate:
+    def test_vedalang_validate_v0_2_run_json(self, tmp_path):
+        """Validate supports run-scoped v0.2 sources."""
+        src = tmp_path / "toy_v0_2.veda.yaml"
+        src.write_text(yaml.safe_dump(_v0_2_backend_source()), encoding="utf-8")
+
+        result = run_vedalang(
+            "validate",
+            "--json",
+            "--run",
+            "toy_states_2025",
+            str(src),
+        )
+        assert result.returncode in (0, 1, 2)
+
+        data = json.loads(result.stdout)
+        assert data["dsl_version"] == "0.2"
+        assert len(data["tables"]) > 0
+        assert data["total_rows"] > 0
+
     def test_vedalang_validate_basic(self):
         """Validate runs through xl2times pipeline."""
         result = run_vedalang("validate", str(MINI_PLANT))

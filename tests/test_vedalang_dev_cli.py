@@ -5,6 +5,9 @@ import subprocess
 from pathlib import Path
 
 import pytest
+import yaml
+
+from tests.test_v0_2_backend import _v0_2_backend_source
 
 EXAMPLES_DIR = Path(__file__).parent.parent / "vedalang" / "examples"
 MINI_PLANT = EXAMPLES_DIR / "quickstart/mini_plant.veda.yaml"
@@ -117,6 +120,28 @@ class TestCheck:
 
 
 class TestPipeline:
+    def test_vedalang_dev_pipeline_v0_2_run_json(self, tmp_path):
+        """Pipeline exposes run-scoped artifact files for v0.2 input."""
+        src = tmp_path / "toy_v0_2.veda.yaml"
+        src.write_text(yaml.safe_dump(_v0_2_backend_source()), encoding="utf-8")
+
+        result = run_vedalang_dev(
+            "pipeline",
+            str(src),
+            "--run",
+            "toy_states_2025",
+            "--no-solver",
+            "--json",
+        )
+        assert result.returncode in (0, 2)
+
+        data = json.loads(result.stdout)
+        artifacts = data["artifacts"]
+        assert artifacts["run_id"] == "toy_states_2025"
+        assert artifacts["csir_file"].endswith(".csir.yaml")
+        assert artifacts["cpir_file"].endswith(".cpir.yaml")
+        assert artifacts["explain_file"].endswith(".explain.json")
+
     def test_vedalang_dev_pipeline_no_solver(self):
         """Pipeline runs with --no-solver."""
         result = run_vedalang_dev(

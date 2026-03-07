@@ -58,6 +58,10 @@ def main():
         help="Input is TableIR (.yaml/.json)"
     )
     parser.add_argument(
+        "--run",
+        help="Selected v0.2 run when validating VedaLang input",
+    )
+    parser.add_argument(
         "--json",
         action="store_true",
         dest="json_output",
@@ -86,10 +90,13 @@ def main():
         args.input,
         from_vedalang=args.from_vedalang,
         from_tableir=args.from_tableir,
+        selected_run=args.run,
     )
 
     if args.json_output:
         output = {
+            "dsl_version": result.dsl_version,
+            "artifact_version": result.artifact_version,
             "success": result.success,
             "source": str(result.source_path),
             "tables": result.tables,

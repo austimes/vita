@@ -1,0 +1,97 @@
+dsl_version: "0.2"
+commodities:
+  - id: primary:natural_gas
+    kind: primary
+  - id: secondary:electricity
+    kind: secondary
+  - id: service:space_heat
+    kind: service
+technologies:
+  - id: gas_heater
+    provides: service:space_heat
+    inputs:
+      - commodity: primary:natural_gas
+        basis: HHV
+    performance:
+      kind: efficiency
+      value: 0.9
+    investment_cost: 220 AUD2024/kW
+    fixed_om: 8 AUD2024/kW/year
+    lifetime: 25 year
+  - id: heat_pump
+    provides: service:space_heat
+    inputs:
+      - commodity: secondary:electricity
+    performance:
+      kind: cop
+      value: 3.2
+    investment_cost: 400 AUD2024/kW
+    fixed_om: 12 AUD2024/kW/year
+    lifetime: 15 year
+technology_roles:
+  - id: space_heat_supply
+    primary_service: service:space_heat
+    technologies: [gas_heater, heat_pump]
+    transitions:
+      - from: gas_heater
+        to: heat_pump
+        kind: retrofit
+        cost: 70 AUD2024/kW
+spatial_layers:
+  - id: geo.demo
+    kind: polygon
+    key: region_id
+    geometry_file: data/regions.geojson
+region_partitions:
+  - id: toy_states
+    layer: geo.demo
+    members: [NSW, QLD]
+    mapping:
+      kind: constant
+      value: NSW
+sites:
+  - id: brisbane_site
+    location:
+      point:
+        lat: -27.47
+        lon: 153.02
+    membership_overrides:
+      region_partitions:
+        toy_states: QLD
+facilities:
+  - id: brisbane_heat
+    site: brisbane_site
+    technology_role: space_heat_supply
+    available_technologies: [gas_heater, heat_pump]
+    stock:
+      items:
+        - technology: gas_heater
+          metric: installed_capacity
+          observed:
+            value: 600 MW
+            year: 2025
+opportunities:
+  - id: qld_heat_pumps
+    technology: heat_pump
+    siting:
+      region_member:
+        partition: toy_states
+        member: QLD
+    max_new_capacity: 500 MW
+networks:
+  - id: east_coast_power
+    kind: transmission
+    node_basis:
+      kind: region_partition
+      ref: toy_states
+    links:
+      - id: qld_nsw_power
+        from: QLD
+        to: NSW
+        commodity: secondary:electricity
+        existing_transfer_capacity: 1200 MW
+runs:
+  - id: toy_states_2025
+    base_year: 2025
+    currency_year: 2024
+    region_partition: toy_states

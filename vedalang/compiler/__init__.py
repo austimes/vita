@@ -1,8 +1,10 @@
 """VedaLang compiler - transforms VedaLang source to TableIR."""
 
 from .compiler import (
+    CompileBundle,
     PublicDSLContractError,
     SemanticValidationError,
+    compile_vedalang_bundle,
     compile_vedalang_to_tableir,
     load_vedalang,
     validate_cross_references,
@@ -48,6 +50,7 @@ from .v0_2_resolution import (
 
 __all__ = [
     "AttributeInfo",
+    "CompileBundle",
     "DemandError",
     "IndexLayout",
     "NamingRegistry",
@@ -65,6 +68,7 @@ __all__ = [
     "VedaTableLayout",
     "VedaTableSchema",
     "compile_demands",
+    "compile_vedalang_bundle",
     "compile_vedalang_to_tableir",
     "build_v0_2_artifacts",
     "emit_csir",
