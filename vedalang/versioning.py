@@ -1,4 +1,4 @@
-"""Shared version constants for VedaLang source and emitted artifacts."""
+"""Shared version constants and source-shape helpers for VedaLang."""
 
 from __future__ import annotations
 
@@ -10,13 +10,71 @@ TABLEIR_ARTIFACT_VERSION = "1.0.0"
 CHECK_OUTPUT_VERSION = "1.0.0"
 PIPELINE_OUTPUT_VERSION = "1.0.0"
 
+V0_2_TOP_LEVEL_KEYS = frozenset(
+    {
+        "imports",
+        "commodities",
+        "technologies",
+        "technology_roles",
+        "stock_characterizations",
+        "spatial_layers",
+        "spatial_measure_sets",
+        "temporal_index_series",
+        "region_partitions",
+        "zone_overlays",
+        "sites",
+        "facilities",
+        "fleets",
+        "opportunities",
+        "networks",
+        "runs",
+    }
+)
+LEGACY_TOP_LEVEL_KEYS = frozenset(
+    {
+        "model",
+        "scoping",
+        "roles",
+        "variants",
+        "availability",
+        "process_parameters",
+        "demands",
+        "diagnostics",
+        "commodity_groups",
+        "facility_templates",
+        "facility_selection",
+        "spatial_mappings",
+        "providers",
+        "provider_parameters",
+    }
+)
+
+
+def looks_like_v0_2_source(source: dict[str, Any] | None) -> bool:
+    """Return True when a source payload uses the v0.2 public object model."""
+    if not isinstance(source, dict):
+        return False
+    declared_version = source.get("dsl_version")
+    if isinstance(declared_version, str) and declared_version == DSL_VERSION:
+        if not LEGACY_TOP_LEVEL_KEYS.intersection(source):
+            return True
+    return bool(V0_2_TOP_LEVEL_KEYS.intersection(source))
+
+
+def looks_like_legacy_source(source: dict[str, Any] | None) -> bool:
+    """Return True when a source payload uses the pre-v0.2 authoring surface."""
+    if not isinstance(source, dict):
+        return False
+    return bool(LEGACY_TOP_LEVEL_KEYS.intersection(source))
+
 
 def with_dsl_version(source: dict[str, Any]) -> dict[str, Any]:
     """Return a source dict annotated with the current DSL version."""
     if not isinstance(source, dict):
         return source
     normalized = deepcopy(source)
-    normalized.setdefault("dsl_version", DSL_VERSION)
+    if looks_like_v0_2_source(normalized):
+        normalized.setdefault("dsl_version", DSL_VERSION)
     return normalized
 
 

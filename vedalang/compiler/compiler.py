@@ -21,7 +21,12 @@ from vedalang.conventions import (
     scenario_category_enum,
     split_commodity_namespace,
 )
-from vedalang.versioning import annotate_tableir, with_dsl_version
+from vedalang.versioning import (
+    annotate_tableir,
+    looks_like_legacy_source,
+    looks_like_v0_2_source,
+    with_dsl_version,
+)
 
 from .demands import compile_demands
 from .facilities import (
@@ -3478,9 +3483,10 @@ def validate_cross_references(
     return errors, warnings
 
 
-def load_vedalang_schema() -> dict:
+def load_vedalang_schema(*, legacy: bool = False) -> dict:
     """Load the VedaLang JSON schema."""
-    with open(SCHEMA_DIR / "vedalang.schema.json") as f:
+    schema_name = "vedalang.legacy.schema.json" if legacy else "vedalang.schema.json"
+    with open(SCHEMA_DIR / schema_name) as f:
         return json.load(f)
 
 
@@ -3490,9 +3496,11 @@ def load_tableir_schema() -> dict:
         return json.load(f)
 
 
-def validate_vedalang(source: dict) -> None:
-    """Validate VedaLang source against schema."""
-    schema = load_vedalang_schema()
+def validate_vedalang(source: dict, *, legacy: bool | None = None) -> None:
+    """Validate VedaLang source against the appropriate schema."""
+    if legacy is None:
+        legacy = looks_like_legacy_source(source) and not looks_like_v0_2_source(source)
+    schema = load_vedalang_schema(legacy=legacy)
     jsonschema.validate(source, schema)
 
 

@@ -1,0 +1,864 @@
+"""Typed AST objects for the VedaLang v0.2 public source model."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Any
+
+
+@dataclass(frozen=True)
+class SourceRef:
+    """Stable structural source reference for diagnostics/provenance."""
+
+    path: str
+
+
+@dataclass(frozen=True)
+class ImportDecl:
+    package: str
+    alias: str
+    only: dict[str, tuple[str, ...]]
+    source_ref: SourceRef
+
+
+@dataclass(frozen=True)
+class CommodityDecl:
+    id: str
+    kind: str
+    description: str | None
+    source_ref: SourceRef
+
+
+@dataclass(frozen=True)
+class FlowSpec:
+    commodity: str
+    basis: str | None
+    coefficient: str | int | float | None
+    source_ref: SourceRef
+
+
+@dataclass(frozen=True)
+class PerformanceSpec:
+    kind: str
+    value: float
+    source_ref: SourceRef
+
+
+@dataclass(frozen=True)
+class EmissionFactor:
+    commodity: str
+    factor: str | int | float
+    source_ref: SourceRef
+
+
+@dataclass(frozen=True)
+class TechnologyDecl:
+    id: str
+    provides: str
+    inputs: tuple[FlowSpec, ...]
+    outputs: tuple[FlowSpec, ...]
+    performance: PerformanceSpec | None
+    emissions: tuple[EmissionFactor, ...]
+    investment_cost: str | int | float | None
+    fixed_om: str | int | float | None
+    variable_om: str | int | float | None
+    lifetime: str | int | float | None
+    stock_characterization: str | None
+    description: str | None
+    source_ref: SourceRef
+
+
+@dataclass(frozen=True)
+class RoleTransition:
+    from_technology: str
+    to_technology: str
+    kind: str
+    cost: str | int | float | None
+    lead_time: str | int | float | None
+    source_ref: SourceRef
+
+
+@dataclass(frozen=True)
+class TechnologyRoleDecl:
+    id: str
+    primary_service: str
+    technologies: tuple[str, ...]
+    transitions: tuple[RoleTransition, ...]
+    description: str | None
+    source_ref: SourceRef
+
+
+@dataclass(frozen=True)
+class MetricConversion:
+    from_metric: str
+    to_metric: str
+    factor: str | int | float
+    source_ref: SourceRef
+
+
+@dataclass(frozen=True)
+class StockCharacterizationDecl:
+    id: str
+    applies_to: tuple[str, ...]
+    counted_asset_label: str | None
+    conversions: tuple[MetricConversion, ...]
+    description: str | None
+    source_ref: SourceRef
+
+
+@dataclass(frozen=True)
+class SpatialLayerDecl:
+    id: str
+    kind: str
+    key: str
+    geometry_file: str
+    source_ref: SourceRef
+
+
+@dataclass(frozen=True)
+class SpatialMeasureDecl:
+    id: str
+    observed_year: int
+    unit: str
+    file: str
+    column: str
+    description: str | None
+    source_ref: SourceRef
+
+
+@dataclass(frozen=True)
+class SpatialMeasureSetDecl:
+    id: str
+    layer: str
+    measures: tuple[SpatialMeasureDecl, ...]
+    source_ref: SourceRef
+
+
+@dataclass(frozen=True)
+class TemporalIndexSeriesDecl:
+    id: str
+    unit: str
+    base_year: int | None
+    values: dict[int, float]
+    description: str | None
+    source_ref: SourceRef
+
+
+@dataclass(frozen=True)
+class PartitionMapping:
+    kind: str
+    file: str | None
+    source_key: str | None
+    target_key: str | None
+    value: str | None
+    source_ref: SourceRef
+
+
+@dataclass(frozen=True)
+class RegionPartitionDecl:
+    id: str
+    layer: str
+    members: tuple[str, ...]
+    mapping: PartitionMapping
+    description: str | None
+    source_ref: SourceRef
+
+
+@dataclass(frozen=True)
+class ZoneOverlayDecl:
+    id: str
+    layer: str
+    key: str
+    geometry_file: str
+    description: str | None
+    source_ref: SourceRef
+
+
+@dataclass(frozen=True)
+class SiteLocation:
+    point: dict[str, float] | None
+    feature_ref: dict[str, str] | None
+    source_ref: SourceRef
+
+
+@dataclass(frozen=True)
+class MembershipOverrides:
+    region_partitions: dict[str, str]
+    zone_overlays: dict[str, str]
+    source_ref: SourceRef
+
+
+@dataclass(frozen=True)
+class SiteDecl:
+    id: str
+    location: SiteLocation
+    membership_overrides: MembershipOverrides | None
+    description: str | None
+    source_ref: SourceRef
+
+
+@dataclass(frozen=True)
+class AnnualGrowthAssumption:
+    rate: str | int | float
+    source_ref: SourceRef
+
+
+@dataclass(frozen=True)
+class BaseYearAdjustment:
+    using_temporal_index: str | None
+    annual_growth: AnnualGrowthAssumption | None
+    elasticity: float | None
+    source_ref: SourceRef
+
+
+@dataclass(frozen=True)
+class ObservedValue:
+    value: str | int | float
+    year: int
+    source_ref: SourceRef
+
+
+@dataclass(frozen=True)
+class StockObservation:
+    technology: str
+    metric: str
+    observed: ObservedValue
+    adjust_to_base_year: BaseYearAdjustment | None
+    source_ref: SourceRef
+
+
+@dataclass(frozen=True)
+class StockBlock:
+    adjust_to_base_year: BaseYearAdjustment | None
+    items: tuple[StockObservation, ...]
+    source_ref: SourceRef
+
+
+@dataclass(frozen=True)
+class FacilityDecl:
+    id: str
+    site: str
+    technology_role: str
+    available_technologies: tuple[str, ...]
+    stock: StockBlock | None
+    policies: tuple[str, ...]
+    description: str | None
+    source_ref: SourceRef
+
+
+@dataclass(frozen=True)
+class DistributionBlock:
+    method: str
+    weight_by: str | None
+    custom_weights_file: str | None
+    source_ref: SourceRef
+
+
+@dataclass(frozen=True)
+class FleetDecl:
+    id: str
+    technology_role: str
+    available_technologies: tuple[str, ...]
+    stock: StockBlock | None
+    distribution: DistributionBlock
+    policies: tuple[str, ...]
+    description: str | None
+    source_ref: SourceRef
+
+
+@dataclass(frozen=True)
+class OpportunitySiting:
+    zone: str | None
+    site: str | None
+    region_member: dict[str, str] | None
+    source_ref: SourceRef
+
+
+@dataclass(frozen=True)
+class OpportunityDecl:
+    id: str
+    technology: str
+    siting: OpportunitySiting
+    max_new_capacity: str | int | float
+    profile_ref: str | None
+    description: str | None
+    source_ref: SourceRef
+
+
+@dataclass(frozen=True)
+class NetworkNodeBasis:
+    kind: str
+    ref: str | None
+    source_ref: SourceRef
+
+
+@dataclass(frozen=True)
+class NetworkLink:
+    id: str
+    from_node: str
+    to_node: str
+    commodity: str
+    existing_transfer_capacity: str | int | float | None
+    max_new_capacity: str | int | float | None
+    source_ref: SourceRef
+
+
+@dataclass(frozen=True)
+class NetworkDecl:
+    id: str
+    kind: str
+    node_basis: NetworkNodeBasis
+    links: tuple[NetworkLink, ...]
+    description: str | None
+    source_ref: SourceRef
+
+
+@dataclass(frozen=True)
+class RunDecl:
+    id: str
+    base_year: int
+    currency_year: int
+    region_partition: str
+    temporal_partition: str | None
+    include_cases: tuple[str, ...]
+    enable_policies: tuple[str, ...]
+    description: str | None
+    source_ref: SourceRef
+
+
+@dataclass(frozen=True)
+class V0_2Source:
+    dsl_version: str | None
+    imports: tuple[ImportDecl, ...]
+    commodities: tuple[CommodityDecl, ...]
+    technologies: tuple[TechnologyDecl, ...]
+    technology_roles: tuple[TechnologyRoleDecl, ...]
+    stock_characterizations: tuple[StockCharacterizationDecl, ...]
+    spatial_layers: tuple[SpatialLayerDecl, ...]
+    spatial_measure_sets: tuple[SpatialMeasureSetDecl, ...]
+    temporal_index_series: tuple[TemporalIndexSeriesDecl, ...]
+    region_partitions: tuple[RegionPartitionDecl, ...]
+    zone_overlays: tuple[ZoneOverlayDecl, ...]
+    sites: tuple[SiteDecl, ...]
+    facilities: tuple[FacilityDecl, ...]
+    fleets: tuple[FleetDecl, ...]
+    opportunities: tuple[OpportunityDecl, ...]
+    networks: tuple[NetworkDecl, ...]
+    runs: tuple[RunDecl, ...]
+
+
+def _source_ref(path: str) -> SourceRef:
+    return SourceRef(path=path)
+
+
+def _tuple_strings(values: Any) -> tuple[str, ...]:
+    return tuple(str(value) for value in (values or []))
+
+
+def _parse_flow_spec(data: dict[str, Any], path: str) -> FlowSpec:
+    return FlowSpec(
+        commodity=str(data["commodity"]),
+        basis=str(data["basis"]) if data.get("basis") is not None else None,
+        coefficient=data.get("coefficient"),
+        source_ref=_source_ref(path),
+    )
+
+
+def _parse_performance(
+    data: dict[str, Any] | None,
+    path: str,
+) -> PerformanceSpec | None:
+    if not data:
+        return None
+    return PerformanceSpec(
+        kind=str(data["kind"]),
+        value=float(data["value"]),
+        source_ref=_source_ref(path),
+    )
+
+
+def _parse_emission_factor(data: dict[str, Any], path: str) -> EmissionFactor:
+    return EmissionFactor(
+        commodity=str(data["commodity"]),
+        factor=data["factor"],
+        source_ref=_source_ref(path),
+    )
+
+
+def _parse_base_year_adjustment(
+    data: dict[str, Any] | None, path: str
+) -> BaseYearAdjustment | None:
+    if not data:
+        return None
+    using = data.get("using")
+    using_temporal_index: str | None = None
+    annual_growth: AnnualGrowthAssumption | None = None
+    if isinstance(using, dict):
+        annual_growth = AnnualGrowthAssumption(
+            rate=using["rate"],
+            source_ref=_source_ref(f"{path}.using"),
+        )
+    elif using is not None:
+        using_temporal_index = str(using)
+    elasticity = data.get("elasticity")
+    return BaseYearAdjustment(
+        using_temporal_index=using_temporal_index,
+        annual_growth=annual_growth,
+        elasticity=float(elasticity) if elasticity is not None else None,
+        source_ref=_source_ref(path),
+    )
+
+
+def _parse_observed_value(data: dict[str, Any], path: str) -> ObservedValue:
+    return ObservedValue(
+        value=data["value"],
+        year=int(data["year"]),
+        source_ref=_source_ref(path),
+    )
+
+
+def _parse_stock_observation(data: dict[str, Any], path: str) -> StockObservation:
+    return StockObservation(
+        technology=str(data["technology"]),
+        metric=str(data["metric"]),
+        observed=_parse_observed_value(data["observed"], f"{path}.observed"),
+        adjust_to_base_year=_parse_base_year_adjustment(
+            data.get("adjust_to_base_year"),
+            f"{path}.adjust_to_base_year",
+        ),
+        source_ref=_source_ref(path),
+    )
+
+
+def _parse_stock_block(data: dict[str, Any] | None, path: str) -> StockBlock | None:
+    if not data:
+        return None
+    return StockBlock(
+        adjust_to_base_year=_parse_base_year_adjustment(
+            data.get("adjust_to_base_year"),
+            f"{path}.adjust_to_base_year",
+        ),
+        items=tuple(
+            _parse_stock_observation(item, f"{path}.items[{idx}]")
+            for idx, item in enumerate(data.get("items") or [])
+        ),
+        source_ref=_source_ref(path),
+    )
+
+
+def parse_v0_2_source(source: dict[str, Any]) -> V0_2Source:
+    """Parse a validated v0.2 source mapping into typed AST objects."""
+    return V0_2Source(
+        dsl_version=str(source["dsl_version"]) if source.get("dsl_version") else None,
+        imports=tuple(
+            ImportDecl(
+                package=str(item["package"]),
+                alias=str(item["as"]),
+                only={
+                    key: _tuple_strings(value)
+                    for key, value in (item.get("only") or {}).items()
+                },
+                source_ref=_source_ref(f"imports[{idx}]"),
+            )
+            for idx, item in enumerate(source.get("imports") or [])
+        ),
+        commodities=tuple(
+            CommodityDecl(
+                id=str(item["id"]),
+                kind=str(item["kind"]),
+                description=(
+                    str(item["description"]) if item.get("description") else None
+                ),
+                source_ref=_source_ref(f"commodities[{idx}]"),
+            )
+            for idx, item in enumerate(source.get("commodities") or [])
+        ),
+        technologies=tuple(
+            TechnologyDecl(
+                id=str(item["id"]),
+                provides=str(item["provides"]),
+                inputs=tuple(
+                    _parse_flow_spec(flow, f"technologies[{idx}].inputs[{flow_idx}]")
+                    for flow_idx, flow in enumerate(item.get("inputs") or [])
+                ),
+                outputs=tuple(
+                    _parse_flow_spec(flow, f"technologies[{idx}].outputs[{flow_idx}]")
+                    for flow_idx, flow in enumerate(item.get("outputs") or [])
+                ),
+                performance=_parse_performance(
+                    item.get("performance"),
+                    f"technologies[{idx}].performance",
+                ),
+                emissions=tuple(
+                    _parse_emission_factor(
+                        emission,
+                        f"technologies[{idx}].emissions[{emission_idx}]",
+                    )
+                    for emission_idx, emission in enumerate(item.get("emissions") or [])
+                ),
+                investment_cost=item.get("investment_cost"),
+                fixed_om=item.get("fixed_om"),
+                variable_om=item.get("variable_om"),
+                lifetime=item.get("lifetime"),
+                stock_characterization=(
+                    str(item["stock_characterization"])
+                    if item.get("stock_characterization")
+                    else None
+                ),
+                description=(
+                    str(item["description"]) if item.get("description") else None
+                ),
+                source_ref=_source_ref(f"technologies[{idx}]"),
+            )
+            for idx, item in enumerate(source.get("technologies") or [])
+        ),
+        technology_roles=tuple(
+            TechnologyRoleDecl(
+                id=str(item["id"]),
+                primary_service=str(item["primary_service"]),
+                technologies=_tuple_strings(item.get("technologies")),
+                transitions=tuple(
+                    RoleTransition(
+                        from_technology=str(transition["from"]),
+                        to_technology=str(transition["to"]),
+                        kind=str(transition["kind"]),
+                        cost=transition.get("cost"),
+                        lead_time=transition.get("lead_time"),
+                        source_ref=_source_ref(
+                            f"technology_roles[{idx}].transitions[{transition_idx}]"
+                        ),
+                    )
+                    for transition_idx, transition in enumerate(
+                        item.get("transitions") or []
+                    )
+                ),
+                description=(
+                    str(item["description"]) if item.get("description") else None
+                ),
+                source_ref=_source_ref(f"technology_roles[{idx}]"),
+            )
+            for idx, item in enumerate(source.get("technology_roles") or [])
+        ),
+        stock_characterizations=tuple(
+            StockCharacterizationDecl(
+                id=str(item["id"]),
+                applies_to=_tuple_strings(item.get("applies_to")),
+                counted_asset_label=(
+                    str(item["counted_asset_label"])
+                    if item.get("counted_asset_label")
+                    else None
+                ),
+                conversions=tuple(
+                    MetricConversion(
+                        from_metric=str(conversion["from_metric"]),
+                        to_metric=str(conversion["to_metric"]),
+                        factor=conversion["factor"],
+                        source_ref=_source_ref(
+                            "stock_characterizations"
+                            f"[{idx}].conversions[{conversion_idx}]"
+                        ),
+                    )
+                    for conversion_idx, conversion in enumerate(
+                        item.get("conversions") or []
+                    )
+                ),
+                description=(
+                    str(item["description"]) if item.get("description") else None
+                ),
+                source_ref=_source_ref(f"stock_characterizations[{idx}]"),
+            )
+            for idx, item in enumerate(source.get("stock_characterizations") or [])
+        ),
+        spatial_layers=tuple(
+            SpatialLayerDecl(
+                id=str(item["id"]),
+                kind=str(item["kind"]),
+                key=str(item["key"]),
+                geometry_file=str(item["geometry_file"]),
+                source_ref=_source_ref(f"spatial_layers[{idx}]"),
+            )
+            for idx, item in enumerate(source.get("spatial_layers") or [])
+        ),
+        spatial_measure_sets=tuple(
+            SpatialMeasureSetDecl(
+                id=str(item["id"]),
+                layer=str(item["layer"]),
+                measures=tuple(
+                    SpatialMeasureDecl(
+                        id=str(measure["id"]),
+                        observed_year=int(measure["observed_year"]),
+                        unit=str(measure["unit"]),
+                        file=str(measure["file"]),
+                        column=str(measure["column"]),
+                        description=(
+                            str(measure["description"])
+                            if measure.get("description")
+                            else None
+                        ),
+                        source_ref=_source_ref(
+                            f"spatial_measure_sets[{idx}].measures[{measure_idx}]"
+                        ),
+                    )
+                    for measure_idx, measure in enumerate(item.get("measures") or [])
+                ),
+                source_ref=_source_ref(f"spatial_measure_sets[{idx}]"),
+            )
+            for idx, item in enumerate(source.get("spatial_measure_sets") or [])
+        ),
+        temporal_index_series=tuple(
+            TemporalIndexSeriesDecl(
+                id=str(item["id"]),
+                unit=str(item["unit"]),
+                base_year=int(item["base_year"]) if item.get("base_year") else None,
+                values={
+                    int(year): float(value)
+                    for year, value in (item.get("values") or {}).items()
+                },
+                description=(
+                    str(item["description"]) if item.get("description") else None
+                ),
+                source_ref=_source_ref(f"temporal_index_series[{idx}]"),
+            )
+            for idx, item in enumerate(source.get("temporal_index_series") or [])
+        ),
+        region_partitions=tuple(
+            RegionPartitionDecl(
+                id=str(item["id"]),
+                layer=str(item["layer"]),
+                members=_tuple_strings(item.get("members")),
+                mapping=PartitionMapping(
+                    kind=str(item["mapping"]["kind"]),
+                    file=(
+                        str(item["mapping"]["file"])
+                        if item["mapping"].get("file")
+                        else None
+                    ),
+                    source_key=(
+                        str(item["mapping"]["source_key"])
+                        if item["mapping"].get("source_key")
+                        else None
+                    ),
+                    target_key=(
+                        str(item["mapping"]["target_key"])
+                        if item["mapping"].get("target_key")
+                        else None
+                    ),
+                    value=(
+                        str(item["mapping"]["value"])
+                        if item["mapping"].get("value")
+                        else None
+                    ),
+                    source_ref=_source_ref(f"region_partitions[{idx}].mapping"),
+                ),
+                description=(
+                    str(item["description"]) if item.get("description") else None
+                ),
+                source_ref=_source_ref(f"region_partitions[{idx}]"),
+            )
+            for idx, item in enumerate(source.get("region_partitions") or [])
+        ),
+        zone_overlays=tuple(
+            ZoneOverlayDecl(
+                id=str(item["id"]),
+                layer=str(item["layer"]),
+                key=str(item["key"]),
+                geometry_file=str(item["geometry_file"]),
+                description=(
+                    str(item["description"]) if item.get("description") else None
+                ),
+                source_ref=_source_ref(f"zone_overlays[{idx}]"),
+            )
+            for idx, item in enumerate(source.get("zone_overlays") or [])
+        ),
+        sites=tuple(
+            SiteDecl(
+                id=str(item["id"]),
+                location=SiteLocation(
+                    point=(
+                        {
+                            "lat": float(item["location"]["point"]["lat"]),
+                            "lon": float(item["location"]["point"]["lon"]),
+                        }
+                        if item.get("location", {}).get("point")
+                        else None
+                    ),
+                    feature_ref=(
+                        {
+                            "layer": str(item["location"]["feature_ref"]["layer"]),
+                            "id": str(item["location"]["feature_ref"]["id"]),
+                        }
+                        if item.get("location", {}).get("feature_ref")
+                        else None
+                    ),
+                    source_ref=_source_ref(f"sites[{idx}].location"),
+                ),
+                membership_overrides=(
+                    MembershipOverrides(
+                        region_partitions={
+                            str(key): str(value)
+                            for key, value in (
+                                item.get("membership_overrides", {})
+                                .get("region_partitions", {})
+                                .items()
+                            )
+                        },
+                        zone_overlays={
+                            str(key): str(value)
+                            for key, value in (
+                                item.get("membership_overrides", {})
+                                .get("zone_overlays", {})
+                                .items()
+                            )
+                        },
+                        source_ref=_source_ref(
+                            f"sites[{idx}].membership_overrides"
+                        ),
+                    )
+                    if item.get("membership_overrides")
+                    else None
+                ),
+                description=(
+                    str(item["description"]) if item.get("description") else None
+                ),
+                source_ref=_source_ref(f"sites[{idx}]"),
+            )
+            for idx, item in enumerate(source.get("sites") or [])
+        ),
+        facilities=tuple(
+            FacilityDecl(
+                id=str(item["id"]),
+                site=str(item["site"]),
+                technology_role=str(item["technology_role"]),
+                available_technologies=_tuple_strings(
+                    item.get("available_technologies")
+                ),
+                stock=_parse_stock_block(item.get("stock"), f"facilities[{idx}].stock"),
+                policies=_tuple_strings(item.get("policies")),
+                description=(
+                    str(item["description"]) if item.get("description") else None
+                ),
+                source_ref=_source_ref(f"facilities[{idx}]"),
+            )
+            for idx, item in enumerate(source.get("facilities") or [])
+        ),
+        fleets=tuple(
+            FleetDecl(
+                id=str(item["id"]),
+                technology_role=str(item["technology_role"]),
+                available_technologies=_tuple_strings(
+                    item.get("available_technologies")
+                ),
+                stock=_parse_stock_block(item.get("stock"), f"fleets[{idx}].stock"),
+                distribution=DistributionBlock(
+                    method=str(item["distribution"]["method"]),
+                    weight_by=(
+                        str(item["distribution"]["weight_by"])
+                        if item["distribution"].get("weight_by")
+                        else None
+                    ),
+                    custom_weights_file=(
+                        str(item["distribution"]["custom_weights_file"])
+                        if item["distribution"].get("custom_weights_file")
+                        else None
+                    ),
+                    source_ref=_source_ref(f"fleets[{idx}].distribution"),
+                ),
+                policies=_tuple_strings(item.get("policies")),
+                description=(
+                    str(item["description"]) if item.get("description") else None
+                ),
+                source_ref=_source_ref(f"fleets[{idx}]"),
+            )
+            for idx, item in enumerate(source.get("fleets") or [])
+        ),
+        opportunities=tuple(
+            OpportunityDecl(
+                id=str(item["id"]),
+                technology=str(item["technology"]),
+                siting=OpportunitySiting(
+                    zone=str(item["siting"]["zone"])
+                    if item.get("siting", {}).get("zone")
+                    else None,
+                    site=str(item["siting"]["site"])
+                    if item.get("siting", {}).get("site")
+                    else None,
+                    region_member=(
+                        {
+                            "partition": str(
+                                item["siting"]["region_member"]["partition"]
+                            ),
+                            "member": str(item["siting"]["region_member"]["member"]),
+                        }
+                        if item.get("siting", {}).get("region_member")
+                        else None
+                    ),
+                    source_ref=_source_ref(f"opportunities[{idx}].siting"),
+                ),
+                max_new_capacity=item["max_new_capacity"],
+                profile_ref=(
+                    str(item["profile_ref"]) if item.get("profile_ref") else None
+                ),
+                description=(
+                    str(item["description"]) if item.get("description") else None
+                ),
+                source_ref=_source_ref(f"opportunities[{idx}]"),
+            )
+            for idx, item in enumerate(source.get("opportunities") or [])
+        ),
+        networks=tuple(
+            NetworkDecl(
+                id=str(item["id"]),
+                kind=str(item["kind"]),
+                node_basis=NetworkNodeBasis(
+                    kind=str(item["node_basis"]["kind"]),
+                    ref=(
+                        str(item["node_basis"]["ref"])
+                        if item["node_basis"].get("ref")
+                        else None
+                    ),
+                    source_ref=_source_ref(f"networks[{idx}].node_basis"),
+                ),
+                links=tuple(
+                    NetworkLink(
+                        id=str(link["id"]),
+                        from_node=str(link["from"]),
+                        to_node=str(link["to"]),
+                        commodity=str(link["commodity"]),
+                        existing_transfer_capacity=link.get(
+                            "existing_transfer_capacity"
+                        ),
+                        max_new_capacity=link.get("max_new_capacity"),
+                        source_ref=_source_ref(
+                            f"networks[{idx}].links[{link_idx}]"
+                        ),
+                    )
+                    for link_idx, link in enumerate(item.get("links") or [])
+                ),
+                description=(
+                    str(item["description"]) if item.get("description") else None
+                ),
+                source_ref=_source_ref(f"networks[{idx}]"),
+            )
+            for idx, item in enumerate(source.get("networks") or [])
+        ),
+        runs=tuple(
+            RunDecl(
+                id=str(item["id"]),
+                base_year=int(item["base_year"]),
+                currency_year=int(item["currency_year"]),
+                region_partition=str(item["region_partition"]),
+                temporal_partition=(
+                    str(item["temporal_partition"])
+                    if item.get("temporal_partition")
+                    else None
+                ),
+                include_cases=_tuple_strings(item.get("include_cases")),
+                enable_policies=_tuple_strings(item.get("enable_policies")),
+                description=(
+                    str(item["description"]) if item.get("description") else None
+                ),
+                source_ref=_source_ref(f"runs[{idx}]"),
+            )
+            for idx, item in enumerate(source.get("runs") or [])
+        ),
+    )

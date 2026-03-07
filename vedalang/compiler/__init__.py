@@ -29,6 +29,7 @@ from .table_schemas import (
     get_all_schemas,
     validate_tableir,
 )
+from .v0_2_ast import V0_2Source, parse_v0_2_source
 
 __all__ = [
     "AttributeInfo",
@@ -43,6 +44,7 @@ __all__ = [
     "VedaFieldSchema",
     "VedaLangError",
     "VedaRegistry",
+    "V0_2Source",
     "VedaTableLayout",
     "VedaTableSchema",
     "compile_demands",
@@ -50,6 +52,7 @@ __all__ = [
     "get_all_schemas",
     "get_registry",
     "load_vedalang",
+    "parse_v0_2_source",
     "reset_registry",
     "validate_public_dsl_contract",
     "validate_cross_references",
