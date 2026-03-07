@@ -1,8 +1,24 @@
 from pathlib import Path
 
+import yaml
+
+from tests.test_v0_2_backend import _v0_2_backend_source
 from vedalang.viz.query_engine import query_res_graph, response_to_mermaid
 
 EXAMPLES_DIR = Path(__file__).resolve().parent.parent / "vedalang" / "examples"
+
+
+def _write_multi_run_source(path: Path) -> None:
+    source = _v0_2_backend_source()
+    source["runs"].append(
+        {
+            "id": "toy_states_alt",
+            "base_year": 2025,
+            "currency_year": 2024,
+            "region_partition": "toy_states",
+        }
+    )
+    path.write_text(yaml.safe_dump(source), encoding="utf-8")
 
 
 def test_source_query_returns_v0_2_role_graph():
@@ -171,3 +187,46 @@ def test_compiled_commodity_view_collapse_scope_merges_namespaces():
     assert scoped_labels
     assert collapsed_labels
     assert len(collapsed_labels) <= len(scoped_labels)
+
+
+def test_multi_run_v0_2_query_requires_explicit_run_and_exposes_facets(tmp_path):
+    source_file = tmp_path / "multi_run.veda.yaml"
+    _write_multi_run_source(source_file)
+
+    response = query_res_graph(
+        {
+            "version": "1",
+            "file": str(source_file),
+            "mode": "source",
+            "granularity": "role",
+            "lens": "system",
+            "filters": {"regions": [], "case": None, "sectors": [], "scopes": []},
+            "compiled": {"truth": "auto", "cache": True, "allow_partial": True},
+        }
+    )
+
+    assert response["status"] == "error"
+    assert response["diagnostics"][0]["code"] == "RUN_SELECTION_REQUIRED"
+    assert response["facets"]["runs"] == ["toy_states_2025", "toy_states_alt"]
+
+
+def test_multi_run_v0_2_query_succeeds_with_selected_run(tmp_path):
+    source_file = tmp_path / "multi_run.veda.yaml"
+    _write_multi_run_source(source_file)
+
+    response = query_res_graph(
+        {
+            "version": "1",
+            "file": str(source_file),
+            "mode": "compiled",
+            "run": "toy_states_alt",
+            "granularity": "instance",
+            "lens": "system",
+            "filters": {"regions": [], "case": None, "sectors": [], "scopes": []},
+            "compiled": {"truth": "auto", "cache": True, "allow_partial": True},
+        }
+    )
+
+    assert response["status"] in {"ok", "partial"}
+    assert response["artifacts"]["run_id"] == "toy_states_alt"
+    assert response["facets"]["runs"] == ["toy_states_2025", "toy_states_alt"]

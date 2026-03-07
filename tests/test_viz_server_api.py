@@ -1,7 +1,9 @@
 from pathlib import Path
 
+import yaml
 from fastapi.testclient import TestClient
 
+from tests.test_v0_2_backend import _v0_2_backend_source
 from vedalang.viz.server import create_app
 
 EXAMPLES_DIR = Path(__file__).resolve().parent.parent / "vedalang" / "examples"
@@ -53,3 +55,46 @@ def test_viz_server_health_and_query():
     assert trade_query.status_code == 200
     trade_response = trade_query.json()
     assert any(edge["type"] == "trade" for edge in trade_response["graph"]["edges"])
+
+
+def test_viz_server_multi_run_query_uses_selected_run(tmp_path):
+    source = _v0_2_backend_source()
+    source["runs"].append(
+        {
+            "id": "toy_states_alt",
+            "base_year": 2025,
+            "currency_year": 2024,
+            "region_partition": "toy_states",
+        }
+    )
+    initial = tmp_path / "multi_run.veda.yaml"
+    initial.write_text(yaml.safe_dump(source), encoding="utf-8")
+
+    app = create_app(
+        workspace_root=tmp_path,
+        initial_file=initial,
+        initial_run="toy_states_alt",
+    )
+    client = TestClient(app)
+
+    files = client.get("/api/files")
+    assert files.status_code == 200
+    payload = files.json()
+    assert payload["initial_run"] == "toy_states_alt"
+
+    query = client.post(
+        "/api/query",
+        json={
+            "version": "1",
+            "mode": "source",
+            "granularity": "role",
+            "lens": "system",
+            "filters": {"regions": [], "case": None, "sectors": [], "scopes": []},
+            "compiled": {"truth": "auto", "cache": True, "allow_partial": True},
+        },
+    )
+    assert query.status_code == 200
+    response = query.json()
+    assert response["status"] == "ok"
+    assert response["artifacts"]["run_id"] == "toy_states_alt"
+    assert response["facets"]["runs"] == ["toy_states_2025", "toy_states_alt"]

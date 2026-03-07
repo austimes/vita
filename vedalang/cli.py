@@ -335,6 +335,11 @@ def _add_res_parser(subparsers):
         help="Graph lens (default: system)",
     )
     common.add_argument(
+        "--run",
+        default=None,
+        help="Optional v0.2 run selection for multi-run sources",
+    )
+    common.add_argument(
         "--region",
         action="append",
         default=[],
@@ -394,6 +399,11 @@ def _add_viz_parser(subparsers):
     p.add_argument("--port", type=int, default=8765, help="Server port (default: 8765)")
     p.add_argument(
         "--no-browser", action="store_true", help="Don't auto-open browser"
+    )
+    p.add_argument(
+        "--run",
+        default=None,
+        help="Initial v0.2 run selection for multi-run sources",
     )
     mode_group = p.add_mutually_exclusive_group()
     mode_group.add_argument(
@@ -2038,6 +2048,7 @@ def _res_request_from_args(args) -> dict[str, Any]:
         "mode": args.mode,
         "granularity": args.granularity,
         "lens": args.lens,
+        "run": getattr(args, "run", None),
         "commodity_view": getattr(args, "commodity_view", None),
         "filters": {
             "regions": list(args.region or []),
@@ -2369,6 +2380,7 @@ def cmd_viz(args) -> int:
             "mode": "source",
             "granularity": granularity,
             "lens": "system",
+            "run": getattr(args, "run", None),
             "commodity_view": getattr(args, "commodity_view", None),
             "filters": {"regions": [], "case": None, "sectors": [], "scopes": []},
             "compiled": {"truth": "auto", "cache": True, "allow_partial": True},
@@ -2422,6 +2434,7 @@ def cmd_viz(args) -> int:
     app = create_app(
         workspace_root=Path.cwd(),
         initial_file=file_path.resolve() if file_path else None,
+        initial_run=getattr(args, "run", None),
     )
 
     print("Starting VedaLang RES Visualizer...")

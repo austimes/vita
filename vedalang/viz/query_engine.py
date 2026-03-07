@@ -83,6 +83,7 @@ def _normalize_request(request: dict[str, Any]) -> dict[str, Any]:
     return {
         "version": str(request.get("version", "1")),
         "file": request.get("file", ""),
+        "run": request.get("run"),
         "mode": _sanitize_mode(request.get("mode")),
         "granularity": granularity,
         "lens": _sanitize_lens(request.get("lens")),
@@ -104,23 +105,104 @@ def _normalize_request(request: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _default_facets() -> dict[str, list[str]]:
+    return {
+        "regions": [],
+        "cases": [],
+        "runs": [],
+        "sectors": [],
+        "scopes": [],
+        "granularities": [
+            "role",
+            "provider",
+            "provider_variant",
+            "provider_variant_mode",
+            "instance",
+            "variant",
+            "mode",
+            "facility",
+        ],
+        "commodity_views": ["scoped", "collapse_scope"],
+        "lenses": ["system", "trade"],
+    }
+
+
+def _v0_2_runs(source: dict[str, Any]) -> list[str]:
+    runs = source.get("runs")
+    if not isinstance(runs, list):
+        return []
+    return [
+        str(run.get("id"))
+        for run in runs
+        if isinstance(run, dict) and run.get("id")
+    ]
+
+
+def _v0_2_model_regions(
+    source: dict[str, Any],
+    *,
+    run_id: str | None = None,
+) -> set[str]:
+    partitions = {
+        str(partition.get("id")): partition
+        for partition in source.get("region_partitions", []) or []
+        if isinstance(partition, dict) and partition.get("id")
+    }
+    runs = {
+        str(run.get("id")): run
+        for run in source.get("runs", []) or []
+        if isinstance(run, dict) and run.get("id")
+    }
+
+    if run_id and run_id in runs:
+        partition_ref = runs[run_id].get("region_partition")
+        partition = partitions.get(str(partition_ref))
+        if partition:
+            return set(partition.get("members", []) or [])
+
+    members: set[str] = set()
+    for run in runs.values():
+        partition_ref = run.get("region_partition")
+        partition = partitions.get(str(partition_ref))
+        if partition:
+            members.update(partition.get("members", []) or [])
+    return members
+
+
+def _facets_for_source(
+    source: dict[str, Any],
+    *,
+    run_id: str | None = None,
+) -> dict[str, list[str]]:
+    if looks_like_v0_2_source(source):
+        facets = _default_facets()
+        facets["runs"] = sorted(_v0_2_runs(source))
+        facets["regions"] = sorted(_v0_2_model_regions(source, run_id=run_id))
+        return facets
+
+    facets = _default_facets()
+    model = source.get("model", {})
+    seg_cfg = source.get("scoping") or {}
+    facets["regions"] = sorted(model.get("regions", []))
+    facets["cases"] = sorted(
+        c["name"]
+        for c in model.get("cases", [])
+        if isinstance(c, dict) and "name" in c
+    )
+    facets["sectors"] = sorted(seg_cfg.get("sectors", []))
+    facets["scopes"] = sorted((seg_cfg.get("segments") or {}).keys())
+    return facets
+
+
 def _filters_from_request(
     req: dict[str, Any],
     source: dict,
+    *,
+    run_id: str | None = None,
 ) -> tuple[FilterSpec, list[dict[str, str]]]:
     diagnostics: list[dict[str, str]] = []
     if looks_like_v0_2_source(source):
-        model_regions = set()
-        run_id = infer_run_id(source)
-        if run_id:
-            for run in source.get("runs", []) or []:
-                if run.get("id") == run_id:
-                    partition_ref = run.get("region_partition")
-                    for partition in source.get("region_partitions", []) or []:
-                        if partition.get("id") == partition_ref:
-                            model_regions = set(partition.get("members", []) or [])
-                            break
-                    break
+        model_regions = _v0_2_model_regions(source, run_id=run_id)
         requested_regions = set(req["filters"]["regions"])
         regions = requested_regions or model_regions
         unknown_regions = sorted(regions - model_regions) if model_regions else []
@@ -179,31 +261,20 @@ def _filters_from_request(
     return FilterSpec(regions=regions, sectors=sectors, scopes=scopes), diagnostics
 
 
-def _empty_response(mode: str, diagnostics: list[dict[str, str]]) -> dict[str, Any]:
+def _empty_response(
+    mode: str,
+    diagnostics: list[dict[str, str]],
+    *,
+    facets: dict[str, list[str]] | None = None,
+    artifacts: dict[str, str] | None = None,
+) -> dict[str, Any]:
     return {
         "version": "1",
         "status": "error",
         "mode_used": mode,
-        "artifacts": {},
+        "artifacts": artifacts or {},
         "graph": {"nodes": [], "edges": []},
-        "facets": {
-            "regions": [],
-            "cases": [],
-            "sectors": [],
-            "scopes": [],
-            "granularities": [
-                "role",
-                "provider",
-                "provider_variant",
-                "provider_variant_mode",
-                "instance",
-                "variant",
-                "mode",
-                "facility",
-            ],
-            "commodity_views": ["scoped", "collapse_scope"],
-            "lenses": ["system", "trade"],
-        },
+        "facets": facets or _default_facets(),
         "diagnostics": diagnostics,
         "details": {"nodes": {}, "edges": {}},
     }
@@ -263,24 +334,51 @@ def query_res_graph(request: dict[str, Any]) -> dict[str, Any]:
         )
         return _empty_response(req["mode"], diagnostics)
 
-    filters, filter_diags = _filters_from_request(req, source)
-    diagnostics.extend(filter_diags)
-
     mode_used = req["mode"]
     artifacts: dict[str, str] = {}
+    run_id: str | None = None
+    facets = _facets_for_source(source)
 
     if looks_like_v0_2_source(source):
-        run_id = infer_run_id(source)
+        available_runs = _v0_2_runs(source)
+        requested_run = req.get("run")
+        if requested_run is not None:
+            requested_run = str(requested_run)
+            if requested_run not in available_runs:
+                diagnostics.append(
+                    _diagnostic(
+                        "UNKNOWN_RUN_FILTER",
+                        "error",
+                        f"Run '{requested_run}' not found in source.",
+                    )
+                )
+                return _empty_response(
+                    req["mode"],
+                    diagnostics,
+                    facets=facets,
+                )
+            run_id = requested_run
+        else:
+            run_id = infer_run_id(source)
+
         if run_id is None:
             diagnostics.append(
                 _diagnostic(
                     "RUN_SELECTION_REQUIRED",
                     "error",
-                    "v0.2 graph queries currently require a source with exactly "
-                    "one run.",
+                    "v0.2 graph queries require an explicit run when the source "
+                    "defines multiple runs.",
                 )
             )
-            return _empty_response(req["mode"], diagnostics)
+            return _empty_response(req["mode"], diagnostics, facets=facets)
+
+        artifacts["run_id"] = run_id
+        facets = _facets_for_source(source, run_id=run_id)
+
+    filters, filter_diags = _filters_from_request(req, source, run_id=run_id)
+    diagnostics.extend(filter_diags)
+
+    if looks_like_v0_2_source(source):
 
         if req["mode"] == "source":
             try:
@@ -297,8 +395,7 @@ def query_res_graph(request: dict[str, Any]) -> dict[str, Any]:
                         f"Failed to compile v0.2 source graph: {exc}",
                     )
                 )
-                return _empty_response(req["mode"], diagnostics)
-            artifacts["run_id"] = run_id
+                return _empty_response(req["mode"], diagnostics, facets=facets)
             if bundle.csir and bundle.cpir:
                 if req["lens"] == "trade":
                     built = build_v0_2_trade_graph(csir=bundle.csir, cpir=bundle.cpir)
@@ -315,7 +412,7 @@ def query_res_graph(request: dict[str, Any]) -> dict[str, Any]:
                     "mode_used": mode_used,
                     "artifacts": artifacts,
                     "graph": built["graph"],
-                    "facets": built["facets"],
+                    "facets": {**built["facets"], "runs": facets["runs"]},
                     "diagnostics": diagnostics,
                     "details": built["details"],
                 }
@@ -326,7 +423,7 @@ def query_res_graph(request: dict[str, Any]) -> dict[str, Any]:
                     "v0.2 source compilation did not produce CSIR/CPIR artifacts.",
                 )
             )
-            return _empty_response(req["mode"], diagnostics)
+            return _empty_response(req["mode"], diagnostics, facets=facets)
 
         compiled = resolve_compiled_artifacts(
             file_path=file_path,
@@ -361,11 +458,11 @@ def query_res_graph(request: dict[str, Any]) -> dict[str, Any]:
                 diagnostics.append(
                     _diagnostic(
                         "COMPILED_GRAPH_UNAVAILABLE",
-                        "error",
-                        f"Compiled graph unavailable and source fallback failed: {exc}",
+                    "error",
+                    f"Compiled graph unavailable and source fallback failed: {exc}",
                     )
                 )
-                return _empty_response(mode_used, diagnostics)
+                return _empty_response(mode_used, diagnostics, facets=facets)
             built = (
                 build_v0_2_trade_graph(csir=bundle.csir, cpir=bundle.cpir)
                 if req["lens"] == "trade"
@@ -393,7 +490,7 @@ def query_res_graph(request: dict[str, Any]) -> dict[str, Any]:
                     "Compiled graph unavailable and source fallback disabled.",
                 )
             )
-            return _empty_response(mode_used, diagnostics)
+            return _empty_response(mode_used, diagnostics, facets=facets)
 
         if req["lens"] == "trade":
             graph = built.get("graph", {})
@@ -414,7 +511,7 @@ def query_res_graph(request: dict[str, Any]) -> dict[str, Any]:
             "mode_used": mode_used,
             "artifacts": artifacts,
             "graph": built["graph"],
-            "facets": built["facets"],
+            "facets": {**built["facets"], "runs": facets["runs"]},
             "diagnostics": diagnostics,
             "details": built["details"],
         }

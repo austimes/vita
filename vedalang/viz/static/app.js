@@ -44,10 +44,12 @@ const state = {
   lens: "system",
   commodityView: "collapse_scope",
   caseName: "",
+  runId: "",
   regions: [],
   sectors: [],
   scopes: [],
   availableCases: [],
+  availableRuns: [],
   availableRegions: [],
   availableSectors: [],
   availableScopes: [],
@@ -118,6 +120,7 @@ function getRequest() {
     mode: state.mode,
     granularity: state.granularity,
     lens: state.lens,
+    run: state.runId || null,
     commodity_view: state.commodityView,
     filters: {
       regions: state.regions,
@@ -864,6 +867,18 @@ function renderControls() {
     },
   );
 
+  renderSingleGroup(
+    "runButtons",
+    [{ value: "", label: "(auto run)" }].concat(
+      state.availableRuns.map((item) => ({ value: item, label: item })),
+    ),
+    state.runId,
+    (value) => {
+      state.runId = value;
+      runQuery();
+    },
+  );
+
   renderRegionGroup();
 
   renderFacetMultiGroup({
@@ -889,12 +904,16 @@ function renderControls() {
 
 function reconcileStateWithFacets() {
   state.availableCases = [...state.availableCases];
+  state.availableRuns = [...state.availableRuns];
   state.availableRegions = [...state.availableRegions];
   state.availableSectors = [...state.availableSectors];
   state.availableScopes = [...state.availableScopes];
 
   if (state.caseName && !state.availableCases.includes(state.caseName)) {
     state.caseName = "";
+  }
+  if (state.runId && !state.availableRuns.includes(state.runId)) {
+    state.runId = "";
   }
 
   state.regions = normalizeToKnown(state.regions, state.availableRegions);
@@ -916,6 +935,7 @@ function reconcileStateWithFacets() {
 function updateFacetControls(response) {
   const facets = response.facets || {};
   state.availableCases = facets.cases || [];
+  state.availableRuns = facets.runs || [];
   state.availableRegions = facets.regions || [];
   state.availableSectors = facets.sectors || [];
   state.availableScopes = facets.scopes || [];
@@ -973,6 +993,9 @@ async function loadDirectory(targetDir) {
 
   if (!state.file && payload.initial_file) {
     state.file = payload.initial_file;
+  }
+  if (!state.runId && payload.initial_run) {
+    state.runId = payload.initial_run;
   }
 
   if (!state.file) {

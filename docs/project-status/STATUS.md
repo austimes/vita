@@ -4,7 +4,7 @@
 
 ## Executive Summary
 
-VedaLang is a typed DSL that compiles to VEDA Excel tables for TIMES energy models. **All core phases (P0–P3) remain complete**, the v0.2 package/run/CSIR/CPIR rollout is landed end-to-end, and the full example catalog has now been ported to the v0.2 DSL. The current `bd` tracker state is 120 closed issues and 0 open issues.
+VedaLang is a typed DSL that compiles to VEDA Excel tables for TIMES energy models. **All core phases (P0–P3) remain complete**, the v0.2 package/run/CSIR/CPIR rollout is landed end-to-end, and the full example catalog is on the v0.2 DSL. The current `bd` tracker state is 120 closed issues and 7 open issues, all concentrated in the new v0.2-only cleanup epic.
 
 | Milestone | Status |
 |-----------|--------|
@@ -26,17 +26,24 @@ VedaLang is a typed DSL that compiles to VEDA Excel tables for TIMES energy mode
 
 ---
 
-## Current Status: v0.2 Catalog Complete
-Core design phases remain complete. The v0.2 frontend, diagnostics, downstream tooling surfaces, flagship examples/docs, and regression matrix are closed in `bd`, and the historical example catalog under `vedalang/examples` is now fully ported from legacy/provider-era syntax to the landed v0.2 object model.
+## Current Status: v0.2 Cleanup Epic
+Core design phases remain complete. The v0.2 frontend, diagnostics, downstream tooling surfaces, flagship examples/docs, regression matrix, and example catalog migration are all complete. The current follow-on work is a focused cleanup epic to remove the remaining runtime/tooling/docs/test compatibility surfaces that still preserve the pre-v0.2 public DSL.
 
 ### Active Work
 
-`bd ready --json` is empty. There is no active tracked implementation work at the moment; the example-porting epic and all of its family tasks are closed.
+Open `bd` work is now the cleanup epic `vedalang-y8e` and its child tasks:
+- `vedalang-y8e.1` — remove legacy schema routing and compiler entrypoints from the runtime
+- `vedalang-y8e.2` — retire provider-based facility lowering in favor of v0.2 asset lowering only
+- `vedalang-y8e.5` — collapse RES query, viz, and export tooling onto the v0.2 graph stack
+- `vedalang-y8e.3` — purge legacy role/variant/provider guidance from user docs and LSP schema help
+- `vedalang-y8e.4` — rewrite LLM lint prompts, component selection, and eval fixtures to v0.2 semantics
+- `vedalang-y8e.6` — remove legacy compatibility tests and fixtures after the runtime hard cut
 
 ### Recently Completed
 
 | Issue | Priority | Description | Status |
 |-------|----------|-------------|--------|
+| `vedalang-y8e` | P1 | Opened the v0.2-only cleanup epic to remove the remaining compiler/tooling/docs/test compatibility surfaces for the pre-v0.2 DSL | Open |
 | `vedalang-bqz` | P1 | Completed the example-catalog migration epic: all 35 supported `.veda.yaml` examples now use the v0.2 DSL and remain regression-covered | ✓ Closed |
 | `vedalang-3m8` | P1 | Expanded the regression matrix to cover the newly ported example families and hard-cut schema/tooling expectations | ✓ Closed |
 | `vedalang-2w5` | P1 | Ported the minisystem example family to v0.2 and refreshed golden/regression coverage | ✓ Closed |

@@ -26,9 +26,15 @@ IGNORED_DIR_NAMES = {
 class VizApiState:
     """In-memory server state for the lightweight viewer."""
 
-    def __init__(self, workspace_root: Path, initial_file: Path | None) -> None:
+    def __init__(
+        self,
+        workspace_root: Path,
+        initial_file: Path | None,
+        initial_run: str | None,
+    ) -> None:
         self.workspace_root = workspace_root.resolve()
         self.initial_file = initial_file.resolve() if initial_file else None
+        self.initial_run = initial_run
 
 
 def _resolve_file(state: VizApiState, raw_path: str | None) -> Path | None:
@@ -92,9 +98,18 @@ def _directory_entries(directory: Path) -> list[dict[str, str]]:
     return sorted(entries, key=lambda item: (item["kind"] != "directory", item["name"]))
 
 
-def create_app(*, workspace_root: Path, initial_file: Path | None = None) -> FastAPI:
+def create_app(
+    *,
+    workspace_root: Path,
+    initial_file: Path | None = None,
+    initial_run: str | None = None,
+) -> FastAPI:
     """Create FastAPI app for the standalone viewer."""
-    state = VizApiState(workspace_root=workspace_root, initial_file=initial_file)
+    state = VizApiState(
+        workspace_root=workspace_root,
+        initial_file=initial_file,
+        initial_run=initial_run,
+    )
     app = FastAPI(title="VedaLang RES Visualizer")
 
     @app.get("/")
@@ -112,6 +127,7 @@ def create_app(*, workspace_root: Path, initial_file: Path | None = None) -> Fas
             "ok": True,
             "workspace_root": str(state.workspace_root),
             "initial_file": str(state.initial_file) if state.initial_file else None,
+            "initial_run": state.initial_run,
         }
 
     @app.get("/api/files")
@@ -128,6 +144,7 @@ def create_app(*, workspace_root: Path, initial_file: Path | None = None) -> Fas
             "parent_dir": str(parent_dir) if parent_dir else None,
             "entries": _directory_entries(current_dir),
             "initial_file": str(state.initial_file) if state.initial_file else None,
+            "initial_run": state.initial_run,
         }
 
     @app.post("/api/query")
@@ -138,6 +155,7 @@ def create_app(*, workspace_root: Path, initial_file: Path | None = None) -> Fas
             raise HTTPException(status_code=400, detail="No VedaLang file selected.")
 
         request["file"] = str(selected)
+        request.setdefault("run", state.initial_run)
         response = query_res_graph(request)
         return JSONResponse(response)
 

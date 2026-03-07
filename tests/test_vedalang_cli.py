@@ -587,6 +587,35 @@ class TestValidate:
         )
 
 
+class TestViz:
+    def test_vedalang_viz_mermaid_accepts_run_for_multi_run_v0_2_source(
+        self, tmp_path
+    ):
+        src = tmp_path / "toy_v0_2_multi_run.veda.yaml"
+        source = _v0_2_backend_source()
+        source["runs"].append(
+            {
+                "id": "toy_states_alt",
+                "base_year": 2025,
+                "currency_year": 2024,
+                "region_partition": "toy_states",
+            }
+        )
+        src.write_text(yaml.safe_dump(source), encoding="utf-8")
+
+        result = run_vedalang(
+            "viz",
+            str(src),
+            "--mermaid",
+            "--run",
+            "toy_states_alt",
+        )
+
+        assert result.returncode == 0
+        assert result.stdout.startswith("flowchart LR")
+        assert "space_heat_supply@QLD" in result.stdout
+
+
 class TestHelp:
     def test_vedalang_help(self):
         """Main help works."""
