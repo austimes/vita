@@ -21,6 +21,7 @@ from vedalang.conventions import (
     scenario_category_enum,
     split_commodity_namespace,
 )
+from vedalang.versioning import annotate_tableir, with_dsl_version
 
 from .demands import compile_demands
 from .facilities import (
@@ -2794,6 +2795,48 @@ class SemanticValidationError(Exception):
         return "\n".join(parts)
 
 
+class PublicDSLContractError(Exception):
+    """Raised when public CLI entrypoints receive unsupported DSL shapes."""
+
+    def __init__(
+        self,
+        *,
+        code: str,
+        message: str,
+        location: str,
+        suggestion: str | None = None,
+    ):
+        self.code = code
+        self.message = message
+        self.location = location
+        self.suggestion = suggestion
+        super().__init__(message)
+
+
+def validate_public_dsl_contract(source: dict) -> None:
+    """Reject legacy public source shapes at CLI-facing entrypoints."""
+    legacy_location = None
+    if source.get("processes"):
+        legacy_location = "processes"
+    elif isinstance(source.get("model"), dict) and source["model"].get("processes"):
+        legacy_location = "model.processes"
+
+    if legacy_location is not None:
+        raise PublicDSLContractError(
+            code="E_LEGACY_SYNTAX_UNSUPPORTED",
+            message=(
+                "Legacy process-based public DSL is no longer supported by "
+                "vedalang CLI entrypoints. Use roles/variants authoring during "
+                "the transition to the v0.2 package/run/object model."
+            ),
+            location=legacy_location,
+            suggestion=(
+                "Replace top-level 'processes' with 'roles' and 'variants'. "
+                "Track the v0.2 reset in docs/prds/20260307-vedalang-v0.2.prd.txt."
+            ),
+        )
+
+
 def validate_cross_references(
     model: dict, source: dict | None = None,
 ) -> tuple[list[str], list[str]]:
@@ -3911,6 +3954,7 @@ def _compile_new_syntax(
             "warnings": convention_warnings,
         },
     }
+    annotate_tableir(tableir, source=source)
 
     if validate:
         tableir_schema = load_tableir_schema()
@@ -4788,6 +4832,7 @@ def compile_vedalang_to_tableir(
         # Include cases.json metadata for VEDA integration
         "cases": cases_json,
     }
+    annotate_tableir(tableir, source=source)
 
     if validate:
         tableir_schema = load_tableir_schema()
@@ -6465,4 +6510,7 @@ def _compile_share_constraint(
 def load_vedalang(path: Path) -> dict:
     """Load VedaLang source from YAML file."""
     with open(path) as f:
-        return yaml.safe_load(f)
+        source = yaml.safe_load(f)
+    if not isinstance(source, dict):
+        return source
+    return with_dsl_version(source)

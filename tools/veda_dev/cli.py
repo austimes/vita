@@ -552,6 +552,8 @@ def run_check_command(args):
 
     if args.json_output:
         output = {
+            "dsl_version": result.dsl_version,
+            "artifact_version": result.artifact_version,
             "success": result.success,
             "source": str(result.source_path),
             "tables": result.tables,

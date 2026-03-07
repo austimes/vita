@@ -1,0 +1,2249 @@
+VedaLang v0.2
+Product Requirements Document (PRD) + Language Specification
+Draft for developer handoff
+Date: 2026-03-07
+Status: Draft / architecture baseline
+
+Versioning note:
+- This file is the canonical v0.2 PRD and DSL specification.
+- The rollout assumes a hard cut under prototype rules: no backward-compatibility
+  shim for superseded public DSL shapes.
+
+===============================================================================
+0. Executive summary
+===============================================================================
+
+VedaLang is an AI-agent-first, human-readable DSL for building, compiling, and
+interrogating energy-emissions models. The design goal is:
+
+  explainability-first / obvious / simple / hard-to-write-messy-models
+
+This document defines the proposed v0.2 language architecture and public authoring
+surface based on the following core decisions:
+
+1. Public authoring DSL and internal IR are separate.
+   - Authors and agents write a human-readable DSL.
+   - The compiler lowers that DSL deterministically into internal canonical forms.
+   - The public schema is NOT the same thing as the solver-oriented IR.
+
+2. The public DSL must preserve the RES "what", not only the implementation
+   "how".
+   - The key public abstraction is `technology_role`.
+   - A technology role captures a functional/system role such as
+     `industrial_steam_supply` or `residential_space_heat_supply`.
+   - Technologies are implementation options for a role.
+
+3. Asset identity and technology identity are separate.
+   - `site` = physical location
+   - `facility` = site-bound asset and policy boundary
+   - `fleet` = distributed asset boundary
+   - `technology` = atomic implementation option
+   - `technology_role` = functional role that may be implemented by multiple
+     technologies over time
+
+4. Spatial and temporal reference data are explicit and symmetric.
+   - `spatial_layers`
+   - `spatial_measure_sets`
+   - `temporal_index_series`
+   - `region_partitions`
+   - `zone_overlays`
+
+5. Public stock observations are adjusted to the run base year, not to arbitrary
+   target years.
+   - Public DSL uses `adjust_to_base_year`
+   - Generic `normalize_to target_year` is intentionally NOT exposed
+
+6. The compiler produces three first-class outputs per run:
+   - CSIR: Canonical Semantic IR
+   - CPIR: Canonical Process IR
+   - explain.json: human/agent-readable provenance and derivation trace
+
+7. No selector-heavy join-table authoring in the v0.2 public DSL.
+   - The author describes technologies, roles, assets, and reference data.
+   - The compiler performs expansion, mapping, distribution, and lowering.
+
+This document is both:
+- a product requirements document for the first implementation phase, and
+- a normative language specification for the core authoring/compilation model.
+
+===============================================================================
+1. Problem statement
+===============================================================================
+
+Energy system models are typically difficult to read, difficult to audit, and
+easy to make messy. A recurring failure mode is that a single real-world thing
+is described across multiple disconnected sections or tables, forcing readers to
+mentally join compiler logic rather than read the modeled system directly.
+
+VedaLang should avoid that failure mode.
+
+The intended future workflow is:
+- a human or AI agent authors a model in VedaLang
+- the compiler validates and canonicalizes the model
+- the model is lowered to an internal process representation
+- an AI agent can interrogate the model and explain where each compiled object
+  came from and why it exists
+
+The public DSL must therefore optimize for:
+- locality of meaning
+- explicit object boundaries
+- deterministic lowering
+- excellent provenance
+- strong validation
+- resistance to messy authoring patterns
+
+===============================================================================
+2. Goals and non-goals
+===============================================================================
+
+2.1 Goals
+
+G1. Explainability-first authoring
+    A domain expert should be able to open a model and understand what it
+    describes without mentally joining multiple global tables.
+
+G2. AI-agent-first structure
+    The DSL should be easy for an agent to write deterministically:
+    explicit IDs, explicit references, explicit types, minimal hidden behavior.
+
+G3. Human readability
+    Although the main author may be an AI agent, humans must still be able to
+    inspect, review, and audit authored models and compiled outputs.
+
+G4. Hard to write messy models
+    The public language should encode good structure and reject or warn on
+    ambiguous, non-local, or misleading authoring patterns.
+
+G5. Stable compilation pipeline
+    The compiler should deterministically lower authored DSL to canonical
+    internal forms.
+
+G6. RES "what" visibility
+    The internal semantic representation must preserve the functional role level
+    of the model, not only the implementation process level.
+
+G7. Reusable libraries
+    Technologies, roles, geography, and reference data should be importable from
+    versioned packages.
+
+2.2 Non-goals for this phase
+
+NG1. Full programmable templating or macro language
+     v0.2 deliberately does NOT include a general-purpose programming layer.
+
+NG2. Full storage/timeslice/policy language
+     Storage, temporal partitions, profile semantics, and detailed policy
+     constructs are important future work, but are only lightly scoped or
+     reserved in this document unless explicitly specified.
+
+NG3. Public selector/join-table authoring
+     The public DSL should not force authors to write global selector logic.
+
+NG4. Perfect support for every backend in v0.2
+     The first implementation should focus on clean architecture and explicit
+     lowering contracts, not maximal backend coverage.
+
+===============================================================================
+3. Design principles
+===============================================================================
+
+P1. One thing in one place
+    A reader should be able to find the main definition of a technology, role,
+    facility, or fleet in one coherent location.
+
+P2. Public DSL describes system semantics; compiler describes join logic
+    The authoring surface should talk about physical systems, assets, regions,
+    and policies. The compiler can expand these into lower-level process logic.
+
+P3. Favor specific names over generic names
+    Use `run`, `model_region`, `technology_role`, `region_partition`,
+    `zone_overlay`, `spatial_measure_set`, `temporal_index_series`.
+
+P4. Structure over terseness
+    The language should prefer explicit structure over clever compactness.
+
+P5. Deterministic outputs
+    Same inputs + same run configuration must produce byte-stable canonical
+    outputs (modulo explicitly ignored metadata fields).
+
+P6. Explanations are first-class artifacts
+    Provenance is not an optional debug aid; it is part of the product.
+
+P7. Package naming follows domain, not object axis
+    Temporal and spatial objects may live in the same package when they belong
+    to the same conceptual dataset or domain.
+
+===============================================================================
+4. High-level architecture
+===============================================================================
+
+VedaLang has four layers:
+
+Layer A. Public authoring DSL
+  The model that users and agents write.
+
+Layer B. Compiled run
+  A public model compiled under a specific `run` configuration.
+
+Layer C. CSIR (Canonical Semantic IR)
+  A canonical, domain-aware internal form preserving the RES "what" via
+  `technology_role_instance`.
+
+Layer D. CPIR (Canonical Process IR)
+  A lower, fully explicit implementation/process form for solver-oriented
+  lowering.
+
+A third output, explain.json, accompanies CSIR/CPIR and records derivation
+traces, source maps, and normalization details.
+
+Authoring flow:
+
+  Authored DSL
+    -> validate package graph and syntax
+    -> parse typed quantities and refs
+    -> resolve imports
+    -> compile one run
+    -> emit CSIR
+    -> lower to CPIR
+    -> emit explain.json
+
+===============================================================================
+5. Vocabulary and naming conventions
+===============================================================================
+
+Normative public terms:
+
+- commodity
+- technology
+- technology_role
+- stock_characterization
+- spatial_layer
+- spatial_measure_set
+- temporal_index_series
+- region_partition
+- zone_overlay
+- site
+- facility
+- fleet
+- opportunity
+- network
+- run
+- model_region
+
+Terms deliberately NOT used publicly in v0.2:
+
+- process_role            (too compiler/IR flavored, too topology-contract-like)
+- process_variant         (rename to technology)
+- study                   (rename to run)
+- node                    (rename to model_region in public docs)
+- scheme                  (too vague; use partition or overlay)
+- normalize_to target_year for stock
+- existing_units          (too ambiguous)
+
+5.1 Naming guidelines
+
+Technology role IDs SHOULD:
+- be noun phrases
+- describe a functional/system role
+- be service- or responsibility-oriented
+- avoid naming the implementation technology when possible
+- avoid fuel-specific phrasing unless fuel specificity is essential
+
+Good examples:
+- industrial_steam_supply
+- residential_space_heat_supply
+- passenger_road_transport
+
+Bad examples:
+- provide_steam_from_gas
+- gas_boiler_role
+- use_electricity_for_heating
+
+Technology IDs SHOULD name implementation options, e.g.:
+- gas_boiler
+- electric_boiler
+- heat_pump
+- wind_onshore
+
+Facility IDs SHOULD name site-bound modeled assets:
+- gladstone_steam
+- newcastle_hydrogen_supply
+
+Fleet IDs SHOULD name distributed stock boundaries:
+- residential_space_heat
+- passenger_light_vehicles
+
+===============================================================================
+6. Object taxonomy: type-like vs instance-like vs compiled
+===============================================================================
+
+6.1 Reusable definition objects ("type-like")
+
+These are reusable definitions or reference data.
+
+- commodity
+- technology
+- technology_role
+- stock_characterization
+- spatial_layer
+- spatial_measure_set
+- temporal_index_series
+- region_partition
+- zone_overlay
+- policy                (reserved / not fully specified here)
+- profile               (reserved / not fully specified here)
+
+6.2 Placed authored model objects ("instance-like")
+
+These are objects placed in a specific authored model.
+
+- site
+- facility
+- fleet
+- opportunity
+- network
+- run
+
+6.3 Compiler-emitted compiled objects
+
+These are generated during run compilation.
+
+- technology_role_instance
+- process_spec
+- transition_edge
+- network_arc
+- explain_trace
+
+===============================================================================
+7. Package and import model
+===============================================================================
+
+7.1 Package principles
+
+Packages are immutable, versioned libraries of reusable definitions and/or
+reference data.
+
+A package MAY export:
+- technologies and roles
+- stock characterizations
+- spatial reference data
+- temporal reference data
+- policies
+- other reusable definitions
+
+Packages SHOULD be organized by domain, not by object-type axis.
+
+Examples:
+- vedalang.au.regions@1
+- vedalang.au.demography@1
+- vedalang.std.heat@1
+- vedalang.std.transport@1
+
+7.2 Why packages are domain-organized
+
+It is acceptable and expected for a demography package to export BOTH:
+- spatial measures such as dwelling stock or population, and
+- temporal index series such as a national dwelling stock index
+
+because those belong to the same domain concept.
+
+By contrast, a regions package will likely export region partitions and zone
+overlays but no temporal series.
+
+7.3 Import syntax
+
+Imports are shallow and explicit.
+
+Example:
+
+  imports:
+    - package: vedalang.au.regions@1
+      as: regions
+      only:
+        region_partitions: [aus_states]
+        zone_overlays: [aemo_rez_2024]
+
+    - package: vedalang.au.demography@1
+      as: demo
+      only:
+        spatial_measure_sets: [abs_demography]
+        temporal_index_series: [national_dwelling_stock_index]
+
+7.4 Import semantics
+
+- `package` identifies a versioned package.
+- `as` assigns a local alias.
+- `only` selects root exported objects by ID.
+- The compiler MUST automatically pull dependency closure for selected objects.
+- Imported objects are immutable within the importing model.
+- Local objects MUST NOT override imported object IDs.
+- Imported references SHOULD be alias-qualified, e.g. `demo.abs_demography`.
+
+7.5 Example dependency closure
+
+If a model imports:
+- technology_role `heat.residential_space_heat_supply`
+
+and that role references:
+- `heat.gas_heater`
+- `heat.heat_pump`
+
+then the compiler MUST include those technologies in the resolved package graph
+even if they were not explicitly named in the importing model.
+
+===============================================================================
+8. Quantity model and units
+===============================================================================
+
+8.1 Typed quantities
+
+Public DSL quantities are written inline and parsed by the units library, e.g.:
+
+- 600 MWth
+- 70 AUD2024/kW
+- 0.056 t/GJ
+- 0.5 %/year
+
+The compiler MUST parse typed quantities before CSIR emission.
+
+8.2 Units library responsibilities
+
+The units library is responsible for:
+- dimension parsing
+- scale conversion
+- basis-aware energy quantity parsing where applicable
+- currency-year parsing when encoded in units (e.g. AUD2024/kW)
+- canonicalization of quantity representations
+
+The units library is NOT responsible for:
+- converting between stock metrics such as asset_count and installed_capacity
+- applying engineering assumptions that map number of assets to capacity or
+  annual activity
+
+Those belong to `stock_characterization`.
+
+8.3 Stock metrics vs quantity units
+
+VedaLang distinguishes:
+
+A. Stock metric
+   What kind of stock representation is being observed or declared?
+   - asset_count
+   - installed_capacity
+   - annual_activity
+
+B. Quantity unit
+   In what units is the number expressed?
+   - assets
+   - MWth
+   - PJ/year
+   - TWh_heat/year
+
+Example:
+
+  metric: asset_count
+  observed:
+    value: 1200000 assets
+    year: 2023
+
+8.4 Stock metrics
+
+`asset_count`
+  Number of discrete assets inside the asset boundary.
+  Typical when data is naturally count-based.
+  Common examples:
+  - heater systems
+  - vehicles
+  - appliances
+
+`installed_capacity`
+  Installed capacity total over the asset boundary.
+  Examples:
+  - 600 MWth for a facility steam system
+  - 3500 MWth for a regional slice of a heating fleet
+
+`annual_activity`
+  Annual service/activity total over the asset boundary.
+  Examples:
+  - PJ/year
+  - TWh_heat/year
+  - vehicle_km/year
+
+8.5 Why asset_count exists
+
+`asset_count` is optional but first-class because many observed datasets are
+count-based, especially for:
+- residential appliances and heating systems
+- vehicle fleets
+- hot water systems
+- distributed equipment stocks
+
+A model may know:
+- number of passenger vehicles, or
+- number of installed heater systems
+
+without directly knowing:
+- total installed capacity, or
+- total annual activity
+
+`stock_characterization` exists to bridge from observed count-based stock to
+other stock representations required by compilation/lowering.
+
+===============================================================================
+9. Public DSL object model
+===============================================================================
+
+This section defines the core public objects for v0.2.
+
+9.1 commodity
+
+Purpose:
+  Named flow/service/emission/certificate object.
+
+Fields:
+- id: string
+- kind: primary | secondary | service | emission | material | certificate
+- description?: string
+
+Example:
+
+  commodities:
+    - id: primary:natural_gas
+      kind: primary
+
+    - id: secondary:electricity
+      kind: secondary
+
+    - id: service:space_heat
+      kind: service
+
+    - id: emission:co2
+      kind: emission
+
+9.2 technology
+
+Purpose:
+  Atomic implementation option. Replaces the old `process_variant` concept.
+
+Fields:
+- id: string
+- provides: Ref<commodity>
+- inputs?: [flow_spec]
+- outputs?: [flow_spec]
+- performance?: performance_spec
+- emissions?: [emission_factor]
+- investment_cost?: quantity
+- fixed_om?: quantity
+- variable_om?: quantity
+- lifetime?: quantity
+- stock_characterization?: Ref<stock_characterization>
+- description?: string
+
+Flow spec:
+- commodity: Ref<commodity>
+- basis?: HHV | LHV
+- coefficient?: quantity    # optional explicit coefficient if needed
+
+Performance spec:
+- kind: efficiency | cop | custom
+- value: number
+
+Emission factor:
+- commodity: Ref<commodity>   # typically emission commodity
+- factor: quantity
+
+Rules:
+- `provides` SHOULD normally reference a service commodity for end-use
+  technologies.
+- Technologies MAY have additional outputs or byproducts.
+- A technology MAY appear in multiple technology roles if semantically valid.
+
+Example:
+
+  technologies:
+    - id: heat.gas_boiler
+      provides: service:steam
+      inputs:
+        - commodity: primary:natural_gas
+          basis: HHV
+      performance:
+        kind: efficiency
+        value: 0.85
+      emissions:
+        - commodity: emission:co2
+          factor: 0.056 t/GJ
+      investment_cost: 220 AUD2024/kW
+      lifetime: 25 year
+
+    - id: heat.electric_boiler
+      provides: service:steam
+      inputs:
+        - commodity: secondary:electricity
+      performance:
+        kind: efficiency
+        value: 0.98
+      investment_cost: 180 AUD2024/kW
+      lifetime: 20 year
+
+9.3 technology_role
+
+Purpose:
+  Public RES-level "what" abstraction. A functional role implemented by one or
+  more technologies over time.
+
+This is the key public abstraction for preserving the RES "what".
+
+Fields:
+- id: string
+- primary_service: Ref<commodity>    # SHOULD be a service commodity
+- technologies: [Ref<technology>]
+- transitions?: [role_transition]
+- description?: string
+
+Role transition:
+- from: Ref<technology>
+- to: Ref<technology>
+- kind: retrofit | switch
+- cost?: quantity
+- lead_time?: quantity
+
+Rules:
+- `primary_service` MUST reference a service commodity.
+- Every technology referenced by the role MUST be able to provide the role's
+  primary service (directly or via explicit allowed semantics).
+- `transitions` MUST only reference technologies listed in `technologies`.
+- A technology_role is NOT an exact topology contract. It is a functional
+  abstraction.
+
+Example:
+
+  technology_roles:
+    - id: heat.industrial_steam_supply
+      primary_service: service:steam
+      technologies:
+        - heat.gas_boiler
+        - heat.electric_boiler
+        - heat.hydrogen_boiler
+      transitions:
+        - from: heat.gas_boiler
+          to: heat.electric_boiler
+          kind: retrofit
+          cost: 70 AUD2024/kW
+        - from: heat.gas_boiler
+          to: heat.hydrogen_boiler
+          kind: retrofit
+          cost: 110 AUD2024/kW
+
+9.4 stock_characterization
+
+Purpose:
+  Declares how one stock metric can be converted to another for a technology.
+  This is NOT a units-library conversion. It is a modeling/engineering
+  assumption.
+
+Fields:
+- id: string
+- applies_to: [Ref<technology>]
+- counted_asset_label?: string
+- conversions: [metric_conversion]
+- description?: string
+
+Metric conversion:
+- from_metric: asset_count | installed_capacity | annual_activity
+- to_metric: asset_count | installed_capacity | annual_activity
+- factor: quantity
+
+Rules:
+- Factors MUST be dimensionally valid.
+- `counted_asset_label` SHOULD be provided when asset_count is used.
+- The meaning of the count should be explicit (e.g. passenger_vehicle,
+  heater_system, hot_water_system).
+
+Example:
+
+  stock_characterizations:
+    - id: heat.res_gas_heater_default
+      applies_to: [heat.gas_heater]
+      counted_asset_label: heater_system
+      conversions:
+        - from_metric: asset_count
+          to_metric: installed_capacity
+          factor: 8 kWth/assets
+        - from_metric: asset_count
+          to_metric: annual_activity
+          factor: 10 MWh_heat/assets/year
+
+9.5 spatial_layer
+
+Purpose:
+  Base indexed spatial layer used for reference data and mappings.
+
+Fields:
+- id: string
+- kind: polygon | point | grid
+- key: string
+- geometry_file: string
+
+Example:
+
+  spatial_layers:
+    - id: geo.sa2_2021
+      kind: polygon
+      key: sa2_code
+      geometry_file: data/sa2_2021.geojson
+
+9.6 spatial_measure_set
+
+Purpose:
+  Cross-sectional measures indexed on a spatial layer.
+
+Fields:
+- id: string
+- layer: Ref<spatial_layer>
+- measures: [spatial_measure]
+
+Spatial measure:
+- id: string
+- observed_year: integer
+- unit: string
+- file: string
+- column: string
+- description?: string
+
+Example:
+
+  spatial_measure_sets:
+    - id: demo.abs_demography
+      layer: geo.sa2_2021
+      measures:
+        - id: dwelling_stock
+          observed_year: 2021
+          unit: dwellings
+          file: data/abs_demography.parquet
+          column: dwelling_stock
+
+        - id: population
+          observed_year: 2024
+          unit: persons
+          file: data/abs_demography.parquet
+          column: population
+
+9.7 temporal_index_series
+
+Purpose:
+  Time series used to adjust observed quantities to the run base year (and later
+  potentially other normalization targets such as currency year).
+
+Fields:
+- id: string
+- unit: index
+- base_year?: integer
+- values: { year -> number }
+- description?: string
+
+Example:
+
+  temporal_index_series:
+    - id: demo.national_dwelling_stock_index
+      unit: index
+      base_year: 2023
+      values:
+        2023: 1.000
+        2024: 1.020
+        2025: 1.040
+
+9.8 region_partition
+
+Purpose:
+  Defines the main partition of a base spatial layer into mutually exclusive
+  model regions.
+
+A run selects exactly one region_partition.
+
+Fields:
+- id: string
+- layer: Ref<spatial_layer>
+- members?: [string]
+- mapping: partition_mapping
+- description?: string
+
+Partition mapping:
+- kind: constant | file | spatial_join
+- file?: string
+- source_key?: string
+- target_key?: string
+- value?: string
+
+Example:
+
+  region_partitions:
+    - id: regions.aus_states
+      layer: geo.sa2_2021
+      members: [NSW, VIC, QLD, SA, WA, TAS, NT, ACT]
+      mapping:
+        kind: file
+        file: data/sa2_to_state.csv
+        source_key: sa2_code
+        target_key: state_id
+
+9.9 zone_overlay
+
+Purpose:
+  Fixed named spatial zones overlaid on a base layer. Unlike region_partition,
+  a zone_overlay does not define the main model region set.
+
+Use cases:
+- renewable energy zones (REZs)
+- named resource basins
+- regulatory overlays
+
+Fields:
+- id: string
+- layer: Ref<spatial_layer>
+- key: string
+- geometry_file: string
+- description?: string
+
+Example:
+
+  zone_overlays:
+    - id: regions.aemo_rez_2024
+      layer: geo.sa2_2021
+      key: rez_id
+      geometry_file: data/aemo_rez_2024.geojson
+
+9.10 site
+
+Purpose:
+  Physical location object, separate from facilities.
+
+Fields:
+- id: string
+- location: site_location
+- membership_overrides?: membership_override_block
+- description?: string
+
+Site location:
+- point?: { lat: number, lon: number }
+- feature_ref?: { layer: Ref<spatial_layer>, id: string }
+
+Membership override block:
+- region_partitions?: { partition_id -> member_id }
+- zone_overlays?: { overlay_id -> member_id }
+
+Rules:
+- A site SHOULD normally resolve region membership automatically from location.
+- Overrides SHOULD only be used when automatic resolution is insufficient or
+  ambiguous.
+
+Example:
+
+  sites:
+    - id: gladstone_refinery
+      location:
+        point:
+          lat: -23.842
+          lon: 151.248
+
+9.11 facility
+
+Purpose:
+  Site-bound asset and policy boundary.
+
+Fields:
+- id: string
+- site: Ref<site>
+- technology_role: Ref<technology_role>
+- available_technologies?: [Ref<technology>]
+- stock?: stock_block
+- policies?: [Ref<policy>]          # policy object reserved
+- description?: string
+
+Rules:
+- A facility MUST reference exactly one site.
+- A facility instantiates exactly one technology_role in the authored model.
+- `available_technologies`, if specified, MUST be a subset of the role's
+  technologies.
+- In a given run, a facility MUST resolve to exactly one model_region.
+
+Example:
+
+  facilities:
+    - id: gladstone_steam
+      site: gladstone_refinery
+      technology_role: heat.industrial_steam_supply
+      available_technologies:
+        - heat.gas_boiler
+        - heat.electric_boiler
+      stock:
+        adjust_to_base_year:
+          using:
+            kind: annual_growth
+            rate: 0.5 %/year
+        items:
+          - technology: heat.gas_boiler
+            metric: installed_capacity
+            observed:
+              value: 600 MWth
+              year: 2023
+
+9.12 fleet
+
+Purpose:
+  Distributed stock boundary allocated across model regions using a spatial
+  distribution rule.
+
+Fields:
+- id: string
+- technology_role: Ref<technology_role>
+- available_technologies?: [Ref<technology>]
+- stock?: stock_block
+- distribution: distribution_block
+- policies?: [Ref<policy>]          # reserved
+- description?: string
+
+Distribution block:
+- method: proportional | custom
+- weight_by?: Ref<spatial_measure>
+- custom_weights_file?: string
+
+Rules:
+- A fleet instantiates one technology_role in the authored model.
+- In a run, a fleet expands into one technology_role_instance per model_region
+  with non-zero allocation (or per all regions if configured that way).
+- `weight_by` MUST resolve to a measure indexed on a layer that can be rolled up
+  to the selected region_partition.
+
+Example:
+
+  fleets:
+    - id: residential_space_heat
+      technology_role: heat.residential_space_heat_supply
+      stock:
+        adjust_to_base_year:
+          using: demo.national_dwelling_stock_index
+          elasticity: 1.0
+        items:
+          - technology: heat.gas_heater
+            metric: asset_count
+            observed:
+              value: 1200000 assets
+              year: 2023
+      distribution:
+        method: proportional
+        weight_by: demo.abs_demography.dwelling_stock
+
+9.13 stock_block
+
+Purpose:
+  Common stock declaration structure shared by facilities and fleets.
+
+Fields:
+- adjust_to_base_year?: base_year_adjustment
+- items: [stock_observation]
+
+Base year adjustment:
+- using: Ref<temporal_index_series> | annual_growth_assumption
+- elasticity?: number = 1.0
+
+Annual growth assumption:
+- kind: annual_growth
+- rate: quantity
+
+Stock observation:
+- technology: Ref<technology>
+- metric: asset_count | installed_capacity | annual_activity
+- observed:
+    - value: quantity
+    - year: integer
+- adjust_to_base_year?: base_year_adjustment   # optional item override
+
+Rules:
+- Stock observations are always interpreted as observed at a specific year.
+- Public stock observations MUST adjust to the run base year if adjustment is
+  required.
+- Public DSL does NOT expose generic `normalize_to target_year` for stock.
+- If no adjustment is declared and observed.year != run.base_year, the compiler
+  MUST either error or use a configured default policy; silent behavior is not
+  allowed.
+
+Semantics of adjustment to base year:
+- If using temporal_index_series I(y):
+    Q_base = Q_obs * (I(base_year) / I(obs_year)) ^ elasticity
+- If using annual growth rate r:
+    Q_base = Q_obs * (1 + r) ^ (base_year - obs_year)
+
+9.14 opportunity
+
+Purpose:
+  Region/zone/site-bound new-build opportunity. Not a facility and not a fleet.
+
+Use cases:
+- wind supply curve classes
+- solar supply curve classes
+- resource opportunity classes
+- CO2 storage basins (future)
+- other location-bound new build classes
+
+Fields:
+- id: string
+- technology: Ref<technology>
+- siting: opportunity_siting
+- max_new_capacity: quantity
+- description?: string
+- profile_ref?: Ref<profile>      # reserved / future extension
+
+Opportunity siting:
+- zone?: string
+- site?: Ref<site>
+- region_member?: { partition: Ref<region_partition>, member: string }
+
+Rules:
+- Exactly one siting mode SHOULD be used.
+- Opportunities are not technology-role instances by default.
+- Opportunities compile to resolved opportunities in CSIR and to processes in
+  CPIR.
+
+Example:
+
+  opportunities:
+    - id: qld_central_rez_wind_class_1
+      technology: vre.wind_onshore
+      siting:
+        zone: regions.aemo_rez_2024.qld_central_rez
+      max_new_capacity: 1500 MW
+
+9.15 network
+
+Purpose:
+  Transport/transfer network such as transmission or pipeline.
+
+Fields:
+- id: string
+- kind: transmission | pipeline
+- node_basis: network_node_basis
+- links: [network_link]
+- description?: string
+
+Network node basis:
+- kind: region_partition | sites
+- ref?: Ref<region_partition>
+
+Network link:
+- id: string
+- from: string
+- to: string
+- commodity: Ref<commodity>
+- existing_transfer_capacity?: quantity
+- max_new_capacity?: quantity
+
+Rules:
+- If `node_basis.kind = region_partition`, `from` and `to` refer to region
+  member IDs.
+- If `node_basis.kind = sites`, `from` and `to` refer to site IDs.
+- If a network's node basis does not match the selected run region_partition,
+  compilation MUST fail unless an explicit aggregation/collapse adapter is
+  defined. Silent network aggregation is not allowed in v0.2.
+
+Example:
+
+  networks:
+    - id: east_coast_transmission
+      kind: transmission
+      node_basis:
+        kind: region_partition
+        ref: regions.aus_states
+      links:
+        - id: qld_nsw
+          from: QLD
+          to: NSW
+          commodity: secondary:electricity
+          existing_transfer_capacity: 1200 MW
+
+9.16 run
+
+Purpose:
+  Concrete compilation request.
+
+Fields:
+- id: string
+- base_year: integer
+- currency_year: integer
+- region_partition: Ref<region_partition>
+- temporal_partition?: Ref<temporal_partition>   # reserved/future
+- include_cases?: [Ref<case>]                    # reserved/future
+- enable_policies?: [Ref<policy>]                # reserved/future
+- description?: string
+
+Rules:
+- A run selects exactly one region_partition.
+- The selected region_partition determines the model_region set for compilation.
+- A given authored model MAY define multiple runs.
+
+Example:
+
+  runs:
+    - id: states_2025
+      base_year: 2025
+      currency_year: 2024
+      region_partition: regions.aus_states
+
+===============================================================================
+10. Public semantics: facilities, fleets, roles, and regions
+===============================================================================
+
+10.1 technology_role
+
+A technology_role is the public RES-level functional abstraction.
+Examples:
+- industrial_steam_supply
+- residential_space_heat_supply
+- passenger_road_transport
+
+It answers:
+- What role is being played in the system?
+- What service is being provided?
+- What implementation options can realize that role?
+- What transitions are allowed over time?
+
+It does NOT answer:
+- Where exactly is this role instantiated?          (facility/fleet does)
+- Which model region does it compile into?         (run does)
+- How it is lowered into process tables?           (compiler does)
+
+10.2 facility
+
+A facility is:
+- site-bound
+- policy/accounting-aware
+- enduring as an asset identity across technology transitions
+
+A facility is NOT:
+- a technology
+- a region partition
+- a fleet
+
+10.3 fleet
+
+A fleet is:
+- distributed rather than site-bound
+- an asset boundary defined over a stock pool
+- spatially allocated during compilation according to distribution rules
+
+The public model defines the fleet once.
+A run determines how that fleet expands into regional slices.
+
+10.4 model_region
+
+`model_region` is a compiled concept, not a public authored object.
+
+A model_region is one member of the run's selected `region_partition`.
+
+Examples:
+- for run using national partition: [AUS]
+- for run using states partition: [NSW, VIC, QLD, SA, WA, TAS, NT, ACT]
+
+Public documentation SHOULD use `model_region`, not `node`.
+
+===============================================================================
+11. Compilation pipeline
+===============================================================================
+
+The compiler MUST be able to compile a selected authored model and run to:
+- CSIR
+- CPIR
+- explain.json
+
+11.1 Phase 1: Parse and validate source files
+
+Inputs:
+- authored model files
+- imported packages
+- package metadata
+
+Actions:
+- parse syntax
+- validate object shapes
+- validate IDs and references
+- collect source locations for provenance
+
+Outputs:
+- parsed authored model
+- source map skeleton
+
+11.2 Phase 2: Resolve package graph
+
+Actions:
+- resolve imports
+- apply `only`
+- pull dependency closure
+- detect cycles or invalid package references
+
+Outputs:
+- fully resolved definition graph
+
+11.3 Phase 3: Parse typed quantities
+
+Actions:
+- parse all quantities using units library
+- canonicalize dimensions and values
+
+Outputs:
+- typed quantities in internal representation
+
+11.4 Phase 4: Resolve run
+
+Input:
+- one selected run ID
+
+Actions:
+- determine base_year, currency_year, region_partition
+- resolve region_partition member set
+- define compiled model_region set
+
+Outputs:
+- run context
+- model_region set
+
+11.5 Phase 5: Resolve sites and spatial memberships
+
+Actions:
+- resolve each site's location
+- map site to exactly one member of the run's region_partition, unless overridden
+- resolve zone memberships where required
+- error on ambiguity unless explicit override exists
+
+Outputs:
+- resolved site memberships
+
+11.6 Phase 6: Adjust stock observations to base year
+
+Actions:
+- for each stock item in facilities/fleets:
+  - identify observed year
+  - apply item-level `adjust_to_base_year` if present, otherwise stock-block
+    level rule
+  - compute base-year adjusted total
+  - record derivation traces
+
+Outputs:
+- base-year adjusted stock totals
+
+11.7 Phase 7: Spatially allocate fleets
+
+Actions:
+- for each fleet:
+  - compute total base-year stock
+  - resolve `distribution`
+  - aggregate weight measure from its spatial layer to the run region_partition
+  - compute regional shares
+  - allocate stock totals to model_regions
+  - record derivation traces
+
+Outputs:
+- region-sliced fleet stock values
+
+Semantics:
+- For proportional allocation:
+    Q_region = Q_total * W_region / sum(W_all_regions)
+
+11.8 Phase 8: Create technology_role_instances (CSIR level)
+
+For each facility:
+- create one technology_role_instance in the resolved model_region
+
+For each fleet:
+- create one technology_role_instance per model_region with non-zero allocation
+  (or according to configured zero-handling semantics)
+
+Each technology_role_instance MUST include:
+- source asset ref
+- technology_role ref
+- model_region
+- available technologies
+- resolved initial stock values
+- trace IDs
+
+11.9 Phase 9: Derive stock views as needed
+
+If the declared stock metric is `asset_count` and the lowering target requires
+`installed_capacity` or `annual_activity`, the compiler MUST derive those using
+the referenced stock_characterization.
+
+This is a semantic/modeling conversion, not a units conversion.
+
+11.10 Phase 10: Emit CSIR
+
+CSIR MUST contain:
+- resolved numeric quantities only
+- no formula strings
+- no placeholder text
+- trace IDs referencing explain.json
+
+11.11 Phase 11: Lower CSIR to CPIR
+
+For each technology_role_instance:
+- create one process_spec per available technology
+- materialize explicit transitions
+- attach resolved flows and coefficients
+- create opportunity processes
+- create network arcs
+
+11.12 Phase 12: Emit explain.json
+
+explain.json MUST contain:
+- public origin refs
+- package origin refs
+- normalization traces
+- allocation traces
+- stock characterization traces
+- lowering traces
+
+===============================================================================
+12. Canonical internal representations
+===============================================================================
+
+12.1 CSIR: Canonical Semantic IR
+
+Purpose:
+- preserve the RES "what"
+- preserve compiled regional role instances
+- preserve resolved stock values and provenance references
+- remain domain-aware and explainable
+
+CSIR MUST include:
+- run metadata
+- model_region set
+- resolved sites
+- resolved assets
+- technology_roles
+- technology_role_instances
+- resolved opportunities
+- resolved networks
+- source/trace references
+
+CSIR MUST NOT include:
+- unresolved formulas
+- placeholder values
+- hidden defaults not already resolved
+
+12.1.1 technology_role_instance
+
+This is the key semantic bridge.
+
+A technology_role_instance is:
+- one authored facility/fleet role
+- compiled for one specific model_region in one specific run
+
+Examples:
+- role_instance.gladstone_steam@QLD
+- role_instance.residential_space_heat@NSW
+
+Fields:
+- id: string
+- source_asset: Ref<facility> | Ref<fleet>
+- technology_role: Ref<technology_role>
+- model_region: string
+- available_technologies: [Ref<technology>]
+- initial_stock: [resolved_stock_item]
+- trace_ids: [string]
+
+Resolved stock item:
+- technology: Ref<technology>
+- declared_metric: asset_count | installed_capacity | annual_activity
+- stock_views:
+    - asset_count?: quantity
+    - installed_capacity?: quantity
+    - annual_activity?: quantity
+- trace_ids: [string]
+
+12.2 CPIR: Canonical Process IR
+
+Purpose:
+- explicit implementation/process view
+- suitable for backend lowering
+- deterministic and fully materialized
+
+CPIR MUST include:
+- run metadata
+- model_region set
+- process_spec objects
+- transition_edge objects
+- network_arc objects
+- references back to CSIR origins
+
+12.2.1 process_spec
+
+A process_spec represents one technology implementation under one
+technology_role_instance.
+
+Fields:
+- id: string
+- source_role_instance: Ref<technology_role_instance>
+- technology: Ref<technology>
+- model_region: string
+- model_stock_metric: installed_capacity | annual_activity | asset_count
+- initial_stock: quantity
+- flows: [resolved_flow]
+
+Resolved flow:
+- direction: in | out
+- commodity: Ref<commodity>
+- coefficient: quantity
+- emission?: quantity
+
+12.2.2 transition_edge
+
+A transition_edge represents one enabled transition between two compiled
+processes inside one role instance.
+
+Fields:
+- id: string
+- source_role_instance: Ref<technology_role_instance>
+- from_process: Ref<process_spec>
+- to_process: Ref<process_spec>
+- kind: retrofit | switch
+- cost?: quantity
+
+===============================================================================
+13. explain.json
+===============================================================================
+
+Purpose:
+- answer "where did this come from?"
+- answer "how was this number derived?"
+- answer "which authored object created this compiled process?"
+- support agent interrogation and human audit
+
+explain.json SHOULD be considered a first-class product artifact.
+
+13.1 Required contents
+
+At minimum, explain.json MUST support:
+
+A. Object provenance
+   - public authored origins
+   - package/library origins
+   - generated compiled objects
+
+B. Temporal adjustment traces
+   - observed value and year
+   - adjustment method
+   - index values or growth assumptions
+   - resolved base-year value
+
+C. Spatial allocation traces
+   - weight measure
+   - region_partition
+   - regional shares
+   - allocated values
+
+D. Stock characterization traces
+   - source metric and value
+   - counted asset label where relevant
+   - conversion factors
+   - derived metric values
+
+E. Lowering traces
+   - role instance -> process mapping
+   - opportunity -> process mapping
+   - network -> arc mapping
+
+13.2 Example object trace structure (illustrative)
+
+{
+  "run_id": "toy_states_2025",
+  "objects": {
+    "role_instance.residential_space_heat@NSW": {
+      "public_origin": {
+        "fleet": "residential_space_heat",
+        "technology_role": "heat.residential_space_heat_supply"
+      },
+      "resolved_model_region": "NSW",
+      "initial_stock": [
+        {
+          "technology": "heat.gas_heater",
+          "declared_metric": "asset_count",
+          "stock_views": {
+            "asset_count": {"amount": 499200, "unit": "assets"},
+            "installed_capacity": {"amount": 3993.6, "unit": "MWth"}
+          },
+          "trace_ids": [
+            "trace.norm.residential_space_heat.total",
+            "trace.alloc.residential_space_heat.NSW",
+            "trace.stock_view.residential_space_heat.NSW"
+          ]
+        }
+      ]
+    }
+  }
+}
+
+===============================================================================
+14. Validation rules and compiler diagnostics
+===============================================================================
+
+This section separates MUST-level hard errors from SHOULD-level lints.
+
+14.1 Hard errors (compiler MUST reject)
+
+E001. Duplicate IDs within the same namespace
+E002. Broken reference to missing object
+E003. Imported package/object not found
+E004. technology_role.primary_service is not a service commodity
+E005. technology_role transition references a technology not in role.technologies
+E006. facility available_technologies not subset of role.technologies
+E007. fleet available_technologies not subset of role.technologies
+E008. site cannot be resolved to exactly one model_region for a selected run and
+      no override exists
+E009. fleet distribution weight measure cannot be rolled up to run region_partition
+E010. proportional fleet distribution has non-positive total weight
+E011. stock observed year differs from run base_year and no adjustment rule is
+      available
+E012. asset_count declared but required stock characterization/conversion is
+      unavailable for required lowering
+E013. network node_basis region_partition mismatches selected run partition and
+      no explicit adapter is defined
+E014. zone/site/region siting in opportunity is ambiguous or invalid
+E015. technology referenced in stock item is not allowed by the asset's
+      technology_role or available_technologies subset
+E016. quantities fail dimensional parsing
+E017. invalid membership override target
+E018. missing dependency closure object after import resolution
+E019. CSIR emission attempted with unresolved placeholders or formula strings
+
+14.2 Lints / warnings (compiler SHOULD warn)
+
+W001. technology_role ID appears implementation-specific instead of
+      function/service-oriented
+W002. technology_role ID appears fuel-specific where a service-oriented role
+      would be clearer
+W003. spatial weight measure observed_year is materially older than run base_year
+W004. technology_role contains technologies whose `provides` field appears
+      inconsistent with the role's primary_service
+W005. imported object selected but never referenced in the final compiled run
+W006. membership override used where geometric resolution would have sufficed
+W007. custom distribution file used when a standard spatial measure is available
+W008. role/technology naming ambiguity (e.g. role sounds like technology)
+W009. facility or fleet declares stock for only one technology but exposes many
+      technologies without transitions, potentially under-specified
+W010. annual growth adjustment used where a temporal_index_series is available
+W011. asset_count used without counted_asset_label in stock_characterization
+
+14.3 Error message requirements
+
+All hard errors MUST include:
+- code
+- object ID
+- source file and line/column if available
+- concise explanation
+- suggested remediation when feasible
+
+Example:
+
+  E012 asset_count lowering requires stock characterization
+  Object: fleets.residential_space_heat.stock.items[0]
+  Source: model.yaml:42:9
+  The selected lowering target requires installed_capacity, but technology
+  heat.gas_heater does not resolve to a stock_characterization that can convert
+  from asset_count to installed_capacity.
+
+===============================================================================
+15. Determinism and canonicalization requirements
+===============================================================================
+
+The compiler MUST produce deterministic outputs.
+
+15.1 Stable ordering
+
+CSIR and CPIR object arrays MUST be emitted in stable canonical order, e.g.:
+- by namespace then ID
+- by model_region then ID
+- by source origin then technology ID
+
+The exact canonical ordering rule SHOULD be documented and implemented
+consistently.
+
+15.2 Byte-stable artifacts
+
+Given identical inputs and package versions, the compiler SHOULD produce
+byte-stable CSIR/CPIR/explain outputs except for fields explicitly declared as
+non-deterministic metadata (if any).
+
+15.3 Canonical file outputs
+
+Recommended artifact names:
+- <run_id>.csir.yaml
+- <run_id>.cpir.yaml
+- <run_id>.explain.json
+
+===============================================================================
+16. Small end-to-end example rendered four ways
+===============================================================================
+
+This example is normative enough to guide implementation and testing.
+
+16.1 Assumed library facts
+
+Assume imported libraries define:
+
+- regions.toy_states_3 as a region_partition with members:
+  [NSW, VIC, QLD]
+
+- demo.abs_demography.dwelling_stock aggregated to toy_states_3 yields shares:
+  NSW = 0.40
+  VIC = 0.35
+  QLD = 0.25
+
+- demo.national_dwelling_stock_index:
+  2023 = 1.000
+  2024 = 1.020
+  2025 = 1.040
+
+- heat.res_gas_heater_default:
+  counted_asset_label = heater_system
+  asset_count -> installed_capacity = 8 kWth/assets
+  asset_count -> annual_activity = 10 MWh_heat/assets/year
+
+- heat.gas_boiler efficiency = 0.85
+- heat.electric_boiler efficiency = 0.98
+- heat.gas_heater efficiency = 0.90
+- heat.heat_pump COP = 3.2
+
+16.2 Authored DSL
+
+  imports:
+    - package: vedalang.au.regions@1
+      as: regions
+      only:
+        region_partitions: [toy_states_3]
+
+    - package: vedalang.au.demography@1
+      as: demo
+      only:
+        spatial_measure_sets: [abs_demography]
+        temporal_index_series: [national_dwelling_stock_index]
+
+    - package: vedalang.std.heat@1
+      as: heat
+      only:
+        technology_roles:
+          [residential_space_heat_supply, industrial_steam_supply]
+        technologies:
+          [gas_heater, heat_pump, gas_boiler, electric_boiler]
+        stock_characterizations:
+          [res_gas_heater_default]
+
+  sites:
+    - id: gladstone_refinery
+      location:
+        point:
+          lat: -23.842
+          lon: 151.248
+
+  facilities:
+    - id: gladstone_steam
+      site: gladstone_refinery
+      technology_role: heat.industrial_steam_supply
+      available_technologies:
+        - heat.gas_boiler
+        - heat.electric_boiler
+      stock:
+        adjust_to_base_year:
+          using:
+            kind: annual_growth
+            rate: 0.5 %/year
+        items:
+          - technology: heat.gas_boiler
+            metric: installed_capacity
+            observed:
+              value: 600 MWth
+              year: 2023
+
+  fleets:
+    - id: residential_space_heat
+      technology_role: heat.residential_space_heat_supply
+      stock:
+        adjust_to_base_year:
+          using: demo.national_dwelling_stock_index
+          elasticity: 1.0
+        items:
+          - technology: heat.gas_heater
+            metric: asset_count
+            observed:
+              value: 1200000 assets
+              year: 2023
+      distribution:
+        method: proportional
+        weight_by: demo.abs_demography.dwelling_stock
+
+  runs:
+    - id: toy_states_2025
+      base_year: 2025
+      currency_year: 2024
+      region_partition: regions.toy_states_3
+
+16.3 Expected compilation logic
+
+Facility:
+- gladstone_refinery resolves to QLD
+- gladstone_steam installed_capacity:
+    600 * (1.005)^(2025-2023) ≈ 606.0 MWth
+
+Fleet:
+- residential_space_heat asset_count:
+    1,200,000 * (1.040 / 1.000) = 1,248,000 assets in 2025
+
+Regional allocation:
+- NSW = 1,248,000 * 0.40 = 499,200 assets
+- VIC = 1,248,000 * 0.35 = 436,800 assets
+- QLD = 1,248,000 * 0.25 = 312,000 assets
+
+Derived stock views using stock_characterization:
+- NSW installed_capacity = 499,200 * 8 kWth = 3,993.6 MWth
+- VIC installed_capacity = 436,800 * 8 kWth = 3,494.4 MWth
+- QLD installed_capacity = 312,000 * 8 kWth = 2,496.0 MWth
+
+- NSW annual_activity = 499,200 * 10 MWh_heat/year = 4.992 TWh_heat/year
+- VIC annual_activity = 436,800 * 10 MWh_heat/year = 4.368 TWh_heat/year
+- QLD annual_activity = 312,000 * 10 MWh_heat/year = 3.120 TWh_heat/year
+
+16.4 Compiled CSIR (illustrative)
+
+  csir:
+    run_id: toy_states_2025
+    base_year: 2025
+    currency_year: 2024
+    region_partition: regions.toy_states_3
+    model_regions: [NSW, VIC, QLD]
+
+    sites:
+      - id: gladstone_refinery
+        resolved_model_region: QLD
+        trace_ids:
+          - trace.site.gladstone_refinery.region_resolution
+
+    technology_role_instances:
+      - id: role_instance.gladstone_steam@QLD
+        source_asset: facilities.gladstone_steam
+        technology_role: heat.industrial_steam_supply
+        model_region: QLD
+        available_technologies:
+          - heat.gas_boiler
+          - heat.electric_boiler
+        initial_stock:
+          - technology: heat.gas_boiler
+            declared_metric: installed_capacity
+            stock_views:
+              installed_capacity: 606.0 MWth
+            trace_ids:
+              - trace.norm.gladstone_steam.gas_boiler
+
+      - id: role_instance.residential_space_heat@NSW
+        source_asset: fleets.residential_space_heat
+        technology_role: heat.residential_space_heat_supply
+        model_region: NSW
+        available_technologies:
+          - heat.gas_heater
+          - heat.heat_pump
+        initial_stock:
+          - technology: heat.gas_heater
+            declared_metric: asset_count
+            stock_views:
+              asset_count: 499200 assets
+              installed_capacity: 3993.6 MWth
+              annual_activity: 4.992 TWh_heat/year
+            trace_ids:
+              - trace.norm.residential_space_heat.total
+              - trace.alloc.residential_space_heat.NSW
+              - trace.stock_view.residential_space_heat.NSW
+
+      - id: role_instance.residential_space_heat@VIC
+        source_asset: fleets.residential_space_heat
+        technology_role: heat.residential_space_heat_supply
+        model_region: VIC
+        available_technologies:
+          - heat.gas_heater
+          - heat.heat_pump
+        initial_stock:
+          - technology: heat.gas_heater
+            declared_metric: asset_count
+            stock_views:
+              asset_count: 436800 assets
+              installed_capacity: 3494.4 MWth
+              annual_activity: 4.368 TWh_heat/year
+            trace_ids:
+              - trace.norm.residential_space_heat.total
+              - trace.alloc.residential_space_heat.VIC
+              - trace.stock_view.residential_space_heat.VIC
+
+      - id: role_instance.residential_space_heat@QLD
+        source_asset: fleets.residential_space_heat
+        technology_role: heat.residential_space_heat_supply
+        model_region: QLD
+        available_technologies:
+          - heat.gas_heater
+          - heat.heat_pump
+        initial_stock:
+          - technology: heat.gas_heater
+            declared_metric: asset_count
+            stock_views:
+              asset_count: 312000 assets
+              installed_capacity: 2496.0 MWth
+              annual_activity: 3.120 TWh_heat/year
+            trace_ids:
+              - trace.norm.residential_space_heat.total
+              - trace.alloc.residential_space_heat.QLD
+              - trace.stock_view.residential_space_heat.QLD
+
+16.5 Compiled CPIR (illustrative)
+
+  cpir:
+    run_id: toy_states_2025
+    model_regions: [NSW, VIC, QLD]
+
+    processes:
+      - id: P::role_instance.gladstone_steam@QLD::heat.gas_boiler
+        source_role_instance: role_instance.gladstone_steam@QLD
+        technology: heat.gas_boiler
+        model_region: QLD
+        model_stock_metric: installed_capacity
+        initial_stock: 606.0 MWth
+        flows:
+          - direction: in
+            commodity: primary:natural_gas
+            coefficient: 1.1765 GJ_fuel/GJ_steam
+          - direction: out
+            commodity: service:steam
+            coefficient: 1.0 GJ_steam/GJ_steam
+          - emission: emission:co2
+            factor: 0.056 t/GJ_fuel
+
+      - id: P::role_instance.gladstone_steam@QLD::heat.electric_boiler
+        source_role_instance: role_instance.gladstone_steam@QLD
+        technology: heat.electric_boiler
+        model_region: QLD
+        model_stock_metric: installed_capacity
+        initial_stock: 0.0 MWth
+        flows:
+          - direction: in
+            commodity: secondary:electricity
+            coefficient: 1.0204 GJ_elec/GJ_steam
+          - direction: out
+            commodity: service:steam
+            coefficient: 1.0 GJ_steam/GJ_steam
+
+      - id: P::role_instance.residential_space_heat@NSW::heat.gas_heater
+        source_role_instance: role_instance.residential_space_heat@NSW
+        technology: heat.gas_heater
+        model_region: NSW
+        model_stock_metric: installed_capacity
+        initial_stock: 3993.6 MWth
+        flows:
+          - direction: in
+            commodity: primary:natural_gas
+            coefficient: 1.1111 GJ_fuel/GJ_heat
+          - direction: out
+            commodity: service:space_heat
+            coefficient: 1.0 GJ_heat/GJ_heat
+          - emission: emission:co2
+            factor: 0.056 t/GJ_fuel
+
+      - id: P::role_instance.residential_space_heat@NSW::heat.heat_pump
+        source_role_instance: role_instance.residential_space_heat@NSW
+        technology: heat.heat_pump
+        model_region: NSW
+        model_stock_metric: installed_capacity
+        initial_stock: 0.0 MWth
+        flows:
+          - direction: in
+            commodity: secondary:electricity
+            coefficient: 0.3125 GJ_elec/GJ_heat
+          - direction: out
+            commodity: service:space_heat
+            coefficient: 1.0 GJ_heat/GJ_heat
+
+      - id: P::role_instance.residential_space_heat@VIC::heat.gas_heater
+        source_role_instance: role_instance.residential_space_heat@VIC
+        technology: heat.gas_heater
+        model_region: VIC
+        model_stock_metric: installed_capacity
+        initial_stock: 3494.4 MWth
+
+      - id: P::role_instance.residential_space_heat@VIC::heat.heat_pump
+        source_role_instance: role_instance.residential_space_heat@VIC
+        technology: heat.heat_pump
+        model_region: VIC
+        model_stock_metric: installed_capacity
+        initial_stock: 0.0 MWth
+
+      - id: P::role_instance.residential_space_heat@QLD::heat.gas_heater
+        source_role_instance: role_instance.residential_space_heat@QLD
+        technology: heat.gas_heater
+        model_region: QLD
+        model_stock_metric: installed_capacity
+        initial_stock: 2496.0 MWth
+
+      - id: P::role_instance.residential_space_heat@QLD::heat.heat_pump
+        source_role_instance: role_instance.residential_space_heat@QLD
+        technology: heat.heat_pump
+        model_region: QLD
+        model_stock_metric: installed_capacity
+        initial_stock: 0.0 MWth
+
+    transition_edges:
+      - id: R::role_instance.gladstone_steam@QLD::heat.gas_boiler->heat.electric_boiler
+        source_role_instance: role_instance.gladstone_steam@QLD
+        from_process: P::role_instance.gladstone_steam@QLD::heat.gas_boiler
+        to_process: P::role_instance.gladstone_steam@QLD::heat.electric_boiler
+        kind: retrofit
+        cost: 70 AUD2024/kW
+
+      - id: R::role_instance.residential_space_heat@NSW::heat.gas_heater->heat.heat_pump
+        source_role_instance: role_instance.residential_space_heat@NSW
+        from_process: P::role_instance.residential_space_heat@NSW::heat.gas_heater
+        to_process: P::role_instance.residential_space_heat@NSW::heat.heat_pump
+        kind: retrofit
+        cost: 25 AUD2024/kW
+
+      - id: R::role_instance.residential_space_heat@VIC::heat.gas_heater->heat.heat_pump
+        source_role_instance: role_instance.residential_space_heat@VIC
+        from_process: P::role_instance.residential_space_heat@VIC::heat.gas_heater
+        to_process: P::role_instance.residential_space_heat@VIC::heat.heat_pump
+        kind: retrofit
+        cost: 25 AUD2024/kW
+
+      - id: R::role_instance.residential_space_heat@QLD::heat.gas_heater->heat.heat_pump
+        source_role_instance: role_instance.residential_space_heat@QLD
+        from_process: P::role_instance.residential_space_heat@QLD::heat.gas_heater
+        to_process: P::role_instance.residential_space_heat@QLD::heat.heat_pump
+        kind: retrofit
+        cost: 25 AUD2024/kW
+
+16.6 explain.json (illustrative excerpt)
+
+{
+  "run_id": "toy_states_2025",
+  "objects": {
+    "role_instance.gladstone_steam@QLD": {
+      "public_origin": {
+        "facility": "gladstone_steam",
+        "site": "gladstone_refinery",
+        "technology_role": "heat.industrial_steam_supply"
+      },
+      "resolved_model_region": "QLD",
+      "initial_stock": [
+        {
+          "technology": "heat.gas_boiler",
+          "metric": "installed_capacity",
+          "value": {
+            "amount": 606.0,
+            "unit": "MWth"
+          },
+          "trace_ids": [
+            "trace.site.gladstone_refinery.region_resolution",
+            "trace.norm.gladstone_steam.gas_boiler",
+            "trace.lower.P::role_instance.gladstone_steam@QLD::heat.gas_boiler"
+          ]
+        }
+      ]
+    },
+    "role_instance.residential_space_heat@NSW": {
+      "public_origin": {
+        "fleet": "residential_space_heat",
+        "technology_role": "heat.residential_space_heat_supply"
+      },
+      "resolved_model_region": "NSW",
+      "initial_stock": [
+        {
+          "technology": "heat.gas_heater",
+          "declared_metric": "asset_count",
+          "stock_views": {
+            "asset_count": {
+              "amount": 499200,
+              "unit": "assets"
+            },
+            "installed_capacity": {
+              "amount": 3993.6,
+              "unit": "MWth"
+            },
+            "annual_activity": {
+              "amount": 4.992,
+              "unit": "TWh_heat/year"
+            }
+          },
+          "trace_ids": [
+            "trace.norm.residential_space_heat.total",
+            "trace.alloc.residential_space_heat.NSW",
+            "trace.stock_view.residential_space_heat.NSW",
+            "trace.lower.P::role_instance.residential_space_heat@NSW::heat.gas_heater"
+          ]
+        }
+      ]
+    }
+  },
+  "traces": {
+    "trace.site.gladstone_refinery.region_resolution": {
+      "kind": "site_to_region",
+      "site": "gladstone_refinery",
+      "region_partition": "regions.toy_states_3",
+      "resolved_model_region": "QLD"
+    },
+    "trace.norm.gladstone_steam.gas_boiler": {
+      "kind": "temporal_normalization",
+      "observed": {
+        "amount": 600.0,
+        "unit": "MWth",
+        "year": 2023
+      },
+      "using": {
+        "kind": "annual_growth",
+        "rate": "0.5 %/year"
+      },
+      "target_year": 2025,
+      "resolved": {
+        "amount": 606.0,
+        "unit": "MWth"
+      }
+    },
+    "trace.norm.residential_space_heat.total": {
+      "kind": "temporal_normalization",
+      "observed": {
+        "amount": 1200000,
+        "unit": "assets",
+        "year": 2023
+      },
+      "using_temporal_index_series": "demo.national_dwelling_stock_index",
+      "index_values": {
+        "2023": 1.0,
+        "2025": 1.04
+      },
+      "elasticity": 1.0,
+      "resolved": {
+        "amount": 1248000,
+        "unit": "assets",
+        "year": 2025
+      }
+    },
+    "trace.alloc.residential_space_heat.NSW": {
+      "kind": "spatial_allocation",
+      "weight_by": "demo.abs_demography.dwelling_stock",
+      "region_partition": "regions.toy_states_3",
+      "region_share": 0.4,
+      "resolved": {
+        "model_region": "NSW",
+        "amount": 499200,
+        "unit": "assets"
+      }
+    },
+    "trace.stock_view.residential_space_heat.NSW": {
+      "kind": "stock_characterization",
+      "technology": "heat.gas_heater",
+      "counted_asset_label": "heater_system",
+      "input": {
+        "metric": "asset_count",
+        "amount": 499200,
+        "unit": "assets"
+      },
+      "derived": {
+        "installed_capacity": {
+          "factor": "8 kWth/assets",
+          "amount": 3993.6,
+          "unit": "MWth"
+        },
+        "annual_activity": {
+          "factor": "10 MWh_heat/assets/year",
+          "amount": 4.992,
+          "unit": "TWh_heat/year"
+        }
+      }
+    }
+  }
+}
+
+===============================================================================
+17. Developer-oriented implementation notes
+===============================================================================
+
+17.1 Recommended internal module boundaries
+
+Suggested compiler modules:
+- parser
+- schema validator
+- package resolver
+- quantity parser / units adapter
+- spatial resolver
+- temporal adjustment engine
+- fleet allocation engine
+- stock characterization engine
+- CSIR emitter
+- CPIR lowerer
+- explain emitter
+
+17.2 Suggested source map strategy
+
+Each authored object should carry:
+- source file path
+- line/column span
+- object namespace and ID
+
+Each compiled object should carry:
+- source object refs
+- trace IDs
+- package origin refs
+
+17.3 Suggested CLI shape (non-normative)
+
+Example:
+  vedalang compile model.yaml --run toy_states_2025 --out build/
+
+Recommended outputs:
+  build/toy_states_2025.csir.yaml
+  build/toy_states_2025.cpir.yaml
+  build/toy_states_2025.explain.json
+
+17.4 Suggested test strategy
+
+Minimum required golden tests:
+- package resolution test
+- typed quantity parsing test
+- site -> region resolution test
+- fleet allocation test
+- base-year adjustment via temporal_index_series test
+- base-year adjustment via annual growth test
+- stock_characterization conversion test
+- CSIR golden test
+- CPIR golden test
+- explain.json golden test
+- deterministic output/stable ordering test
+- error diagnostics test suite
+
+17.5 Docs drift prevention
+
+Every flagship example in the docs SHOULD be compiled in CI.
+Examples embedded in the spec or docs SHOULD have machine-checked fixtures where
+practical.
+
+===============================================================================
+18. Product requirements / acceptance criteria for v0.2
+===============================================================================
+
+The implementation will be considered successful when all of the following are
+true.
+
+R1. Authoring surface
+    Developers can define:
+    - technologies
+    - technology_roles
+    - sites
+    - facilities
+    - fleets
+    - region_partitions
+    - spatial_measure_sets
+    - temporal_index_series
+    - runs
+
+R2. Package system
+    Developers can import versioned packages using `package`, `as`, and `only`,
+    with dependency closure resolution.
+
+R3. Stock adjustment
+    A stock observation from a prior year can be adjusted to run base_year using:
+    - temporal_index_series, or
+    - annual growth assumption
+
+R4. Fleet allocation
+    A fleet can be allocated over model regions using a spatial measure rollup.
+
+R5. Compiled role instances
+    Facilities and fleets compile into technology_role_instances in CSIR.
+
+R6. Lowering
+    technology_role_instances lower to process specs and transition edges in
+    CPIR.
+
+R7. Provenance
+    explain.json clearly shows:
+    - origin of each compiled object
+    - stock adjustment logic
+    - fleet allocation logic
+    - stock characterization logic
+    - process lowering logic
+
+R8. Determinism
+    Canonical outputs are stable and deterministic.
+
+R9. Validation
+    Hard errors and warnings from Section 14 are implemented for the v0.2 core scope.
+
+R10. Golden example
+    The worked example in Section 16 compiles end-to-end and is covered by tests.
+
+===============================================================================
+19. Explicitly out of scope / reserved for next phases
+===============================================================================
+
+These are important, but not required for first implementation unless explicitly
+prioritized later.
+
+- temporal partitions / timeslices
+- storage primitive with charge/discharge/energy capacity semantics
+- rich policy language
+- cases / overlays / scenario deltas
+- profile semantics for VRE and demand shapes
+- explicit solver-backend mapping details for TIMES tables
+- advanced modules/templates
+- automatic aggregation/collapse of networks across region partitions
+- facility-local stock characterization overrides
+- generic cost normalization API beyond the current quantity/year handling
+
+===============================================================================
+20. Open questions for follow-on design
+===============================================================================
+
+Q1. Storage
+    Should storage become a first-class public object or remain a specialized
+    technology subtype?
+
+Q2. Temporal partitions
+    What is the public shape for timeslices/profiles?
+
+Q3. Policy language
+    How should safeguards, caps, certificates, and credit systems be modeled?
+
+Q4. Opportunity profiles
+    How should zone/resource profiles be referenced and validated?
+
+Q5. Backend targets
+    What exact CPIR-to-backend contract is needed for VEDA/TIMES export?
+
+Q6. Case overlays
+    What is the simplest safe way to support scenario variation without
+    reintroducing non-local mess?
+
+===============================================================================
+21. Final recommendation
+===============================================================================
+
+Develop v0.2 around the following backbone:
+
+- Public DSL:
+  technologies, technology_roles, sites, facilities, fleets, opportunities,
+  networks, spatial reference data, temporal reference data, runs
+
+- Compiler outputs:
+  CSIR, CPIR, explain.json
+
+- Strong invariants:
+  no selector-heavy public join logic
+  stock adjusted to base year via explicit mechanism
+  fleet distribution via explicit spatial weights
+  site separate from facility
+  role separate from technology
+  provenance emitted as a first-class artifact
+
+This architecture preserves the RES "what", supports AI-agent authoring, and
+gives developers a concrete, testable compiler target without forcing human
+authors to read compiler join logic.
+
+End of document.

@@ -26,9 +26,11 @@ import yaml
 from yaml.nodes import MappingNode, Node, SequenceNode
 
 from vedalang.compiler.compiler import (
+    PublicDSLContractError,
     SemanticValidationError,
     compile_vedalang_to_tableir,
     load_vedalang,
+    validate_public_dsl_contract,
     validate_vedalang,
 )
 from vedalang.lint.code_categories import (
@@ -47,6 +49,7 @@ from vedalang.lint.registry import (
     checks_for_engine,
     normalize_categories,
 )
+from vedalang.versioning import CHECK_OUTPUT_VERSION, DSL_VERSION
 
 FMT_DIR_IGNORES = {
     ".beads",
@@ -573,18 +576,17 @@ def cmd_lint(args) -> int:
             summary=summary,
         )
 
-    if not source.get("roles"):
+    try:
+        validate_public_dsl_contract(source)
+    except PublicDSLContractError as e:
         diagnostics.append(
             with_meta(
                 {
-                    "code": "E_LEGACY_SYNTAX_UNSUPPORTED",
+                    "code": e.code,
                     "severity": "error",
-                    "message": (
-                        "Legacy syntax is no longer supported by deterministic lint. "
-                        "Use new syntax with roles/variants/"
-                        "availability."
-                    ),
-                    "location": "model.processes",
+                    "message": e.message,
+                    "location": e.location,
+                    "suggestion": e.suggestion,
                 },
                 category="core",
                 engine="code",
@@ -770,6 +772,8 @@ def cmd_llm_lint(args) -> int:
 
     if output_json:
         payload = {
+            "dsl_version": DSL_VERSION,
+            "artifact_version": CHECK_OUTPUT_VERSION,
             "success": exit_code == 0,
             "source": str(file_path),
             "warnings": display_warnings,
@@ -1223,6 +1227,8 @@ def _output_lint_result(
 
     if output_json:
         result = {
+            "dsl_version": DSL_VERSION,
+            "artifact_version": CHECK_OUTPUT_VERSION,
             "success": success,
             "source": str(file_path),
             "warnings": warnings,
@@ -1848,6 +1854,7 @@ def cmd_compile(args) -> int:
 
     try:
         source = load_vedalang(file_path)
+        validate_public_dsl_contract(source)
         tableir = compile_vedalang_to_tableir(
             source,
             validate=True,
@@ -1855,6 +1862,16 @@ def cmd_compile(args) -> int:
         )
     except jsonschema.ValidationError as e:
         _error(f"Schema error: {e.message}", output_json, str(file_path))
+        return 2
+    except PublicDSLContractError as e:
+        _error(
+            e.message,
+            output_json,
+            str(file_path),
+            code=e.code,
+            location=e.location,
+            suggestion=e.suggestion,
+        )
         return 2
     except SemanticValidationError as e:
         _error(f"Semantic error: {e}", output_json, str(file_path))
@@ -1880,6 +1897,8 @@ def cmd_compile(args) -> int:
 
     if output_json:
         print(json.dumps({
+            "dsl_version": source.get("dsl_version", DSL_VERSION),
+            "artifact_version": CHECK_OUTPUT_VERSION,
             "success": True,
             "source": str(file_path),
             "files": created_files,
@@ -1920,6 +1939,8 @@ def cmd_validate(args) -> int:
 
     if output_json:
         output = {
+            "dsl_version": result.dsl_version,
+            "artifact_version": result.artifact_version,
             "success": result.success,
             "source": str(file_path),
             "tables": result.tables,
@@ -2014,14 +2035,31 @@ def cmd_res_mermaid(args) -> int:
     return 2
 
 
-def _error(message: str, as_json: bool, source: str):
+def _error(
+    message: str,
+    as_json: bool,
+    source: str,
+    *,
+    code: str | None = None,
+    location: str | None = None,
+    suggestion: str | None = None,
+):
     """Print error message."""
     if as_json:
-        print(json.dumps({
+        payload = {
+            "dsl_version": DSL_VERSION,
+            "artifact_version": CHECK_OUTPUT_VERSION,
             "success": False,
             "source": source,
             "error": message,
-        }))
+        }
+        if code is not None:
+            payload["code"] = code
+        if location is not None:
+            payload["location"] = location
+        if suggestion is not None:
+            payload["suggestion"] = suggestion
+        print(json.dumps(payload))
     else:
         print(f"Error: {message}", file=sys.stderr)
 

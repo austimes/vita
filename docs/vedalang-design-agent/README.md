@@ -50,9 +50,13 @@ This directory contains supporting documentation:
 ### Schema Changes
 
 1. Update `vedalang/schema/vedalang.schema.json`
-2. Run `uv run pytest tests/test_schema_compatibility.py`
-3. Update compiler if needed
-4. Add examples and tests
+2. Update compiler, docs, and examples in the same change set
+3. Run `uv run pytest tests/test_vedalang_schema.py tests/test_schema_compatibility.py`
+4. Add or refresh regression tests for the new contract
+
+Current migration stance:
+- Prototype hard cut; backward-compatibility shims are not retained by default
+- Canonical public target is the v0.2 PRD in `docs/prds/20260307-vedalang-v0.2.prd.txt`
 
 ## What This Documentation Does NOT Cover
 

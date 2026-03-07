@@ -196,3 +196,16 @@ Pre-compilation checks that catch modeling patterns causing solver infeasibility
 - **Runtime helper migration:** Updated registry/json emitter and legacy graph
   builder runtime IDs away from legacy C/S/E token generation, including
   canonical provider-symbol parsing support in registry emission.
+
+## v0.2 Rollout Kickoff (2026-03-07)
+
+- **Decision:** `docs/prds/20260307-vedalang-v0.2.prd.txt` is the canonical
+  VedaLang v0.2 PRD; internal `v0.1` draft wording was normalized to `v0.2`.
+- **Decision:** The v0.2 rollout follows the prototype hard-cut policy. We do
+  not keep backward-compatibility shims for superseded public DSL surfaces as
+  the package/run/CSIR/CPIR architecture lands.
+- **Version contract:** Source-facing and emitted artifact metadata now carry
+  explicit DSL/artifact version markers to make rollout state machine-readable.
+- **Public CLI guardrail:** CLI-facing entrypoints now reject legacy
+  process-based public syntax deterministically instead of silently compiling it
+  through the old front door.

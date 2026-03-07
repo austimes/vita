@@ -1,71 +1,104 @@
 #!/usr/bin/env python3
-"""Generate status summary from bd issues for STATUS.md updates.
+"""Generate a STATUS.md-friendly summary from current bd issue data."""
 
-Usage:
-    uv run python tools/sync_status.py
+from __future__ import annotations
 
-Outputs a markdown snippet showing current open/closed issue counts
-that can be used to update STATUS.md.
-"""
-
+import json
 import subprocess
 from datetime import datetime
+from typing import Any
 
 
-def run_bd_command(args: list[str]) -> str:
-    """Run a bd command and return output."""
+def run_bd_json(args: list[str]) -> list[dict[str, Any]]:
+    """Run a bd command in JSON mode and return parsed issue data."""
     result = subprocess.run(
-        ["bd"] + args,
+        ["bd", *args, "--json"],
         capture_output=True,
         text=True,
+        check=False,
     )
-    return result.stdout
+    if result.returncode != 0:
+        stderr = result.stderr.strip() or "unknown bd error"
+        raise RuntimeError(f"bd {' '.join(args)} failed: {stderr}")
+    return json.loads(result.stdout or "[]")
 
 
-def main():
-    # Get all issues
-    all_issues = run_bd_command(["list", "--all"])
-    lines = all_issues.strip().split("\n")
+def summarize_issues(issues: list[dict[str, Any]]) -> dict[str, Any]:
+    """Build the markdown-friendly status summary."""
+    open_issues = [issue for issue in issues if issue.get("status") == "open"]
+    closed_issues = [issue for issue in issues if issue.get("status") == "closed"]
 
-    open_issues = [line for line in lines if " open " in line]
-    closed_issues = [line for line in lines if " closed " in line]
+    def sort_key(issue: dict[str, Any]) -> tuple[Any, ...]:
+        priority = int(issue.get("priority", 9))
+        return (priority, issue.get("id", ""), issue.get("title", ""))
 
-    print(f"# VedaLang Status Sync — {datetime.now().strftime('%Y-%m-%d')}")
-    print()
-    print(f"**Total issues:** {len(lines)}")
-    print(f"**Closed:** {len(closed_issues)}")
-    print(f"**Open:** {len(open_issues)}")
-    print()
+    open_issues.sort(key=sort_key)
+    closed_issues.sort(
+        key=lambda issue: (
+            issue.get("closed_at") or "",
+            issue.get("updated_at") or "",
+            issue.get("id") or "",
+        )
+    )
 
+    return {
+        "total": len(issues),
+        "open": len(open_issues),
+        "closed": len(closed_issues),
+        "open_issues": open_issues,
+        "recently_closed": list(reversed(closed_issues[-10:])),
+    }
+
+
+def render_status_sync(
+    summary: dict[str, Any],
+    *,
+    as_of: datetime | None = None,
+) -> str:
+    """Render the markdown snippet printed by the script."""
+    if as_of is None:
+        as_of = datetime.now()
+
+    lines = [f"# VedaLang Status Sync — {as_of.strftime('%Y-%m-%d')}", ""]
+    lines.append(f"**Total issues:** {summary['total']}")
+    lines.append(f"**Closed:** {summary['closed']}")
+    lines.append(f"**Open:** {summary['open']}")
+    lines.append("")
+
+    open_issues = summary["open_issues"]
     if open_issues:
-        print("## Open Issues")
-        print()
-        print("| Issue | Priority | Type | Description |")
-        print("|-------|----------|------|-------------|")
-        for line in open_issues:
-            parts = line.split(" - ", 1)
-            if len(parts) == 2:
-                meta, desc = parts
-                # Parse: vedalang-xxx [Px] [type] open
-                tokens = meta.split()
-                issue_id = tokens[0] if tokens else "?"
-                priority = tokens[1] if len(tokens) > 1 else "?"
-                issue_type = tokens[2] if len(tokens) > 2 else "?"
-                print(f"| `{issue_id}` | {priority} | {issue_type} | {desc} |")
-        print()
+        lines.append("## Open Issues")
+        lines.append("")
+        lines.append("| Issue | Priority | Type | Description |")
+        lines.append("|-------|----------|------|-------------|")
+        for issue in open_issues:
+            issue_id = issue.get("id", "?")
+            priority = f"P{issue.get('priority', '?')}"
+            issue_type = issue.get("issue_type", "?")
+            title = (issue.get("title", "") or "").replace("|", "\\|")
+            lines.append(f"| `{issue_id}` | {priority} | {issue_type} | {title} |")
+        lines.append("")
 
-    print("## Recently Closed (last 10)")
-    print()
-    for line in closed_issues[-10:]:
-        parts = line.split(" - ", 1)
-        if len(parts) == 2:
-            meta, desc = parts
-            issue_id = meta.split()[0]
-            print(f"- `{issue_id}`: {desc}")
+    lines.append("## Recently Closed (last 10)")
+    lines.append("")
+    recently_closed = summary["recently_closed"]
+    if recently_closed:
+        for issue in recently_closed:
+            issue_id = issue.get("id", "?")
+            title = issue.get("title", "")
+            lines.append(f"- `{issue_id}`: {title}")
+    else:
+        lines.append("- None")
+    lines.append("")
+    lines.append("---")
+    lines.append("Copy relevant sections to docs/STATUS.md")
+    return "\n".join(lines)
 
-    print()
-    print("---")
-    print("Copy relevant sections to docs/STATUS.md")
+
+def main() -> None:
+    issues = run_bd_json(["list", "--all"])
+    summary = summarize_issues(issues)
+    print(render_status_sync(summary))
 
 
 if __name__ == "__main__":

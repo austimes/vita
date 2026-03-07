@@ -11,6 +11,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from vedalang.versioning import DSL_VERSION, PIPELINE_OUTPUT_VERSION
+
 
 @dataclass
 class StepResult:
@@ -40,6 +42,8 @@ class PipelineResult:
         summary = self._build_summary()
 
         return {
+            "dsl_version": DSL_VERSION,
+            "artifact_version": PIPELINE_OUTPUT_VERSION,
             "success": self.success,
             "summary": summary,
             "input": {"path": self.input_path, "kind": self.input_kind},
@@ -219,7 +223,12 @@ def run_pipeline(
         compile_result = StepResult()
         if input_kind == "vedalang":
             try:
-                from vedalang.compiler import compile_vedalang_to_tableir, load_vedalang
+                from vedalang.compiler import (
+                    PublicDSLContractError,
+                    compile_vedalang_to_tableir,
+                    load_vedalang,
+                    validate_public_dsl_contract,
+                )
 
                 if verbose:
                     print(f"[compile] Compiling {input_path}")
@@ -229,6 +238,7 @@ def run_pipeline(
                     vedalang_source if vedalang_source
                     else load_vedalang(input_path)
                 )
+                validate_public_dsl_contract(source)
                 tableir = compile_vedalang_to_tableir(source, validate=True)
 
                 tableir_file = work_dir / "model.tableir.yaml"
@@ -242,6 +252,9 @@ def run_pipeline(
                 if verbose:
                     count = compile_result.artifacts["file_count"]
                     print(f"[compile] Created TableIR with {count} files")
+            except PublicDSLContractError as e:
+                compile_result.success = False
+                compile_result.errors.append(f"{e.code}: {e.message}")
             except Exception as e:
                 compile_result.success = False
                 compile_result.errors.append(str(e))

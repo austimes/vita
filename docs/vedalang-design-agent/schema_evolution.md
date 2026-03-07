@@ -1,111 +1,56 @@
 # VedaLang Schema Evolution Policy
 
-This document defines the rules for safely evolving `vedalang.schema.json` without breaking existing VedaLang source files.
+This document defines how to evolve `vedalang.schema.json` during the current
+prototype phase.
 
 ## Guiding Principle
 
-**Backward compatibility is mandatory.** Any valid VedaLang file that worked before a schema change must continue to work after.
+**Design correctness is more important than backward compatibility.** VedaLang
+is still pre-1.0, so schema changes may be breaking when they improve the DSL
+design or align the implementation with the active PRD.
 
 ## Allowed Changes
 
-These changes are safe and can be made freely:
+These changes are acceptable during the prototype phase:
 
-| Change Type | Example | Why Safe |
-|-------------|---------|----------|
-| Add optional properties | Add `vintage` to process | Existing files don't use it, still valid |
-| Add new `$defs` types | Add `trade_link` definition | No existing usage to break |
-| Widen enum values | Add `"financial"` to commodity types | Existing values still valid |
-| Increase maximum constraints | Change `maxItems: 10` → `maxItems: 20` | Existing files still within limits |
-| Add default values | Add `default: "PJ"` to unit field | Makes optional fields more convenient |
+| Change Type | Example | Why Acceptable |
+|-------------|---------|----------------|
+| Add optional properties | Add `runs` metadata | Expands expressiveness without ambiguity |
+| Add new `$defs` types | Add `technology_role` | Required for new DSL primitives |
+| Rename properties | `processes` → `roles` | Clarifies the public contract |
+| Remove obsolete properties | Remove `processes` from the public CLI | Prevents stale competing syntax |
+| Narrow or replace enums | Replace old commodity vocabulary | Keeps semantics coherent |
+| Change required fields | Make `technology_role` explicit | Enforces better structure |
 
-## Disallowed Changes
+## Required Process for Schema Changes
 
-These changes break backward compatibility and are **forbidden**:
+1. Update the active PRD or decision record if the change alters public meaning.
+2. Update `vedalang/schema/vedalang.schema.json`.
+3. Update compiler, CLI, docs, and examples in the same change set.
+4. Add or update regression tests for the intended new contract.
+5. Run focused schema/compiler tests plus broader validation before commit.
 
-| Change Type | Example | Why Dangerous |
-|-------------|---------|---------------|
-| Remove required properties | Remove `name` from process | Existing files now invalid |
-| Rename properties | `efficiency` → `eff` | Existing files use old name |
-| Narrow enum values | Remove `"emission"` from commodity types | Existing files using it break |
-| Decrease maximum constraints | Change `maxItems: 20` → `maxItems: 10` | Files exceeding new limit break |
-| Change property types | `efficiency: number` → `efficiency: string` | Type mismatch in existing files |
-| Make optional properties required | Make `description` required | Existing files missing it break |
+## Guardrails
 
-## Process for Schema Changes
+- Do not keep dual public schemas unless an external release explicitly
+  requires one.
+- Do not keep compatibility aliases once the new design lands.
+- Prefer deterministic rejection with good diagnostics over silent acceptance of
+  stale syntax.
+- Keep `tests/test_schema_compatibility.py` as a drift alarm for whatever the
+  current schema contract is; it is not a promise of long-term backward
+  compatibility.
 
-1. **Propose change** - Describe what you want to add/modify
-2. **Check compatibility** - Verify change is in "Allowed" category
-3. **Update schema** - Modify `vedalang.schema.json`
-4. **Update examples** - Ensure `vedalang/examples/` files still validate
-5. **Update tests** - Add tests for new features
-6. **Update compiler** - Handle new schema elements
-7. **Run compatibility test** - `uv run pytest tests/test_schema_compatibility.py`
+## Recommended Validation Commands
 
-## Baseline Required Fields
-
-These fields are **locked** and must never be removed:
-
-### Model Level
-- `model` (root object, required)
-- `model.name` (string, required)
-- `model.regions` (array, required)
-- `model.commodities` (array, required)
-- `model.processes` (array, required)
-
-### Commodity Definition
-- `commodity.name` (string, required)
-- `commodity.type` (enum, required)
-
-### Process Definition
-- `process.name` (string, required)
-- `process.sets` (array, required)
-
-### Flow Definition
-- `flow.commodity` (string, required)
-
-### Scenario Definition
-- `scenario.name` (string, required)
-- `scenario.type` (enum, required)
-
-## Baseline Enum Values
-
-These enum values are **locked** and must never be removed:
-
-### Commodity Types
-- `energy`
-- `material`
-- `emission`
-- `demand`
-
-### Scenario Types
-- `commodity_price`
-
-## Deprecation Process
-
-If a breaking change is truly necessary:
-
-1. **Add new property** alongside old one
-2. **Mark old property deprecated** in description
-3. **Support both** in compiler for at least 2 versions
-4. **Warn on old usage** via compiler diagnostics
-5. **Remove after deprecation period** (minimum 2 releases)
-
-## Automated Enforcement
-
-The test suite includes `tests/test_schema_compatibility.py` which:
-
-- Verifies all baseline required fields exist
-- Verifies all baseline enum values exist
-- Fails CI if breaking changes are introduced
-
-Run before committing schema changes:
 ```bash
-uv run pytest tests/test_schema_compatibility.py -v
+uv run pytest tests/test_vedalang_schema.py tests/test_schema_compatibility.py -v
+uv run pytest tests/test_vedalang_compiler.py -v
+uv run ruff check .
 ```
 
-## Version History
+## Current Versioning Context
 
-| Version | Date | Changes |
-|---------|------|---------|
-| v1.0 | 2024-12 | Initial schema: commodities, processes, flows |
-| v1.1 | 2024-12 | Added `scenarios` for TFM parameters (DC4) |
+- Active public design target: **VedaLang v0.2**
+- Canonical PRD: `docs/prds/20260307-vedalang-v0.2.prd.txt`
+- Migration stance: **hard cut** under prototype rules

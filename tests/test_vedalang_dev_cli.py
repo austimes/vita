@@ -109,6 +109,8 @@ class TestCheck:
         )
 
         data = json.loads(result.stdout)
+        assert data["dsl_version"] == "0.2"
+        assert data["artifact_version"] == "1.0.0"
         assert "success" in data
         assert "tables" in data
         assert "errors" in data
@@ -131,6 +133,8 @@ class TestPipeline:
         )
 
         data = json.loads(result.stdout)
+        assert data["dsl_version"] == "0.2"
+        assert data["artifact_version"] == "1.0.0"
         assert "success" in data
         assert "steps" in data
 

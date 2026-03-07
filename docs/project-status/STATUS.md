@@ -4,7 +4,7 @@
 
 ## Executive Summary
 
-VedaLang is a typed DSL that compiles to VEDA Excel tables for TIMES energy models. **All core phases (P0–P3) remain complete**, but the active workstream has shifted to a new **v0.2 DSL reset** based on the 2026-03-07 PRD. The tracker now contains a full rollout hierarchy for the package/run/CSIR/CPIR architecture, with 32 open issues and 79 closed issues.
+VedaLang is a typed DSL that compiles to VEDA Excel tables for TIMES energy models. **All core phases (P0–P3) remain complete**, but the active workstream has shifted to a new **v0.2 DSL reset** based on the 2026-03-07 PRD. The tracker now contains a full rollout hierarchy for the package/run/CSIR/CPIR architecture, with 26 open issues, 1 in-progress issue, and 84 closed issues.
 
 | Milestone | Status |
 |-----------|--------|
@@ -33,10 +33,6 @@ Core design phases remain complete. Active work is now concentrated on the `veda
 | Issue | Priority | Type | Title |
 |-------|----------|------|-------|
 | `vedalang-txa` | P1 | epic | VedaLang v0.2 rollout: package/run/CSIR/CPIR DSL reset |
-| `vedalang-txa.1` | P1 | epic | v0.2 governance and version contract |
-| `vedalang-txa.1.1` | P1 | task | Normalize PRD/spec references to DSL v0.2 and record hard-cut policy |
-| `vedalang-txa.1.2` | P1 | task | Add explicit DSL version markers to source and emitted artifacts |
-| `vedalang-txa.1.3` | P1 | task | Reject legacy public DSL primitives with deterministic diagnostics |
 | `vedalang-txa.3` | P1 | epic | v0.2 public schema and AST reset |
 | `vedalang-txa.3.1` | P1 | task | Schema: commodities, technologies, technology_roles, stock_characterizations |
 | `vedalang-txa.3.2` | P1 | task | Schema: imports, spatial reference data, temporal reference data, and runs |
@@ -62,13 +58,22 @@ Core design phases remain complete. Active work is now concentrated on the `veda
 | `vedalang-txa.7.2` | P1 | task | Port query, viz, reporting, and LSP consumers to CSIR/CPIR-era data |
 | `vedalang-txa.7.3` | P1 | task | Rewrite examples, tutorials, and skills to v0.2 DSL and compile them in CI |
 | `vedalang-txa.7.4` | P1 | task | Add golden regression matrix for Section 16, determinism, and legacy rejection |
+
+### In Progress
+
+| Issue | Priority | Type | Title |
+|-------|----------|------|-------|
 | `vedalang-txa.7.5` | P2 | task | Sync README, AGENTS, STATUS, and HISTORY with the v0.2 rollout |
-| `vedalang-txa.7.6` | P2 | bug | Fix tools/sync_status.py to consume current bd output |
 
 ### Recently Completed
 
 | Issue | Priority | Description | Status |
 |-------|----------|-------------|--------|
+| `vedalang-txa.1` | P1 | Governance/versioning epic completed after v0.2 doc normalization, explicit version markers, and legacy public DSL rejection landed | ✓ Closed |
+| `vedalang-txa.7.6` | P2 | `tools/sync_status.py` now consumes `bd --json` output with regression coverage | ✓ Closed |
+| `vedalang-txa.1.3` | P1 | Public CLI/check/pipeline entrypoints now reject legacy process-based syntax with deterministic diagnostics | ✓ Closed |
+| `vedalang-txa.1.2` | P1 | Added top-level `dsl_version` and emitted artifact/check/pipeline version metadata | ✓ Closed |
+| `vedalang-txa.1.1` | P1 | Normalized the 2026-03-07 PRD to v0.2 wording and recorded the hard-cut policy in governance docs | ✓ Closed |
 | `vedalang-rm5` | P2 | Trade lens now emits `NO_TRADE_LINKS` diagnostic for empty trade graph without links | ✓ Closed |
 | `vedalang-1gf` | P2 | Component-scoped deterministic unit parity + deterministic→taxonomy mapping + richer parity scoring | ✓ Closed |
 | `vedalang-2kz` | P2 | LSP schema docs/examples migrated to canonical namespaces and commodity.type wording | ✓ Closed |

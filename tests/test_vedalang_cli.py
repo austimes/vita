@@ -4,6 +4,8 @@ import json
 import subprocess
 from pathlib import Path
 
+import yaml
+
 EXAMPLES_DIR = Path(__file__).parent.parent / "vedalang" / "examples"
 MINI_PLANT = EXAMPLES_DIR / "quickstart/mini_plant.veda.yaml"
 MINISYSTEM = EXAMPLES_DIR / "minisystem/minisystem8.veda.yaml"
@@ -96,6 +98,8 @@ class TestLint:
         assert result.returncode in (0, 1)
 
         data = json.loads(result.stdout)
+        assert data["dsl_version"] == "0.2"
+        assert data["artifact_version"] == "1.0.0"
         assert "success" in data
         assert "source" in data
         assert "warnings" in data
@@ -419,9 +423,49 @@ class TestCompile:
         assert result.returncode == 0
 
         data = json.loads(result.stdout)
+        assert data["dsl_version"] == "0.2"
+        assert data["artifact_version"] == "1.0.0"
         assert "success" in data
         assert "files" in data
         assert data["success"] is True
+
+    def test_vedalang_compile_json_rejects_legacy_process_syntax(self, tmp_path):
+        """Compile JSON rejects the legacy top-level processes public DSL."""
+        src = tmp_path / "legacy_compile.veda.yaml"
+        src.write_text(
+            "\n".join(
+                [
+                    "model:",
+                    "  name: LegacyCompile",
+                    "  regions: [REG1]",
+                    "  commodities:",
+                    "    - name: C:ELC",
+                    "      type: energy",
+                    "processes:",
+                    "  - name: IMP_ELC",
+                    "    sets: [IMP]",
+                    "    outputs:",
+                    "      - commodity: C:ELC",
+                    "    efficiency: 1.0",
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        out_dir = tmp_path / "excel_out"
+        result = run_vedalang(
+            "compile",
+            str(src),
+            "--out",
+            str(out_dir),
+            "--json",
+            "--no-lint",
+        )
+        assert result.returncode == 2
+        data = json.loads(result.stdout)
+        assert data["code"] == "E_LEGACY_SYNTAX_UNSUPPORTED"
+        assert data["location"] == "processes"
 
     def test_vedalang_compile_tableir_output(self, tmp_path):
         """Compile with --tableir creates TableIR YAML."""
@@ -431,6 +475,9 @@ class TestCompile:
         )
         assert result.returncode == 0
         assert tableir_path.exists()
+        tableir = yaml.safe_load(tableir_path.read_text(encoding="utf-8"))
+        assert tableir["dsl_version"] == "0.2"
+        assert tableir["artifact_version"] == "1.0.0"
 
     def test_vedalang_compile_no_output_error(self):
         """Compile without --out or --tableir returns error."""
@@ -450,11 +497,45 @@ class TestValidate:
         result = run_vedalang("validate", "--json", str(MINI_PLANT))
 
         data = json.loads(result.stdout)
+        assert data["dsl_version"] == "0.2"
+        assert data["artifact_version"] == "1.0.0"
         assert "success" in data
         assert "source" in data
         assert "tables" in data
         assert "total_rows" in data
         assert "diagnostics" in data
+
+    def test_vedalang_validate_json_rejects_legacy_process_syntax(self, tmp_path):
+        """Validate JSON surfaces deterministic legacy public DSL diagnostics."""
+        src = tmp_path / "legacy_validate.veda.yaml"
+        src.write_text(
+            "\n".join(
+                [
+                    "model:",
+                    "  name: LegacyValidate",
+                    "  regions: [REG1]",
+                    "  commodities:",
+                    "    - name: C:ELC",
+                    "      type: energy",
+                    "processes:",
+                    "  - name: IMP_ELC",
+                    "    sets: [IMP]",
+                    "    outputs:",
+                    "      - commodity: C:ELC",
+                    "    efficiency: 1.0",
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        result = run_vedalang("validate", "--json", str(src))
+        assert result.returncode == 2
+        data = json.loads(result.stdout)
+        assert (
+            data["diagnostics"]["diagnostics"][0]["code"]
+            == "E_LEGACY_SYNTAX_UNSUPPORTED"
+        )
 
 
 class TestHelp:

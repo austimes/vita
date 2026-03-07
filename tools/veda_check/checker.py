@@ -10,7 +10,13 @@ import jsonschema
 
 from tools.veda_check.invariants import check_tableir_invariants
 from tools.veda_emit_excel import emit_excel, load_tableir
-from vedalang.compiler import compile_vedalang_to_tableir, load_vedalang
+from vedalang.compiler import (
+    PublicDSLContractError,
+    compile_vedalang_to_tableir,
+    load_vedalang,
+    validate_public_dsl_contract,
+)
+from vedalang.versioning import CHECK_OUTPUT_VERSION, DSL_VERSION
 
 SCHEMA_DIR = Path(__file__).parent.parent.parent / "vedalang" / "schema"
 
@@ -27,6 +33,8 @@ class CheckResult:
     error_messages: list[str] = field(default_factory=list)
     manifest: dict | None = None
     diagnostics: dict | None = None
+    dsl_version: str = DSL_VERSION
+    artifact_version: str = CHECK_OUTPUT_VERSION
 
 
 def run_check(
@@ -57,12 +65,15 @@ def run_check(
         # Step 1: Get TableIR
         if from_vedalang:
             source = load_vedalang(input_path)
+            validate_public_dsl_contract(source)
             tableir = compile_vedalang_to_tableir(
                 source,
                 selected_cases=selected_cases,
             )
+            result.dsl_version = source.get("dsl_version", DSL_VERSION)
         elif from_tableir:
             tableir = load_tableir(input_path)
+            result.dsl_version = str(tableir.get("dsl_version", DSL_VERSION))
         else:
             raise ValueError("Must specify --from-vedalang or --from-tableir")
 
@@ -125,6 +136,20 @@ def run_check(
             # Determine success - xl2times exit code 0 means success
             result.success = proc.returncode == 0 and result.errors == 0
 
+    except PublicDSLContractError as e:
+        result.errors += 1
+        result.error_messages.append(f"{e.code}: {e.message}")
+        result.diagnostics = {
+            "diagnostics": [
+                {
+                    "severity": "error",
+                    "code": e.code,
+                    "message": e.message,
+                    "location": e.location,
+                    "suggestion": e.suggestion,
+                }
+            ]
+        }
     except jsonschema.ValidationError as e:
         result.errors += 1
         result.error_messages.append(f"Schema validation: {e.message}")

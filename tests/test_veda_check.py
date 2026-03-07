@@ -18,6 +18,8 @@ def test_check_vedalang_compiles():
     # but the compile+emit pipeline should work
     assert len(result.tables) > 0
     assert result.total_rows > 0
+    assert result.dsl_version == "0.2"
+    assert result.artifact_version == "1.0.0"
 
 
 def test_check_tableir_emits():
@@ -43,6 +45,43 @@ def test_check_invalid_source():
         result = run_check(tmp_path, from_vedalang=True)
         assert not result.success
         assert result.errors > 0
+    finally:
+        tmp_path.unlink()
+
+
+def test_check_rejects_legacy_public_process_syntax():
+    """Public check entrypoint rejects legacy top-level processes syntax."""
+    import tempfile
+
+    with tempfile.NamedTemporaryFile(suffix=".veda.yaml", delete=False, mode="w") as f:
+        f.write(
+            "\n".join(
+                [
+                    "model:",
+                    "  name: LegacyCheck",
+                    "  regions: [REG1]",
+                    "  commodities:",
+                    "    - name: C:ELC",
+                    "      type: energy",
+                    "processes:",
+                    "  - name: IMP_ELC",
+                    "    sets: [IMP]",
+                    "    outputs:",
+                    "      - commodity: C:ELC",
+                    "    efficiency: 1.0",
+                ]
+            )
+            + "\n"
+        )
+        tmp_path = Path(f.name)
+
+    try:
+        result = run_check(tmp_path, from_vedalang=True)
+        assert not result.success
+        assert result.errors > 0
+        assert any(
+            "E_LEGACY_SYNTAX_UNSUPPORTED" in msg for msg in result.error_messages
+        )
     finally:
         tmp_path.unlink()
 

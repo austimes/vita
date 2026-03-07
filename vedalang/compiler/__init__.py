@@ -1,10 +1,12 @@
 """VedaLang compiler - transforms VedaLang source to TableIR."""
 
 from .compiler import (
+    PublicDSLContractError,
     SemanticValidationError,
     compile_vedalang_to_tableir,
     load_vedalang,
     validate_cross_references,
+    validate_public_dsl_contract,
     validate_vedalang,
 )
 from .demands import DemandError, compile_demands
@@ -33,6 +35,7 @@ __all__ = [
     "DemandError",
     "IndexLayout",
     "NamingRegistry",
+    "PublicDSLContractError",
     "SemanticValidationError",
     "TableValidationError",
     "TagInfo",
@@ -48,6 +51,7 @@ __all__ = [
     "get_registry",
     "load_vedalang",
     "reset_registry",
+    "validate_public_dsl_contract",
     "validate_cross_references",
     "validate_tableir",
     "validate_vedalang",

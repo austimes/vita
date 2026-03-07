@@ -8,6 +8,11 @@
     "model"
   ],
   "properties": {
+    "dsl_version": {
+      "type": "string",
+      "description": "Declared public DSL version for this source file",
+      "const": "0.2"
+    },
     "model": {
       "type": "object",
       "required": [
