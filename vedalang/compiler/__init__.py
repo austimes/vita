@@ -30,6 +30,15 @@ from .table_schemas import (
     validate_tableir,
 )
 from .v0_2_ast import V0_2Source, parse_v0_2_source
+from .v0_2_resolution import (
+    V0_2ResolutionError,
+    allocate_fleet_stock,
+    resolve_asset_stock,
+    resolve_imports,
+    resolve_opportunities,
+    resolve_run,
+    resolve_sites,
+)
 
 __all__ = [
     "AttributeInfo",
@@ -45,6 +54,7 @@ __all__ = [
     "VedaLangError",
     "VedaRegistry",
     "V0_2Source",
+    "V0_2ResolutionError",
     "VedaTableLayout",
     "VedaTableSchema",
     "compile_demands",
@@ -52,7 +62,13 @@ __all__ = [
     "get_all_schemas",
     "get_registry",
     "load_vedalang",
+    "allocate_fleet_stock",
     "parse_v0_2_source",
+    "resolve_asset_stock",
+    "resolve_imports",
+    "resolve_opportunities",
+    "resolve_run",
+    "resolve_sites",
     "reset_registry",
     "validate_public_dsl_contract",
     "validate_cross_references",

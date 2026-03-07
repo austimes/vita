@@ -4,7 +4,7 @@
 
 ## Executive Summary
 
-VedaLang is a typed DSL that compiles to VEDA Excel tables for TIMES energy models. **All core phases (P0–P3) remain complete**, but the active workstream has shifted to a new **v0.2 DSL reset** based on the 2026-03-07 PRD. The tracker now contains a full rollout hierarchy for the package/run/CSIR/CPIR architecture, with 21 open issues, 1 in-progress issue, and 89 closed issues.
+VedaLang is a typed DSL that compiles to VEDA Excel tables for TIMES energy models. **All core phases (P0–P3) remain complete**, but the active workstream has shifted to a new **v0.2 DSL reset** based on the 2026-03-07 PRD. The tracker now contains a full rollout hierarchy for the package/run/CSIR/CPIR architecture, with 15 open issues, 1 in-progress issue, and 95 closed issues.
 
 | Milestone | Status |
 |-----------|--------|
@@ -33,12 +33,6 @@ Core design phases remain complete. Active work is now concentrated on the `veda
 | Issue | Priority | Type | Title |
 |-------|----------|------|-------|
 | `vedalang-txa` | P1 | epic | VedaLang v0.2 rollout: package/run/CSIR/CPIR DSL reset |
-| `vedalang-txa.4` | P1 | epic | package, run, spatial, and stock resolution |
-| `vedalang-txa.4.1` | P1 | task | Implement import resolver with alias qualification and dependency closure |
-| `vedalang-txa.4.2` | P1 | task | Implement run resolver and compiled model_region context |
-| `vedalang-txa.4.3` | P1 | task | Implement site membership, overlay resolution, and opportunity siting |
-| `vedalang-txa.4.4` | P1 | task | Implement base-year stock adjustment engine |
-| `vedalang-txa.4.5` | P1 | task | Implement fleet allocation rollup and stock characterization conversion |
 | `vedalang-txa.5` | P1 | epic | canonical IRs and provenance artifacts |
 | `vedalang-txa.5.1` | P1 | task | Define CSIR, CPIR, and explain artifact schemas plus ordering contract |
 | `vedalang-txa.5.2` | P1 | task | Emit CSIR for resolved assets, role instances, opportunities, and networks |
@@ -64,14 +58,17 @@ Core design phases remain complete. Active work is now concentrated on the `veda
 
 | Issue | Priority | Description | Status |
 |-------|----------|-------------|--------|
+| `vedalang-txa.4` | P1 | Resolution layer completed for imports, runs, site/opportunity membership, stock adjustment, and fleet allocation/stock-view derivation | ✓ Closed |
+| `vedalang-txa.4.5` | P1 | Added deterministic fleet allocation plus stock_characterization-based derived stock views with regression coverage | ✓ Closed |
+| `vedalang-txa.4.4` | P1 | Added base-year stock adjustment for temporal-index and annual-growth methods with item-level override precedence | ✓ Closed |
+| `vedalang-txa.4.3` | P1 | Added site membership resolution, membership override validation, zone overlay resolution, and opportunity siting checks | ✓ Closed |
+| `vedalang-txa.4.2` | P1 | Added run selection and deterministic model_region context resolution | ✓ Closed |
+| `vedalang-txa.4.1` | P1 | Added import resolution with alias qualification, dependency closure, and cycle/conflict diagnostics | ✓ Closed |
 | `vedalang-txa.3` | P1 | Public schema/AST reset completed with v0.2 schema families, legacy-schema isolation, and typed parser/AST coverage | ✓ Closed |
 | `vedalang-txa.3.4` | P1 | Added dedicated v0.2 AST/parser dataclasses with structural source-path retention | ✓ Closed |
 | `vedalang-txa.3.3` | P1 | Added v0.2 schema support for sites, facilities, fleets, opportunities, networks, and stock/distribution shapes | ✓ Closed |
 | `vedalang-txa.3.2` | P1 | Added v0.2 schema support for imports, spatial/temporal reference data, and runs | ✓ Closed |
 | `vedalang-txa.3.1` | P1 | Added v0.2 schema support for commodities, technologies, technology_roles, and stock_characterizations | ✓ Closed |
-| `vedalang-txa.1` | P1 | Governance/versioning epic completed after v0.2 doc normalization, explicit version markers, and legacy public DSL rejection landed | ✓ Closed |
-| `vedalang-txa.7.6` | P2 | `tools/sync_status.py` now consumes `bd --json` output with regression coverage | ✓ Closed |
-| `vedalang-txa.1.3` | P1 | Public CLI/check/pipeline entrypoints now reject legacy process-based syntax with deterministic diagnostics | ✓ Closed |
 | `vedalang-txa.1.2` | P1 | Added top-level `dsl_version` and emitted artifact/check/pipeline version metadata | ✓ Closed |
 | `vedalang-txa.1.1` | P1 | Normalized the 2026-03-07 PRD to v0.2 wording and recorded the hard-cut policy in governance docs | ✓ Closed |
 | `vedalang-rm5` | P2 | Trade lens now emits `NO_TRADE_LINKS` diagnostic for empty trade graph without links | ✓ Closed |
