@@ -35,6 +35,9 @@ def _category_for_structural_code(code: str) -> str:
 
 def run_core(source: dict) -> list[dict]:
     """Run cross-reference checks for the core category."""
+    if looks_like_v0_2_source(source):
+        return []
+
     diagnostics: list[dict] = []
     model = source.get("model", source)
     xref_errors, xref_warnings = validate_cross_references(model, source=source)

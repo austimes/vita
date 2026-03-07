@@ -1,145 +1,138 @@
-# Model: core system definition (regions, years, commodities, cases).
-model:
-  name: MiniModelShorthand
-  description: Minimal model aligned with modeling conventions
-  regions:
-    - REG1
-  milestone_years:
-    - 2020
-    - 2030
-  commodities:
-    - id: emission:co2
-      description: Carbon dioxide
-      type: emission
-      combustible: false
+commodities:
+  - id: emission:co2
+    kind: emission
 
-    - id: primary:natural_gas
-      description: Natural Gas
-      type: fuel
-      combustible: true
-      hhv_mj_per_unit: 55.0
-      lhv_mj_per_unit: 50.0
+  - id: primary:natural_gas
+    kind: primary
 
-    - id: secondary:electricity
-      description: Electricity
-      type: energy
-      combustible: false
+  - id: secondary:electricity
+    kind: secondary
 
-    - id: service:delivered_electricity
-      description: Delivered electricity service proxy
-      type: service
-      combustible: false
+  - id: service:delivered_electricity
+    kind: service
 
-# Scoping: defines demand-side namespaces for instantiation/scoping.
-# sectors: required enum values = RES, COM, IND, TRN, AGR, NE, OTH.
-# end_uses: optional non-enum lowercase tokens (e.g., heating) to create scopes like RES.heating.
-scoping:
-  sectors:
-    - RES
+  - id: service:electricity_generation
+    kind: service
 
-# Process roles: reusable contracts (required I/O + units) shared by multiple variants.
-roles:
-  - id: deliver_electricity
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: end_use
-    required_inputs:
-      - commodity: secondary:electricity
-    required_outputs:
-      - commodity: service:delivered_electricity
+  - id: service:gas_supply
+    kind: service
 
-  - id: generate_electricity
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: conversion
-    required_inputs: []
-    required_outputs:
-      - commodity: secondary:electricity
+dsl_version: "0.2"
 
-  - id: import_natural_gas
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: supply
-    required_inputs: []
-    required_outputs:
-      - commodity: primary:natural_gas
+facilities:
+  - id: reg1_ccgt
+    site: reg1_energy_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 10 MW
+            year: 2020
+          technology: ccgt
+    technology_role: electricity_generation
 
-# Process variants: concrete technology definitions bound to roles.
-variants:
+  - id: reg1_gas_supply
+    site: reg1_energy_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 1000 MW
+            year: 2020
+          technology: gas_import
+    technology_role: gas_supply
+
+  - id: reg1_grid_connection
+    site: reg1_energy_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 10 MW
+            year: 2020
+          technology: grid_connection
+    technology_role: delivered_electricity
+
+region_partitions:
+  - id: reg1_partition
+    layer: geo.demo
+    mapping:
+      kind: constant
+      value: REG1
+    members:
+      - REG1
+
+runs:
+  - id: reg1_2020
+    base_year: 2020
+    currency_year: 2024
+    region_partition: reg1_partition
+
+sites:
+  - id: reg1_energy_hub
+    location:
+      point:
+        lat: -33.87
+        lon: 151.21
+    membership_overrides:
+      region_partitions:
+        reg1_partition: REG1
+
+spatial_layers:
+  - id: geo.demo
+    geometry_file: data/regions.geojson
+    key: region_id
+    kind: polygon
+
+technologies:
   - id: ccgt
-    role: generate_electricity
-    modes:
-      - id: ng
-        inputs:
-          - commodity: primary:natural_gas
-            basis: HHV
-        outputs:
-          - commodity: secondary:electricity
-        emission_factors:
-          emission:co2: 0.056
-        efficiency: 0.55
-        emission_factor_basis: HHV
-        investment_cost: 800 MUSD24/GW
-        lifetime: 30
+    inputs:
+      - commodity: primary:natural_gas
+        basis: HHV
+    outputs:
+      - commodity: secondary:electricity
+    emissions:
+      - commodity: emission:co2
+        factor: 0.056 t/GJ
+    fixed_om: 20 MUSD24/GW/year
+    investment_cost: 800 MUSD24/GW
+    lifetime: 30 year
+    performance:
+      kind: efficiency
+      value: 0.55
+    provides: service:electricity_generation
 
   - id: gas_import
-    role: import_natural_gas
-    modes:
-      - id: steady
-        inputs: []
-        outputs:
-          - commodity: primary:natural_gas
-            basis: HHV
-        efficiency: 1.0
-        lifetime: 100
-        variable_om_cost: 5 MUSD24/PJ
-        variable_om_cost_basis: HHV
+    outputs:
+      - commodity: primary:natural_gas
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:gas_supply
+    variable_om: 5 MUSD24/PJ
 
   - id: grid_connection
-    role: deliver_electricity
-    modes:
-      - id: direct
-        inputs:
-          - commodity: secondary:electricity
-        outputs:
-          - commodity: service:delivered_electricity
-        efficiency: 1.0
-        lifetime: 100
+    inputs:
+      - commodity: secondary:electricity
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:delivered_electricity
 
-# Providers: concrete reporting objects hosting role/variant/mode choices.
-providers:
-  - id: fleet.generate_electricity.REG1
-    kind: fleet
-    role: generate_electricity
-    region: REG1
-    offerings:
-      - variant: ccgt
-        modes: [ng]
+technology_roles:
+  - id: delivered_electricity
+    primary_service: service:delivered_electricity
+    technologies:
+      - grid_connection
 
-  - id: fleet.import_natural_gas.REG1
-    kind: fleet
-    role: import_natural_gas
-    region: REG1
-    offerings:
-      - variant: gas_import
-        modes: [steady]
+  - id: electricity_generation
+    primary_service: service:electricity_generation
+    technologies:
+      - ccgt
 
-  - id: fleet.deliver_electricity.REG1.RES
-    kind: fleet
-    role: deliver_electricity
-    region: REG1
-    scopes:
-      - RES
-    offerings:
-      - variant: grid_connection
-        modes: [direct]
-
-# Demands: service demand trajectories by region and optional scope (sector/scope).
-demands:
-  - commodity: service:delivered_electricity
-    region: REG1
-    values:
-      "2020": 10
-      "2030": 12
-    interpolation: interp_extrap
-    sector: RES
+  - id: gas_supply
+    primary_service: service:gas_supply
+    technologies:
+      - gas_import

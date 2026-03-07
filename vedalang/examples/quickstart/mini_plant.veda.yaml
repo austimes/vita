@@ -1,58 +1,101 @@
-# Model: core system definition (regions, years, commodities, cases).
-model:
-  name: MiniModel
-  description: A minimal test model with one power plant
-  regions:
-    - REG1
-  milestone_years:
-    - 2020
-    - 2030
-  commodities:
-    - id: primary:natural_gas
-      description: Natural Gas
-      type: fuel
-      unit: PJ
-      combustible: true
-      hhv_mj_per_unit: 55.0
-      lhv_mj_per_unit: 50.0
+commodities:
+  - id: primary:natural_gas
+    kind: primary
 
-    - id: secondary:electricity
-      description: Electricity
-      type: energy
-      unit: PJ
-      combustible: false
+  - id: secondary:electricity
+    kind: secondary
 
-# Process roles: reusable contracts (required I/O + units) shared by multiple variants.
-roles:
-  - id: generate_electricity
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: conversion
-    required_inputs:
-      - commodity: primary:natural_gas
-    required_outputs:
-      - commodity: secondary:electricity
+  - id: service:electricity_generation
+    kind: service
 
-# Process variants: concrete technology definitions bound to roles.
-variants:
+  - id: service:gas_supply
+    kind: service
+
+dsl_version: "0.2"
+
+facilities:
+  - id: reg1_ccgt
+    site: reg1_energy_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 12 MW
+            year: 2020
+          technology: ccgt
+    technology_role: electricity_generation
+
+  - id: reg1_gas_supply
+    site: reg1_energy_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 100 MW
+            year: 2020
+          technology: gas_import
+    technology_role: gas_supply
+
+region_partitions:
+  - id: reg1_partition
+    layer: geo.demo
+    mapping:
+      kind: constant
+      value: REG1
+    members:
+      - REG1
+
+runs:
+  - id: reg1_2020
+    base_year: 2020
+    currency_year: 2024
+    region_partition: reg1_partition
+
+sites:
+  - id: reg1_energy_hub
+    location:
+      point:
+        lat: -33.87
+        lon: 151.21
+    membership_overrides:
+      region_partitions:
+        reg1_partition: REG1
+
+spatial_layers:
+  - id: geo.demo
+    geometry_file: data/regions.geojson
+    key: region_id
+    kind: polygon
+
+technologies:
   - id: ccgt
-    role: generate_electricity
-    modes:
-      - id: ng
-        inputs:
-          - commodity: primary:natural_gas
-            basis: HHV
-        outputs:
-          - commodity: secondary:electricity
-        efficiency: 0.55
+    inputs:
+      - commodity: primary:natural_gas
+        basis: HHV
+    outputs:
+      - commodity: secondary:electricity
+    lifetime: 30 year
+    performance:
+      kind: efficiency
+      value: 0.55
+    provides: service:electricity_generation
 
-# Providers: concrete reporting objects that host role/variant/mode choices.
-providers:
-  - id: fleet.generate_electricity.REG1
-    kind: fleet
-    role: generate_electricity
-    region: REG1
-    offerings:
-      - variant: ccgt
-        modes:
-          - ng
+  - id: gas_import
+    outputs:
+      - commodity: primary:natural_gas
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:gas_supply
+
+technology_roles:
+  - id: electricity_generation
+    primary_service: service:electricity_generation
+    technologies:
+      - ccgt
+
+  - id: gas_supply
+    primary_service: service:gas_supply
+    technologies:
+      - gas_import

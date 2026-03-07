@@ -7,6 +7,7 @@ from tests.test_vedalang_cli import run_vedalang
 from tools.vedalang_lsp.server.server import server, validate_document
 from vedalang.compiler.source_maps import attach_source_positions
 from vedalang.compiler.v0_2_diagnostics import collect_v0_2_diagnostics
+from vedalang.lint.code_categories import run_core
 
 
 def test_v0_2_compile_json_includes_section14_location_metadata(tmp_path):
@@ -230,3 +231,80 @@ def test_lsp_validate_document_uses_v0_2_diagnostics():
     errors = [d for d in diagnostics if d.severity == types.DiagnosticSeverity.Error]
     assert any(d.code == "E004" for d in errors)
     assert all("Missing required 'model' key" not in d.message for d in diagnostics)
+
+
+def test_run_core_skips_legacy_xref_checks_for_v0_2_source():
+    source = {
+        "dsl_version": "0.2",
+        "commodities": [
+            {"id": "primary:natural_gas", "kind": "primary"},
+            {"id": "service:space_heat", "kind": "service"},
+        ],
+        "technologies": [
+            {
+                "id": "gas_heater",
+                "provides": "service:space_heat",
+                "inputs": [{"commodity": "primary:natural_gas", "basis": "HHV"}],
+                "performance": {"kind": "efficiency", "value": 0.9},
+            }
+        ],
+        "technology_roles": [
+            {
+                "id": "space_heat_supply",
+                "primary_service": "service:space_heat",
+                "technologies": ["gas_heater"],
+            }
+        ],
+        "spatial_layers": [
+            {
+                "id": "geo.demo",
+                "kind": "polygon",
+                "key": "region_id",
+                "geometry_file": "data/regions.geojson",
+            }
+        ],
+        "region_partitions": [
+            {
+                "id": "toy_partition",
+                "layer": "geo.demo",
+                "members": ["QLD"],
+                "mapping": {"kind": "constant", "value": "QLD"},
+            }
+        ],
+        "sites": [
+            {
+                "id": "home",
+                "location": {"point": {"lat": -27.4, "lon": 153.0}},
+                "membership_overrides": {
+                    "region_partitions": {"toy_partition": "QLD"}
+                },
+            }
+        ],
+        "facilities": [
+            {
+                "id": "home_heat",
+                "site": "home",
+                "technology_role": "space_heat_supply",
+                "stock": {
+                    "items": [
+                        {
+                            "technology": "gas_heater",
+                            "metric": "installed_capacity",
+                            "observed": {"value": "12 kW", "year": 2025},
+                        }
+                    ]
+                },
+            }
+        ],
+        "runs": [
+            {
+                "id": "toy_run",
+                "base_year": 2025,
+                "currency_year": 2024,
+                "region_partition": "toy_partition",
+            }
+        ],
+    }
+
+    diagnostics = run_core(source)
+    assert diagnostics == []

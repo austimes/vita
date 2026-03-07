@@ -62,8 +62,8 @@ def test_commodities_become_fi_comm():
 
     assert len(comm_tables) >= 1
     comm_names = [r.get("commodity") for r in comm_tables[0]["rows"]]
-    assert "secondary:electricity" in comm_names
-    assert "primary:natural_gas" in comm_names
+    assert any(name.startswith("COM_SECONDARY_ELECTRICITY_") for name in comm_names)
+    assert any(name.startswith("COM_PRIMARY_NATURAL_GAS_") for name in comm_names)
 
 
 def test_processes_become_fi_process():
@@ -80,13 +80,16 @@ def test_processes_become_fi_process():
                     proc_tables.append(t)
 
     assert len(proc_tables) >= 1
-    tech_names = [r.get("process") for r in proc_tables[0]["rows"]]
-    parsed = [parse_process_symbol(name) for name in tech_names]
+    process_rows = proc_tables[0]["rows"]
+    process_ids = [r.get("process") for r in process_rows]
+    descriptions = [r.get("description", "") for r in process_rows]
     assert any(
-        item
-        and item["variant_id"] == "ccgt"
-        and item["role_id"] == "generate_electricity"
-        for item in parsed
+        process_id.startswith("PRC_P_ROLE_INSTANCE_")
+        for process_id in process_ids
+    )
+    assert any(
+        "role_instance.reg1_ccgt@REG1::ccgt" in description
+        for description in descriptions
     )
 
 
