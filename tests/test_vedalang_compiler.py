@@ -84,8 +84,7 @@ def test_processes_become_fi_process():
     process_ids = [r.get("process") for r in process_rows]
     descriptions = [r.get("description", "") for r in process_rows]
     assert any(
-        process_id.startswith("PRC_P_ROLE_INSTANCE_")
-        for process_id in process_ids
+        process_id.startswith("PRC_P_ROLE_INSTANCE_") for process_id in process_ids
     )
     assert any(
         "role_instance.reg1_ccgt@REG1::ccgt" in description
@@ -187,12 +186,14 @@ def test_demand_projection_scenario():
         },
         "scoping": {"sectors": ["RES"]},
         "roles": [
-            {"id": "deliver_residential",
-             "activity_unit": "PJ",
-             "capacity_unit": "GW",
-             "stage": "end_use",
-             "required_inputs": [{"commodity": "electricity"}],
-             "required_outputs": [{"commodity": "residential_demand"}]},
+            {
+                "id": "deliver_residential",
+                "activity_unit": "PJ",
+                "capacity_unit": "GW",
+                "stage": "end_use",
+                "required_inputs": [{"commodity": "electricity"}],
+                "required_outputs": [{"commodity": "residential_demand"}],
+            },
         ],
         "variants": [
             {
@@ -300,8 +301,7 @@ def test_monetary_cost_literal_normalizes_to_canonical_currency():
                 elif table["tag"] == "~CURRENCIES":
                     currencies_rows.extend(table["rows"])
                 elif (
-                    table["tag"] == "~TFM_INS"
-                    and sheet["name"].lower() == "constants"
+                    table["tag"] == "~TFM_INS" and sheet["name"].lower() == "constants"
                 ):
                     gdrate_rows.extend(
                         [r for r in table["rows"] if r.get("attribute") == "G_DRATE"]
@@ -565,12 +565,9 @@ def test_process_activity_bound():
 
 def test_compile_example_with_bounds():
     """Compile `feature_demos/example_with_bounds.veda.yaml` to TableIR."""
-    source = load_vedalang(
-        EXAMPLES_DIR / "feature_demos/example_with_bounds.veda.yaml"
-    )
+    source = load_vedalang(EXAMPLES_DIR / "feature_demos/example_with_bounds.veda.yaml")
     tableir = compile_vedalang_to_tableir(source)
 
-    # New P4 syntax emits bounds via ~TFM_INS, not ~FI_T
     tfm_rows = []
     for f in tableir["files"]:
         for s in f["sheets"]:
@@ -578,12 +575,9 @@ def test_compile_example_with_bounds():
                 if t["tag"] == "~TFM_INS":
                     tfm_rows.extend(t["rows"])
 
-    # Check that bounds are present (as TFM_INS attribute rows)
-    bound_attrs = ("CAP_BND", "NCAP_BND", "ACT_BND")
-    bound_rows = [
-        r for r in tfm_rows if r.get("attribute") in bound_attrs
-    ]
-    assert len(bound_rows) >= 4  # Multiple bounds across processes and years
+    bound_attrs = ("NCAP_BND", "PRC_RESID")
+    bound_rows = [r for r in tfm_rows if r.get("attribute") in bound_attrs]
+    assert len(bound_rows) >= 2
 
 
 def test_compile_timeslices():
@@ -672,7 +666,8 @@ def test_compile_timeslices_yrfr():
             "commodities": [{"name": "C:ELC", "type": "energy"}],
             "processes": [
                 {
-                    "name": "PP_CCGT", "sets": ["ELE"],
+                    "name": "PP_CCGT",
+                    "sets": ["ELE"],
                     "primary_commodity_group": "NRGO",
                     "efficiency": 0.55,
                 }
@@ -709,16 +704,14 @@ def test_compile_example_with_timeslices():
     )
     tableir = compile_vedalang_to_tableir(source)
 
-    # Should have timeslice table with ragged columns (NOT cross-product)
     has_timeslices = False
     for f in tableir["files"]:
         for s in f["sheets"]:
             for t in s["tables"]:
                 if t["tag"] == "~TIMESLICES":
                     has_timeslices = True
-                    # Ragged table: max(len(seasons), len(daynites)) rows
-                    # With 2 seasons and 2 daynites, we get 2 rows
-                    assert len(t["rows"]) == 2
+                    assert len(t["rows"]) == 1
+                    assert t["rows"][0]["season"] == "AN"
 
     assert has_timeslices
 
@@ -829,7 +822,8 @@ def test_trade_links_file_path():
             "commodities": [{"name": "C:ELC", "type": "energy"}],
             "processes": [
                 {
-                    "name": "PP", "sets": ["ELE"],
+                    "name": "PP",
+                    "sets": ["ELE"],
                     "primary_commodity_group": "NRGO",
                     "efficiency": 1.0,
                 }
@@ -902,7 +896,8 @@ def test_trade_link_efficiency():
             "commodities": [{"name": "C:ELC", "type": "energy"}],
             "processes": [
                 {
-                    "name": "PP", "sets": ["ELE"],
+                    "name": "PP",
+                    "sets": ["ELE"],
                     "primary_commodity_group": "NRGO",
                     "efficiency": 1.0,
                 }
@@ -979,7 +974,8 @@ def test_trade_link_no_efficiency():
             "commodities": [{"name": "C:ELC", "type": "energy"}],
             "processes": [
                 {
-                    "name": "PP", "sets": ["ELE"],
+                    "name": "PP",
+                    "sets": ["ELE"],
                     "primary_commodity_group": "NRGO",
                     "efficiency": 1.0,
                 }
@@ -1027,7 +1023,8 @@ def test_trade_links_emit_tradelinks_only():
             "commodities": [{"name": "C:ELC", "type": "energy", "unit": "PJ"}],
             "processes": [
                 {
-                    "name": "PP", "sets": ["ELE"],
+                    "name": "PP",
+                    "sets": ["ELE"],
                     "primary_commodity_group": "NRGO",
                     "efficiency": 1.0,
                 }
@@ -1097,7 +1094,8 @@ def test_trade_links_unidirectional():
             "commodities": [{"name": "C:ELC", "type": "energy"}],
             "processes": [
                 {
-                    "name": "PP", "sets": ["ELE"],
+                    "name": "PP",
+                    "sets": ["ELE"],
                     "primary_commodity_group": "NRGO",
                     "efficiency": 1.0,
                 }
@@ -1115,9 +1113,7 @@ def test_trade_links_unidirectional():
     tableir = compile_vedalang_to_tableir(source)
 
     # Find trade links file
-    trade_files = [
-        f for f in tableir["files"] if "trade_links" in f["path"].lower()
-    ]
+    trade_files = [f for f in tableir["files"] if "trade_links" in f["path"].lower()]
     assert len(trade_files) == 1
 
     # Check ~TRADELINKS uses Uni_ sheet name and has only one row (one direction)
@@ -1150,7 +1146,8 @@ def test_emission_cap_constraint():
             ],
             "processes": [
                 {
-                    "name": "PP_CCGT", "sets": ["ELE"],
+                    "name": "PP_CCGT",
+                    "sets": ["ELE"],
                     "primary_commodity_group": "NRGO",
                     "efficiency": 0.55,
                 },
@@ -1210,7 +1207,8 @@ def test_emission_cap_with_year_trajectory():
             ],
             "processes": [
                 {
-                    "name": "PP", "sets": ["ELE"],
+                    "name": "PP",
+                    "sets": ["ELE"],
                     "primary_commodity_group": "NRGO",
                     "efficiency": 1.0,
                 }
@@ -1261,7 +1259,8 @@ def test_activity_share_minimum():
             ],
             "processes": [
                 {
-                    "name": "PP_WIND", "sets": ["ELE"],
+                    "name": "PP_WIND",
+                    "sets": ["ELE"],
                     "primary_commodity_group": "NRGO",
                     "efficiency": 1.0,
                 },
@@ -1272,7 +1271,8 @@ def test_activity_share_minimum():
                     "efficiency": 1.0,
                 },
                 {
-                    "name": "PP_CCGT", "sets": ["ELE"],
+                    "name": "PP_CCGT",
+                    "sets": ["ELE"],
                     "primary_commodity_group": "NRGO",
                     "efficiency": 0.55,
                 },
@@ -1338,12 +1338,14 @@ def test_activity_share_maximum():
             "commodities": [{"name": "C:ELC", "type": "energy"}],
             "processes": [
                 {
-                    "name": "PP_COAL", "sets": ["ELE"],
+                    "name": "PP_COAL",
+                    "sets": ["ELE"],
                     "primary_commodity_group": "NRGO",
                     "efficiency": 0.40,
                 },
                 {
-                    "name": "PP_CCGT", "sets": ["ELE"],
+                    "name": "PP_CCGT",
+                    "sets": ["ELE"],
                     "primary_commodity_group": "NRGO",
                     "efficiency": 0.55,
                 },
@@ -1391,7 +1393,8 @@ def test_activity_share_both_min_max():
             "commodities": [{"name": "C:ELC", "type": "energy"}],
             "processes": [
                 {
-                    "name": "PP_WIND", "sets": ["ELE"],
+                    "name": "PP_WIND",
+                    "sets": ["ELE"],
                     "primary_commodity_group": "NRGO",
                     "efficiency": 1.0,
                 },
@@ -1423,38 +1426,22 @@ def test_activity_share_both_min_max():
     assert uc_names == {"WIND_BAND_LO", "WIND_BAND_UP"}
 
     # Check LO constraint (VedaOnline format) - 2 years
-    lo_rhs = [
-        r
-        for r in uc_rows
-        if r["uc_n"] == "WIND_BAND_LO" and "uc_rhsrt" in r
-    ]
+    lo_rhs = [r for r in uc_rows if r["uc_n"] == "WIND_BAND_LO" and "uc_rhsrt" in r]
     assert len(lo_rhs) == 2  # 1 per year
     for row in lo_rhs:
         assert row["limtype"] == "LO"
 
-    lo_comprd = [
-        r
-        for r in uc_rows
-        if r["uc_n"] == "WIND_BAND_LO" and "uc_comprd" in r
-    ]
+    lo_comprd = [r for r in uc_rows if r["uc_n"] == "WIND_BAND_LO" and "uc_comprd" in r]
     for row in lo_comprd:
         assert row["uc_comprd"] == -0.20
 
     # Check UP constraint (VedaOnline format) - 2 years
-    up_rhs = [
-        r
-        for r in uc_rows
-        if r["uc_n"] == "WIND_BAND_UP" and "uc_rhsrt" in r
-    ]
+    up_rhs = [r for r in uc_rows if r["uc_n"] == "WIND_BAND_UP" and "uc_rhsrt" in r]
     assert len(up_rhs) == 2  # 1 per year
     for row in up_rhs:
         assert row["limtype"] == "UP"
 
-    up_comprd = [
-        r
-        for r in uc_rows
-        if r["uc_n"] == "WIND_BAND_UP" and "uc_comprd" in r
-    ]
+    up_comprd = [r for r in uc_rows if r["uc_n"] == "WIND_BAND_UP" and "uc_comprd" in r]
     for row in up_comprd:
         assert row["uc_comprd"] == -0.40
 
@@ -1472,7 +1459,8 @@ def test_constraint_file_path():
             "commodities": [{"name": "E:CO2", "type": "emission"}],
             "processes": [
                 {
-                    "name": "PP", "sets": ["ELE"],
+                    "name": "PP",
+                    "sets": ["ELE"],
                     "primary_commodity_group": "NRGO",
                     "efficiency": 1.0,
                 }
@@ -1508,10 +1496,7 @@ def test_pcg_missing_raises_validation_error():
     NOTE: This test uses legacy 'processes' syntax which is deprecated.
     The new P4 syntax uses roles/variants/availability instead.
     """
-    pytest.skip(
-        "Legacy 'processes' syntax is deprecated"
-        " in P4 - use roles/variants"
-    )
+    pytest.skip("Legacy 'processes' syntax is deprecated in P4 - use roles/variants")
 
 
 def test_pcg_invalid_value_raises_validation_error():
@@ -1519,10 +1504,7 @@ def test_pcg_invalid_value_raises_validation_error():
 
     NOTE: Legacy 'processes' syntax is deprecated in P4.
     """
-    pytest.skip(
-        "Legacy 'processes' syntax is deprecated"
-        " in P4 - use roles/variants"
-    )
+    pytest.skip("Legacy 'processes' syntax is deprecated in P4 - use roles/variants")
 
 
 def test_pcg_explicit_nrgo():
@@ -1530,10 +1512,7 @@ def test_pcg_explicit_nrgo():
 
     NOTE: Legacy 'processes' syntax is deprecated in P4.
     """
-    pytest.skip(
-        "Legacy 'processes' syntax is deprecated"
-        " in P4 - use roles/variants"
-    )
+    pytest.skip("Legacy 'processes' syntax is deprecated in P4 - use roles/variants")
 
 
 def test_pcg_explicit_demo():
@@ -1541,10 +1520,7 @@ def test_pcg_explicit_demo():
 
     NOTE: Legacy 'processes' syntax is deprecated in P4.
     """
-    pytest.skip(
-        "Legacy 'processes' syntax is deprecated"
-        " in P4 - use roles/variants"
-    )
+    pytest.skip("Legacy 'processes' syntax is deprecated in P4 - use roles/variants")
 
 
 def test_pcg_always_emitted():
@@ -1554,8 +1530,7 @@ def test_pcg_always_emitted():
     inference is compiler-owned. We no longer require user-specified PCG.
     """
     pytest.skip(
-        "Legacy 'processes' syntax is deprecated"
-        " - P4 uses compiler-owned PCG inference"
+        "Legacy 'processes' syntax is deprecated - P4 uses compiler-owned PCG inference"
     )
 
 
@@ -1581,7 +1556,8 @@ def test_emission_cap_lower_bound():
             "commodities": [{"name": "E:CO2", "type": "emission"}],
             "processes": [
                 {
-                    "name": "PP", "sets": ["ELE"],
+                    "name": "PP",
+                    "sets": ["ELE"],
                     "primary_commodity_group": "NRGO",
                     "efficiency": 1.0,
                 }
@@ -1621,7 +1597,8 @@ def test_uc_table_has_uc_sets_metadata():
             "commodities": [{"name": "E:CO2", "type": "emission"}],
             "processes": [
                 {
-                    "name": "PP", "sets": ["ELE"],
+                    "name": "PP",
+                    "sets": ["ELE"],
                     "primary_commodity_group": "NRGO",
                     "efficiency": 1.0,
                 }
@@ -1883,10 +1860,7 @@ def test_commodity_price_wrong_commodity_type():
 
     NOTE: Legacy 'processes' syntax with 'context' field is deprecated.
     """
-    pytest.skip(
-        "Legacy 'processes' syntax is deprecated"
-        " in P4 - use roles/variants"
-    )
+    pytest.skip("Legacy 'processes' syntax is deprecated in P4 - use roles/variants")
 
 
 def test_unit_warning_for_unusual_activity_unit():
@@ -1944,9 +1918,7 @@ def test_strict_unit_policy_rejects_unrecognized_activity_unit():
         "name": "StrictUnitPolicy",
         "regions": ["REG1"],
         "unit_policy": {"mode": "strict"},
-        "commodities": [
-            {"name": "C:ELC", "type": "energy", "combustible": False}
-        ],
+        "commodities": [{"name": "C:ELC", "type": "energy", "combustible": False}],
         "processes": [
             {
                 "name": "PP_CCGT",
@@ -1974,9 +1946,7 @@ def test_strict_unit_policy_rejects_fake_unit_transform_process():
             "mode": "strict",
             "forbid_unit_transform_processes": True,
         },
-        "commodities": [
-            {"name": "C:ELC", "type": "energy", "combustible": False}
-        ],
+        "commodities": [{"name": "C:ELC", "type": "energy", "combustible": False}],
         "processes": [
             {
                 "name": "fake_twh_to_pj",
@@ -2058,8 +2028,7 @@ def test_strict_unit_policy_combustible_true_requires_hhv_lhv_values():
     }
     errors, _ = validate_cross_references(model)
     assert any(
-        "must include both 'lhv_mj_per_unit' and 'hhv_mj_per_unit'" in e
-        for e in errors
+        "must include both 'lhv_mj_per_unit' and 'hhv_mj_per_unit'" in e for e in errors
     )
 
 
@@ -2708,9 +2677,7 @@ def test_default_commodity_units_demand():
                     comm_rows.extend(t["rows"])
 
     # residential_demand should have default unit PJ
-    rsd_row = [
-        r for r in comm_rows if r["commodity"] == "residential_demand"
-    ][0]
+    rsd_row = [r for r in comm_rows if r["commodity"] == "residential_demand"][0]
     assert rsd_row["unit"] == "PJ"
 
 
@@ -2995,9 +2962,7 @@ def test_new_syntax_role_units_emit_tact_tcap_and_prc_capact():
     assert all(r["tcap"] == "GW" for r in heat_pump_rows)
 
     eff_rows = [
-        r
-        for r in fi_t_rows
-        if "heat_pump" in r.get("process", "") and "eff" in r
+        r for r in fi_t_rows if "heat_pump" in r.get("process", "") and "eff" in r
     ]
     assert eff_rows
     assert eff_rows[0].get("prc_capact") == 8.76
@@ -3037,10 +3002,10 @@ def test_explicit_cost_attribute_names():
                     "inputs": [{"commodity": "C:GAS"}],
                     "outputs": [{"commodity": "C:ELC"}],
                     "efficiency": 0.55,
-                    "investment_cost": 800,    # Explicit name for NCAP_COST
-                    "fixed_om_cost": 20,       # Explicit name for NCAP_FOM
-                    "variable_om_cost": 2,     # Explicit name for ACT_COST
-                    "lifetime": 30,            # Explicit name for NCAP_TLIFE
+                    "investment_cost": 800,  # Explicit name for NCAP_COST
+                    "fixed_om_cost": 20,  # Explicit name for NCAP_FOM
+                    "variable_om_cost": 2,  # Explicit name for ACT_COST
+                    "lifetime": 30,  # Explicit name for NCAP_TLIFE
                 },
             ],
         }
@@ -3064,10 +3029,10 @@ def test_explicit_cost_attribute_names():
     ccgt_rows = [r for r in fit_rows if r.get("process") == "PP_CCGT" and "eff" in r]
     assert len(ccgt_rows) == 1
     ccgt = ccgt_rows[0]
-    assert ccgt["ncap_cost"] == 800      # investment_cost
-    assert ccgt["ncap_fom"] == 20        # fixed_om_cost
-    assert ccgt["act_cost"] == 2         # variable_om_cost
-    assert ccgt["ncap_tlife"] == 30      # lifetime
+    assert ccgt["ncap_cost"] == 800  # investment_cost
+    assert ccgt["ncap_fom"] == 20  # fixed_om_cost
+    assert ccgt["act_cost"] == 2  # variable_om_cost
+    assert ccgt["ncap_tlife"] == 30  # lifetime
 
 
 def test_existing_capacity_emits_ncap_pasti():
@@ -3078,10 +3043,7 @@ def test_existing_capacity_emits_ncap_pasti():
 
     NOTE: Legacy 'processes' syntax with 'context' field is deprecated.
     """
-    pytest.skip(
-        "Legacy 'processes' syntax is deprecated"
-        " in P4 - use roles/variants"
-    )
+    pytest.skip("Legacy 'processes' syntax is deprecated in P4 - use roles/variants")
 
 
 def test_existing_capacity_vs_stock():
@@ -3089,10 +3051,7 @@ def test_existing_capacity_vs_stock():
 
     NOTE: Legacy 'processes' syntax with 'context' field is deprecated.
     """
-    pytest.skip(
-        "Legacy 'processes' syntax is deprecated"
-        " in P4 - use roles/variants"
-    )
+    pytest.skip("Legacy 'processes' syntax is deprecated in P4 - use roles/variants")
 
 
 def test_bounds_expand_to_all_milestone_years():
@@ -3611,8 +3570,7 @@ def test_new_syntax_heating_basis_values_are_normalized_to_hhv():
         (
             row
             for row in fi_t_rows
-            if str(row.get("process", "")).startswith("ccgt_R1")
-            and "act_cost" in row
+            if str(row.get("process", "")).startswith("ccgt_R1") and "act_cost" in row
         ),
         None,
     )
@@ -3636,8 +3594,7 @@ def test_new_syntax_heating_basis_values_are_normalized_to_hhv():
         (
             row
             for row in scenario_rows
-            if row.get("cset_cn") == "primary:natural_gas"
-            and row.get("year") == 2020
+            if row.get("cset_cn") == "primary:natural_gas" and row.get("year") == 2020
         ),
         None,
     )
@@ -3656,36 +3613,17 @@ def test_new_syntax_cop_metric_allows_efficiency_above_one():
 
 def test_toy_agriculture_uses_service_role_and_sink_sequestration_conventions():
     source = load_vedalang(EXAMPLES_DIR / "toy_sectors/toy_agriculture.veda.yaml")
-
-    commodity_types = {
-        commodity["id"]: commodity["type"]
-        for commodity in source["model"]["commodities"]
+    commodity_kinds = {
+        commodity["id"]: commodity["kind"] for commodity in source["commodities"]
     }
-    assert commodity_types["material:ag_inputs"] == "material"
-    assert commodity_types["service:agricultural_output"] == "service"
-    assert commodity_types["emission:co2e"] == "emission"
+    assert commodity_kinds["material:ag_inputs"] == "material"
+    assert commodity_kinds["service:agricultural_output"] == "service"
+    assert commodity_kinds["emission:co2e"] == "emission"
 
-    roles = {role["id"]: role for role in source["roles"]}
-    assert set(roles) == {"supply_ag_inputs", "provide_ag_output", "remove_co2"}
-    assert roles["supply_ag_inputs"]["stage"] == "supply"
-    assert roles["provide_ag_output"]["stage"] == "end_use"
-    assert roles["provide_ag_output"]["required_inputs"] == [
-        {"commodity": "material:ag_inputs"}
-    ]
-    assert roles["remove_co2"]["stage"] == "sink"
-    assert roles["remove_co2"]["required_inputs"] == []
-    assert roles["remove_co2"]["required_outputs"] == []
-
-    variant_roles = {
-        variant["id"]: variant["role"]
-        for variant in source["variants"]
-    }
-    assert variant_roles["primary_supply"] == "supply_ag_inputs"
-    assert variant_roles["traditional_baseline"] == "provide_ag_output"
-    assert variant_roles["traditional_with_feed_additives"] == "provide_ag_output"
-    assert variant_roles["traditional_with_improved_manure"] == "provide_ag_output"
-    assert variant_roles["soil_carbon"] == "remove_co2"
-    assert variant_roles["reforestation"] == "remove_co2"
+    roles = {role["id"]: role for role in source["technology_roles"]}
+    assert set(roles) == {"ag_input_supply", "ag_output"}
+    assert "traditional_baseline" in roles["ag_output"]["technologies"]
+    assert "soil_carbon" in roles["ag_output"]["technologies"]
 
 
 def test_toy_agriculture_example_compiles_after_refactor():
@@ -3693,129 +3631,43 @@ def test_toy_agriculture_example_compiles_after_refactor():
     tableir = compile_vedalang_to_tableir(source)
     assert "files" in tableir
 
+
 def test_toy_buildings_uses_service_role_and_case_demand_override_conventions():
     source = load_vedalang(EXAMPLES_DIR / "toy_sectors/toy_buildings.veda.yaml")
+    roles = {role["id"]: role for role in source["technology_roles"]}
+    assert set(roles) == {"electricity_supply", "gas_supply", "space_heat_supply"}
+    assert roles["space_heat_supply"]["technologies"] == ["gas_heater", "heat_pump"]
+    assert roles["space_heat_supply"]["transitions"][0]["to"] == "heat_pump"
 
-    roles = {role["id"]: role for role in source["roles"]}
-    assert "provide_space_heat" in roles
-    assert roles["provide_space_heat"]["stage"] == "end_use"
-    assert roles["provide_space_heat"]["required_inputs"] == []
-    assert {"commodity": "service:space_heat"} in (
-        roles["provide_space_heat"]["required_outputs"]
-    )
-
-    # No fuel-pathway or intermediate carrier roles
-    assert "heat_from_gas" not in roles
-    assert "heat_from_electricity" not in roles
-    assert "reduce_heat_demand" not in roles
-    assert "convert_gas_to_delivered_heat" not in roles
-    assert "convert_electricity_to_delivered_heat" not in roles
-
-    # Variants use variant-level inputs
-    variants = {v["id"]: v for v in source["variants"]}
-    assert variants["gas_heater"]["role"] == "provide_space_heat"
-    assert variants["gas_heater"]["inputs"] == [
-        {"commodity": "primary:natural_gas", "basis": "HHV"}
-    ]
-    assert variants["heat_pump"]["role"] == "provide_space_heat"
-    assert variants["heat_pump"]["inputs"] == [{"commodity": "secondary:electricity"}]
-    assert "space_heat_delivery" not in variants
-
-    cases = {case["name"]: case for case in source["model"]["cases"]}
-    assert "baseline" in cases
-    assert cases["baseline"]["is_baseline"] is True
-    assert "retrofit_policy" in cases
-
-    demand_overrides = cases["retrofit_policy"]["demand_overrides"]
-    assert len(demand_overrides) == 1
-    assert demand_overrides[0]["commodity"] == "service:space_heat"
-    assert demand_overrides[0]["sector"] == "RES"
 
 def test_toy_industry_uses_variant_level_inputs():
     source = load_vedalang(EXAMPLES_DIR / "toy_sectors/toy_industry.veda.yaml")
-
-    roles = {role["id"]: role for role in source["roles"]}
-    assert "provide_industrial_heat" in roles
-    assert roles["provide_industrial_heat"]["stage"] == "end_use"
-    assert roles["provide_industrial_heat"]["required_inputs"] == []
-    assert roles["provide_industrial_heat"]["required_outputs"] == [
-        {"commodity": "service:industrial_heat"},
+    roles = {role["id"]: role for role in source["technology_roles"]}
+    assert "industrial_heat_supply" in roles
+    assert roles["industrial_heat_supply"]["technologies"] == [
+        "gas_boiler",
+        "electric_heater",
+        "h2_boiler",
     ]
 
-    assert "convert_gas_to_industrial_heat" not in roles
-    assert "convert_electricity_to_industrial_heat" not in roles
-    assert "convert_hydrogen_to_industrial_heat" not in roles
-
-    variants = {
-        variant["id"]: variant
-        for variant in source["variants"]
-    }
-    assert variants["gas_boiler"]["role"] == "provide_industrial_heat"
-    assert variants["gas_boiler"]["inputs"] == [
-        {"commodity": "primary:natural_gas", "basis": "HHV"}
-    ]
-    assert variants["electric_heater"]["role"] == "provide_industrial_heat"
-    assert variants["electric_heater"]["inputs"] == [
-        {"commodity": "secondary:electricity"}
-    ]
-    assert variants["h2_boiler"]["role"] == "provide_industrial_heat"
-    assert variants["h2_boiler"]["inputs"] == [
-        {"commodity": "secondary:hydrogen", "basis": "HHV"}
-    ]
-    assert "industrial_heat_delivery" not in variants
 
 def test_toy_transport_uses_service_role_with_pathway_variants():
     source = load_vedalang(EXAMPLES_DIR / "toy_sectors/toy_transport.veda.yaml")
+    roles = {role["id"]: role for role in source["technology_roles"]}
+    assert roles["passenger_mobility"]["technologies"] == ["ice_car", "ev_car"]
+    assert roles["passenger_mobility"]["transitions"][0]["to"] == "ev_car"
 
-    roles = {role["id"]: role for role in source["roles"]}
-    assert "provide_passenger_km" in roles
-    assert roles["provide_passenger_km"]["stage"] == "end_use"
-    assert roles["provide_passenger_km"]["required_inputs"] == []
-    assert roles["provide_passenger_km"]["required_outputs"] == [
-        {"commodity": "service:passenger_km"},
-    ]
-
-    # No intermediate conversion roles
-    assert "convert_petrol_to_mobility" not in roles
-    assert "convert_electricity_to_mobility" not in roles
-
-    variants = {v["id"]: v for v in source["variants"]}
-    assert variants["ice_car"]["role"] == "provide_passenger_km"
-    assert variants["ice_car"]["inputs"] == [
-        {"commodity": "primary:petrol", "basis": "HHV"}
-    ]
-    assert variants["ev_car"]["role"] == "provide_passenger_km"
-    assert variants["ev_car"]["inputs"] == [{"commodity": "secondary:electricity"}]
-    assert "passenger_service_delivery" not in variants
 
 def test_toy_resources_uses_service_role_with_case_overlays():
     source = load_vedalang(EXAMPLES_DIR / "toy_sectors/toy_resources.veda.yaml")
-
-    roles = {role["id"]: role for role in source["roles"]}
-    assert "provide_haul_work" in roles
-    assert roles["provide_haul_work"]["stage"] == "end_use"
-    assert roles["provide_haul_work"]["required_inputs"] == []
-    assert roles["provide_haul_work"]["required_outputs"] == [
-        {"commodity": "service:haul_work"}
+    roles = {role["id"]: role for role in source["technology_roles"]}
+    assert roles["haul_service"]["technologies"] == [
+        "diesel_haul",
+        "biodiesel_haul",
+        "electric_haul",
     ]
+    assert source["opportunities"][0]["technology"] == "electric_haul"
 
-    # No fuel-pathway conversion roles — all variants under one service role
-    assert "convert_diesel_to_haul_energy" not in roles
-    assert "convert_electricity_to_haul_energy" not in roles
-    assert "convert_biodiesel_to_haul_energy" not in roles
-
-    variants = {
-        variant["id"]: variant["role"]
-        for variant in source["variants"]
-    }
-    assert variants["diesel_haul"] == "provide_haul_work"
-    assert variants["electric_haul"] == "provide_haul_work"
-    assert variants["biodiesel_haul"] == "provide_haul_work"
-
-    cases = {case["name"]: case for case in source["model"]["cases"]}
-    assert cases["ref"]["is_baseline"] is True
-    assert "co2cap" in cases
-    assert "force_shift" in cases
 
 def test_toy_refactored_examples_compile_under_new_invariants():
     for filename in (
@@ -3828,6 +3680,7 @@ def test_toy_refactored_examples_compile_under_new_invariants():
         tableir = compile_vedalang_to_tableir(source)
         assert "files" in tableir
 
+
 def test_new_syntax_end_use_requires_physical_input():
     source = _base_new_syntax_source()
     source["roles"][0]["required_inputs"] = []
@@ -3836,6 +3689,7 @@ def test_new_syntax_end_use_requires_physical_input():
 
     with pytest.raises(Exception, match=r"\[E_END_USE_PHYSICAL_INPUT\]"):
         compile_vedalang_to_tableir(source)
+
 
 def test_new_syntax_end_use_zero_input_explicit_kind_still_errors():
     source = _base_new_syntax_source()

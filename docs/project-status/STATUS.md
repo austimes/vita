@@ -4,7 +4,7 @@
 
 ## Executive Summary
 
-VedaLang is a typed DSL that compiles to VEDA Excel tables for TIMES energy models. **All core phases (P0–P3) remain complete**, the v0.2 package/run/CSIR/CPIR rollout remains landed end-to-end, and the current follow-on backlog is example-catalog migration, with 6 open issues and 114 closed issues.
+VedaLang is a typed DSL that compiles to VEDA Excel tables for TIMES energy models. **All core phases (P0–P3) remain complete**, the v0.2 package/run/CSIR/CPIR rollout is landed end-to-end, and the full example catalog has now been ported to the v0.2 DSL. The current `bd` tracker state is 120 closed issues and 0 open issues.
 
 | Milestone | Status |
 |-----------|--------|
@@ -26,25 +26,25 @@ VedaLang is a typed DSL that compiles to VEDA Excel tables for TIMES energy mode
 
 ---
 
-## Current Status: Example Catalog Porting
-Core design phases remain complete. The v0.2 frontend, diagnostics, downstream tooling surfaces, flagship examples/docs, and regression matrix are closed in `bd`, and the current active tranche is porting the remaining historical example catalog from legacy/provider-era syntax to the landed v0.2 object model.
+## Current Status: v0.2 Catalog Complete
+Core design phases remain complete. The v0.2 frontend, diagnostics, downstream tooling surfaces, flagship examples/docs, and regression matrix are closed in `bd`, and the historical example catalog under `vedalang/examples` is now fully ported from legacy/provider-era syntax to the landed v0.2 object model.
 
 ### Active Work
 
-Open `bd` work is now the example-porting epic `vedalang-bqz` and its remaining family tasks:
-- `vedalang-isn` — port design challenge examples to v0.2
-- `vedalang-2w5` — port minisystem examples to v0.2
-- `vedalang-elc` — port feature demo examples to v0.2
-- `vedalang-xd6` — port toy sector examples to v0.2
-- `vedalang-3m8` — expand regression coverage after the family ports land
+`bd ready --json` is empty. There is no active tracked implementation work at the moment; the example-porting epic and all of its family tasks are closed.
 
 ### Recently Completed
 
 | Issue | Priority | Description | Status |
 |-------|----------|-------------|--------|
+| `vedalang-bqz` | P1 | Completed the example-catalog migration epic: all 35 supported `.veda.yaml` examples now use the v0.2 DSL and remain regression-covered | ✓ Closed |
+| `vedalang-3m8` | P1 | Expanded the regression matrix to cover the newly ported example families and hard-cut schema/tooling expectations | ✓ Closed |
+| `vedalang-2w5` | P1 | Ported the minisystem example family to v0.2 and refreshed golden/regression coverage | ✓ Closed |
+| `vedalang-xd6` | P1 | Ported the toy sector example family to v0.2 and refreshed family docs | ✓ Closed |
+| `vedalang-elc` | P1 | Ported the feature demo example family to v0.2 and refreshed family docs | ✓ Closed |
+| `vedalang-isn` | P1 | Ported the design challenge example family to v0.2 while preserving the DC1-DC5 teaching arc | ✓ Closed |
 | `vedalang-zgk` | P1 | Ported the quickstart example family to v0.2 and added compile regression coverage for the family | ✓ Closed |
 | `vedalang-mv0` | P1 | Fixed v0.2 core lint to stop applying legacy commodity-type cross-reference checks to valid v0.2 sources | ✓ Closed |
-| `vedalang-bqz` | P1 | Example-catalog migration epic opened to port the remaining historical examples to v0.2 in family-sized tranches | In progress |
 | `vedalang-txa` | P1 | Umbrella v0.2 rollout completed across schema, resolution, IR, backend, diagnostics, tooling, docs, and regressions | ✓ Closed |
 | `vedalang-txa.7` | P1 | Diagnostics/tooling/docs/regression epic completed with Section 14 diagnostics, CSIR/CPIR consumers, flagship docs/examples, and Section 16 golden tests | ✓ Closed |
 | `vedalang-txa.7.5` | P2 | Synced README, AGENTS, STATUS, and HISTORY to the landed v0.2 architecture | ✓ Closed |

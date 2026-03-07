@@ -1,153 +1,160 @@
-model:
-  name: FacilitySafeguardDemo
-  regions:
-    - QLD
-    - NSW
-  region_scheme: au_state_v1
-  milestone_years:
-    - 2025
-    - 2030
-    - 2035
-  commodities:
-    - id: primary:coal
-      type: fuel
-      combustible: false
-    - id: primary:natural_gas
-      type: fuel
-      combustible: false
-    - id: primary:hydrogen
-      type: fuel
-      combustible: false
-    - id: service:alumina_output
-      type: service
-      unit: PJ
-    - id: emission:co2
-      type: emission
-      unit: Mt
-  cases:
-    - name: baseline
-      is_baseline: true
+commodities:
+  - id: emission:co2
+    kind: emission
 
-roles:
-  - id: produce_alumina
-    stage: conversion
-    activity_unit: PJ
-    capacity_unit: GW
-    required_inputs: []
-    required_outputs:
-      - commodity: service:alumina_output
+  - id: primary:coal
+    kind: primary
 
-facility_templates:
-  - id: alumina_template
-    class: safeguard
-    role: produce_alumina
-    sector: IND
-    primary_output_commodity: service:alumina_output
-    variants:
-      - id: calciner_standard
-        baseline_mode: coal
-        mode_ladder:
-          - coal
-          - retrofit_to_ng
-          - retrofit_to_h2
-        modes:
-          - id: coal
-            fuel_in: primary:coal
-            capex: 0
-            existing: true
-            efficiency: 0.9
-            emission_factors:
-              emission:co2: 0.12
-            ramp_rate: 0.0
-          - id: retrofit_to_ng
-            fuel_in: primary:natural_gas
-            capex: 1200
-            existing: false
-            efficiency: 0.95
-            emission_factors:
-              emission:co2: 0.08
-            ramp_rate: 0.50
-          - id: retrofit_to_h2
-            fuel_in: primary:hydrogen
-            capex: 2500
-            existing: false
-            efficiency: 0.98
-            emission_factors:
-              emission:co2: 0.02
-            ramp_rate: 0.20
+  - id: primary:hydrogen
+    kind: primary
 
-facility_selection:
-  mode: top_n_by_baseline_emissions
-  n_individual: 1
-  ranking_metric: baseline_emissions
-  aggregation_keys:
-    - template
-    - class
-    - region
-    - primary_output_commodity
+  - id: primary:natural_gas
+    kind: primary
 
-spatial_mappings:
-  - scheme: au_state_v1
-    from: facility_location_ref
-    map:
-      aus/qld/gladstone_lga:
-        - region: QLD
-          share: 1.0
-      aus/nsw/newcastle_lga:
-        - region: NSW
-          share: 1.0
+  - id: service:alumina_output
+    kind: service
+
+dsl_version: "0.2"
 
 facilities:
-  - id: sgf_alumina_gladstone
-    template: alumina_template
-    class: safeguard
-    location_ref: aus/qld/gladstone_lga
-    representation: individual
-    cap_base:
-      value: 8.0
-      unit: GW
-    capacity_coupling: le
-    no_backsliding: true
-    output_series:
-      interpolation: interp_extrap
-      values:
-        2025: 100
-        2030: 95
-        2035: 90
-    safeguard:
-      baseline_intensity: 0.1
-      baseline_year: 2025
-      intensity_decline_blocks:
-        - from_year: 2025
-          to_year: 2030
-          annual_decline_pct: 4.9
-        - from_year: 2031
-          to_year: 2040
-          annual_decline_pct: 3.0
+  - id: gladstone_alumina
+    available_technologies:
+      - coal_calciner
+      - gas_calciner
+      - hydrogen_calciner
+    site: gladstone_refinery
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 8 MW
+            year: 2025
+          technology: coal_calciner
+    technology_role: alumina_calcination
 
-  - id: sgf_alumina_newcastle
-    template: alumina_template
-    class: safeguard
-    location_ref: aus/nsw/newcastle_lga
-    representation: individual
-    cap_base:
-      value: 3.5
-      unit: GW
-    capacity_coupling: le
-    no_backsliding: true
-    output_series:
-      interpolation: interp_extrap
-      values:
-        2025: 40
-        2030: 38
-        2035: 35
-    safeguard:
-      baseline_intensity: 0.11
-      baseline_year: 2025
-      intensity_decline_blocks:
-        - from_year: 2025
-          to_year: 2030
-          annual_decline_pct: 4.9
-        - from_year: 2031
-          to_year: 2040
-          annual_decline_pct: 3.0
+  - id: newcastle_alumina
+    available_technologies:
+      - coal_calciner
+      - gas_calciner
+      - hydrogen_calciner
+    site: newcastle_refinery
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 3.5 MW
+            year: 2025
+          technology: coal_calciner
+    technology_role: alumina_calcination
+
+opportunities:
+  - id: nsw_gas_retrofit
+    max_new_capacity: 3.5 MW
+    siting:
+      site: newcastle_refinery
+    technology: gas_calciner
+
+  - id: qld_hydrogen_retrofit
+    max_new_capacity: 8 MW
+    siting:
+      site: gladstone_refinery
+    technology: hydrogen_calciner
+
+region_partitions:
+  - id: au_states
+    layer: geo.demo
+    mapping:
+      kind: constant
+      value: QLD
+    members:
+      - NSW
+      - QLD
+
+runs:
+  - id: au_states_2025
+    base_year: 2025
+    currency_year: 2024
+    region_partition: au_states
+
+sites:
+  - id: gladstone_refinery
+    location:
+      point:
+        lat: -23.842
+        lon: 151.248
+    membership_overrides:
+      region_partitions:
+        au_states: QLD
+
+  - id: newcastle_refinery
+    location:
+      point:
+        lat: -32.928
+        lon: 151.781
+    membership_overrides:
+      region_partitions:
+        au_states: NSW
+
+spatial_layers:
+  - id: geo.demo
+    geometry_file: data/regions.geojson
+    key: region_id
+    kind: polygon
+
+technologies:
+  - id: coal_calciner
+    inputs:
+      - commodity: primary:coal
+        basis: HHV
+    emissions:
+      - commodity: emission:co2
+        factor: 0.12 t/GJ
+    lifetime: 35 year
+    performance:
+      kind: efficiency
+      value: 0.9
+    provides: service:alumina_output
+
+  - id: gas_calciner
+    inputs:
+      - commodity: primary:natural_gas
+        basis: HHV
+    emissions:
+      - commodity: emission:co2
+        factor: 0.08 t/GJ
+    lifetime: 30 year
+    performance:
+      kind: efficiency
+      value: 0.95
+    provides: service:alumina_output
+
+  - id: hydrogen_calciner
+    inputs:
+      - commodity: primary:hydrogen
+        basis: HHV
+    emissions:
+      - commodity: emission:co2
+        factor: 0.02 t/GJ
+    lifetime: 30 year
+    performance:
+      kind: efficiency
+      value: 0.98
+    provides: service:alumina_output
+
+technology_roles:
+  - id: alumina_calcination
+    primary_service: service:alumina_output
+    technologies:
+      - coal_calciner
+      - gas_calciner
+      - hydrogen_calciner
+    transitions:
+      - cost: 1200 AUD2024/kW
+        from: coal_calciner
+        kind: retrofit
+        to: gas_calciner
+
+      - cost: 2500 AUD2024/kW
+        from: gas_calciner
+        kind: retrofit
+        to: hydrogen_calciner

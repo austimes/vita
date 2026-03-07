@@ -1,280 +1,217 @@
-# Model: core system definition (regions, years, commodities, cases).
-model:
-  name: ToyResources
-  description: Mining haulage electrification with case overlays for REF, CO2 cap,
-    and force-shift policies
-  regions:
-    - SINGLE
-  milestone_years:
-    - 2020
-    - 2025
-    - 2030
-    - 2035
-    - 2040
-    - 2050
-  commodities:
-    - id: emission:co2
-      description: Carbon dioxide
-      type: emission
-      unit: Mt
-      combustible: false
+commodities:
+  - id: emission:co2
+    kind: emission
 
-    - id: primary:biodiesel
-      description: Biodiesel
-      type: fuel
-      unit: PJ
-      combustible: true
-      hhv_mj_per_unit: 40.7
-      lhv_mj_per_unit: 37.0
+  - id: primary:biodiesel
+    kind: primary
 
-    - id: primary:diesel
-      description: Diesel fuel
-      type: fuel
-      unit: PJ
-      combustible: true
-      hhv_mj_per_unit: 47.3
-      lhv_mj_per_unit: 43.0
+  - id: primary:diesel
+    kind: primary
 
-    - id: secondary:electricity
-      description: Electricity
-      type: energy
-      unit: PJ
-      combustible: false
+  - id: secondary:electricity
+    kind: secondary
 
-    - id: service:haul_work
-      description: Haulage work demand
-      type: service
-      unit: PJ
-      combustible: false
-  constraints:
-    - name: co2_cap
-      type: emission_cap
-      commodity: emission:co2
-      years:
-        "2020": 2
-        "2030": 1.2
-        "2040": 0.5
-        "2050": 0.2
-      interpolation: interp_extrap
-      limtype: up
+  - id: service:biodiesel_supply
+    kind: service
 
-    - name: elc_share
-      type: activity_share
-      commodity: service:haul_work
-      minimum_share: 0.3
-      processes:
-        - electric_haul
-  cases:
-    - name: co2cap
-      description: CO2 emission cap driving electrification
-      constraint_overrides:
-        - name: elc_share
-          enabled: false
+  - id: service:diesel_supply
+    kind: service
 
-    - name: force_shift
-      description: Mandated electric haulage activity share
-      constraint_overrides:
-        - name: co2_cap
-          enabled: false
+  - id: service:electricity_supply
+    kind: service
 
-    - name: ref
-      description: Reference case — no policy constraints
-      constraint_overrides:
-        - name: co2_cap
-          enabled: false
+  - id: service:haul_work
+    kind: service
 
-        - name: elc_share
-          enabled: false
-      is_baseline: true
+dsl_version: "0.2"
 
-# Scoping: defines demand-side namespaces for instantiation/scoping.
-# sectors: required enum values = RES, COM, IND, TRN, AGR, NE, OTH.
-# end_uses: optional non-enum lowercase tokens (e.g., heating) to create scopes like RES.heating.
-scoping:
-  sectors:
-    - IND
+facilities:
+  - id: biodiesel_supply_facility
+    site: single_mine
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 80 MW
+            year: 2025
+          technology: biodiesel_import
+    technology_role: biodiesel_supply
 
-# Process roles: reusable contracts (required I/O + units) shared by multiple variants.
-roles:
-  - id: import_biodiesel
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: supply
-    required_inputs: []
-    required_outputs:
-      - commodity: primary:biodiesel
+  - id: diesel_supply_facility
+    site: single_mine
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 120 MW
+            year: 2025
+          technology: diesel_import
+    technology_role: diesel_supply
 
-  - id: import_diesel
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: supply
-    required_inputs: []
-    required_outputs:
-      - commodity: primary:diesel
+  - id: electricity_supply_facility
+    site: single_mine
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 100 MW
+            year: 2025
+          technology: electricity_import
+    technology_role: electricity_supply
 
-  - id: import_electricity
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: supply
-    required_inputs: []
-    required_outputs:
-      - commodity: secondary:electricity
+  - id: haul_service_facility
+    available_technologies:
+      - diesel_haul
+      - biodiesel_haul
+      - electric_haul
+    site: single_mine
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 6 MW
+            year: 2025
+          technology: diesel_haul
 
-  - id: provide_haul_work
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: end_use
-    required_inputs: []
-    required_outputs:
-      - commodity: service:haul_work
+        - metric: installed_capacity
+          observed:
+            value: 1 MW
+            year: 2025
+          technology: biodiesel_haul
 
-# Process variants: concrete technology definitions bound to roles.
-variants:
+        - metric: installed_capacity
+          observed:
+            value: 1 MW
+            year: 2025
+          technology: electric_haul
+    technology_role: haul_service
+
+opportunities:
+  - id: electric_haul_rollout
+    max_new_capacity: 12 MW
+    siting:
+      site: single_mine
+    technology: electric_haul
+
+region_partitions:
+  - id: single_region
+    layer: geo.demo
+    mapping:
+      kind: constant
+      value: SINGLE
+    members:
+      - SINGLE
+
+runs:
+  - id: single_2025
+    base_year: 2025
+    currency_year: 2024
+    region_partition: single_region
+
+sites:
+  - id: single_mine
+    location:
+      point:
+        lat: -22.91
+        lon: 119.45
+    membership_overrides:
+      region_partitions:
+        single_region: SINGLE
+
+spatial_layers:
+  - id: geo.demo
+    geometry_file: data/regions.geojson
+    key: region_id
+    kind: polygon
+
+technologies:
   - id: biodiesel_haul
-    role: provide_haul_work
     inputs:
       - commodity: primary:biodiesel
         basis: HHV
-    outputs:
-      - commodity: service:haul_work
-    efficiency: 0.35
-    lifetime: 15
+    lifetime: 15 year
+    performance:
+      kind: efficiency
+      value: 0.35
+    provides: service:haul_work
 
   - id: biodiesel_import
-    role: import_biodiesel
-    inputs: []
     outputs:
       - commodity: primary:biodiesel
-        basis: HHV
-    efficiency: 1.0
-    lifetime: 100
-    variable_om_cost: 20 MUSD24/PJ
-    variable_om_cost_basis: HHV
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:biodiesel_supply
+    variable_om: 20 AUD2024/MWh
 
   - id: diesel_haul
-    role: provide_haul_work
     inputs:
       - commodity: primary:diesel
         basis: HHV
-    outputs:
-      - commodity: service:haul_work
-    emission_factors:
-      emission:co2: 0.074
-    efficiency: 0.35
-    emission_factor_basis: HHV
-    lifetime: 15
+    emissions:
+      - commodity: emission:co2
+        factor: 0.074 t/GJ
+    lifetime: 15 year
+    performance:
+      kind: efficiency
+      value: 0.35
+    provides: service:haul_work
 
   - id: diesel_import
-    role: import_diesel
-    inputs: []
     outputs:
       - commodity: primary:diesel
-        basis: HHV
-    efficiency: 1.0
-    lifetime: 100
-    variable_om_cost: 12 MUSD24/PJ
-    variable_om_cost_basis: HHV
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:diesel_supply
+    variable_om: 12 AUD2024/MWh
 
   - id: electric_haul
-    role: provide_haul_work
     inputs:
       - commodity: secondary:electricity
-    outputs:
-      - commodity: service:haul_work
-    efficiency: 0.85
-    investment_cost: 200 MUSD24/GW
-    lifetime: 15
+    investment_cost: 200 AUD2024/kW
+    lifetime: 15 year
+    performance:
+      kind: efficiency
+      value: 0.85
+    provides: service:haul_work
 
   - id: electricity_import
-    role: import_electricity
-    inputs: []
     outputs:
       - commodity: secondary:electricity
-    efficiency: 1.0
-    lifetime: 100
-    variable_om_cost: 25 MUSD24/PJ
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:electricity_supply
+    variable_om: 25 AUD2024/MWh
 
-# Availability: expands each variant into region/scope-specific process instances in the RES.
-availability:
-  - variant: biodiesel_haul
-    regions:
-      - SINGLE
-    sectors:
-      - IND
+technology_roles:
+  - id: biodiesel_supply
+    primary_service: service:biodiesel_supply
+    technologies:
+      - biodiesel_import
 
-  - variant: biodiesel_import
-    regions:
-      - SINGLE
+  - id: diesel_supply
+    primary_service: service:diesel_supply
+    technologies:
+      - diesel_import
 
-  - variant: diesel_haul
-    regions:
-      - SINGLE
-    sectors:
-      - IND
+  - id: electricity_supply
+    primary_service: service:electricity_supply
+    technologies:
+      - electricity_import
 
-  - variant: diesel_import
-    regions:
-      - SINGLE
-
-  - variant: electric_haul
-    regions:
-      - SINGLE
-    sectors:
-      - IND
-
-  - variant: electricity_import
-    regions:
-      - SINGLE
-
-# Process parameters: selector-based overrides applied to matching instantiated process copies.
-process_parameters:
-  - cap_bound:
-      up: 100
-    selector:
-      variant: biodiesel_haul
-      region: SINGLE
-      sector: IND
-    stock: 1
-
-  - ncap_bound:
-      up: 5
-    selector:
-      variant: biodiesel_import
-      region: SINGLE
-    stock: 1000
-
-  - cap_bound:
-      up: 100
-    selector:
-      variant: diesel_haul
-      region: SINGLE
-      sector: IND
-    stock: 20
-
-  - selector:
-      variant: diesel_import
-      region: SINGLE
-    stock: 1000
-
-  - cap_bound:
-      up: 100
-    selector:
-      variant: electric_haul
-      region: SINGLE
-      sector: IND
-    stock: 1
-
-  - selector:
-      variant: electricity_import
-      region: SINGLE
-    stock: 1000
-
-# Demands: service demand trajectories by region and optional scope (sector/scope).
-demands:
-  - commodity: service:haul_work
-    region: SINGLE
-    values:
-      "2020": 20
-      "2050": 20
-    interpolation: interp_extrap
-    sector: IND
+  - id: haul_service
+    primary_service: service:haul_work
+    technologies:
+      - diesel_haul
+      - biodiesel_haul
+      - electric_haul
+    transitions:
+      - cost: 35 AUD2024/kW
+        from: diesel_haul
+        kind: retrofit
+        to: electric_haul

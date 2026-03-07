@@ -1,216 +1,210 @@
-# Model: core system definition (regions, years, commodities, cases).
-model:
-  name: MiniModel
-  description: Thermal and renewable plants with CO2 price trajectory
-  regions:
-    - REG1
-  milestone_years:
-    - 2025
-    - 2030
-    - 2040
-    - 2050
-  commodities:
-    - id: emission:co2
-      description: Carbon dioxide emissions
-      type: emission
-      unit: Mt
-      combustible: false
+commodities:
+  - id: emission:co2
+    kind: emission
 
-    - id: primary:natural_gas
-      description: Natural Gas
-      type: fuel
-      unit: PJ
-      combustible: true
-      hhv_mj_per_unit: 55.0
-      lhv_mj_per_unit: 50.0
+  - id: primary:natural_gas
+    kind: primary
 
-    - id: resource:wind_resource
-      description: Wind resource potential
-      type: other
-      unit: PJ
-      combustible: false
+  - id: resource:wind_resource
+    kind: material
 
-    - id: secondary:electricity
-      description: Electricity carrier
-      type: energy
-      unit: PJ
-      combustible: false
+  - id: secondary:electricity
+    kind: secondary
 
-    - id: service:electricity_demand
-      description: Electricity demand service
-      type: service
-      unit: PJ
-      combustible: false
-  scenario_parameters:
-    - name: co2_price
-      description: Carbon price trajectory 2025-2050
-      type: commodity_price
-      commodity: emission:co2
-      values:
-        "2025": 50
-        "2030": 100
-        "2040": 150
-        "2050": 200
-      interpolation: interp_extrap
+  - id: service:electricity_generation
+    kind: service
 
-# Scoping: defines demand-side namespaces for instantiation/scoping.
-# sectors: required enum values = RES, COM, IND, TRN, AGR, NE, OTH.
-# end_uses: optional non-enum lowercase tokens (e.g., heating) to create scopes like RES.heating.
-scoping:
-  sectors:
-    - RES
+  - id: service:electricity_service
+    kind: service
 
-# Process roles: reusable contracts (required I/O + units) shared by multiple variants.
-roles:
-  - id: generate_electricity
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: conversion
-    required_inputs: []
-    required_outputs:
-      - commodity: secondary:electricity
+  - id: service:gas_supply
+    kind: service
 
-  - id: import_natural_gas
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: supply
-    required_inputs: []
-    required_outputs:
-      - commodity: primary:natural_gas
+  - id: service:wind_resource_supply
+    kind: service
 
-  - id: satisfy_electricity_demand
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: end_use
-    required_inputs:
-      - commodity: secondary:electricity
-    required_outputs:
-      - commodity: service:electricity_demand
+dsl_version: "0.2"
 
-  - id: supply_wind_resource
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: supply
-    required_inputs: []
-    required_outputs:
-      - commodity: resource:wind_resource
+facilities:
+  - id: reg1_gas_supply
+    site: reg1_energy_hub
+    stock:
+      items:
+        - adjust_to_base_year:
+            elasticity: -0.2
+            using: co2_policy_index
+          metric: annual_activity
+          observed:
+            value: 300 GWh/year
+            year: 2025
+          technology: pipeline_import
+    technology_role: gas_supply
 
-# Process variants: concrete technology definitions bound to roles.
-variants:
+  - id: reg1_generation
+    available_technologies:
+      - ccgt
+      - wind
+    site: reg1_energy_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 15 MW
+            year: 2025
+          technology: ccgt
+
+        - metric: installed_capacity
+          observed:
+            value: 3 MW
+            year: 2025
+          technology: wind
+    technology_role: electricity_generation
+
+  - id: reg1_service
+    site: reg1_energy_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 18 MW
+            year: 2025
+          technology: electricity_service
+    technology_role: electricity_service
+
+  - id: reg1_wind_supply
+    site: reg1_energy_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 100 MW
+            year: 2025
+          technology: onshore_wind_resource
+    technology_role: wind_resource_supply
+
+opportunities:
+  - id: reg1_wind_expansion
+    max_new_capacity: 40 MW
+    siting:
+      region_member:
+        member: REG1
+        partition: reg1_partition
+    technology: wind
+
+region_partitions:
+  - id: reg1_partition
+    layer: geo.demo
+    mapping:
+      kind: constant
+      value: REG1
+    members:
+      - REG1
+
+runs:
+  - id: reg1_2025
+    base_year: 2025
+    currency_year: 2024
+    region_partition: reg1_partition
+
+sites:
+  - id: reg1_energy_hub
+    location:
+      point:
+        lat: -35.28
+        lon: 149.13
+    membership_overrides:
+      region_partitions:
+        reg1_partition: REG1
+
+spatial_layers:
+  - id: geo.demo
+    geometry_file: data/regions.geojson
+    key: region_id
+    kind: polygon
+
+technologies:
   - id: ccgt
-    role: generate_electricity
     inputs:
       - commodity: primary:natural_gas
         basis: HHV
     outputs:
       - commodity: secondary:electricity
-    emission_factors:
-      emission:co2: 0.05
-    efficiency: 0.55
-    emission_factor_basis: HHV
-    lifetime: 40
+    emissions:
+      - commodity: emission:co2
+        factor: 0.056 t/GJ
+    lifetime: 40 year
+    performance:
+      kind: efficiency
+      value: 0.55
+    provides: service:electricity_generation
 
-  - id: grid_delivery
-    role: satisfy_electricity_demand
+  - id: electricity_service
     inputs:
       - commodity: secondary:electricity
-    outputs:
-      - commodity: service:electricity_demand
-    efficiency: 1.0
-    lifetime: 100
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:electricity_service
 
-  - id: onshore_wind_potential
-    role: supply_wind_resource
-    inputs: []
+  - id: onshore_wind_resource
     outputs:
       - commodity: resource:wind_resource
-    efficiency: 1.0
-    lifetime: 100
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:wind_resource_supply
 
   - id: pipeline_import
-    role: import_natural_gas
-    inputs: []
     outputs:
       - commodity: primary:natural_gas
-        basis: HHV
-    efficiency: 1.0
-    lifetime: 100
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:gas_supply
+    variable_om: 8 AUD2024/MWh
 
   - id: wind
-    role: generate_electricity
     inputs:
       - commodity: resource:wind_resource
     outputs:
       - commodity: secondary:electricity
-    efficiency: 1.0
-    lifetime: 25
+    lifetime: 25 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:electricity_generation
 
-# Availability: expands each variant into region/scope-specific process instances in the RES.
-availability:
-  - variant: ccgt
-    regions:
-      - REG1
+technology_roles:
+  - id: electricity_generation
+    primary_service: service:electricity_generation
+    technologies:
+      - ccgt
+      - wind
 
-  - variant: grid_delivery
-    regions:
-      - REG1
-    sectors:
-      - RES
+  - id: electricity_service
+    primary_service: service:electricity_service
+    technologies:
+      - electricity_service
 
-  - variant: onshore_wind_potential
-    regions:
-      - REG1
+  - id: gas_supply
+    primary_service: service:gas_supply
+    technologies:
+      - pipeline_import
 
-  - variant: pipeline_import
-    regions:
-      - REG1
+  - id: wind_resource_supply
+    primary_service: service:wind_resource_supply
+    technologies:
+      - onshore_wind_resource
 
-  - variant: wind
-    regions:
-      - REG1
-
-# Process parameters: selector-based overrides applied to matching instantiated process copies.
-process_parameters:
-  - cap_bound:
-      up: 100
-    selector:
-      variant: ccgt
-      region: REG1
-    stock: 2
-
-  - selector:
-      variant: grid_delivery
-      region: REG1
-      sector: RES
-    stock: 1000
-
-  - ncap_bound:
-      up: 100
-    selector:
-      variant: onshore_wind_potential
-      region: REG1
-    stock: 1000
-
-  - selector:
-      variant: pipeline_import
-      region: REG1
-    stock: 1000
-
-  - cap_bound:
-      up: 100
-    selector:
-      variant: wind
-      region: REG1
-    stock: 1
-
-# Demands: service demand trajectories by region and optional scope (sector/scope).
-demands:
-  - commodity: service:electricity_demand
-    region: REG1
+temporal_index_series:
+  - id: co2_policy_index
+    unit: index
     values:
-      "2025": 30
-      "2030": 40
-      "2040": 50
-      "2050": 60
-    interpolation: interp_extrap
-    sector: RES
+      "2025": 1.0
+      "2030": 1.5
+      "2040": 2.5
+      "2050": 4.0
+    base_year: 2025

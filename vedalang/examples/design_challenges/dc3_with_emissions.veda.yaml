@@ -1,203 +1,196 @@
-# Model: core system definition (regions, years, commodities, cases).
-model:
-  name: MiniModel
-  description: Thermal and renewable electricity supply with CO2 emissions accounting
-  regions:
-    - SINGLE
-  milestone_years:
-    - 2020
-    - 2030
-    - 2040
-    - 2050
-  commodities:
-    - id: emission:co2
-      description: Carbon dioxide emissions ledger
-      type: emission
-      unit: Mt
-      combustible: false
+commodities:
+  - id: emission:co2
+    kind: emission
 
-    - id: primary:natural_gas
-      description: Natural gas fuel
-      type: fuel
-      unit: PJ
-      combustible: true
-      hhv_mj_per_unit: 55.0
-      lhv_mj_per_unit: 50.0
+  - id: primary:natural_gas
+    kind: primary
 
-    - id: resource:wind_resource
-      description: Wind resource input
-      type: other
-      unit: PJ
-      combustible: false
+  - id: resource:wind_resource
+    kind: material
 
-    - id: secondary:electricity
-      description: Electricity carrier
-      type: energy
-      unit: PJ
-      combustible: false
+  - id: secondary:electricity
+    kind: secondary
 
-    - id: service:electricity_demand
-      description: Electricity demand service
-      type: service
-      unit: PJ
-      combustible: false
+  - id: service:electricity_generation
+    kind: service
 
-# Scoping: defines demand-side namespaces for instantiation/scoping.
-# sectors: required enum values = RES, COM, IND, TRN, AGR, NE, OTH.
-# end_uses: optional non-enum lowercase tokens (e.g., heating) to create scopes like RES.heating.
-scoping:
-  sectors:
-    - IND
+  - id: service:electricity_service
+    kind: service
 
-# Process roles: reusable contracts (required I/O + units) shared by multiple variants.
-roles:
-  - id: provide_electricity
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: conversion
-    required_inputs: []
-    required_outputs:
-      - commodity: secondary:electricity
+  - id: service:gas_supply
+    kind: service
 
-  - id: satisfy_electricity_demand
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: end_use
-    required_inputs:
-      - commodity: secondary:electricity
-    required_outputs:
-      - commodity: service:electricity_demand
+  - id: service:wind_resource_supply
+    kind: service
 
-  - id: supply_natural_gas
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: supply
-    required_inputs: []
-    required_outputs:
-      - commodity: primary:natural_gas
+dsl_version: "0.2"
 
-  - id: supply_wind_resource
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: supply
-    required_inputs: []
-    required_outputs:
-      - commodity: resource:wind_resource
+facilities:
+  - id: single_gas_supply
+    site: single_energy_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 200 MW
+            year: 2025
+          technology: natural_gas_supply
+    technology_role: gas_supply
 
-# Process variants: concrete technology definitions bound to roles.
-variants:
+  - id: single_generation
+    available_technologies:
+      - ccgt
+      - wind_turbine
+    site: single_energy_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 8 MW
+            year: 2025
+          technology: ccgt
+
+        - metric: installed_capacity
+          observed:
+            value: 4 MW
+            year: 2025
+          technology: wind_turbine
+    technology_role: electricity_generation
+
+  - id: single_service_delivery
+    site: single_energy_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 12 MW
+            year: 2025
+          technology: grid_delivery
+    technology_role: electricity_service
+
+  - id: single_wind_resource
+    site: single_energy_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 200 MW
+            year: 2025
+          technology: wind_resource_supply
+    technology_role: wind_resource_supply
+
+opportunities:
+  - id: single_more_wind
+    max_new_capacity: 25 MW
+    siting:
+      region_member:
+        member: SINGLE
+        partition: single_region
+    technology: wind_turbine
+
+region_partitions:
+  - id: single_region
+    layer: geo.demo
+    mapping:
+      kind: constant
+      value: SINGLE
+    members:
+      - SINGLE
+
+runs:
+  - id: single_2025
+    base_year: 2025
+    currency_year: 2024
+    region_partition: single_region
+
+sites:
+  - id: single_energy_hub
+    location:
+      point:
+        lat: -27.47
+        lon: 153.02
+    membership_overrides:
+      region_partitions:
+        single_region: SINGLE
+
+spatial_layers:
+  - id: geo.demo
+    geometry_file: data/regions.geojson
+    key: region_id
+    kind: polygon
+
+technologies:
   - id: ccgt
-    role: provide_electricity
     inputs:
       - commodity: primary:natural_gas
         basis: HHV
     outputs:
       - commodity: secondary:electricity
-    emission_factors:
-      emission:co2: 0.05
-    efficiency: 0.55
-    emission_factor_basis: HHV
-    lifetime: 30
+    emissions:
+      - commodity: emission:co2
+        factor: 0.056 t/GJ
+    lifetime: 30 year
+    performance:
+      kind: efficiency
+      value: 0.55
+    provides: service:electricity_generation
 
   - id: grid_delivery
-    role: satisfy_electricity_demand
     inputs:
       - commodity: secondary:electricity
-    outputs:
-      - commodity: service:electricity_demand
-    efficiency: 1.0
-    lifetime: 100
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:electricity_service
 
   - id: natural_gas_supply
-    role: supply_natural_gas
-    inputs: []
     outputs:
       - commodity: primary:natural_gas
-        basis: HHV
-    efficiency: 1.0
-    lifetime: 100
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:gas_supply
 
   - id: wind_resource_supply
-    role: supply_wind_resource
-    inputs: []
     outputs:
       - commodity: resource:wind_resource
-    efficiency: 1.0
-    lifetime: 100
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:wind_resource_supply
 
   - id: wind_turbine
-    role: provide_electricity
     inputs:
       - commodity: resource:wind_resource
     outputs:
       - commodity: secondary:electricity
-    efficiency: 1.0
-    lifetime: 25
+    lifetime: 25 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:electricity_generation
 
-# Availability: expands each variant into region/scope-specific process instances in the RES.
-availability:
-  - variant: ccgt
-    regions:
-      - SINGLE
-    sectors:
-      - IND
+technology_roles:
+  - id: electricity_generation
+    primary_service: service:electricity_generation
+    technologies:
+      - ccgt
+      - wind_turbine
 
-  - variant: grid_delivery
-    regions:
-      - SINGLE
-    sectors:
-      - IND
+  - id: electricity_service
+    primary_service: service:electricity_service
+    technologies:
+      - grid_delivery
 
-  - variant: natural_gas_supply
-    regions:
-      - SINGLE
+  - id: gas_supply
+    primary_service: service:gas_supply
+    technologies:
+      - natural_gas_supply
 
-  - variant: wind_resource_supply
-    regions:
-      - SINGLE
-
-  - variant: wind_turbine
-    regions:
-      - SINGLE
-    sectors:
-      - IND
-
-# Process parameters: selector-based overrides applied to matching instantiated process copies.
-process_parameters:
-  - selector:
-      variant: ccgt
-      region: SINGLE
-      sector: IND
-    stock: 5
-
-  - selector:
-      variant: grid_delivery
-      region: SINGLE
-      sector: IND
-    stock: 1000
-
-  - selector:
-      variant: natural_gas_supply
-      region: SINGLE
-    stock: 1000
-
-  - selector:
-      variant: wind_resource_supply
-      region: SINGLE
-    stock: 1000
-
-  - selector:
-      variant: wind_turbine
-      region: SINGLE
-      sector: IND
-    stock: 3
-
-# Demands: service demand trajectories by region and optional scope (sector/scope).
-demands:
-  - commodity: service:electricity_demand
-    region: SINGLE
-    values:
-      "2020": 8
-      "2050": 10
-    interpolation: interp_extrap
-    sector: IND
+  - id: wind_resource_supply
+    primary_service: service:wind_resource_supply
+    technologies:
+      - wind_resource_supply

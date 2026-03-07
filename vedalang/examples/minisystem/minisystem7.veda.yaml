@@ -1,250 +1,213 @@
-# Model: core system definition (regions, years, commodities, cases).
-model:
-  name: MiniSystem7
-  description: Multi-region model with unidirectional electricity trade
-  regions:
-    - NORTH
-    - SOUTH
-  milestone_years:
-    - 2020
-    - 2025
-    - 2030
-    - 2040
-  timeslices:
-    daynite:
-      - name: Day
-        code: D
+commodities:
+  - id: emission:co2
+    kind: emission
 
-      - name: Night
-        code: N
-    fractions:
-      SD: 0.25
-      SN: 0.22
-      WD: 0.28
-      WN: 0.25
-    season:
-      - name: Summer
-        code: S
+  - id: primary:gas
+    kind: primary
 
-      - name: Winter
-        code: W
-  commodities:
-    - id: emission:co2
-      description: Carbon dioxide emissions
-      type: emission
-      unit: Mt
-      combustible: false
+  - id: secondary:electricity
+    kind: secondary
 
-    - id: primary:gas
-      description: Natural gas
-      type: fuel
-      unit: PJ
-      combustible: true
-      hhv_mj_per_unit: 55.0
-      lhv_mj_per_unit: 50.0
+  - id: service:electricity_generation
+    kind: service
 
-    - id: secondary:electricity
-      description: Electricity
-      type: energy
-      unit: PJ
-      combustible: false
+  - id: service:gas_supply
+    kind: service
 
-    - id: service:residential_demand
-      description: Residential demand
-      type: service
-      unit: PJ
-      combustible: false
-  scenario_parameters:
-    - name: co2_price
-      description: Carbon price trajectory
-      type: commodity_price
-      commodity: emission:co2
-      values:
-        "2025": 30
-        "2030": 50
-        "2050": 100
-      interpolation: interp_extrap
-  trade_links:
-    - commodity: secondary:electricity
-      origin: NORTH
-      destination: SOUTH
-      bidirectional: false
-      efficiency: 0.97
+  - id: service:residential_demand
+    kind: service
 
-# Scoping: defines demand-side namespaces for instantiation/scoping.
-# sectors: required enum values = RES, COM, IND, TRN, AGR, NE, OTH.
-# end_uses: optional non-enum lowercase tokens (e.g., heating) to create scopes like RES.heating.
-scoping:
-  sectors:
-    - RES
+dsl_version: "0.2"
 
-# Process roles: reusable contracts (required I/O + units) shared by multiple variants.
-roles:
-  - id: deliver_residential
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: end_use
-    required_inputs:
-      - commodity: secondary:electricity
-    required_outputs:
-      - commodity: service:residential_demand
+facilities:
+  - id: north_generation
+    available_technologies:
+      - ccgt
+      - wind
+    site: north_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 2 MW
+            year: 2025
+          technology: ccgt
 
-  - id: generate_electricity
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: conversion
-    required_inputs: []
-    required_outputs:
-      - commodity: secondary:electricity
+        - metric: installed_capacity
+          observed:
+            value: 1 MW
+            year: 2025
+          technology: wind
+    technology_role: electricity_generation
 
-  - id: import_gas
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: supply
-    required_inputs: []
-    required_outputs:
-      - commodity: primary:gas
+  - id: north_service
+    site: north_hub
+    stock:
+      items:
+        - metric: annual_activity
+          observed:
+            value: 30 GWh/year
+            year: 2025
+          technology: residential_device
+    technology_role: residential_service
 
-# Process variants: concrete technology definitions bound to roles.
-variants:
+  - id: north_supply
+    site: north_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 100 MW
+            year: 2025
+          technology: gas_import
+    technology_role: gas_supply
+
+  - id: south_generation
+    available_technologies:
+      - ccgt
+      - wind
+    site: south_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 2 MW
+            year: 2025
+          technology: ccgt
+    technology_role: electricity_generation
+
+  - id: south_service
+    site: south_hub
+    stock:
+      items:
+        - metric: annual_activity
+          observed:
+            value: 30 GWh/year
+            year: 2025
+          technology: residential_device
+    technology_role: residential_service
+
+  - id: south_supply
+    site: south_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 100 MW
+            year: 2025
+          technology: gas_import
+    technology_role: gas_supply
+
+networks:
+  - id: north_south_power
+    kind: transmission
+    links:
+      - id: north_to_south
+        commodity: secondary:electricity
+        existing_transfer_capacity: 50 MW
+        from: NORTH
+        to: SOUTH
+    node_basis:
+      kind: region_partition
+      ref: north_south
+
+region_partitions:
+  - id: north_south
+    layer: geo.demo
+    mapping:
+      kind: constant
+      value: NORTH
+    members:
+      - NORTH
+      - SOUTH
+
+runs:
+  - id: north_south_2025
+    base_year: 2025
+    currency_year: 2024
+    region_partition: north_south
+
+sites:
+  - id: north_hub
+    location:
+      point:
+        lat: -27.47
+        lon: 153.02
+    membership_overrides:
+      region_partitions:
+        north_south: NORTH
+
+  - id: south_hub
+    location:
+      point:
+        lat: -37.81
+        lon: 144.96
+    membership_overrides:
+      region_partitions:
+        north_south: SOUTH
+
+spatial_layers:
+  - id: geo.demo
+    geometry_file: data/regions.geojson
+    key: region_id
+    kind: polygon
+
+technologies:
   - id: ccgt
-    role: generate_electricity
     inputs:
       - commodity: primary:gas
         basis: HHV
     outputs:
       - commodity: secondary:electricity
-    emission_factors:
-      emission:co2: 0.05
-    efficiency: 0.55
-    emission_factor_basis: HHV
-    fixed_om_cost: 20 MUSD24/GW/yr
-    investment_cost: 800 MUSD24/GW
-    lifetime: 40
-    variable_om_cost: 2 MUSD24/PJ
-    variable_om_cost_basis: HHV
+    emissions:
+      - commodity: emission:co2
+        factor: 0.05 t/GJ
+    lifetime: 40 year
+    performance:
+      kind: efficiency
+      value: 0.55
+    provides: service:electricity_generation
 
   - id: gas_import
-    role: import_gas
-    inputs: []
     outputs:
       - commodity: primary:gas
-        basis: HHV
-    efficiency: 1.0
-    lifetime: 100
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:gas_supply
 
   - id: residential_device
-    role: deliver_residential
     inputs:
       - commodity: secondary:electricity
-    outputs:
-      - commodity: service:residential_demand
-    efficiency: 1.0
-    lifetime: 100
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:residential_demand
 
   - id: wind
-    role: generate_electricity
-    inputs: []
     outputs:
       - commodity: secondary:electricity
-    efficiency: 1.0
-    fixed_om_cost: 25 MUSD24/GW/yr
-    investment_cost: 1200 MUSD24/GW
-    lifetime: 25
-    variable_om_cost: 1 MUSD24/PJ
+    lifetime: 25 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:electricity_generation
 
-# Availability: expands each variant into region/scope-specific process instances in the RES.
-availability:
-  - variant: ccgt
-    regions:
-      - NORTH
-      - SOUTH
+technology_roles:
+  - id: electricity_generation
+    primary_service: service:electricity_generation
+    technologies:
+      - ccgt
+      - wind
 
-  - variant: gas_import
-    regions:
-      - NORTH
-      - SOUTH
+  - id: gas_supply
+    primary_service: service:gas_supply
+    technologies:
+      - gas_import
 
-  - variant: residential_device
-    regions:
-      - NORTH
-      - SOUTH
-    sectors:
-      - RES
-
-  - variant: wind
-    regions:
-      - NORTH
-      - SOUTH
-
-# Process parameters: selector-based overrides applied to matching instantiated process copies.
-process_parameters:
-  - cap_bound:
-      up: 100
-    selector:
-      variant: ccgt
-      region: NORTH
-    stock: 2
-
-  - cap_bound:
-      up: 100
-    selector:
-      variant: ccgt
-      region: SOUTH
-    stock: 2
-
-  - selector:
-      variant: gas_import
-      region: NORTH
-    stock: 1000
-
-  - selector:
-      variant: gas_import
-      region: SOUTH
-    stock: 1000
-
-  - selector:
-      variant: residential_device
-      region: NORTH
-      sector: RES
-    stock: 1000
-
-  - selector:
-      variant: residential_device
-      region: SOUTH
-      sector: RES
-    stock: 1000
-
-  - cap_bound:
-      up: 100
-    selector:
-      variant: wind
-      region: NORTH
-    stock: 1
-
-  - cap_bound:
-      up: 100
-    selector:
-      variant: wind
-      region: SOUTH
-    stock: 1
-
-# Demands: service demand trajectories by region and optional scope (sector/scope).
-demands:
-  - commodity: service:residential_demand
-    region: NORTH
-    values:
-      "2020": 30
-      "2030": 60
-      "2050": 90
-    interpolation: interp_extrap
-    sector: RES
-
-  - commodity: service:residential_demand
-    region: SOUTH
-    values:
-      "2020": 30
-      "2030": 60
-      "2050": 90
-    interpolation: interp_extrap
-    sector: RES
+  - id: residential_service
+    primary_service: service:residential_demand
+    technologies:
+      - residential_device

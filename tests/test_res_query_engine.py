@@ -5,7 +5,7 @@ from vedalang.viz.query_engine import query_res_graph, response_to_mermaid
 EXAMPLES_DIR = Path(__file__).resolve().parent.parent / "vedalang" / "examples"
 
 
-def test_source_query_returns_graph():
+def test_source_query_returns_v0_2_role_graph():
     source_file = EXAMPLES_DIR / "toy_sectors/toy_buildings.veda.yaml"
 
     response = query_res_graph(
@@ -22,17 +22,15 @@ def test_source_query_returns_graph():
 
     assert response["status"] == "ok"
     assert response["mode_used"] == "source"
-    assert response["graph"]["nodes"]
     assert response["facets"]["regions"] == ["SINGLE"]
-    role_details = [
-        detail
-        for node_id, detail in response["details"]["nodes"].items()
-        if node_id.startswith("role:")
-    ]
-    assert any(isinstance(detail.get("stage"), str) for detail in role_details)
+    assert any(node["type"] == "role" for node in response["graph"]["nodes"])
+    assert any(
+        detail.get("technology_role") == "space_heat_supply"
+        for detail in response["details"]["nodes"].values()
+    )
 
 
-def test_compiled_instance_query_has_segment_scoped_entities():
+def test_compiled_instance_query_returns_process_nodes():
     source_file = EXAMPLES_DIR / "toy_sectors/toy_buildings.veda.yaml"
 
     response = query_res_graph(
@@ -45,7 +43,7 @@ def test_compiled_instance_query_has_segment_scoped_entities():
             "filters": {
                 "regions": ["SINGLE"],
                 "case": None,
-                "sectors": ["RES"],
+                "sectors": [],
                 "scopes": [],
             },
             "compiled": {"truth": "auto", "cache": True, "allow_partial": True},
@@ -53,21 +51,67 @@ def test_compiled_instance_query_has_segment_scoped_entities():
     )
 
     assert response["status"] in {"ok", "partial"}
-    assert response["graph"]["nodes"]
-    process_labels = [
-        n["label"] for n in response["graph"]["nodes"] if n["type"] == "instance"
-    ]
-    assert any("_RES" in label for label in process_labels)
-    instance_details = [
-        detail
-        for node_id, detail in response["details"]["nodes"].items()
-        if node_id.startswith("instance:")
-    ]
-    assert any(isinstance(detail.get("stage"), str) for detail in instance_details)
+    assert any(node["type"] == "instance" for node in response["graph"]["nodes"])
+    assert any(
+        detail.get("technology") == "heat_pump"
+        for detail in response["details"]["nodes"].values()
+    )
 
 
-def test_mermaid_includes_stage_in_process_labels():
-    source_file = EXAMPLES_DIR / "toy_sectors/toy_buildings.veda.yaml"
+def test_trade_query_exposes_network_edges():
+    source_file = EXAMPLES_DIR / "feature_demos/example_with_trade.veda.yaml"
+
+    response = query_res_graph(
+        {
+            "version": "1",
+            "file": str(source_file),
+            "mode": "compiled",
+            "granularity": "instance",
+            "lens": "trade",
+            "filters": {
+                "regions": ["REG1", "REG2"],
+                "case": None,
+                "sectors": [],
+                "scopes": [],
+            },
+            "compiled": {"truth": "auto", "cache": True, "allow_partial": True},
+        }
+    )
+
+    assert response["status"] in {"ok", "partial"}
+    trade_edges = [
+        edge for edge in response["graph"]["edges"] if edge["type"] == "trade"
+    ]
+    assert len(trade_edges) == 2
+    first_edge_detail = response["details"]["edges"][trade_edges[0]["id"]]
+    assert "source_network" in first_edge_detail
+
+
+def test_trade_lens_returns_empty_graph_when_no_networks_defined():
+    source_file = EXAMPLES_DIR / "design_challenges/dc5_two_regions.veda.yaml"
+
+    response = query_res_graph(
+        {
+            "version": "1",
+            "file": str(source_file),
+            "mode": "source",
+            "granularity": "role",
+            "lens": "trade",
+            "filters": {"regions": [], "case": None, "sectors": [], "scopes": []},
+            "compiled": {"truth": "auto", "cache": True, "allow_partial": True},
+        }
+    )
+
+    assert response["status"] == "ok"
+    assert response["graph"]["edges"] == []
+    assert response["graph"]["nodes"] == [
+        {"id": "region:REG1", "label": "REG1", "type": "region"},
+        {"id": "region:REG2", "label": "REG2", "type": "region"},
+    ]
+
+
+def test_mermaid_output_contains_flowchart():
+    source_file = EXAMPLES_DIR / "feature_demos/example_with_facilities.veda.yaml"
 
     response = query_res_graph(
         {
@@ -82,128 +126,11 @@ def test_mermaid_includes_stage_in_process_labels():
     )
 
     mermaid = response_to_mermaid(response)
-    assert "[Supply]" in mermaid or "[End Use]" in mermaid
+    assert mermaid.startswith("flowchart LR")
+    assert "alumina_calcination" in mermaid
 
 
-def test_compiled_trade_query_exposes_trade_edges_and_details():
-    source_file = EXAMPLES_DIR / "feature_demos/example_with_trade.veda.yaml"
-
-    response = query_res_graph(
-        {
-            "version": "1",
-            "file": str(source_file),
-            "mode": "compiled",
-            "granularity": "instance",
-            "lens": "trade",
-            "filters": {
-                "regions": ["REG1", "REG2"],
-                "case": "baseline",
-                "sectors": [],
-                "scopes": [],
-            },
-            "compiled": {"truth": "auto", "cache": True, "allow_partial": True},
-        }
-    )
-
-    assert response["status"] in {"ok", "partial"}
-    trade_edges = [e for e in response["graph"]["edges"] if e["type"] == "trade"]
-    assert trade_edges
-    first_edge_id = trade_edges[0]["id"]
-    assert "ire_processes" in response["details"]["edges"][first_edge_id]
-
-
-def test_trade_lens_reports_missing_trade_links_diagnostic():
-    source_file = EXAMPLES_DIR / "design_challenges/dc5_two_regions.veda.yaml"
-
-    response = query_res_graph(
-        {
-            "version": "1",
-            "file": str(source_file),
-            "mode": "source",
-            "granularity": "instance",
-            "lens": "trade",
-            "filters": {"regions": [], "case": None, "sectors": [], "scopes": []},
-            "compiled": {"truth": "auto", "cache": True, "allow_partial": True},
-        }
-    )
-
-    assert response["status"] == "ok"
-    assert response["graph"]["nodes"] == []
-    assert response["graph"]["edges"] == []
-    assert any(d.get("code") == "NO_TRADE_LINKS" for d in response["diagnostics"])
-
-
-def test_facility_source_mode_granularity_exposes_mode_nodes():
-    source_file = EXAMPLES_DIR / "feature_demos/example_with_facilities.veda.yaml"
-
-    response = query_res_graph(
-        {
-            "version": "1",
-            "file": str(source_file),
-            "mode": "source",
-            "granularity": "mode",
-            "lens": "system",
-            "filters": {"regions": [], "case": None, "sectors": [], "scopes": []},
-            "compiled": {"truth": "auto", "cache": True, "allow_partial": True},
-        }
-    )
-
-    assert response["status"] == "ok"
-    assert response["graph"]["nodes"]
-    mode_nodes = [n for n in response["graph"]["nodes"] if n["type"] == "mode"]
-    assert mode_nodes
-    first_mode_id = mode_nodes[0]["id"]
-    detail = response["details"]["nodes"][first_mode_id]
-    assert detail["facility_id"]
-    assert detail["mode_id"]
-
-
-def test_facility_compiled_mode_granularity_includes_facility_metadata():
-    source_file = EXAMPLES_DIR / "feature_demos/example_with_facilities.veda.yaml"
-
-    response = query_res_graph(
-        {
-            "version": "1",
-            "file": str(source_file),
-            "mode": "compiled",
-            "granularity": "mode",
-            "lens": "system",
-            "filters": {"regions": [], "case": None, "sectors": [], "scopes": []},
-            "compiled": {"truth": "auto", "cache": False, "allow_partial": True},
-        }
-    )
-
-    assert response["status"] in {"ok", "partial"}
-    mode_nodes = [n for n in response["graph"]["nodes"] if n["type"] == "mode"]
-    assert mode_nodes
-    first_mode_id = mode_nodes[0]["id"]
-    detail = response["details"]["nodes"][first_mode_id]
-    assert detail["facility_id"]
-    assert detail["template_variant_id"]
-    assert detail["mode_id"]
-
-
-def test_mermaid_mode_granularity_includes_facility_mode_label():
-    source_file = EXAMPLES_DIR / "feature_demos/example_with_facilities.veda.yaml"
-
-    response = query_res_graph(
-        {
-            "version": "1",
-            "file": str(source_file),
-            "mode": "source",
-            "granularity": "mode",
-            "lens": "system",
-            "filters": {"regions": [], "case": None, "sectors": [], "scopes": []},
-            "compiled": {"truth": "auto", "cache": True, "allow_partial": True},
-        }
-    )
-
-    mermaid = response_to_mermaid(response)
-    assert "[Conversion]" in mermaid
-    assert "retrofit_to_ng" in mermaid or "coal" in mermaid
-
-
-def test_compiled_commodity_view_collapse_scope_merges_scoped_nodes():
+def test_compiled_commodity_view_collapse_scope_merges_namespaces():
     source_file = EXAMPLES_DIR / "toy_sectors/toy_buildings.veda.yaml"
 
     scoped = query_res_graph(
@@ -231,63 +158,16 @@ def test_compiled_commodity_view_collapse_scope_merges_scoped_nodes():
         }
     )
 
-    scoped_commodities = [
-        n["label"]
-        for n in scoped["graph"]["nodes"]
-        if n["type"] == "commodity"
+    scoped_labels = [
+        node["label"]
+        for node in scoped["graph"]["nodes"]
+        if node["type"] == "commodity"
     ]
-    collapsed_commodities = [
-        n["label"]
-        for n in collapsed["graph"]["nodes"]
-        if n["type"] == "commodity"
+    collapsed_labels = [
+        node["label"]
+        for node in collapsed["graph"]["nodes"]
+        if node["type"] == "commodity"
     ]
-
-    assert any("@" in label for label in scoped_commodities)
-    assert all("@" not in label for label in collapsed_commodities)
-
-
-def test_v0_2_source_query_returns_role_graph():
-    source_file = EXAMPLES_DIR / "v0_2/mini_space_heat.veda.yaml"
-
-    response = query_res_graph(
-        {
-            "version": "1",
-            "file": str(source_file),
-            "mode": "source",
-            "granularity": "role",
-            "lens": "system",
-            "filters": {"regions": [], "case": None, "sectors": [], "scopes": []},
-            "compiled": {"truth": "auto", "cache": True, "allow_partial": True},
-        }
-    )
-
-    assert response["status"] == "ok"
-    assert any(node["type"] == "role" for node in response["graph"]["nodes"])
-    assert response["facets"]["regions"] == ["QLD"]
-
-
-def test_v0_2_compiled_trade_query_exposes_network_arcs():
-    source_file = EXAMPLES_DIR / "v0_2/toy_heat_network.veda.yaml"
-
-    response = query_res_graph(
-        {
-            "version": "1",
-            "file": str(source_file),
-            "mode": "compiled",
-            "granularity": "instance",
-            "lens": "trade",
-            "filters": {
-                "regions": ["NSW", "QLD"],
-                "case": None,
-                "sectors": [],
-                "scopes": [],
-            },
-            "compiled": {"truth": "auto", "cache": False, "allow_partial": True},
-        }
-    )
-
-    assert response["status"] in {"ok", "partial"}
-    trade_edges = [e for e in response["graph"]["edges"] if e["type"] == "trade"]
-    assert trade_edges
-    first = response["details"]["edges"][trade_edges[0]["id"]]
-    assert first["source_network"] == "east_coast_power"
+    assert scoped_labels
+    assert collapsed_labels
+    assert len(collapsed_labels) <= len(scoped_labels)

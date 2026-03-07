@@ -15,6 +15,7 @@ from vedalang.compiler.compiler import (
 )
 from vedalang.compiler.ir import Role
 from vedalang.conventions import stage_label, stage_order
+from vedalang.versioning import looks_like_v0_2_source
 
 DEFAULT_ACTIVITY_UNIT = "PJ"
 DEFAULT_CAPACITY_UNIT = "GW"
@@ -47,6 +48,9 @@ def export_res_graph(source: dict) -> dict:
         - variants: List of variant descriptors
         - edges: List of directed edges between commodities and roles
     """
+    if looks_like_v0_2_source(source):
+        return _export_v0_2_res_graph(source)
+
     model = source.get("model", {})
 
     # Build commodity lookup
@@ -159,23 +163,27 @@ def export_res_graph(source: dict) -> dict:
 
         # Build edges
         for inp_id in required_inputs:
-            edges.append({
-                "from": inp_id,
-                "to": role_id,
-                "direction": "input",
-                "commodity": inp_id,
-                "scope": "role",
-            })
+            edges.append(
+                {
+                    "from": inp_id,
+                    "to": role_id,
+                    "direction": "input",
+                    "commodity": inp_id,
+                    "scope": "role",
+                }
+            )
         for out_id in required_outputs:
             comm = commodities_by_id.get(out_id, {})
             edge_kind = "emission" if comm.get("type") == "emission" else "output"
-            edges.append({
-                "from": role_id,
-                "to": out_id,
-                "direction": edge_kind,
-                "commodity": out_id,
-                "scope": "role",
-            })
+            edges.append(
+                {
+                    "from": role_id,
+                    "to": out_id,
+                    "direction": edge_kind,
+                    "commodity": out_id,
+                    "scope": "role",
+                }
+            )
 
     # Build variant nodes and collect variant-level edges
     variant_nodes = []
@@ -192,9 +200,7 @@ def export_res_graph(source: dict) -> dict:
             continue
 
         # Find the role to derive kind
-        role_raw = next(
-            (r for r in roles if r.get("id") == role_id), None
-        )
+        role_raw = next((r for r in roles if r.get("id") == role_id), None)
         kind = variant.get("kind")
         kind_source = "explicit" if kind else "derived"
         if not kind and role_raw:
@@ -258,14 +264,16 @@ def export_res_graph(source: dict) -> dict:
         for inp_id in v_inputs:
             edge_key = (inp_id, role_id, "input")
             if edge_key not in existing_edges:
-                edges.append({
-                    "from": inp_id,
-                    "to": role_id,
-                    "direction": "input",
-                    "commodity": inp_id,
-                    "scope": "variant",
-                    "source_variants": [vid],
-                })
+                edges.append(
+                    {
+                        "from": inp_id,
+                        "to": role_id,
+                        "direction": "input",
+                        "commodity": inp_id,
+                        "scope": "variant",
+                        "source_variants": [vid],
+                    }
+                )
                 existing_edges.add(edge_key)
             else:
                 # Tag existing edge with this variant source
@@ -306,14 +314,16 @@ def export_res_graph(source: dict) -> dict:
         for em_id in emission_factors.keys():
             edge_key = (role_id, em_id, "emission")
             if edge_key not in existing_edges:
-                edges.append({
-                    "from": role_id,
-                    "to": em_id,
-                    "direction": "emission",
-                    "commodity": em_id,
-                    "scope": "variant",
-                    "source_variants": [vid],
-                })
+                edges.append(
+                    {
+                        "from": role_id,
+                        "to": em_id,
+                        "direction": "emission",
+                        "commodity": em_id,
+                        "scope": "variant",
+                        "source_variants": [vid],
+                    }
+                )
                 existing_edges.add(edge_key)
             else:
                 for e in edges:
@@ -353,6 +363,252 @@ def export_res_graph(source: dict) -> dict:
     }
 
 
+def _commodity_type_from_kind(kind: str | None) -> str:
+    mapping = {
+        "primary": "fuel",
+        "secondary": "energy",
+        "service": "service",
+        "emission": "emission",
+        "material": "material",
+        "certificate": "other",
+    }
+    return mapping.get(str(kind or ""), "other")
+
+
+def _infer_v0_2_stage(
+    role_id: str,
+    primary_service: str,
+    technologies: list[dict],
+) -> str:
+    if role_id.endswith("_supply"):
+        return "supply"
+    if all(not tech.get("inputs") for tech in technologies):
+        return "supply"
+    if primary_service.startswith("service:"):
+        explicit_outputs = any(tech.get("outputs") for tech in technologies)
+        if explicit_outputs:
+            return "conversion"
+        return "end_use"
+    return "conversion"
+
+
+def _derive_v0_2_kind(
+    stage: str,
+    primary_service: str,
+    technologies: list[dict],
+) -> str:
+    if stage == "supply":
+        return "source"
+    if stage == "end_use":
+        return "device"
+    output_ids: set[str] = set()
+    for tech in technologies:
+        for flow in tech.get("outputs") or []:
+            if isinstance(flow, dict) and flow.get("commodity"):
+                output_ids.add(str(flow["commodity"]))
+    if primary_service.startswith("service:"):
+        output_ids.add(primary_service)
+    if any(output.startswith("secondary:") for output in output_ids):
+        return "generator"
+    return "process"
+
+
+def _variant_outputs_for_v0_2(
+    tech: dict,
+    primary_service: str,
+) -> list[str]:
+    outputs = [
+        str(flow["commodity"])
+        for flow in tech.get("outputs") or []
+        if isinstance(flow, dict) and flow.get("commodity")
+    ]
+    if primary_service.startswith("service:") and primary_service not in outputs:
+        outputs.append(primary_service)
+    return sorted(set(outputs))
+
+
+def _export_v0_2_res_graph(source: dict) -> dict:
+    commodities_by_id: dict[str, dict] = {}
+    commodity_nodes: list[dict] = []
+    for raw in source.get("commodities") or []:
+        commodity_id = raw.get("id")
+        if not commodity_id:
+            continue
+        entry = {
+            "id": commodity_id,
+            "type": _commodity_type_from_kind(raw.get("kind")),
+            "kind": raw.get("kind") or _commodity_type_from_kind(raw.get("kind")),
+        }
+        commodities_by_id[str(commodity_id)] = entry
+        commodity_nodes.append(entry)
+
+    technologies = {
+        str(item["id"]): item
+        for item in source.get("technologies") or []
+        if item.get("id")
+    }
+    role_nodes: list[dict] = []
+    variant_nodes: list[dict] = []
+    edges: list[dict] = []
+    existing_edges: set[tuple[str, str, str]] = set()
+
+    for raw_role in source.get("technology_roles") or []:
+        role_id = raw_role.get("id")
+        primary_service = str(raw_role.get("primary_service", ""))
+        tech_ids = [str(item) for item in raw_role.get("technologies") or []]
+        role_techs = [
+            technologies[tech_id] for tech_id in tech_ids if tech_id in technologies
+        ]
+        if not role_id or not primary_service:
+            continue
+
+        stage = _infer_v0_2_stage(str(role_id), primary_service, role_techs)
+        derived_kind = _derive_v0_2_kind(stage, primary_service, role_techs)
+        role_inputs = sorted(
+            {
+                str(flow["commodity"])
+                for tech in role_techs
+                for flow in tech.get("inputs") or []
+                if isinstance(flow, dict) and flow.get("commodity")
+            }
+        )
+        role_entry = {
+            "id": str(role_id),
+            "stage": stage,
+            "required_inputs": [],
+            "required_outputs": [{"commodity": primary_service}],
+            "derived_kind": derived_kind,
+            "variant_count": len(role_techs),
+            "has_variant_level_inputs": bool(role_inputs),
+            "primary_output": primary_service,
+            "has_variant_level_outputs": False,
+        }
+        if role_inputs:
+            role_entry["variant_inputs"] = role_inputs
+        role_nodes.append(role_entry)
+
+        edge_key = (str(role_id), primary_service, "output")
+        edges.append(
+            {
+                "from": str(role_id),
+                "to": primary_service,
+                "direction": "output",
+                "commodity": primary_service,
+                "scope": "role",
+            }
+        )
+        existing_edges.add(edge_key)
+
+        variant_outputs_extra: set[str] = set()
+        for tech in role_techs:
+            tech_id = str(tech["id"])
+            v_inputs = sorted(
+                str(flow["commodity"])
+                for flow in tech.get("inputs") or []
+                if isinstance(flow, dict) and flow.get("commodity")
+            )
+            v_outputs = _variant_outputs_for_v0_2(tech, primary_service)
+            variant_entry = {
+                "id": tech_id,
+                "role": str(role_id),
+                "kind": derived_kind,
+                "kind_source": "derived",
+                "inputs": v_inputs,
+                "outputs": v_outputs,
+            }
+            emissions = {
+                str(flow["commodity"]): str(flow["factor"])
+                for flow in tech.get("emissions") or []
+                if isinstance(flow, dict) and flow.get("commodity")
+            }
+            if emissions:
+                variant_entry["emission_factors"] = emissions
+            variant_nodes.append(variant_entry)
+
+            for commodity_id in v_inputs:
+                edge_key = (commodity_id, str(role_id), "input")
+                if edge_key not in existing_edges:
+                    edges.append(
+                        {
+                            "from": commodity_id,
+                            "to": str(role_id),
+                            "direction": "input",
+                            "commodity": commodity_id,
+                            "scope": "variant",
+                            "source_variants": [tech_id],
+                        }
+                    )
+                    existing_edges.add(edge_key)
+            for commodity_id in v_outputs:
+                if commodity_id == primary_service:
+                    continue
+                variant_outputs_extra.add(commodity_id)
+                direction = (
+                    "emission"
+                    if commodities_by_id.get(commodity_id, {}).get("type") == "emission"
+                    else "output"
+                )
+                edge_key = (str(role_id), commodity_id, direction)
+                if edge_key not in existing_edges:
+                    edges.append(
+                        {
+                            "from": str(role_id),
+                            "to": commodity_id,
+                            "direction": direction,
+                            "commodity": commodity_id,
+                            "scope": "variant",
+                            "source_variants": [tech_id],
+                        }
+                    )
+                    existing_edges.add(edge_key)
+            for emission_id in emissions:
+                edge_key = (str(role_id), emission_id, "emission")
+                if edge_key not in existing_edges:
+                    edges.append(
+                        {
+                            "from": str(role_id),
+                            "to": emission_id,
+                            "direction": "emission",
+                            "commodity": emission_id,
+                            "scope": "variant",
+                            "source_variants": [tech_id],
+                        }
+                    )
+                    existing_edges.add(edge_key)
+        if variant_outputs_extra:
+            role_entry["has_variant_level_outputs"] = True
+            role_entry["variant_outputs"] = sorted(variant_outputs_extra)
+
+    commodity_nodes.sort(key=lambda c: c["id"])
+    role_nodes.sort(key=lambda r: r["id"])
+    variant_nodes.sort(key=lambda v: v["id"])
+    edges.sort(key=lambda e: (e["from"], e["to"], e["direction"]))
+
+    regions = []
+    run_id = ""
+    if source.get("runs"):
+        run = source["runs"][0]
+        run_id = str(run.get("id", ""))
+        partition_ref = run.get("region_partition")
+        for partition in source.get("region_partitions") or []:
+            if partition.get("id") == partition_ref:
+                regions = sorted(partition.get("members") or [])
+                break
+
+    return {
+        "version": "1.0",
+        "model": {
+            "name": run_id,
+            "regions": regions,
+            "milestone_years": [],
+        },
+        "commodities": commodity_nodes,
+        "roles": role_nodes,
+        "variants": variant_nodes,
+        "edges": edges,
+    }
+
+
 def res_graph_to_mermaid(graph: dict) -> str:
     """Convert a normalized RES graph to Mermaid flowchart syntax.
 
@@ -377,11 +633,11 @@ def res_graph_to_mermaid(graph: dict) -> str:
         role_stage_label = stage_label(stage)
         safe_stage = _sanitize(stage)
         lines.append("")
-        lines.append(f"    subgraph stage_{safe_stage}[\"{role_stage_label}\"]")
+        lines.append(f'    subgraph stage_{safe_stage}["{role_stage_label}"]')
         for role in roles_by_stage[stage]:
             safe_id = _sanitize(role["id"])
             label = _format_role_label(role)
-            lines.append(f"        R_{safe_id}[\"{label}\"]")
+            lines.append(f'        R_{safe_id}["{label}"]')
         lines.append("    end")
 
     # Render commodity nodes
@@ -390,7 +646,7 @@ def res_graph_to_mermaid(graph: dict) -> str:
     for comm in graph.get("commodities", []):
         safe_id = _sanitize(comm["id"])
         label = _format_commodity_label(comm)
-        lines.append(f"    C_{safe_id}((\"{label}\"))")
+        lines.append(f'    C_{safe_id}(("{label}"))')
 
     # Render edges
     lines.append("")

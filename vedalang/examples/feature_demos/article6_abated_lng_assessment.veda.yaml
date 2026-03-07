@@ -1,216 +1,206 @@
-model:
-  name: Article6AbatedLngAssessment
-  description: Compare no_deal vs abated_lng_deal outcomes for Australia and a trade
-    partner
-  regions:
-    - AU
-    - PARTNER
-  milestone_years:
-    - 2025
-    - 2030
-    - 2040
-    - 2050
-  commodities:
-    - id: emission:co2
-      description: Carbon dioxide emissions ledger
-      type: emission
-      unit: Mt
-      combustible: false
+commodities:
+  - id: emission:co2
+    kind: emission
 
-    - id: material:co2_storage_integrity_token
-      description: Certified sequestration integrity token supplied by Australia
-      type: material
-      unit: PJ
-      combustible: false
+  - id: material:co2_storage_integrity_token
+    kind: material
 
-    - id: primary:lng
-      description: Liquefied natural gas exported from Australia
-      type: fuel
-      unit: PJ
-      combustible: true
-      hhv_mj_per_unit: 55.0
-      lhv_mj_per_unit: 50.0
+  - id: primary:lng
+    kind: primary
 
-    - id: service:partner_power
-      description: Partner-country power service supplied from LNG generation
-      type: service
-      unit: PJ
-      combustible: false
-  trade_links:
-    - commodity: material:co2_storage_integrity_token
-      origin: AU
-      destination: PARTNER
-      bidirectional: false
-      efficiency: 1.0
+  - id: service:lng_exports
+    kind: service
 
-    - commodity: primary:lng
-      origin: AU
-      destination: PARTNER
-      bidirectional: false
-      efficiency: 0.99
-  cases:
-    - name: abated_lng_deal
-      description: Bilateral deal with CCS-integrity service and lower residual emissions
-      provider_overrides:
-        - selector:
-            variant: au_lng_export_terminal
-          variable_om_cost: 6 MUSD24/PJ
-          variable_om_cost_basis: HHV
+  - id: service:partner_power
+    kind: service
 
-        - selector:
-            variant: partner_lng_power_no_ccs
-          enabled: false
+  - id: service:storage_integrity
+    kind: service
 
-    - name: no_deal
-      description: Traditional LNG trade with no CCS-integrity requirement and no deal
-        cap
-      is_baseline: true
-      provider_overrides:
-        - selector:
-            variant: au_storage_integrity_hub
-          enabled: false
+dsl_version: "0.2"
 
-        - selector:
-            variant: partner_lng_power_with_ccs
-          enabled: false
-  studies:
-    - name: article6_bilateral_assessment
-      description: Head-to-head comparison of no_deal and abated_lng_deal
-      cases:
-        - abated_lng_deal
-        - no_deal
+facilities:
+  - id: au_lng_exports
+    site: australia_terminal
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 500 MW
+            year: 2025
+          technology: au_lng_export_terminal
+    technology_role: lng_exports
 
-roles:
-  - id: provide_partner_power
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: end_use
-    required_inputs:
-      - commodity: primary:lng
-    required_outputs:
-      - commodity: service:partner_power
+  - id: au_storage_integrity
+    site: australia_terminal
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 500 MW
+            year: 2025
+          technology: au_storage_integrity_hub
+    technology_role: storage_integrity
 
-  - id: supply_lng_exports
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: supply
-    required_inputs: []
-    required_outputs:
-      - commodity: primary:lng
+  - id: partner_power_supply
+    available_technologies:
+      - partner_lng_power_no_ccs
+      - partner_lng_power_with_ccs
+    site: partner_power_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 150 MW
+            year: 2025
+          technology: partner_lng_power_no_ccs
 
-  - id: supply_storage_integrity
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: supply
-    required_inputs: []
-    required_outputs:
-      - commodity: material:co2_storage_integrity_token
+        - metric: installed_capacity
+          observed:
+            value: 50 MW
+            year: 2025
+          technology: partner_lng_power_with_ccs
+    technology_role: partner_power_supply
 
-variants:
+networks:
+  - id: integrity_trade
+    kind: transmission
+    links:
+      - id: au_partner_integrity
+        commodity: material:co2_storage_integrity_token
+        existing_transfer_capacity: 200 MW
+        from: AU
+        to: PARTNER
+    node_basis:
+      kind: region_partition
+      ref: article6_regions
+
+  - id: lng_trade
+    kind: pipeline
+    links:
+      - id: au_partner_lng
+        commodity: primary:lng
+        existing_transfer_capacity: 400 MW
+        from: AU
+        to: PARTNER
+    node_basis:
+      kind: region_partition
+      ref: article6_regions
+
+region_partitions:
+  - id: article6_regions
+    layer: geo.demo
+    mapping:
+      kind: constant
+      value: AU
+    members:
+      - AU
+      - PARTNER
+
+runs:
+  - id: article6_2025
+    base_year: 2025
+    currency_year: 2024
+    region_partition: article6_regions
+
+sites:
+  - id: australia_terminal
+    location:
+      point:
+        lat: -32.05
+        lon: 115.75
+    membership_overrides:
+      region_partitions:
+        article6_regions: AU
+
+  - id: partner_power_hub
+    location:
+      point:
+        lat: 1.29
+        lon: 103.85
+    membership_overrides:
+      region_partitions:
+        article6_regions: PARTNER
+
+spatial_layers:
+  - id: geo.demo
+    geometry_file: data/regions.geojson
+    key: region_id
+    kind: polygon
+
+technologies:
   - id: au_lng_export_terminal
-    role: supply_lng_exports
-    inputs: []
     outputs:
       - commodity: primary:lng
-        basis: HHV
-    efficiency: 1.0
-    lifetime: 100
-    variable_om_cost: 8 MUSD24/PJ
-    variable_om_cost_basis: HHV
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:lng_exports
+    variable_om: 8 AUD2024/MWh
 
   - id: au_storage_integrity_hub
-    role: supply_storage_integrity
-    inputs: []
     outputs:
       - commodity: material:co2_storage_integrity_token
-    efficiency: 1.0
-    lifetime: 100
-    variable_om_cost: 3 MUSD24/PJ
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:storage_integrity
+    variable_om: 3 AUD2024/MWh
 
   - id: partner_lng_power_no_ccs
-    role: provide_partner_power
     inputs:
       - commodity: primary:lng
         basis: HHV
-    outputs:
-      - commodity: service:partner_power
-    emission_factors:
-      emission:co2: 1.0
-    efficiency: 1.0
-    emission_factor_basis: HHV
-    fixed_om_cost: 1 MUSD24/GW/yr
-    investment_cost: 25 MUSD24/GW
-    lifetime: 30
-    variable_om_cost: 15 MUSD24/PJ
-    variable_om_cost_basis: HHV
+    emissions:
+      - commodity: emission:co2
+        factor: 1 t/GJ
+    fixed_om: 1 AUD2024/kW/year
+    investment_cost: 25 AUD2024/kW
+    lifetime: 30 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:partner_power
+    variable_om: 15 AUD2024/MWh
 
   - id: partner_lng_power_with_ccs
-    role: provide_partner_power
     inputs:
       - commodity: material:co2_storage_integrity_token
 
       - commodity: primary:lng
         basis: HHV
-    outputs:
-      - commodity: service:partner_power
-    emission_factors:
-      emission:co2: 0.15
-    efficiency: 1.0
-    emission_factor_basis: HHV
-    fixed_om_cost: 2 MUSD24/GW/yr
-    investment_cost: 40 MUSD24/GW
-    lifetime: 30
-    variable_om_cost: 22 MUSD24/PJ
-    variable_om_cost_basis: HHV
+    emissions:
+      - commodity: emission:co2
+        factor: 0.15 t/GJ
+    fixed_om: 2 AUD2024/kW/year
+    investment_cost: 40 AUD2024/kW
+    lifetime: 30 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:partner_power
+    variable_om: 22 AUD2024/MWh
 
-availability:
-  - variant: au_lng_export_terminal
-    regions:
-      - AU
+technology_roles:
+  - id: lng_exports
+    primary_service: service:lng_exports
+    technologies:
+      - au_lng_export_terminal
 
-  - variant: au_storage_integrity_hub
-    regions:
-      - AU
+  - id: partner_power_supply
+    primary_service: service:partner_power
+    technologies:
+      - partner_lng_power_no_ccs
+      - partner_lng_power_with_ccs
+    transitions:
+      - cost: 12 AUD2024/kW
+        from: partner_lng_power_no_ccs
+        kind: retrofit
+        to: partner_lng_power_with_ccs
 
-  - variant: partner_lng_power_no_ccs
-    regions:
-      - PARTNER
-
-  - variant: partner_lng_power_with_ccs
-    regions:
-      - PARTNER
-
-process_parameters:
-  - selector:
-      variant: au_lng_export_terminal
-      region: AU
-    stock: 500
-
-  - selector:
-      variant: au_storage_integrity_hub
-      region: AU
-    stock: 500
-
-  - cap_bound:
-      up: 200
-    selector:
-      variant: partner_lng_power_no_ccs
-      region: PARTNER
-    stock: 150
-
-  - cap_bound:
-      up: 200
-    selector:
-      variant: partner_lng_power_with_ccs
-      region: PARTNER
-    stock: 150
-
-demands:
-  - commodity: service:partner_power
-    region: PARTNER
-    values:
-      "2025": 100
-      "2030": 100
-      "2040": 100
-      "2050": 100
-    interpolation: interp_extrap
+  - id: storage_integrity
+    primary_service: service:storage_integrity
+    technologies:
+      - au_storage_integrity_hub

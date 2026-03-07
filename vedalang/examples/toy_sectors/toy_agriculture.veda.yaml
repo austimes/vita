@@ -1,228 +1,184 @@
-# Model: core system definition (regions, years, commodities, cases).
-model:
-  name: ToyAgriculture
-  description: Agricultural emissions reduction with sequestration
-  regions:
-    - SINGLE
-  milestone_years:
-    - 2020
-    - 2030
-    - 2040
-    - 2050
-  commodities:
-    - id: emission:co2e
-      description: CO2-equivalent greenhouse gas emissions
-      type: emission
-      unit: Mt
-      combustible: false
+commodities:
+  - id: emission:co2e
+    kind: emission
 
-    - id: material:ag_inputs
-      description: Aggregate physical agricultural inputs
-      type: material
-      unit: Mt
-      combustible: false
+  - id: material:ag_inputs
+    kind: material
 
-    - id: service:agricultural_output
-      description: Agricultural production
-      type: service
-      unit: Mt
-      combustible: false
-  scenario_parameters: []
-  constraints:
-    - name: CO2E_CAP
-      type: emission_cap
-      commodity: emission:co2e
-      years:
-        "2020": 50
-        "2030": 35
-        "2040": 20
-        "2050": 10
-      interpolation: interp_extrap
-      limtype: up
+  - id: service:ag_input_supply
+    kind: service
 
-# Scoping: defines demand-side namespaces for instantiation/scoping.
-# sectors: required enum values = RES, COM, IND, TRN, AGR, NE, OTH.
-# end_uses: optional non-enum lowercase tokens (e.g., heating) to create scopes like RES.heating.
-scoping:
-  sectors:
-    - AGR
+  - id: service:agricultural_output
+    kind: service
 
-# Process roles: reusable contracts (required I/O + units) shared by multiple variants.
-roles:
-  - id: provide_ag_output
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: end_use
-    required_inputs:
-      - commodity: material:ag_inputs
-    required_outputs:
-      - commodity: service:agricultural_output
+dsl_version: "0.2"
 
-  - id: remove_co2
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: sink
-    required_inputs: []
-    required_outputs: []
+facilities:
+  - id: farm_inputs
+    site: single_farm
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 1000 MW
+            year: 2025
+          technology: primary_supply
+    technology_role: ag_input_supply
 
-  - id: supply_ag_inputs
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: supply
-    required_inputs: []
-    required_outputs:
-      - commodity: material:ag_inputs
+  - id: farm_output
+    available_technologies:
+      - traditional_baseline
+      - traditional_with_feed_additives
+      - traditional_with_improved_manure
+      - soil_carbon
+      - reforestation
+    site: single_farm
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 10 MW
+            year: 2025
+          technology: traditional_baseline
 
-# Process variants: concrete technology definitions bound to roles.
-variants:
+        - metric: installed_capacity
+          observed:
+            value: 0.5 MW
+            year: 2025
+          technology: soil_carbon
+
+        - metric: installed_capacity
+          observed:
+            value: 0.5 MW
+            year: 2025
+          technology: reforestation
+    technology_role: ag_output
+
+opportunities:
+  - id: feed_additives_rollout
+    max_new_capacity: 4 MW
+    siting:
+      site: single_farm
+    technology: traditional_with_feed_additives
+
+  - id: improved_manure_rollout
+    max_new_capacity: 6 MW
+    siting:
+      site: single_farm
+    technology: traditional_with_improved_manure
+
+region_partitions:
+  - id: single_region
+    layer: geo.demo
+    mapping:
+      kind: constant
+      value: SINGLE
+    members:
+      - SINGLE
+
+runs:
+  - id: single_2025
+    base_year: 2025
+    currency_year: 2024
+    region_partition: single_region
+
+sites:
+  - id: single_farm
+    location:
+      point:
+        lat: -35.31
+        lon: 149.12
+    membership_overrides:
+      region_partitions:
+        single_region: SINGLE
+
+spatial_layers:
+  - id: geo.demo
+    geometry_file: data/regions.geojson
+    key: region_id
+    kind: polygon
+
+technologies:
   - id: primary_supply
-    role: supply_ag_inputs
-    inputs: []
     outputs:
       - commodity: material:ag_inputs
-    efficiency: 1.0
-    lifetime: 100
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:ag_input_supply
 
   - id: reforestation
-    description: Allowing forrest to regrow.
-    role: remove_co2
-    inputs: []
-    outputs: []
-    emission_factors:
-      emission:co2e: -1.0
-    efficiency: 1.0
-    investment_cost: 15 MUSD24/GW
-    lifetime: 50
+    emissions:
+      - commodity: emission:co2e
+        factor: -1 t/t
+    investment_cost: 15 AUD2024/kW
+    lifetime: 50 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:agricultural_output
 
   - id: soil_carbon
-    description:
-      practices that remove CO₂ from the atmosphere by increasing and stabilising
-      carbon stored in soils.
-    role: remove_co2
-    inputs: []
-    outputs: []
-    emission_factors:
-      emission:co2e: -1.0
-    efficiency: 1.0
-    investment_cost: 30 MUSD24/GW
-    lifetime: 30
+    emissions:
+      - commodity: emission:co2e
+        factor: -1 t/t
+    investment_cost: 30 AUD2024/kW
+    lifetime: 30 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:agricultural_output
 
   - id: traditional_baseline
-    role: provide_ag_output
     inputs:
       - commodity: material:ag_inputs
-    outputs:
-      - commodity: service:agricultural_output
-    emission_factors:
-      emission:co2e: 5.0
-    efficiency: 1.0
-    lifetime: 50
+    emissions:
+      - commodity: emission:co2e
+        factor: 5 t/t
+    lifetime: 50 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:agricultural_output
 
   - id: traditional_with_feed_additives
-    role: provide_ag_output
     inputs:
       - commodity: material:ag_inputs
-    outputs:
-      - commodity: service:agricultural_output
-    emission_factors:
-      emission:co2e: 3.0
-    efficiency: 1.0
-    investment_cost: 20 MUSD24/GW
-    lifetime: 50
+    emissions:
+      - commodity: emission:co2e
+        factor: 3 t/t
+    investment_cost: 20 AUD2024/kW
+    lifetime: 50 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:agricultural_output
 
   - id: traditional_with_improved_manure
-    role: provide_ag_output
     inputs:
       - commodity: material:ag_inputs
-    outputs:
-      - commodity: service:agricultural_output
-    emission_factors:
-      emission:co2e: 3.75
-    efficiency: 1.0
-    investment_cost: 10 MUSD24/GW
-    lifetime: 50
+    emissions:
+      - commodity: emission:co2e
+        factor: 3.75 t/t
+    investment_cost: 10 AUD2024/kW
+    lifetime: 50 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:agricultural_output
 
-# Availability: expands each variant into region/scope-specific process instances in the RES.
-availability:
-  - variant: primary_supply
-    regions:
-      - SINGLE
+technology_roles:
+  - id: ag_input_supply
+    primary_service: service:ag_input_supply
+    technologies:
+      - primary_supply
 
-  - variant: reforestation
-    regions:
-      - SINGLE
-
-  - variant: soil_carbon
-    regions:
-      - SINGLE
-
-  - variant: traditional_baseline
-    regions:
-      - SINGLE
-    sectors:
-      - AGR
-
-  - variant: traditional_with_feed_additives
-    regions:
-      - SINGLE
-    sectors:
-      - AGR
-
-  - variant: traditional_with_improved_manure
-    regions:
-      - SINGLE
-    sectors:
-      - AGR
-
-# Process parameters: selector-based overrides applied to matching instantiated process copies.
-process_parameters:
-  - selector:
-      variant: primary_supply
-      region: SINGLE
-    stock: 1000
-
-  - ncap_bound:
-      up: 3
-    selector:
-      variant: reforestation
-      region: SINGLE
-    stock: 0.5
-
-  - ncap_bound:
-      up: 2
-    selector:
-      variant: soil_carbon
-      region: SINGLE
-    stock: 0.5
-
-  - selector:
-      variant: traditional_baseline
-      region: SINGLE
-      sector: AGR
-    stock: 10
-
-  - ncap_bound:
-      up: 4
-    selector:
-      variant: traditional_with_feed_additives
-      region: SINGLE
-      sector: AGR
-    stock: 0.5
-
-  - ncap_bound:
-      up: 6
-    selector:
-      variant: traditional_with_improved_manure
-      region: SINGLE
-      sector: AGR
-    stock: 0.5
-
-# Demands: service demand trajectories by region and optional scope (sector/scope).
-demands:
-  - commodity: service:agricultural_output
-    region: SINGLE
-    values:
-      "2020": 10
-      "2050": 10
-    interpolation: interp_extrap
-    sector: AGR
+  - id: ag_output
+    primary_service: service:agricultural_output
+    technologies:
+      - traditional_baseline
+      - traditional_with_feed_additives
+      - traditional_with_improved_manure
+      - soil_carbon
+      - reforestation

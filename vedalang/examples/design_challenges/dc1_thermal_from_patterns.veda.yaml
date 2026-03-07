@@ -1,169 +1,129 @@
-# Model: core system definition (regions, years, commodities, cases).
-model:
-  name: MiniModel
-  description: A minimal thermal power model with explicit fuel supply and end-use
-    demand
-  regions:
-    - REG1
-  milestone_years:
-    - 2020
-    - 2030
-  commodities:
-    - id: primary:natural_gas
-      description: Natural Gas
-      type: fuel
-      unit: PJ
-      combustible: true
-      hhv_mj_per_unit: 55.0
-      lhv_mj_per_unit: 50.0
+commodities:
+  - id: primary:natural_gas
+    kind: primary
 
-    - id: secondary:electricity
-      description: Electricity
-      type: energy
-      unit: PJ
-      combustible: false
+  - id: secondary:electricity
+    kind: secondary
 
-    - id: service:generic_electric_end_use
-      description: Generic end-use service delivered from electricity
-      type: service
-      unit: PJ
-      combustible: false
+  - id: service:electricity_generation
+    kind: service
 
-# Scoping: defines demand-side namespaces for instantiation/scoping.
-# sectors: required enum values = RES, COM, IND, TRN, AGR, NE, OTH.
-# end_uses: optional non-enum lowercase tokens (e.g., heating) to create scopes like RES.heating.
-scoping:
-  sectors:
-    - IND
+  - id: service:electricity_service
+    kind: service
 
-# Process roles: reusable contracts (required I/O + units) shared by multiple variants.
-roles:
-  - id: generate_electricity
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: conversion
-    required_inputs: []
-    required_outputs:
-      - commodity: secondary:electricity
+  - id: service:gas_supply
+    kind: service
 
-  - id: provide_generic_electric_end_use
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: end_use
-    required_inputs:
-      - commodity: secondary:electricity
-    required_outputs:
-      - commodity: service:generic_electric_end_use
+dsl_version: "0.2"
 
-  - id: sink_generic_electric_end_use
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: sink
-    required_inputs:
-      - commodity: service:generic_electric_end_use
-    required_outputs: []
+facilities:
+  - id: reg1_ccgt
+    site: reg1_energy_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 12 MW
+            year: 2020
+          technology: ccgt
+    technology_role: electricity_generation
 
-  - id: supply_natural_gas
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: supply
-    required_inputs: []
-    required_outputs:
-      - commodity: primary:natural_gas
+  - id: reg1_gas_supply
+    site: reg1_energy_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 100 MW
+            year: 2020
+          technology: natural_gas_import
+    technology_role: gas_supply
 
-# Process variants: concrete technology definitions bound to roles.
-variants:
-  - id: baseline_electric_end_use
-    role: provide_generic_electric_end_use
-    inputs:
-      - commodity: secondary:electricity
-    outputs:
-      - commodity: service:generic_electric_end_use
-    efficiency: 1.0
-    lifetime: 100
+  - id: reg1_useful_electricity
+    site: reg1_energy_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 12 MW
+            year: 2020
+          technology: direct_electric_service
+    technology_role: useful_electricity
 
+region_partitions:
+  - id: reg1_partition
+    layer: geo.demo
+    mapping:
+      kind: constant
+      value: REG1
+    members:
+      - REG1
+
+runs:
+  - id: reg1_2020
+    base_year: 2020
+    currency_year: 2024
+    region_partition: reg1_partition
+
+sites:
+  - id: reg1_energy_hub
+    location:
+      point:
+        lat: -33.87
+        lon: 151.21
+    membership_overrides:
+      region_partitions:
+        reg1_partition: REG1
+
+spatial_layers:
+  - id: geo.demo
+    geometry_file: data/regions.geojson
+    key: region_id
+    kind: polygon
+
+technologies:
   - id: ccgt
-    role: generate_electricity
     inputs:
       - commodity: primary:natural_gas
         basis: HHV
     outputs:
       - commodity: secondary:electricity
-    efficiency: 0.55
-    lifetime: 30
+    lifetime: 30 year
+    performance:
+      kind: efficiency
+      value: 0.55
+    provides: service:electricity_generation
 
-  - id: generic_end_use_sink
-    role: sink_generic_electric_end_use
+  - id: direct_electric_service
     inputs:
-      - commodity: service:generic_electric_end_use
-    outputs: []
-    efficiency: 1.0
-    lifetime: 100
+      - commodity: secondary:electricity
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:electricity_service
 
   - id: natural_gas_import
-    role: supply_natural_gas
-    inputs: []
     outputs:
       - commodity: primary:natural_gas
-        basis: HHV
-    efficiency: 1.0
-    lifetime: 100
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:gas_supply
 
-# Availability: expands each variant into region/scope-specific process instances in the RES.
-availability:
-  - variant: baseline_electric_end_use
-    regions:
-      - REG1
-    sectors:
-      - IND
+technology_roles:
+  - id: electricity_generation
+    primary_service: service:electricity_generation
+    technologies:
+      - ccgt
 
-  - variant: ccgt
-    regions:
-      - REG1
-    sectors:
-      - IND
+  - id: gas_supply
+    primary_service: service:gas_supply
+    technologies:
+      - natural_gas_import
 
-  - variant: generic_end_use_sink
-    regions:
-      - REG1
-    sectors:
-      - IND
-
-  - variant: natural_gas_import
-    regions:
-      - REG1
-
-# Process parameters: selector-based overrides applied to matching instantiated process copies.
-process_parameters:
-  - selector:
-      variant: baseline_electric_end_use
-      region: REG1
-      sector: IND
-    stock: 1000
-
-  - selector:
-      variant: ccgt
-      region: REG1
-      sector: IND
-    stock: 10
-
-  - selector:
-      variant: generic_end_use_sink
-      region: REG1
-      sector: IND
-    stock: 1000
-
-  - selector:
-      variant: natural_gas_import
-      region: REG1
-    stock: 1000
-
-# Demands: service demand trajectories by region and optional scope (sector/scope).
-demands:
-  - commodity: service:generic_electric_end_use
-    region: REG1
-    values:
-      "2020": 10
-      "2030": 10
-    interpolation: interp_extrap
-    sector: IND
+  - id: useful_electricity
+    primary_service: service:electricity_service
+    technologies:
+      - direct_electric_service

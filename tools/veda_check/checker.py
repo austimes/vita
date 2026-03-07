@@ -105,11 +105,13 @@ def run_check(
             # Step 4: Run xl2times
             manifest_path = tmpdir / "manifest.json"
             diagnostics_path = tmpdir / "diagnostics.json"
+            xl2times_output_dir = tmpdir / "xl2times_output"
 
             proc = subprocess.run(
                 [
                     "uv", "run", "python", "-m", "xl2times",
                     str(tmpdir),
+                    "--output_dir", str(xl2times_output_dir),
                     "--manifest-json", str(manifest_path),
                     "--diagnostics-json", str(diagnostics_path),
                 ],

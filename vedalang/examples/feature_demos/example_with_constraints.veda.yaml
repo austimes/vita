@@ -1,226 +1,254 @@
-# Model: core system definition (regions, years, commodities, cases).
-model:
-  name: ConstraintDemo
-  description: Model with CO2 cap and renewable energy target
-  regions:
-    - REG1
-  milestone_years:
-    - 2020
-    - 2030
-    - 2040
-    - 2050
-  commodities:
-    - id: emission:co2
-      description: Carbon dioxide emissions
-      type: emission
-      unit: Mt
-      combustible: false
+commodities:
+  - id: emission:co2
+    kind: emission
 
-    - id: primary:natural_gas
-      description: Natural Gas
-      type: fuel
-      unit: PJ
-      combustible: true
-      hhv_mj_per_unit: 55.0
-      lhv_mj_per_unit: 50.0
+  - id: primary:natural_gas
+    kind: primary
 
-    - id: resource:solar_resource
-      description: Solar resource
-      type: other
-      unit: PJ
-      combustible: false
+  - id: resource:solar_resource
+    kind: material
 
-    - id: resource:wind_resource
-      description: Wind resource
-      type: other
-      unit: PJ
-      combustible: false
+  - id: resource:wind_resource
+    kind: material
 
-    - id: secondary:electricity
-      description: Electricity
-      type: energy
-      unit: PJ
-      combustible: false
-  constraints:
-    - name: co2_cap
-      type: emission_cap
-      commodity: emission:co2
-      years:
-        "2020": 100
-        "2040": 50
-      interpolation: interp_extrap
-      limtype: up
+  - id: secondary:electricity
+    kind: secondary
 
-    - name: ren_target
-      type: activity_share
-      commodity: secondary:electricity
-      minimum_share: 0.3
-      processes:
-        - solar_generation
-        - wind_generation
+  - id: service:electricity_generation
+    kind: service
 
-# Scoping: defines demand-side namespaces for instantiation/scoping.
-# sectors: required enum values = RES, COM, IND, TRN, AGR, NE, OTH.
-# end_uses: optional non-enum lowercase tokens (e.g., heating) to create scopes like RES.heating.
-scoping:
-  sectors:
-    - IND
+  - id: service:electricity_service
+    kind: service
 
-# Process roles: reusable contracts (required I/O + units) shared by multiple variants.
-roles:
-  - id: import_natural_gas
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: supply
-    required_inputs: []
-    required_outputs:
-      - commodity: primary:natural_gas
+  - id: service:gas_supply
+    kind: service
 
-  - id: provide_electricity
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: conversion
-    required_inputs: []
-    required_outputs:
-      - commodity: secondary:electricity
+  - id: service:solar_supply
+    kind: service
 
-  - id: supply_solar_resource
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: supply
-    required_inputs: []
-    required_outputs:
-      - commodity: resource:solar_resource
+  - id: service:wind_supply
+    kind: service
 
-  - id: supply_wind_resource
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: supply
-    required_inputs: []
-    required_outputs:
-      - commodity: resource:wind_resource
+dsl_version: "0.2"
 
-# Process variants: concrete technology definitions bound to roles.
-variants:
+facilities:
+  - id: reg1_fuel_supply
+    site: reg1_energy_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 150 MW
+            year: 2025
+          technology: pipeline_import
+    technology_role: gas_supply
+
+  - id: reg1_generation
+    available_technologies:
+      - ccgt_generation
+      - solar_generation
+      - wind_generation
+    site: reg1_energy_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 10 MW
+            year: 2025
+          technology: ccgt_generation
+
+        - metric: installed_capacity
+          observed:
+            value: 3 MW
+            year: 2025
+          technology: solar_generation
+
+        - metric: installed_capacity
+          observed:
+            value: 3 MW
+            year: 2025
+          technology: wind_generation
+    technology_role: electricity_generation
+
+  - id: reg1_service
+    site: reg1_energy_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 16 MW
+            year: 2025
+          technology: electric_service
+    technology_role: electricity_service
+
+  - id: reg1_solar_supply
+    site: reg1_energy_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 120 MW
+            year: 2025
+          technology: solar_resource_supply
+    technology_role: solar_supply
+
+  - id: reg1_wind_supply
+    site: reg1_energy_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 120 MW
+            year: 2025
+          technology: wind_resource_supply
+    technology_role: wind_supply
+
+opportunities:
+  - id: reg1_solar_build
+    max_new_capacity: 30 MW
+    siting:
+      region_member:
+        member: REG1
+        partition: reg1_partition
+    technology: solar_generation
+
+  - id: reg1_wind_build
+    max_new_capacity: 40 MW
+    siting:
+      region_member:
+        member: REG1
+        partition: reg1_partition
+    technology: wind_generation
+
+region_partitions:
+  - id: reg1_partition
+    layer: geo.demo
+    mapping:
+      kind: constant
+      value: REG1
+    members:
+      - REG1
+
+runs:
+  - id: reg1_2025
+    base_year: 2025
+    currency_year: 2024
+    region_partition: reg1_partition
+
+sites:
+  - id: reg1_energy_hub
+    location:
+      point:
+        lat: -33.87
+        lon: 151.21
+    membership_overrides:
+      region_partitions:
+        reg1_partition: REG1
+
+spatial_layers:
+  - id: geo.demo
+    geometry_file: data/regions.geojson
+    key: region_id
+    kind: polygon
+
+technologies:
   - id: ccgt_generation
-    role: provide_electricity
     inputs:
       - commodity: primary:natural_gas
         basis: HHV
     outputs:
       - commodity: secondary:electricity
-    emission_factors:
-      emission:co2: 0.05
-    efficiency: 0.55
-    emission_factor_basis: HHV
-    lifetime: 30
+    emissions:
+      - commodity: emission:co2
+        factor: 0.056 t/GJ
+    lifetime: 30 year
+    performance:
+      kind: efficiency
+      value: 0.55
+    provides: service:electricity_generation
+
+  - id: electric_service
+    inputs:
+      - commodity: secondary:electricity
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:electricity_service
 
   - id: pipeline_import
-    role: import_natural_gas
-    inputs: []
     outputs:
       - commodity: primary:natural_gas
-        basis: HHV
-    efficiency: 1.0
-    lifetime: 100
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:gas_supply
 
   - id: solar_generation
-    role: provide_electricity
     inputs:
       - commodity: resource:solar_resource
     outputs:
       - commodity: secondary:electricity
-    efficiency: 1.0
-    lifetime: 25
+    lifetime: 25 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:electricity_generation
 
   - id: solar_resource_supply
-    role: supply_solar_resource
-    inputs: []
     outputs:
       - commodity: resource:solar_resource
-    efficiency: 1.0
-    lifetime: 100
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:solar_supply
 
   - id: wind_generation
-    role: provide_electricity
     inputs:
       - commodity: resource:wind_resource
     outputs:
       - commodity: secondary:electricity
-    efficiency: 1.0
-    lifetime: 25
+    lifetime: 25 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:electricity_generation
 
   - id: wind_resource_supply
-    role: supply_wind_resource
-    inputs: []
     outputs:
       - commodity: resource:wind_resource
-    efficiency: 1.0
-    lifetime: 100
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:wind_supply
 
-# Availability: expands each variant into region/scope-specific process instances in the RES.
-availability:
-  - variant: ccgt_generation
-    regions:
-      - REG1
-    sectors:
-      - IND
+technology_roles:
+  - id: electricity_generation
+    primary_service: service:electricity_generation
+    technologies:
+      - ccgt_generation
+      - solar_generation
+      - wind_generation
 
-  - variant: pipeline_import
-    regions:
-      - REG1
+  - id: electricity_service
+    primary_service: service:electricity_service
+    technologies:
+      - electric_service
 
-  - variant: solar_generation
-    regions:
-      - REG1
-    sectors:
-      - IND
+  - id: gas_supply
+    primary_service: service:gas_supply
+    technologies:
+      - pipeline_import
 
-  - variant: solar_resource_supply
-    regions:
-      - REG1
+  - id: solar_supply
+    primary_service: service:solar_supply
+    technologies:
+      - solar_resource_supply
 
-  - variant: wind_generation
-    regions:
-      - REG1
-    sectors:
-      - IND
-
-  - variant: wind_resource_supply
-    regions:
-      - REG1
-
-# Process parameters: selector-based overrides applied to matching instantiated process copies.
-process_parameters:
-  - selector:
-      variant: ccgt_generation
-      region: REG1
-      sector: IND
-    stock: 10
-
-  - selector:
-      variant: pipeline_import
-      region: REG1
-    stock: 1000
-
-  - selector:
-      variant: solar_generation
-      region: REG1
-      sector: IND
-    stock: 2
-
-  - selector:
-      variant: solar_resource_supply
-      region: REG1
-    stock: 1000
-
-  - selector:
-      variant: wind_generation
-      region: REG1
-      sector: IND
-    stock: 2
-
-  - selector:
-      variant: wind_resource_supply
-      region: REG1
-    stock: 1000
+  - id: wind_supply
+    primary_service: service:wind_supply
+    technologies:
+      - wind_resource_supply

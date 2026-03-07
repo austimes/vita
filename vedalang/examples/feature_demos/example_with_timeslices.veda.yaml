@@ -1,156 +1,141 @@
-# Model: core system definition (regions, years, commodities, cases).
-model:
-  name: TimesliceModel
-  description: A model with 4 timeslices (2 seasons × 2 daynite) in role/variant syntax
-  regions:
-    - REG1
-  milestone_years:
-    - 2020
-    - 2030
-  timeslices:
-    daynite:
-      - name: Day
-        code: D
+commodities:
+  - id: primary:natural_gas
+    kind: primary
 
-      - name: Night
-        code: N
-    fractions:
-      SD: 0.25
-      SN: 0.23
-      WD: 0.27
-      WN: 0.25
-    season:
-      - name: Summer
-        code: S
+  - id: secondary:electricity
+    kind: secondary
 
-      - name: Winter
-        code: W
-  commodities:
-    - id: primary:natural_gas
-      description: Natural Gas
-      type: fuel
-      unit: PJ
-      combustible: true
-      hhv_mj_per_unit: 55.0
-      lhv_mj_per_unit: 50.0
+  - id: service:electricity_demand
+    kind: service
 
-    - id: secondary:electricity
-      description: Electricity
-      type: energy
-      unit: PJ
-      combustible: false
+  - id: service:electricity_generation
+    kind: service
 
-    - id: service:electricity_demand
-      description: Electricity demand service
-      type: service
-      unit: PJ
-      combustible: false
+  - id: service:gas_supply
+    kind: service
 
-# Scoping: defines demand-side namespaces for instantiation/scoping.
-# sectors: required enum values = RES, COM, IND, TRN, AGR, NE, OTH.
-# end_uses: optional non-enum lowercase tokens (e.g., heating) to create scopes like RES.heating.
-scoping:
-  sectors:
-    - RES
+dsl_version: "0.2"
 
-# Process roles: reusable contracts (required I/O + units) shared by multiple variants.
-roles:
-  - id: generate_electricity
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: conversion
-    required_inputs:
-      - commodity: primary:natural_gas
-    required_outputs:
-      - commodity: secondary:electricity
+facilities:
+  - id: reg1_demand
+    site: reg1_hub
+    stock:
+      items:
+        - adjust_to_base_year:
+            using: day_night_profile_proxy
+          metric: annual_activity
+          observed:
+            value: 20 GWh/year
+            year: 2020
+          technology: electric_device
+    technology_role: electricity_service
 
-  - id: provide_electricity_service
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: end_use
-    required_inputs:
-      - commodity: secondary:electricity
-    required_outputs:
-      - commodity: service:electricity_demand
+  - id: reg1_gas_supply
+    site: reg1_hub
+    stock:
+      items:
+        - adjust_to_base_year:
+            using: day_night_profile_proxy
+          metric: annual_activity
+          observed:
+            value: 200 GWh/year
+            year: 2020
+          technology: gas_import
+    technology_role: gas_supply
 
-  - id: supply_natural_gas
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: supply
-    required_inputs: []
-    required_outputs:
-      - commodity: primary:natural_gas
+  - id: reg1_generation
+    site: reg1_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 10 MW
+            year: 2020
+          technology: ccgt
+    technology_role: electricity_generation
 
-# Process variants: concrete technology definitions bound to roles.
-variants:
+region_partitions:
+  - id: reg1_partition
+    layer: geo.demo
+    mapping:
+      kind: constant
+      value: REG1
+    members:
+      - REG1
+
+runs:
+  - id: reg1_2020
+    base_year: 2020
+    currency_year: 2024
+    region_partition: reg1_partition
+
+sites:
+  - id: reg1_hub
+    location:
+      point:
+        lat: -33.87
+        lon: 151.21
+    membership_overrides:
+      region_partitions:
+        reg1_partition: REG1
+
+spatial_layers:
+  - id: geo.demo
+    geometry_file: data/regions.geojson
+    key: region_id
+    kind: polygon
+
+technologies:
   - id: ccgt
-    role: generate_electricity
     inputs:
       - commodity: primary:natural_gas
         basis: HHV
     outputs:
       - commodity: secondary:electricity
-    efficiency: 0.55
-    lifetime: 30
+    lifetime: 30 year
+    performance:
+      kind: efficiency
+      value: 0.55
+    provides: service:electricity_generation
 
   - id: electric_device
-    role: provide_electricity_service
     inputs:
       - commodity: secondary:electricity
-    outputs:
-      - commodity: service:electricity_demand
-    efficiency: 1.0
-    lifetime: 100
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:electricity_demand
 
   - id: gas_import
-    role: supply_natural_gas
-    inputs: []
     outputs:
       - commodity: primary:natural_gas
-        basis: HHV
-    efficiency: 1.0
-    lifetime: 100
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:gas_supply
 
-# Availability: expands each variant into region/scope-specific process instances in the RES.
-availability:
-  - variant: ccgt
-    regions:
-      - REG1
+technology_roles:
+  - id: electricity_generation
+    primary_service: service:electricity_generation
+    technologies:
+      - ccgt
 
-  - variant: electric_device
-    regions:
-      - REG1
-    sectors:
-      - RES
+  - id: electricity_service
+    primary_service: service:electricity_demand
+    technologies:
+      - electric_device
 
-  - variant: gas_import
-    regions:
-      - REG1
+  - id: gas_supply
+    primary_service: service:gas_supply
+    technologies:
+      - gas_import
 
-# Process parameters: selector-based overrides applied to matching instantiated process copies.
-process_parameters:
-  - selector:
-      variant: ccgt
-      region: REG1
-    stock: 10
-
-  - selector:
-      variant: electric_device
-      region: REG1
-      sector: RES
-    stock: 1000
-
-  - selector:
-      variant: gas_import
-      region: REG1
-    stock: 1000
-
-# Demands: service demand trajectories by region and optional scope (sector/scope).
-demands:
-  - commodity: service:electricity_demand
-    region: REG1
+temporal_index_series:
+  - id: day_night_profile_proxy
+    unit: index
     values:
-      "2020": 20
-      "2030": 24
-    interpolation: interp_extrap
-    sector: RES
+      "2020": 1.0
+      "2030": 1.2
+    base_year: 2020

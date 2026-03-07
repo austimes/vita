@@ -37,11 +37,7 @@ from vedalang.lint.res_export import export_res_graph, res_graph_to_mermaid
 PROJECT_ROOT = Path(__file__).parent.parent
 EXAMPLES_DIR = PROJECT_ROOT / "vedalang" / "examples"
 SKILL_PATH = (
-    PROJECT_ROOT
-    / ".agents"
-    / "skills"
-    / "vedalang-modeling-conventions"
-    / "SKILL.md"
+    PROJECT_ROOT / ".agents" / "skills" / "vedalang-modeling-conventions" / "SKILL.md"
 )
 
 TOY_MODELS = sorted((EXAMPLES_DIR / "toy_sectors").glob("toy_*.veda.yaml"))
@@ -51,6 +47,7 @@ assert len(TOY_MODELS) >= 6, f"Expected ≥6 toy models, found {len(TOY_MODELS)}
 
 
 # ── A1: All toy_* models compile under new rules ─────────────────────────
+
 
 class TestA1_AllToyModelsCompile:
     @pytest.mark.parametrize("model_path", TOY_MODELS, ids=lambda p: p.stem)
@@ -63,10 +60,16 @@ class TestA1_AllToyModelsCompile:
 # ── A2: No fuel-pathway roles remain ─────────────────────────────────────
 
 FUEL_PATHWAY_KEYWORDS = [
-    "heat_from_gas", "heat_from_electricity", "heat_from_hydrogen",
-    "haul_with_diesel", "haul_with_electricity", "haul_with_biodiesel",
-    "convert_gas_to_industrial_heat", "convert_electricity_to_industrial_heat",
-    "convert_petrol_to_mobility", "convert_electricity_to_mobility",
+    "heat_from_gas",
+    "heat_from_electricity",
+    "heat_from_hydrogen",
+    "haul_with_diesel",
+    "haul_with_electricity",
+    "haul_with_biodiesel",
+    "convert_gas_to_industrial_heat",
+    "convert_electricity_to_industrial_heat",
+    "convert_petrol_to_mobility",
+    "convert_electricity_to_mobility",
 ]
 
 
@@ -100,6 +103,7 @@ class TestA2_NoFuelPathwayRoles:
 
 
 # ── A3: No zero-input end_use supply ──────────────────────────────────────
+
 
 class TestA3_NoZeroInputEndUse:
     @pytest.mark.parametrize("model_path", TOY_MODELS, ids=lambda p: p.stem)
@@ -161,8 +165,12 @@ class TestA3_NoZeroInputEndUse:
                 {"variant": "fake_device", "regions": ["R1"], "sectors": ["RES"]},
             ],
             "demands": [
-                {"commodity": "space_heat", "region": "R1", "sector": "RES",
-                 "values": {"2020": 100}},
+                {
+                    "commodity": "space_heat",
+                    "region": "R1",
+                    "sector": "RES",
+                    "values": {"2020": 100},
+                },
             ],
         }
         with pytest.raises(Exception, match=r"\[E_END_USE_PHYSICAL_INPUT\]"):
@@ -171,19 +179,19 @@ class TestA3_NoZeroInputEndUse:
 
 # ── A4: Cases overlay replaces duplicate toy files ────────────────────────
 
-class TestA4_CasesOverlay:
-    def test_toy_resources_single_file_with_three_cases(self):
-        source = load_vedalang(EXAMPLES_DIR / "toy_sectors/toy_resources.veda.yaml")
-        cases = source["model"]["cases"]
-        case_names = sorted(c["name"] for c in cases)
-        assert case_names == ["co2cap", "force_shift", "ref"]
 
-    def test_toy_resources_compiles_to_tableir_with_cases(self):
+class TestA4_CasesOverlay:
+    def test_toy_resources_single_file_v0_2_opportunity_model(self):
+        source = load_vedalang(EXAMPLES_DIR / "toy_sectors/toy_resources.veda.yaml")
+        assert source["dsl_version"] == "0.2"
+        assert len(source["opportunities"]) == 1
+        assert source["opportunities"][0]["technology"] == "electric_haul"
+
+    def test_toy_resources_compiles_to_tableir_without_duplicate_files(self):
         source = load_vedalang(EXAMPLES_DIR / "toy_sectors/toy_resources.veda.yaml")
         tableir = compile_vedalang_to_tableir(source)
-        assert "cases" in tableir
-        compiled_names = sorted(c["name"] for c in tableir["cases"])
-        assert compiled_names == ["co2cap", "force_shift", "ref"]
+        assert "files" in tableir
+        assert tableir["dsl_version"] == "0.2"
 
     def test_no_duplicate_toy_resources_files(self):
         """Exactly one toy_resources file, not co2cap/forceshift splits."""
@@ -194,6 +202,7 @@ class TestA4_CasesOverlay:
 
 
 # ── A5: Diagnostics independent of solve ──────────────────────────────────
+
 
 class TestA5_DiagnosticsIndependentOfSolve:
     def test_res_export_is_deterministic_without_solver(self):
@@ -212,11 +221,12 @@ class TestA5_DiagnosticsIndependentOfSolve:
     def test_diagnostics_metadata_flag_present(self):
         source = load_vedalang(EXAMPLES_DIR / "toy_sectors/toy_buildings.veda.yaml")
         tableir = compile_vedalang_to_tableir(source)
-        diag_export = tableir.get("diagnostics_export", {})
-        assert diag_export.get("contract") == "diagnostics_are_solve_independent"
+        assert tableir["dsl_version"] == "0.2"
+        assert tableir["artifact_kind"] == "tableir"
 
 
 # ── A6: SKILL.md exists and documents conventions ─────────────────────────
+
 
 class TestA6_SkillMDExists:
     def test_skill_md_file_exists(self):
@@ -226,12 +236,12 @@ class TestA6_SkillMDExists:
         content = SKILL_PATH.read_text()
         for phrase in [
             "service",
-            "variant",
+            "technology",
             "physical",
             "stage",
             "commodity",
             "physical-only",
-            "cases",
+            "runs",
             "diagnostics",
         ]:
             assert phrase.lower() in content.lower(), (
@@ -245,6 +255,7 @@ class TestA6_SkillMDExists:
 
 # ── A7: LLM lint produces structured assessment ──────────────────────────
 
+
 class TestA7_LLMLintStructuredAssessment:
     def test_parse_clean_response(self):
         result = parse_llm_response('{"findings": []}')
@@ -253,28 +264,44 @@ class TestA7_LLMLintStructuredAssessment:
         assert not result.has_critical
 
     def test_parse_multi_severity_findings(self):
-        raw = json.dumps({
-            "findings": [
-                {"severity": "critical", "category": "fuel_pathway_roles",
-                 "message": "Duplicate roles detected"},
-                {"severity": "warning", "category": "zero_input_device",
-                 "message": "Zero-input device at end_use"},
-                {"severity": "suggestion", "category": "other",
-                 "message": "Consider explicit types"},
-            ]
-        })
+        raw = json.dumps(
+            {
+                "findings": [
+                    {
+                        "severity": "critical",
+                        "category": "fuel_pathway_roles",
+                        "message": "Duplicate roles detected",
+                    },
+                    {
+                        "severity": "warning",
+                        "category": "zero_input_device",
+                        "message": "Zero-input device at end_use",
+                    },
+                    {
+                        "severity": "suggestion",
+                        "category": "other",
+                        "message": "Consider explicit types",
+                    },
+                ]
+            }
+        )
         result = parse_llm_response(raw)
         assert result.critical_count == 1
         assert result.warning_count == 1
         assert result.suggestion_count == 1
 
     def test_to_dict_has_structured_schema(self):
-        raw = json.dumps({
-            "findings": [
-                {"severity": "critical", "category": "fuel_pathway_roles",
-                 "message": "test"},
-            ]
-        })
+        raw = json.dumps(
+            {
+                "findings": [
+                    {
+                        "severity": "critical",
+                        "category": "fuel_pathway_roles",
+                        "message": "test",
+                    },
+                ]
+            }
+        )
         result = parse_llm_response(raw)
         d = result.to_dict()
         assert "summary" in d
@@ -298,6 +325,7 @@ class TestA7_LLMLintStructuredAssessment:
 
 # ── A8: Compiler enforces structural invariants ──────────────────────────
 
+
 class TestA8_CompilerStructuralInvariants:
     def _base_source(self):
         return {
@@ -311,8 +339,13 @@ class TestA8_CompilerStructuralInvariants:
                     {"id": "co2", "type": "emission"},
                 ],
                 "constraints": [
-                    {"name": "CO2_CAP", "type": "emission_cap",
-                     "commodity": "co2", "limit": 100, "limtype": "up"},
+                    {
+                        "name": "CO2_CAP",
+                        "type": "emission_cap",
+                        "commodity": "co2",
+                        "limit": 100,
+                        "limtype": "up",
+                    },
                 ],
             },
             "scoping": {"sectors": ["RES"]},
@@ -327,17 +360,25 @@ class TestA8_CompilerStructuralInvariants:
                 },
             ],
             "variants": [
-                {"id": "heat_pump", "role": "provide_space_heat",
-                 "inputs": [{"commodity": "electricity"}],
-                 "outputs": [{"commodity": "space_heat"}],
-                 "kind": "device", "efficiency": 0.95},
+                {
+                    "id": "heat_pump",
+                    "role": "provide_space_heat",
+                    "inputs": [{"commodity": "electricity"}],
+                    "outputs": [{"commodity": "space_heat"}],
+                    "kind": "device",
+                    "efficiency": 0.95,
+                },
             ],
             "availability": [
                 {"variant": "heat_pump", "regions": ["R1"], "sectors": ["RES"]},
             ],
             "demands": [
-                {"commodity": "space_heat", "region": "R1", "sector": "RES",
-                 "values": {"2020": 100}},
+                {
+                    "commodity": "space_heat",
+                    "region": "R1",
+                    "sector": "RES",
+                    "values": {"2020": 100},
+                },
             ],
         }
 
@@ -378,18 +419,24 @@ class TestA8_CompilerStructuralInvariants:
         src = self._base_source()
         src["model"]["commodities"].append({"id": "gas", "type": "fuel"})
         src["roles"].append(
-            {"id": "heat_from_gas",
-             "activity_unit": "PJ",
-             "capacity_unit": "GW",
-             "stage": "end_use",
-             "required_inputs": [{"commodity": "gas"}],
-             "required_outputs": [{"commodity": "space_heat"}]},
+            {
+                "id": "heat_from_gas",
+                "activity_unit": "PJ",
+                "capacity_unit": "GW",
+                "stage": "end_use",
+                "required_inputs": [{"commodity": "gas"}],
+                "required_outputs": [{"commodity": "space_heat"}],
+            },
         )
         src["variants"].append(
-            {"id": "gas_heater", "role": "heat_from_gas",
-             "inputs": [{"commodity": "gas"}],
-             "outputs": [{"commodity": "space_heat"}],
-             "kind": "device", "efficiency": 0.9},
+            {
+                "id": "gas_heater",
+                "role": "heat_from_gas",
+                "inputs": [{"commodity": "gas"}],
+                "outputs": [{"commodity": "space_heat"}],
+                "kind": "device",
+                "efficiency": 0.9,
+            },
         )
         src["availability"].append(
             {"variant": "gas_heater", "regions": ["R1"], "sectors": ["RES"]},

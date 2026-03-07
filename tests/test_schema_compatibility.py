@@ -1,340 +1,193 @@
-"""
-Schema Compatibility Tests
-
-These tests verify the VedaLang schema structure.
-
-Note: As of January 2026, VedaLang underwent a breaking change to introduce
-roles/variants/scoping syntax. The old process/process_template constructs
-were removed. See docs/reference/vedalang-syntax.prd.txt for details.
-"""
+"""Schema contract tests for the v0.2 hard cut."""
 
 import json
 from pathlib import Path
 
-import pytest
-
-SCHEMA_PATH = (
-    Path(__file__).parent.parent / "vedalang" / "schema" / "vedalang.schema.json"
+PROJECT_ROOT = Path(__file__).parent.parent
+SCHEMA_PATH = PROJECT_ROOT / "vedalang" / "schema" / "vedalang.schema.json"
+LEGACY_SCHEMA_PATH = (
+    PROJECT_ROOT / "vedalang" / "schema" / "vedalang.legacy.schema.json"
 )
 
 
-def load_schema() -> dict:
-    """Load the current VedaLang schema."""
-    with open(SCHEMA_PATH) as f:
-        return json.load(f)
+def load_schema(path: Path) -> dict:
+    with path.open(encoding="utf-8") as handle:
+        return json.load(handle)
 
 
-# =============================================================================
-# Current Schema Definitions (January 2026 roles/variants/scoping syntax)
-# =============================================================================
+EXPECTED_V0_2_TOP_LEVEL_PROPERTIES = {
+    "dsl_version",
+    "imports",
+    "commodities",
+    "technologies",
+    "technology_roles",
+    "stock_characterizations",
+    "spatial_layers",
+    "spatial_measure_sets",
+    "temporal_index_series",
+    "region_partitions",
+    "zone_overlays",
+    "sites",
+    "facilities",
+    "fleets",
+    "opportunities",
+    "networks",
+    "runs",
+}
 
-REQUIRED_ROOT_FIELDS = ["model"]
-
-REQUIRED_MODEL_FIELDS = ["name", "regions", "commodities"]
-
-# Commodity now uses 'id' (preferred) or 'name' (legacy), plus 'type'
-REQUIRED_COMMODITY_FIELDS = ["type"]
-
-REQUIRED_FLOW_FIELDS = ["commodity"]
-
-REQUIRED_SCENARIO_FIELDS = ["name", "type"]
-
-# New: process_role and process_variant replace the old 'process' definition
-REQUIRED_PROCESS_ROLE_FIELDS = ["id"]
-REQUIRED_PROCESS_VARIANT_FIELDS = ["id", "role"]
-
-# Commodity types: canonical type enum values
-BASELINE_COMMODITY_TYPES = [
-    "fuel", "energy", "service", "material", "emission", "money", "other",
-]
-
-BASELINE_SCENARIO_TYPES = ["commodity_price", "demand_projection"]
+LEGACY_TOP_LEVEL_PROPERTIES = {
+    "model",
+    "roles",
+    "variants",
+    "availability",
+    "process_parameters",
+    "demands",
+    "providers",
+}
 
 
-# =============================================================================
-# Required Field Tests
-# =============================================================================
+class TestV0_2SchemaContract:
+    """Verify the current public schema matches the v0.2 DSL surface."""
 
+    @classmethod
+    def setup_class(cls) -> None:
+        cls.schema = load_schema(SCHEMA_PATH)
 
-class TestRequiredFieldsPreserved:
-    """Verify that all required fields exist in the schema."""
+    def test_dsl_version_property_is_const_v0_2(self) -> None:
+        dsl_version = self.schema["properties"]["dsl_version"]
+        assert dsl_version["const"] == "0.2"
 
-    @pytest.fixture
-    def schema(self) -> dict:
-        return load_schema()
+    def test_v0_2_top_level_properties_exist(self) -> None:
+        current_properties = set(self.schema.get("properties", {}))
+        missing = EXPECTED_V0_2_TOP_LEVEL_PROPERTIES - current_properties
+        assert not missing, f"Missing v0.2 top-level properties: {sorted(missing)}"
 
-    def test_root_required_fields(self, schema: dict):
-        """Root level must require 'model'."""
-        current_required = schema.get("required", [])
-        for field in REQUIRED_ROOT_FIELDS:
-            assert field in current_required, (
-                f"Required root field '{field}' was removed!"
+    def test_legacy_top_level_properties_are_absent(self) -> None:
+        current_properties = set(self.schema.get("properties", {}))
+        unexpected = LEGACY_TOP_LEVEL_PROPERTIES & current_properties
+        assert not unexpected, (
+            "Legacy public top-level properties leaked into v0.2 schema: "
+            f"{sorted(unexpected)}"
+        )
+
+    def test_current_schema_definitions_cover_v0_2_object_families(self) -> None:
+        defs = self.schema.get("$defs", {})
+        for definition in [
+            "commodity",
+            "technology",
+            "technology_role",
+            "stock_characterization",
+            "flow_spec",
+            "spatial_layer",
+            "region_partition",
+            "site",
+            "facility",
+            "fleet",
+            "opportunity",
+            "network",
+            "run",
+            "temporal_index_series",
+            "zone_overlay",
+        ]:
+            assert definition in defs, f"Missing v0.2 definition: {definition}"
+
+    def test_legacy_public_definitions_are_absent_from_v0_2_schema(self) -> None:
+        defs = self.schema.get("$defs", {})
+        for definition in [
+            "process_role",
+            "process_variant",
+            "flow",
+            "scenario_parameter",
+            "timeslices",
+            "timeslice_level",
+            "scoping",
+            "availability_entry",
+            "process_parameter",
+            "demand",
+        ]:
+            assert definition not in defs, (
+                f"Legacy definition {definition} should not be present in v0.2 schema"
             )
 
-    def test_model_required_fields(self, schema: dict):
-        """Model object must require baseline fields."""
-        model_props = schema.get("properties", {}).get("model", {})
-        current_required = model_props.get("required", [])
-        for field in REQUIRED_MODEL_FIELDS:
-            assert field in current_required, (
-                f"Required model field '{field}' was removed!"
+    def test_required_fields_for_core_v0_2_objects(self) -> None:
+        defs = self.schema["$defs"]
+        assert defs["commodity"]["required"] == ["id", "kind"]
+        assert defs["technology"]["required"] == ["id", "provides"]
+        assert defs["technology_role"]["required"] == [
+            "id",
+            "primary_service",
+            "technologies",
+        ]
+        assert defs["flow_spec"]["required"] == ["commodity"]
+        assert defs["run"]["required"] == [
+            "id",
+            "base_year",
+            "currency_year",
+            "region_partition",
+        ]
+
+    def test_required_fields_for_spatial_and_asset_objects(self) -> None:
+        defs = self.schema["$defs"]
+        assert defs["site"]["required"] == ["id", "location"]
+        assert defs["facility"]["required"] == ["id", "site", "technology_role"]
+        assert defs["fleet"]["required"] == ["id", "technology_role", "distribution"]
+        assert defs["opportunity"]["required"] == [
+            "id",
+            "technology",
+            "siting",
+            "max_new_capacity",
+        ]
+        assert defs["network"]["required"] == ["id", "kind", "node_basis", "links"]
+
+    def test_commodity_kind_enum_matches_v0_2_namespaces(self) -> None:
+        enum_values = self.schema["$defs"]["commodity"]["properties"]["kind"]["enum"]
+        assert enum_values == [
+            "primary",
+            "secondary",
+            "service",
+            "emission",
+            "material",
+            "certificate",
+        ]
+
+    def test_flow_basis_stays_explicit(self) -> None:
+        basis = self.schema["$defs"]["flow_spec"]["properties"]["basis"]
+        assert basis["type"] == "string"
+        assert basis["enum"] == ["HHV", "LHV"]
+
+
+class TestLegacySchemaIsolation:
+    """Verify the legacy schema remains available only for deterministic rejection."""
+
+    @classmethod
+    def setup_class(cls) -> None:
+        cls.legacy_schema = load_schema(LEGACY_SCHEMA_PATH)
+
+    def test_legacy_schema_still_recognizes_legacy_root(self) -> None:
+        assert self.legacy_schema.get("required") == ["model"]
+
+    def test_legacy_schema_retains_removed_public_surface(self) -> None:
+        legacy_properties = set(self.legacy_schema.get("properties", {}))
+        missing = LEGACY_TOP_LEVEL_PROPERTIES - legacy_properties
+        assert not missing, (
+            "Legacy compatibility schema lost expected public properties: "
+            f"{sorted(missing)}"
+        )
+
+    def test_legacy_schema_retains_removed_type_definitions(self) -> None:
+        defs = self.legacy_schema.get("$defs", {})
+        for definition in [
+            "process_role",
+            "process_variant",
+            "flow",
+            "scenario_parameter",
+            "timeslices",
+            "timeslice_level",
+            "scoping",
+            "availability_entry",
+            "process_parameter",
+            "demand",
+        ]:
+            assert definition in defs, (
+                f"Legacy compatibility schema lost definition: {definition}"
             )
-
-    def test_commodity_required_fields(self, schema: dict):
-        """Commodity definition must require baseline fields."""
-        commodity_def = schema.get("$defs", {}).get("commodity", {})
-        current_required = commodity_def.get("required", [])
-        for field in REQUIRED_COMMODITY_FIELDS:
-            assert field in current_required, (
-                f"Required commodity field '{field}' was removed!"
-            )
-
-    def test_process_role_required_fields(self, schema: dict):
-        """Process role definition must require baseline fields."""
-        role_def = schema.get("$defs", {}).get("process_role", {})
-        current_required = role_def.get("required", [])
-        for field in REQUIRED_PROCESS_ROLE_FIELDS:
-            assert field in current_required, (
-                f"Required process_role field '{field}' was removed!"
-            )
-
-    def test_process_variant_required_fields(self, schema: dict):
-        """Process variant definition must require baseline fields."""
-        variant_def = schema.get("$defs", {}).get("process_variant", {})
-        current_required = variant_def.get("required", [])
-        for field in REQUIRED_PROCESS_VARIANT_FIELDS:
-            assert field in current_required, (
-                f"Required process_variant field '{field}' was removed!"
-            )
-
-    def test_flow_required_fields(self, schema: dict):
-        """Flow definition must require baseline fields."""
-        flow_def = schema.get("$defs", {}).get("flow", {})
-        current_required = flow_def.get("required", [])
-        for field in REQUIRED_FLOW_FIELDS:
-            assert field in current_required, (
-                f"Required flow field '{field}' was removed!"
-            )
-
-    def test_scenario_required_fields(self, schema: dict):
-        """Scenario parameter definition must require baseline fields."""
-        scenario_def = schema.get("$defs", {}).get("scenario_parameter", {})
-        current_required = scenario_def.get("required", [])
-        for field in REQUIRED_SCENARIO_FIELDS:
-            assert field in current_required, (
-                f"Required scenario_parameter field '{field}' was removed!"
-            )
-
-
-# =============================================================================
-# Enum Value Tests
-# =============================================================================
-
-
-class TestEnumValuesPreserved:
-    """Verify that enum values exist in the schema."""
-
-    @pytest.fixture
-    def schema(self) -> dict:
-        return load_schema()
-
-    def test_commodity_type_enum_values(self, schema: dict):
-        """Commodity type enum must include all expected values."""
-        commodity_def = schema.get("$defs", {}).get("commodity", {})
-        type_prop = commodity_def.get("properties", {}).get("type", {})
-        current_enum = type_prop.get("enum", [])
-
-        for value in BASELINE_COMMODITY_TYPES:
-            assert value in current_enum, (
-                f"Commodity type '{value}' was removed from enum!"
-            )
-
-    def test_scenario_type_enum_values(self, schema: dict):
-        """Scenario parameter type enum must include all expected values."""
-        scenario_def = schema.get("$defs", {}).get("scenario_parameter", {})
-        type_prop = scenario_def.get("properties", {}).get("type", {})
-        current_enum = type_prop.get("enum", [])
-
-        for value in BASELINE_SCENARIO_TYPES:
-            assert value in current_enum, (
-                f"Scenario parameter type '{value}' was removed from enum!"
-            )
-
-
-# =============================================================================
-# Type Preservation Tests
-# =============================================================================
-
-
-class TestPropertyTypesPreserved:
-    """Verify that property types are correct."""
-
-    @pytest.fixture
-    def schema(self) -> dict:
-        return load_schema()
-
-    def test_model_name_is_string(self, schema: dict):
-        """model.name must be a string type."""
-        model_props = schema.get("properties", {}).get("model", {})
-        name_prop = model_props.get("properties", {}).get("name", {})
-        assert name_prop.get("type") == "string", (
-            "model.name type was changed!"
-        )
-
-    def test_model_regions_is_array(self, schema: dict):
-        """model.regions must be an array type."""
-        model_props = schema.get("properties", {}).get("model", {})
-        regions_prop = model_props.get("properties", {}).get("regions", {})
-        assert regions_prop.get("type") == "array", (
-            "model.regions type was changed!"
-        )
-
-    def test_process_variant_efficiency_accepts_number(self, schema: dict):
-        """process_variant.efficiency must accept number type (scalar or in oneOf)."""
-        variant_def = schema.get("$defs", {}).get("process_variant", {})
-        eff_prop = variant_def.get("properties", {}).get("efficiency", {})
-        # Can be direct type or oneOf (for time-varying support)
-        if "oneOf" in eff_prop:
-            number_options = [
-                opt for opt in eff_prop["oneOf"]
-                if opt.get("type") == "number"
-            ]
-            assert len(number_options) >= 1, (
-                "process_variant.efficiency oneOf must include a number option"
-            )
-        else:
-            assert eff_prop.get("type") == "number", (
-                "process_variant.efficiency type was changed!"
-            )
-
-
-# =============================================================================
-# Schema Structure Tests
-# =============================================================================
-
-
-class TestSchemaStructure:
-    """Verify overall schema structure is maintained."""
-
-    @pytest.fixture
-    def schema(self) -> dict:
-        return load_schema()
-
-    def test_defs_section_exists(self, schema: dict):
-        """Schema must have $defs section for type definitions."""
-        assert "$defs" in schema, "Schema $defs section is missing!"
-
-    def test_commodity_def_exists(self, schema: dict):
-        """Commodity definition must exist."""
-        assert "commodity" in schema.get("$defs", {}), (
-            "Commodity type definition was removed!"
-        )
-
-    def test_process_role_def_exists(self, schema: dict):
-        """Process role definition must exist."""
-        assert "process_role" in schema.get("$defs", {}), (
-            "Process role type definition was removed!"
-        )
-
-    def test_process_variant_def_exists(self, schema: dict):
-        """Process variant definition must exist."""
-        assert "process_variant" in schema.get("$defs", {}), (
-            "Process variant type definition was removed!"
-        )
-
-    def test_flow_def_exists(self, schema: dict):
-        """Flow definition must exist."""
-        assert "flow" in schema.get("$defs", {}), (
-            "Flow type definition was removed!"
-        )
-
-    def test_scenario_def_exists(self, schema: dict):
-        """Scenario parameter definition must exist."""
-        assert "scenario_parameter" in schema.get("$defs", {}), (
-            "Scenario parameter type definition was removed!"
-        )
-
-    def test_timeslices_def_exists(self, schema: dict):
-        """Timeslices definition must exist."""
-        assert "timeslices" in schema.get("$defs", {}), (
-            "Timeslices type definition was removed!"
-        )
-
-    def test_timeslice_level_def_exists(self, schema: dict):
-        """Timeslice level definition must exist."""
-        assert "timeslice_level" in schema.get("$defs", {}), (
-            "Timeslice level type definition was removed!"
-        )
-
-
-# =============================================================================
-# New Schema Construct Tests
-# =============================================================================
-
-
-class TestNewSchemaConstructs:
-    """Verify new roles/variants/scoping constructs exist."""
-
-    @pytest.fixture
-    def schema(self) -> dict:
-        return load_schema()
-
-    def test_scoping_def_exists(self, schema: dict):
-        """Scoping definition must exist."""
-        assert "scoping" in schema.get("$defs", {}), (
-            "Scoping type definition is missing!"
-        )
-
-    def test_availability_entry_def_exists(self, schema: dict):
-        """Availability entry definition must exist."""
-        assert "availability_entry" in schema.get("$defs", {}), (
-            "Availability entry type definition is missing!"
-        )
-
-    def test_process_parameter_def_exists(self, schema: dict):
-        """Process parameter definition must exist."""
-        assert "process_parameter" in schema.get("$defs", {}), (
-            "Process parameter type definition is missing!"
-        )
-
-    def test_demand_def_exists(self, schema: dict):
-        """Demand definition must exist."""
-        assert "demand" in schema.get("$defs", {}), (
-            "Demand type definition is missing!"
-        )
-
-    def test_top_level_scoping_property_exists(self, schema: dict):
-        """Top-level scoping property must exist."""
-        assert "scoping" in schema.get("properties", {}), (
-            "Top-level scoping property is missing!"
-        )
-
-    def test_top_level_roles_property_exists(self, schema: dict):
-        """Top-level roles property must exist."""
-        assert "roles" in schema.get("properties", {}), (
-            "Top-level roles property is missing!"
-        )
-
-    def test_top_level_variants_property_exists(self, schema: dict):
-        """Top-level variants property must exist."""
-        assert "variants" in schema.get("properties", {}), (
-            "Top-level variants property is missing!"
-        )
-
-    def test_top_level_availability_property_exists(self, schema: dict):
-        """Top-level availability property must exist."""
-        assert "availability" in schema.get("properties", {}), (
-            "Top-level availability property is missing!"
-        )
-
-    def test_top_level_process_parameters_property_exists(self, schema: dict):
-        """Top-level process_parameters property must exist."""
-        assert "process_parameters" in schema.get("properties", {}), (
-            "Top-level process_parameters property is missing!"
-        )
-
-    def test_top_level_demands_property_exists(self, schema: dict):
-        """Top-level demands property must exist."""
-        assert "demands" in schema.get("properties", {}), (
-            "Top-level demands property is missing!"
-        )

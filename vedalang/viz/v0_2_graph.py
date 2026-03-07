@@ -18,14 +18,34 @@ def _commodity_node_id(symbol: str) -> str:
     return f"commodity:{symbol}"
 
 
-def _group_key(granularity: str, process: dict[str, Any]) -> tuple[str, str, str]:
+def _group_key(
+    granularity: str,
+    process: dict[str, Any],
+    *,
+    technology_to_role: dict[str, str],
+) -> tuple[str, str, str]:
     if granularity == "instance":
         process_id = str(process["id"])
         return (f"instance:{process_id}", process_id, "instance")
-    role_instance = str(process["source_role_instance"])
-    role_name = role_instance.split(".", 1)[-1].split("@", 1)[0]
+    role_instance = process.get("source_role_instance")
+    if role_instance:
+        role_instance = str(role_instance)
+        role_name = role_instance.split(".", 1)[-1].split("@", 1)[0]
+        region = str(process["model_region"])
+        return (f"role:{role_instance}", f"{role_name}@{region}", "role")
+    role_name = technology_to_role.get(
+        str(process.get("technology", "")),
+        str(process.get("technology", "")) or str(process.get("id", "")),
+    )
     region = str(process["model_region"])
-    return (f"role:{role_instance}", f"{role_name}@{region}", "role")
+    source_opportunity = process.get("source_opportunity")
+    if source_opportunity:
+        return (
+            f"role:opportunity:{source_opportunity}",
+            f"{role_name}@{region}",
+            "role",
+        )
+    return (f"role:{role_name}@{region}", f"{role_name}@{region}", "role")
 
 
 def _display_commodity(symbol: str, commodity_view: str) -> str:
@@ -50,9 +70,20 @@ def build_v0_2_system_graph(
     role_instances = {
         item["id"]: item for item in csir.get("technology_role_instances", [])
     }
+    technology_roles = {item["id"]: item for item in csir.get("technology_roles", [])}
+    technology_to_role = {
+        str(technology): str(role["id"])
+        for role in technology_roles.values()
+        for technology in role.get("technologies", [])
+    }
+    opportunities = {item["id"]: item for item in csir.get("opportunities", [])}
 
     for process in cpir.get("processes", []):
-        group_id, label, node_type = _group_key(granularity, process)
+        group_id, label, node_type = _group_key(
+            granularity,
+            process,
+            technology_to_role=technology_to_role,
+        )
         if group_id not in node_map:
             node = {"id": group_id, "label": label, "type": node_type}
             nodes.append(node)
@@ -63,24 +94,30 @@ def build_v0_2_system_graph(
                     "model_region": process.get("model_region"),
                     "model_stock_metric": process.get("model_stock_metric"),
                     "source_role_instance": process.get("source_role_instance"),
+                    "source_opportunity": process.get("source_opportunity"),
                     "initial_stock": process.get("initial_stock"),
                 }
             else:
+                role_instance_id = process.get("source_role_instance", "")
+                role_instance = role_instances.get(role_instance_id, {})
+                role_name = technology_to_role.get(str(process.get("technology", "")))
+                opportunity = (
+                    opportunities.get(process.get("source_opportunity", "")) or {}
+                )
                 details_nodes[group_id] = {
-                    "technology_role": role_instances.get(
-                        process.get("source_role_instance", ""),
-                        {},
-                    ).get("technology_role"),
+                    "technology_role": role_instance.get("technology_role")
+                    or role_name,
                     "model_region": process.get("model_region"),
-                    "source_role_instance": process.get("source_role_instance"),
-                    "source_asset": role_instances.get(
-                        process.get("source_role_instance", ""),
-                        {},
-                    ).get("source_asset"),
-                    "available_technologies": role_instances.get(
-                        process.get("source_role_instance", ""),
-                        {},
-                    ).get("available_technologies", []),
+                    "source_role_instance": role_instance_id or None,
+                    "source_asset": role_instance.get("source_asset"),
+                    "source_opportunity": process.get("source_opportunity"),
+                    "available_technologies": role_instance.get(
+                        "available_technologies",
+                        [process.get("technology")]
+                        if process.get("technology")
+                        else [],
+                    ),
+                    "max_new_capacity": opportunity.get("max_new_capacity"),
                 }
 
         for flow in process.get("flows", []):
@@ -89,9 +126,7 @@ def build_v0_2_system_graph(
             commodity_node_id = _commodity_node_id(commodity_label)
             if commodity_node_id not in node_map:
                 commodity_kind = (
-                    commodity.split(":", 1)[0]
-                    if ":" in commodity
-                    else "commodity"
+                    commodity.split(":", 1)[0] if ":" in commodity else "commodity"
                 )
                 node = {
                     "id": commodity_node_id,
@@ -172,10 +207,7 @@ def build_v0_2_trade_graph(
         {"id": f"region:{region}", "label": region, "type": "region"}
         for region in sorted(model_regions)
     ]
-    details_nodes = {
-        node["id"]: {"region": node["label"]}
-        for node in nodes
-    }
+    details_nodes = {node["id"]: {"region": node["label"]} for node in nodes}
     edges: list[dict[str, str]] = []
     details_edges: dict[str, dict[str, Any]] = {}
 

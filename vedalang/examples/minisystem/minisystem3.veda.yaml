@@ -1,149 +1,141 @@
-# Model: core system definition (regions, years, commodities, cases).
-model:
-  name: MiniSystem3
-  description: Investment decisions with demand growth forcing new capacity
-  regions:
-    - SINGLE
-  milestone_years:
-    - 2020
-    - 2025
-    - 2030
-    - 2040
-  commodities:
-    - id: primary:natural_gas
-      description: Natural gas
-      type: fuel
-      unit: PJ
-      combustible: true
-      hhv_mj_per_unit: 55.0
-      lhv_mj_per_unit: 50.0
+commodities:
+  - id: primary:natural_gas
+    kind: primary
 
-    - id: secondary:electricity
-      description: Electricity
-      type: energy
-      unit: PJ
-      combustible: false
+  - id: secondary:electricity
+    kind: secondary
 
-    - id: service:residential_demand
-      description: Residential demand
-      type: service
-      unit: PJ
-      combustible: false
+  - id: service:electricity_generation
+    kind: service
 
-# Scoping: defines demand-side namespaces for instantiation/scoping.
-# sectors: required enum values = RES, COM, IND, TRN, AGR, NE, OTH.
-# end_uses: optional non-enum lowercase tokens (e.g., heating) to create scopes like RES.heating.
-scoping:
-  sectors:
-    - RES
+  - id: service:gas_supply
+    kind: service
 
-# Process roles: reusable contracts (required I/O + units) shared by multiple variants.
-roles:
-  - id: deliver_residential
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: end_use
-    required_inputs:
-      - commodity: secondary:electricity
-    required_outputs:
-      - commodity: service:residential_demand
+  - id: service:residential_demand
+    kind: service
 
-  - id: generate_electricity
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: conversion
-    required_inputs:
-      - commodity: primary:natural_gas
-    required_outputs:
-      - commodity: secondary:electricity
+dsl_version: "0.2"
 
-  - id: import_gas
-    activity_unit: PJ
-    capacity_unit: GW
-    stage: supply
-    required_inputs: []
-    required_outputs:
-      - commodity: primary:natural_gas
+facilities:
+  - id: gas_supply_facility
+    site: single_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 100 MW
+            year: 2025
+          technology: gas_import
+    technology_role: gas_supply
 
-# Process variants: concrete technology definitions bound to roles.
-variants:
+  - id: generation_facility
+    site: single_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 2 MW
+            year: 2025
+          technology: ccgt
+    technology_role: electricity_generation
+
+  - id: residential_service_facility
+    site: single_hub
+    stock:
+      items:
+        - metric: annual_activity
+          observed:
+            value: 60 GWh/year
+            year: 2025
+          technology: residential_device
+    technology_role: residential_service
+
+opportunities:
+  - id: ccgt_expansion
+    max_new_capacity: 8 MW
+    siting:
+      region_member:
+        member: SINGLE
+        partition: single_region
+    technology: ccgt
+
+region_partitions:
+  - id: single_region
+    layer: geo.demo
+    mapping:
+      kind: constant
+      value: SINGLE
+    members:
+      - SINGLE
+
+runs:
+  - id: single_2025
+    base_year: 2025
+    currency_year: 2024
+    region_partition: single_region
+
+sites:
+  - id: single_hub
+    location:
+      point:
+        lat: -33.87
+        lon: 151.21
+    membership_overrides:
+      region_partitions:
+        single_region: SINGLE
+
+spatial_layers:
+  - id: geo.demo
+    geometry_file: data/regions.geojson
+    key: region_id
+    kind: polygon
+
+technologies:
   - id: ccgt
-    role: generate_electricity
     inputs:
       - commodity: primary:natural_gas
         basis: HHV
     outputs:
       - commodity: secondary:electricity
-    efficiency: 0.55
-    fixed_om_cost: 20 MUSD24/GW/yr
-    investment_cost: 800 MUSD24/GW
-    lifetime: 40
-    variable_om_cost: 2 MUSD24/PJ
-    variable_om_cost_basis: HHV
+    fixed_om: 20 AUD2024/kW/year
+    investment_cost: 800 AUD2024/kW
+    lifetime: 40 year
+    performance:
+      kind: efficiency
+      value: 0.55
+    provides: service:electricity_generation
+    variable_om: 2 AUD2024/MWh
 
   - id: gas_import
-    role: import_gas
-    inputs: []
     outputs:
       - commodity: primary:natural_gas
-        basis: HHV
-    efficiency: 1.0
-    lifetime: 100
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:gas_supply
 
   - id: residential_device
-    role: deliver_residential
     inputs:
       - commodity: secondary:electricity
-    outputs:
-      - commodity: service:residential_demand
-    efficiency: 1.0
-    lifetime: 100
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:residential_demand
 
-# Availability: expands each variant into region/scope-specific process instances in the RES.
-availability:
-  - variant: ccgt
-    regions:
-      - SINGLE
+technology_roles:
+  - id: electricity_generation
+    primary_service: service:electricity_generation
+    technologies:
+      - ccgt
 
-  - variant: gas_import
-    regions:
-      - SINGLE
+  - id: gas_supply
+    primary_service: service:gas_supply
+    technologies:
+      - gas_import
 
-  - variant: residential_device
-    regions:
-      - SINGLE
-    sectors:
-      - RES
-
-# Process parameters: selector-based overrides applied to matching instantiated process copies.
-process_parameters:
-  - cap_bound:
-      up: 100
-    existing_capacity:
-      - capacity: 2
-        vintage: 2010
-    selector:
-      variant: ccgt
-      region: SINGLE
-
-  - selector:
-      variant: gas_import
-      region: SINGLE
-    stock: 1000
-
-  - selector:
-      variant: residential_device
-      region: SINGLE
-      sector: RES
-    stock: 1000
-
-# Demands: service demand trajectories by region and optional scope (sector/scope).
-demands:
-  - commodity: service:residential_demand
-    region: SINGLE
-    values:
-      "2020": 30
-      "2030": 60
-      "2050": 90
-    interpolation: interp_extrap
-    sector: RES
+  - id: residential_service
+    primary_service: service:residential_demand
+    technologies:
+      - residential_device

@@ -1,7 +1,9 @@
 # Toy Sector Examples
 
-Use this folder for compact sector-focused examples (buildings, transport, industry, etc.).
+Compact v0.2 sector-focused examples.
 
-Typical contents:
-- sector-specific toy models
-- cross-sector integration toy models
+Notes:
+- The historical `2ts` and `4ts` electricity examples now use two-node and
+  four-node region partitions instead of the removed public timeslice surface.
+- The remaining files are direct v0.2 examples using `technology_roles`,
+  `facilities`, `opportunities`, and `networks`.
