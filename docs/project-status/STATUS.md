@@ -1,10 +1,10 @@
 # VedaLang Project Status
 
-**Last updated:** 2026-03-06
+**Last updated:** 2026-03-07
 
 ## Executive Summary
 
-VedaLang is a typed DSL that compiles to VEDA Excel tables for TIMES energy models. **All core phases (P0–P3) are complete.** The core abstraction v2 rollout is now landed (role/variant/mode type axis + provider object axis + scope-only commodity axis), and current focus is maintenance/extension follow-up.
+VedaLang is a typed DSL that compiles to VEDA Excel tables for TIMES energy models. **All core phases (P0–P3) remain complete**, but the active workstream has shifted to a new **v0.2 DSL reset** based on the 2026-03-07 PRD. The tracker now contains a full rollout hierarchy for the package/run/CSIR/CPIR architecture, with 32 open issues and 79 closed issues.
 
 | Milestone | Status |
 |-----------|--------|
@@ -21,16 +21,49 @@ VedaLang is a typed DSL that compiles to VEDA Excel tables for TIMES energy mode
 | LSP / VSCode Plugin | ✅ Complete |
 | Emissions Refactor | ✅ Complete |
 | Progressive Fixtures (ms1-8) | ✅ All passing |
+| v0.2 DSL reset backlog | 🚧 Planned in `bd` |
 
 ---
 
-## Current Status: Maintenance & Extension
-
-Core design phases remain complete. Active work is concentrated on post-rollout cleanup and extension.
+## Current Status: v0.2 DSL Reset Planning
+Core design phases remain complete. Active work is now concentrated on the `vedalang-txa` rollout tree for the v0.2 package/run/CSIR/CPIR DSL reset.
 
 ### Active Work
 
-No open `bd` issues at this time.
+| Issue | Priority | Type | Title |
+|-------|----------|------|-------|
+| `vedalang-txa` | P1 | epic | VedaLang v0.2 rollout: package/run/CSIR/CPIR DSL reset |
+| `vedalang-txa.1` | P1 | epic | v0.2 governance and version contract |
+| `vedalang-txa.1.1` | P1 | task | Normalize PRD/spec references to DSL v0.2 and record hard-cut policy |
+| `vedalang-txa.1.2` | P1 | task | Add explicit DSL version markers to source and emitted artifacts |
+| `vedalang-txa.1.3` | P1 | task | Reject legacy public DSL primitives with deterministic diagnostics |
+| `vedalang-txa.3` | P1 | epic | v0.2 public schema and AST reset |
+| `vedalang-txa.3.1` | P1 | task | Schema: commodities, technologies, technology_roles, stock_characterizations |
+| `vedalang-txa.3.2` | P1 | task | Schema: imports, spatial reference data, temporal reference data, and runs |
+| `vedalang-txa.3.3` | P1 | task | Schema: sites, facilities, fleets, opportunities, and networks |
+| `vedalang-txa.3.4` | P1 | task | Replace source-model AST/parsing with v0.2 object types |
+| `vedalang-txa.4` | P1 | epic | package, run, spatial, and stock resolution |
+| `vedalang-txa.4.1` | P1 | task | Implement import resolver with alias qualification and dependency closure |
+| `vedalang-txa.4.2` | P1 | task | Implement run resolver and compiled model_region context |
+| `vedalang-txa.4.3` | P1 | task | Implement site membership, overlay resolution, and opportunity siting |
+| `vedalang-txa.4.4` | P1 | task | Implement base-year stock adjustment engine |
+| `vedalang-txa.4.5` | P1 | task | Implement fleet allocation rollup and stock characterization conversion |
+| `vedalang-txa.5` | P1 | epic | canonical IRs and provenance artifacts |
+| `vedalang-txa.5.1` | P1 | task | Define CSIR, CPIR, and explain artifact schemas plus ordering contract |
+| `vedalang-txa.5.2` | P1 | task | Emit CSIR for resolved assets, role instances, opportunities, and networks |
+| `vedalang-txa.5.3` | P1 | task | Emit explain.json provenance and derivation traces |
+| `vedalang-txa.5.4` | P1 | task | Lower CSIR to CPIR process_spec, transition_edge, and network_arc objects |
+| `vedalang-txa.6` | P1 | epic | backend parity through Excel/xl2times/TIMES |
+| `vedalang-txa.6.1` | P1 | task | Map CPIR to existing TableIR and Excel emission path |
+| `vedalang-txa.6.2` | P1 | task | Update compile/validate CLI for run-scoped multi-artifact builds |
+| `vedalang-txa.6.3` | P1 | task | Restore xl2times and TIMES parity for flagship v0.2 fixtures |
+| `vedalang-txa.7` | P1 | epic | diagnostics, tooling surfaces, docs, and regression coverage |
+| `vedalang-txa.7.1` | P1 | task | Implement PRD Section 14 hard errors, warnings, and source maps |
+| `vedalang-txa.7.2` | P1 | task | Port query, viz, reporting, and LSP consumers to CSIR/CPIR-era data |
+| `vedalang-txa.7.3` | P1 | task | Rewrite examples, tutorials, and skills to v0.2 DSL and compile them in CI |
+| `vedalang-txa.7.4` | P1 | task | Add golden regression matrix for Section 16, determinism, and legacy rejection |
+| `vedalang-txa.7.5` | P2 | task | Sync README, AGENTS, STATUS, and HISTORY with the v0.2 rollout |
+| `vedalang-txa.7.6` | P2 | bug | Fix tools/sync_status.py to consume current bd output |
 
 ### Recently Completed
 
@@ -54,7 +87,7 @@ No open `bd` issues at this time.
 
 ### Future Work (P4+)
 
-Planned work remains in the P4 roadmap (`vedalang-6qs`, `vedalang-9xy`, `vedalang-a9m`) rather than currently open `bd` tickets.
+The longer-term P4 roadmap (`vedalang-6qs`, `vedalang-9xy`, `vedalang-a9m`) still exists, but it is now secondary to the active `vedalang-txa` v0.2 reset backlog above.
 
 ---
 
