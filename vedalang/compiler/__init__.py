@@ -30,6 +30,12 @@ from .table_schemas import (
     validate_tableir,
 )
 from .v0_2_ast import V0_2Source, parse_v0_2_source
+from .v0_2_ir import (
+    ResolvedArtifacts,
+    build_v0_2_artifacts,
+    emit_csir,
+    lower_csir_to_cpir,
+)
 from .v0_2_resolution import (
     V0_2ResolutionError,
     allocate_fleet_stock,
@@ -53,14 +59,18 @@ __all__ = [
     "VedaFieldSchema",
     "VedaLangError",
     "VedaRegistry",
+    "ResolvedArtifacts",
     "V0_2Source",
     "V0_2ResolutionError",
     "VedaTableLayout",
     "VedaTableSchema",
     "compile_demands",
     "compile_vedalang_to_tableir",
+    "build_v0_2_artifacts",
+    "emit_csir",
     "get_all_schemas",
     "get_registry",
+    "lower_csir_to_cpir",
     "load_vedalang",
     "allocate_fleet_stock",
     "parse_v0_2_source",

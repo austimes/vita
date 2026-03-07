@@ -110,6 +110,14 @@ def _packages_and_model():
                     "id": "residential_space_heat_supply",
                     "primary_service": "service:space_heat",
                     "technologies": ["gas_heater", "heat_pump"],
+                    "transitions": [
+                        {
+                            "from": "gas_heater",
+                            "to": "heat_pump",
+                            "kind": "retrofit",
+                            "cost": "70 AUD2024/kW",
+                        }
+                    ],
                 }
             ],
             "stock_characterizations": [
@@ -222,6 +230,24 @@ def _packages_and_model():
                     "max_new_capacity": "1500 MW",
                 }
             ],
+            "networks": [
+                {
+                    "id": "east_coast_transmission",
+                    "kind": "transmission",
+                    "node_basis": {
+                        "kind": "region_partition",
+                        "ref": "regions.toy_states_3",
+                    },
+                    "links": [
+                        {
+                            "id": "qld_nsw",
+                            "from": "QLD",
+                            "to": "NSW",
+                            "commodity": "heat.secondary:electricity",
+                        }
+                    ],
+                }
+            ],
             "runs": [
                 {
                     "id": "toy_states_2025",
@@ -316,7 +342,7 @@ def test_resolve_imports_detects_missing_object_and_cycle():
                     "only": {
                         "temporal_index_series": ["national_dwelling_stock_index"]
                     },
-                }
+                },
             ],
             "technology_roles": [
                 {
@@ -402,9 +428,7 @@ def test_adjust_stock_requires_rule_when_year_differs():
                 {
                     "package": "vedalang.std.heat@1",
                     "as": "heat",
-                    "only": {
-                        "technology_roles": ["residential_space_heat_supply"]
-                    },
+                    "only": {"technology_roles": ["residential_space_heat_supply"]},
                 }
             ],
             "fleets": [
@@ -451,11 +475,9 @@ def test_item_level_adjustment_overrides_stock_block_rule():
                     "package": "vedalang.au.demography@1",
                     "as": "demo",
                     "only": {
-                        "temporal_index_series": [
-                            "national_dwelling_stock_index"
-                        ]
+                        "temporal_index_series": ["national_dwelling_stock_index"]
                     },
-                }
+                },
             ],
             "facilities": [
                 {

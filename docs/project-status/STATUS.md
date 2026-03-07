@@ -4,7 +4,7 @@
 
 ## Executive Summary
 
-VedaLang is a typed DSL that compiles to VEDA Excel tables for TIMES energy models. **All core phases (P0–P3) remain complete**, but the active workstream has shifted to a new **v0.2 DSL reset** based on the 2026-03-07 PRD. The tracker now contains a full rollout hierarchy for the package/run/CSIR/CPIR architecture, with 15 open issues, 1 in-progress issue, and 95 closed issues.
+VedaLang is a typed DSL that compiles to VEDA Excel tables for TIMES energy models. **All core phases (P0–P3) remain complete**, but the active workstream has shifted to a new **v0.2 DSL reset** based on the 2026-03-07 PRD. The tracker now contains a full rollout hierarchy for the package/run/CSIR/CPIR architecture, with 10 open issues, 1 in-progress issue, and 100 closed issues.
 
 | Milestone | Status |
 |-----------|--------|
@@ -33,11 +33,6 @@ Core design phases remain complete. Active work is now concentrated on the `veda
 | Issue | Priority | Type | Title |
 |-------|----------|------|-------|
 | `vedalang-txa` | P1 | epic | VedaLang v0.2 rollout: package/run/CSIR/CPIR DSL reset |
-| `vedalang-txa.5` | P1 | epic | canonical IRs and provenance artifacts |
-| `vedalang-txa.5.1` | P1 | task | Define CSIR, CPIR, and explain artifact schemas plus ordering contract |
-| `vedalang-txa.5.2` | P1 | task | Emit CSIR for resolved assets, role instances, opportunities, and networks |
-| `vedalang-txa.5.3` | P1 | task | Emit explain.json provenance and derivation traces |
-| `vedalang-txa.5.4` | P1 | task | Lower CSIR to CPIR process_spec, transition_edge, and network_arc objects |
 | `vedalang-txa.6` | P1 | epic | backend parity through Excel/xl2times/TIMES |
 | `vedalang-txa.6.1` | P1 | task | Map CPIR to existing TableIR and Excel emission path |
 | `vedalang-txa.6.2` | P1 | task | Update compile/validate CLI for run-scoped multi-artifact builds |
@@ -58,16 +53,17 @@ Core design phases remain complete. Active work is now concentrated on the `veda
 
 | Issue | Priority | Description | Status |
 |-------|----------|-------------|--------|
+| `vedalang-txa.5` | P1 | Canonical IR tranche completed with CSIR/CPIR/explain schemas, emitters, lowering, and deterministic artifact tests | ✓ Closed |
+| `vedalang-txa.5.4` | P1 | Added CSIR-to-CPIR lowering for process specs, transition edges, opportunity processes, and network arcs | ✓ Closed |
+| `vedalang-txa.5.3` | P1 | Added explain artifact emission for provenance, temporal adjustment, spatial allocation, stock characterization, and lowering traces | ✓ Closed |
+| `vedalang-txa.5.2` | P1 | Added deterministic CSIR emission for resolved sites, role instances, opportunities, and networks | ✓ Closed |
+| `vedalang-txa.5.1` | P1 | Added dedicated CSIR/CPIR/explain schemas plus deterministic ordering tests | ✓ Closed |
 | `vedalang-txa.4` | P1 | Resolution layer completed for imports, runs, site/opportunity membership, stock adjustment, and fleet allocation/stock-view derivation | ✓ Closed |
 | `vedalang-txa.4.5` | P1 | Added deterministic fleet allocation plus stock_characterization-based derived stock views with regression coverage | ✓ Closed |
 | `vedalang-txa.4.4` | P1 | Added base-year stock adjustment for temporal-index and annual-growth methods with item-level override precedence | ✓ Closed |
 | `vedalang-txa.4.3` | P1 | Added site membership resolution, membership override validation, zone overlay resolution, and opportunity siting checks | ✓ Closed |
 | `vedalang-txa.4.2` | P1 | Added run selection and deterministic model_region context resolution | ✓ Closed |
 | `vedalang-txa.4.1` | P1 | Added import resolution with alias qualification, dependency closure, and cycle/conflict diagnostics | ✓ Closed |
-| `vedalang-txa.3` | P1 | Public schema/AST reset completed with v0.2 schema families, legacy-schema isolation, and typed parser/AST coverage | ✓ Closed |
-| `vedalang-txa.3.4` | P1 | Added dedicated v0.2 AST/parser dataclasses with structural source-path retention | ✓ Closed |
-| `vedalang-txa.3.3` | P1 | Added v0.2 schema support for sites, facilities, fleets, opportunities, networks, and stock/distribution shapes | ✓ Closed |
-| `vedalang-txa.3.2` | P1 | Added v0.2 schema support for imports, spatial/temporal reference data, and runs | ✓ Closed |
 | `vedalang-txa.3.1` | P1 | Added v0.2 schema support for commodities, technologies, technology_roles, and stock_characterizations | ✓ Closed |
 | `vedalang-txa.1.2` | P1 | Added top-level `dsl_version` and emitted artifact/check/pipeline version metadata | ✓ Closed |
 | `vedalang-txa.1.1` | P1 | Normalized the 2026-03-07 PRD to v0.2 wording and recorded the hard-cut policy in governance docs | ✓ Closed |
