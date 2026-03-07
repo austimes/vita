@@ -4,6 +4,11 @@ Chronological record of major design decisions, schema changes, and milestone ev
 
 ---
 
+## v0.2 Cleanup (2026-03-07)
+
+- **Decision:** Public CLI/runtime validation now hard-rejects the pre-v0.2 public DSL; legacy schema validation remains explicit opt-in only for quarantined internal callers.
+- **Decision:** RES query/viz tooling is being reduced to the v0.2 CSIR/CPIR graph stack; provider/provider_variant/provider_variant_mode graph surfaces are retired from active clients.
+
 ## Phase 0: Toolchain Validation (2025-12-21)
 
 **Goal:** Prove that the VedaLang → TableIR → Excel → xl2times pipeline works end-to-end.

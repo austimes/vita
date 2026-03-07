@@ -115,7 +115,8 @@ def test_run_eval_marks_skips_without_crashing(monkeypatch, tmp_path):
     monkeypatch.setattr("tools.veda_dev.evals.runner._evaluate_one", fake_evaluate_one)
     monkeypatch.setattr("tools.veda_dev.evals.runner.load_vedalang", lambda _p: {})
     monkeypatch.setattr(
-        "tools.veda_dev.evals.runner.validate_vedalang", lambda _s: None
+        "tools.veda_dev.evals.runner.validate_vedalang",
+        lambda _s, **_kwargs: None,
     )
     monkeypatch.setattr(
         "tools.veda_dev.evals.runner._deterministic_reference", lambda _s, _c, **_k: []
@@ -180,7 +181,8 @@ def test_run_eval_emits_progress_events(monkeypatch, tmp_path):
     monkeypatch.setattr("tools.veda_dev.evals.runner._evaluate_one", fake_evaluate_one)
     monkeypatch.setattr("tools.veda_dev.evals.runner.load_vedalang", lambda _p: {})
     monkeypatch.setattr(
-        "tools.veda_dev.evals.runner.validate_vedalang", lambda _s: None
+        "tools.veda_dev.evals.runner.validate_vedalang",
+        lambda _s, **_kwargs: None,
     )
     monkeypatch.setattr(
         "tools.veda_dev.evals.runner._deterministic_reference", lambda _s, _c, **_k: []
@@ -243,7 +245,8 @@ def test_run_eval_pre_skips_known_unsupported_combos(monkeypatch, tmp_path):
     )
     monkeypatch.setattr("tools.veda_dev.evals.runner.load_vedalang", lambda _p: {})
     monkeypatch.setattr(
-        "tools.veda_dev.evals.runner.validate_vedalang", lambda _s: None
+        "tools.veda_dev.evals.runner.validate_vedalang",
+        lambda _s, **_kwargs: None,
     )
     monkeypatch.setattr(
         "tools.veda_dev.evals.runner._deterministic_reference", lambda _s, _c, **_k: []
@@ -496,7 +499,8 @@ def test_run_eval_parallelizes_rows(monkeypatch, tmp_path):
     monkeypatch.setattr("tools.veda_dev.evals.runner._evaluate_one", fake_evaluate_one)
     monkeypatch.setattr("tools.veda_dev.evals.runner.load_vedalang", lambda _p: {})
     monkeypatch.setattr(
-        "tools.veda_dev.evals.runner.validate_vedalang", lambda _s: None
+        "tools.veda_dev.evals.runner.validate_vedalang",
+        lambda _s, **_kwargs: None,
     )
     monkeypatch.setattr(
         "tools.veda_dev.evals.runner._deterministic_reference", lambda _s, _c, **_k: []
@@ -551,7 +555,8 @@ def test_run_eval_survives_deterministic_reference_errors(monkeypatch, tmp_path)
     )
     monkeypatch.setattr("tools.veda_dev.evals.runner.load_vedalang", lambda _p: {})
     monkeypatch.setattr(
-        "tools.veda_dev.evals.runner.validate_vedalang", lambda _s: None
+        "tools.veda_dev.evals.runner.validate_vedalang",
+        lambda _s, **_kwargs: None,
     )
     monkeypatch.setattr(
         "tools.veda_dev.evals.runner.build_candidate_matrix",
@@ -589,7 +594,8 @@ def test_run_eval_orders_results_by_case_effort_model(monkeypatch, tmp_path):
     monkeypatch.setattr("tools.veda_dev.evals.runner._evaluate_one", fake_evaluate_one)
     monkeypatch.setattr("tools.veda_dev.evals.runner.load_vedalang", lambda _p: {})
     monkeypatch.setattr(
-        "tools.veda_dev.evals.runner.validate_vedalang", lambda _s: None
+        "tools.veda_dev.evals.runner.validate_vedalang",
+        lambda _s, **_kwargs: None,
     )
     monkeypatch.setattr(
         "tools.veda_dev.evals.runner._deterministic_reference", lambda _s, _c, **_k: []
@@ -662,7 +668,8 @@ def test_run_eval_cache_reuses_judge_results(monkeypatch, tmp_path):
     monkeypatch.setattr("tools.veda_dev.evals.runner.run_judge", fake_run_judge)
     monkeypatch.setattr("tools.veda_dev.evals.runner.load_vedalang", lambda _p: {})
     monkeypatch.setattr(
-        "tools.veda_dev.evals.runner.validate_vedalang", lambda _s: None
+        "tools.veda_dev.evals.runner.validate_vedalang",
+        lambda _s, **_kwargs: None,
     )
     monkeypatch.setattr(
         "tools.veda_dev.evals.runner._deterministic_reference", lambda _s, _c, **_k: []

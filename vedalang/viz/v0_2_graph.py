@@ -2,7 +2,15 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
+
+
+@dataclass
+class FilterSpec:
+    regions: set[str]
+    sectors: set[str]
+    scopes: set[str]
 
 
 def infer_run_id(source: dict[str, Any]) -> str | None:
@@ -180,16 +188,7 @@ def build_v0_2_system_graph(
             "cases": [],
             "sectors": [],
             "scopes": [],
-            "granularities": [
-                "role",
-                "provider",
-                "provider_variant",
-                "provider_variant_mode",
-                "instance",
-                "variant",
-                "mode",
-                "facility",
-            ],
+            "granularities": ["role", "instance"],
             "commodity_views": ["scoped", "collapse_scope"],
             "lenses": ["system", "trade"],
         },
@@ -239,16 +238,7 @@ def build_v0_2_trade_graph(
             "cases": [],
             "sectors": [],
             "scopes": [],
-            "granularities": [
-                "role",
-                "provider",
-                "provider_variant",
-                "provider_variant_mode",
-                "instance",
-                "variant",
-                "mode",
-                "facility",
-            ],
+            "granularities": ["role", "instance"],
             "commodity_views": ["scoped", "collapse_scope"],
             "lenses": ["system", "trade"],
         },

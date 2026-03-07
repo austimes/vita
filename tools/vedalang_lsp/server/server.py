@@ -1637,7 +1637,7 @@ def res_graph(ls: VedaLangServer, params) -> dict:
         }
 
     if include_variants and granularity == "role":
-        granularity = "provider_variant"
+        granularity = "instance"
 
     parsed_uri = urlparse(uri)
     file_path = unquote(parsed_uri.path) if parsed_uri.path else ""

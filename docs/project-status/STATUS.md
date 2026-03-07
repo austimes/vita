@@ -4,7 +4,7 @@
 
 ## Executive Summary
 
-VedaLang is a typed DSL that compiles to VEDA Excel tables for TIMES energy models. **All core phases (P0–P3) remain complete**, the v0.2 package/run/CSIR/CPIR rollout is landed end-to-end, and the full example catalog is on the v0.2 DSL. The current `bd` tracker state is 120 closed issues and 7 open issues, all concentrated in the new v0.2-only cleanup epic.
+VedaLang is a typed DSL that compiles to VEDA Excel tables for TIMES energy models. **All core phases (P0–P3) remain complete**, the v0.2 package/run/CSIR/CPIR rollout is landed end-to-end, and the full example catalog is on the v0.2 DSL. The current `bd` tracker state is 121 closed issues and 5 open issues, all concentrated in the new v0.2-only cleanup epic.
 
 | Milestone | Status |
 |-----------|--------|
@@ -32,7 +32,6 @@ Core design phases remain complete. The v0.2 frontend, diagnostics, downstream t
 ### Active Work
 
 Open `bd` work is now the cleanup epic `vedalang-y8e` and its child tasks:
-- `vedalang-y8e.1` — remove legacy schema routing and compiler entrypoints from the runtime
 - `vedalang-y8e.2` — retire provider-based facility lowering in favor of v0.2 asset lowering only
 - `vedalang-y8e.5` — collapse RES query, viz, and export tooling onto the v0.2 graph stack
 - `vedalang-y8e.3` — purge legacy role/variant/provider guidance from user docs and LSP schema help
@@ -44,6 +43,7 @@ Open `bd` work is now the cleanup epic `vedalang-y8e` and its child tasks:
 | Issue | Priority | Description | Status |
 |-------|----------|-------------|--------|
 | `vedalang-y8e` | P1 | Opened the v0.2-only cleanup epic to remove the remaining compiler/tooling/docs/test compatibility surfaces for the pre-v0.2 DSL | Open |
+| `vedalang-y8e.1` | P1 | Public CLI/runtime validation now hard-rejects legacy pre-v0.2 public DSL and no longer auto-routes through the legacy schema | ✓ Closed |
 | `vedalang-bqz` | P1 | Completed the example-catalog migration epic: all 35 supported `.veda.yaml` examples now use the v0.2 DSL and remain regression-covered | ✓ Closed |
 | `vedalang-3m8` | P1 | Expanded the regression matrix to cover the newly ported example families and hard-cut schema/tooling expectations | ✓ Closed |
 | `vedalang-2w5` | P1 | Ported the minisystem example family to v0.2 and refreshed golden/regression coverage | ✓ Closed |

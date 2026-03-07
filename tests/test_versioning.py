@@ -1,6 +1,14 @@
 from pathlib import Path
 
-from vedalang.compiler import load_vedalang, validate_vedalang
+import pytest
+from jsonschema import ValidationError
+
+from vedalang.compiler import (
+    PublicDSLContractError,
+    load_vedalang,
+    validate_public_dsl_contract,
+    validate_vedalang,
+)
 from vedalang.versioning import looks_like_legacy_source, looks_like_v0_2_source
 
 
@@ -39,7 +47,7 @@ def test_load_vedalang_only_injects_dsl_version_for_v0_2_files(tmp_path: Path) -
     assert v0_2["dsl_version"] == "0.2"
 
 
-def test_validate_vedalang_routes_legacy_sources_to_legacy_schema() -> None:
+def test_validate_vedalang_rejects_legacy_sources_by_default() -> None:
     legacy = {
         "model": {
             "name": "Legacy",
@@ -56,4 +64,37 @@ def test_validate_vedalang_routes_legacy_sources_to_legacy_schema() -> None:
         "variants": [],
     }
 
-    validate_vedalang(legacy)
+    with pytest.raises(ValidationError):
+        validate_vedalang(legacy)
+
+
+def test_validate_vedalang_allows_explicit_legacy_schema_opt_in() -> None:
+    legacy = {
+        "model": {
+            "name": "Legacy",
+            "regions": ["R1"],
+            "commodities": [
+                {
+                    "id": "secondary:electricity",
+                    "type": "energy",
+                    "unit": "PJ",
+                }
+            ],
+        },
+        "roles": [],
+        "variants": [],
+    }
+
+    validate_vedalang(legacy, legacy=True)
+
+
+def test_public_dsl_contract_rejects_legacy_roles_surface() -> None:
+    legacy = {
+        "model": {"name": "Legacy", "regions": ["R1"], "commodities": []},
+        "roles": [],
+        "variants": [],
+    }
+
+    with pytest.raises(PublicDSLContractError) as excinfo:
+        validate_public_dsl_contract(legacy)
+    assert excinfo.value.code == "E_LEGACY_SYNTAX_UNSUPPORTED"

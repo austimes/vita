@@ -10,9 +10,6 @@ const MODE_OPTIONS = [
 
 const GRANULARITY_OPTIONS = [
   { value: "role", label: "role" },
-  { value: "provider", label: "provider" },
-  { value: "provider_variant", label: "provider×variant" },
-  { value: "provider_variant_mode", label: "provider×variant×mode" },
   { value: "instance", label: "instance" },
 ];
 
@@ -30,9 +27,6 @@ const STAGE_ORDER = ["supply", "conversion", "distribution", "storage", "end_use
 const STAGE_RANK = new Map(STAGE_ORDER.map((stage, index) => [stage, index]));
 const PROCESS_NODE_TYPES = new Set([
   "role",
-  "provider",
-  "provider_variant",
-  "provider_variant_mode",
   "instance",
 ]);
 const MAX_AUTO_FIT_ZOOM = 1.6;
@@ -142,15 +136,6 @@ function styleForNode(nodeType) {
   }
   if (nodeType === "role") {
     return { shape: "round-rectangle", color: "#6366f1" };
-  }
-  if (nodeType === "provider") {
-    return { shape: "round-rectangle", color: "#0f766e" };
-  }
-  if (nodeType === "provider_variant" || nodeType === "variant") {
-    return { shape: "round-rectangle", color: "#9333ea" };
-  }
-  if (nodeType === "provider_variant_mode" || nodeType === "mode") {
-    return { shape: "round-rectangle", color: "#f97316" };
   }
   return { shape: "round-rectangle", color: "#16a34a" };
 }

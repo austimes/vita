@@ -23,7 +23,6 @@ from vedalang.conventions import (
 )
 from vedalang.versioning import (
     annotate_tableir,
-    looks_like_legacy_source,
     looks_like_v0_2_source,
     with_dsl_version,
 )
@@ -2826,19 +2825,42 @@ def validate_public_dsl_contract(source: dict) -> None:
         legacy_location = "processes"
     elif isinstance(source.get("model"), dict) and source["model"].get("processes"):
         legacy_location = "model.processes"
+    else:
+        for field in (
+            "model",
+            "scoping",
+            "roles",
+            "variants",
+            "availability",
+            "process_parameters",
+            "demands",
+            "diagnostics",
+            "commodity_groups",
+            "facility_templates",
+            "facility_selection",
+            "spatial_mappings",
+            "providers",
+            "provider_parameters",
+        ):
+            if field in source:
+                legacy_location = field
+                break
 
     if legacy_location is not None:
         raise PublicDSLContractError(
             code="E_LEGACY_SYNTAX_UNSUPPORTED",
             message=(
-                "Legacy process-based public DSL is no longer supported by "
-                "vedalang CLI entrypoints. Use roles/variants authoring during "
-                "the transition to the v0.2 package/run/object model."
+                "Legacy pre-v0.2 public DSL blocks are no longer supported by "
+                "vedalang CLI entrypoints. Use the v0.2 package/run/object "
+                "model instead."
             ),
             location=legacy_location,
             suggestion=(
-                "Replace top-level 'processes' with 'roles' and 'variants'. "
-                "Track the v0.2 reset in docs/prds/20260307-vedalang-v0.2.prd.txt."
+                "Replace legacy model/roles/variants/providers-style authoring "
+                "with v0.2 top-level objects such as commodities, technologies, "
+                "technology_roles, sites, facilities, fleets, opportunities, "
+                "networks, and runs. Track the v0.2 reset in "
+                "docs/prds/20260307-vedalang-v0.2.prd.txt."
             ),
         )
 
@@ -3484,10 +3506,15 @@ def validate_cross_references(
     return errors, warnings
 
 
-def load_vedalang_schema(*, legacy: bool = False) -> dict:
+def load_vedalang_schema() -> dict:
     """Load the VedaLang JSON schema."""
-    schema_name = "vedalang.legacy.schema.json" if legacy else "vedalang.schema.json"
-    with open(SCHEMA_DIR / schema_name) as f:
+    with open(SCHEMA_DIR / "vedalang.schema.json") as f:
+        return json.load(f)
+
+
+def load_legacy_vedalang_schema() -> dict:
+    """Load the legacy VedaLang schema for explicitly quarantined callers."""
+    with open(SCHEMA_DIR / "vedalang.legacy.schema.json") as f:
         return json.load(f)
 
 
@@ -3497,11 +3524,9 @@ def load_tableir_schema() -> dict:
         return json.load(f)
 
 
-def validate_vedalang(source: dict, *, legacy: bool | None = None) -> None:
-    """Validate VedaLang source against the appropriate schema."""
-    if legacy is None:
-        legacy = looks_like_legacy_source(source) and not looks_like_v0_2_source(source)
-    schema = load_vedalang_schema(legacy=legacy)
+def validate_vedalang(source: dict, *, legacy: bool = False) -> None:
+    """Validate VedaLang source against the selected schema."""
+    schema = load_legacy_vedalang_schema() if legacy else load_vedalang_schema()
     jsonschema.validate(source, schema)
 
 
@@ -4474,7 +4499,7 @@ def compile_vedalang_to_tableir(
         return bundle.tableir
 
     if validate:
-        validate_vedalang(source)
+        validate_vedalang(source, legacy=True)
 
     # Detect new syntax: roles is at top-level (not in model)
     if source.get("roles"):

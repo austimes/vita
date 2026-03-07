@@ -230,3 +230,37 @@ def test_multi_run_v0_2_query_succeeds_with_selected_run(tmp_path):
     assert response["status"] in {"ok", "partial"}
     assert response["artifacts"]["run_id"] == "toy_states_alt"
     assert response["facets"]["runs"] == ["toy_states_2025", "toy_states_alt"]
+
+
+def test_query_rejects_legacy_public_dsl_surface(tmp_path):
+    source_file = tmp_path / "legacy_roles.veda.yaml"
+    source_file.write_text(
+        "\n".join(
+            [
+                "model:",
+                "  name: LegacyQuery",
+                "  regions: [R1]",
+                "  milestone_years: [2020]",
+                "  commodities: []",
+                "roles: []",
+                "variants: []",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    response = query_res_graph(
+        {
+            "version": "1",
+            "file": str(source_file),
+            "mode": "source",
+            "granularity": "role",
+            "lens": "system",
+            "filters": {"regions": [], "case": None, "sectors": [], "scopes": []},
+            "compiled": {"truth": "auto", "cache": True, "allow_partial": True},
+        }
+    )
+
+    assert response["status"] == "error"
+    assert response["diagnostics"][0]["code"] == "E_LEGACY_SYNTAX_UNSUPPORTED"

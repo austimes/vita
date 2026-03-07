@@ -306,16 +306,7 @@ def _add_res_parser(subparsers):
     )
     common.add_argument(
         "--granularity",
-        choices=[
-            "role",
-            "provider",
-            "provider_variant",
-            "provider_variant_mode",
-            "instance",
-            "variant",
-            "mode",
-            "facility",
-        ],
+        choices=["role", "instance"],
         default="role",
         help="Node granularity (default: role)",
     )
@@ -424,16 +415,7 @@ def _add_viz_parser(subparsers):
     )
     p.add_argument(
         "--granularity",
-        choices=[
-            "role",
-            "provider",
-            "provider_variant",
-            "provider_variant_mode",
-            "instance",
-            "variant",
-            "mode",
-            "facility",
-        ],
+        choices=["role", "instance"],
         default=None,
         help="Node granularity for --mermaid output (default: role)",
     )
@@ -563,16 +545,16 @@ def cmd_lint(args) -> int:
         )
 
     try:
-        validate_vedalang(source)
-    except jsonschema.ValidationError as e:
-        path_str = _format_location_path(list(e.absolute_path))
+        validate_public_dsl_contract(source)
+    except PublicDSLContractError as e:
         diagnostics.append(
             with_meta(
                 {
-                    "code": "SCHEMA_ERROR",
+                    "code": e.code,
                     "severity": "error",
                     "message": e.message,
-                    "location": path_str,
+                    "location": e.location,
+                    "suggestion": e.suggestion,
                 },
                 category="core",
                 engine="code",
@@ -596,16 +578,16 @@ def cmd_lint(args) -> int:
         )
 
     try:
-        validate_public_dsl_contract(source)
-    except PublicDSLContractError as e:
+        validate_vedalang(source)
+    except jsonschema.ValidationError as e:
+        path_str = _format_location_path(list(e.absolute_path))
         diagnostics.append(
             with_meta(
                 {
-                    "code": e.code,
+                    "code": "SCHEMA_ERROR",
                     "severity": "error",
                     "message": e.message,
-                    "location": e.location,
-                    "suggestion": e.suggestion,
+                    "location": path_str,
                 },
                 category="core",
                 engine="code",
@@ -732,7 +714,18 @@ def cmd_llm_lint(args) -> int:
 
     try:
         source = load_vedalang(file_path)
+        validate_public_dsl_contract(source)
         validate_vedalang(source)
+    except PublicDSLContractError as e:
+        _error(
+            e.message,
+            output_json,
+            str(file_path),
+            code=e.code,
+            location=e.location,
+            suggestion=e.suggestion,
+        )
+        return 2
     except Exception as e:
         _error(f"Failed to load/validate source: {e}", output_json, str(file_path))
         return 2
@@ -2373,7 +2366,7 @@ def cmd_viz(args) -> int:
             return 2
         granularity = getattr(args, "granularity", None) or "role"
         if getattr(args, "variants", False) and granularity == "role":
-            granularity = "variant"
+            granularity = "instance"
         request = {
             "version": "1",
             "file": str(file_path.resolve()),

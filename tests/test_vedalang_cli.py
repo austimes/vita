@@ -24,70 +24,6 @@ def run_vedalang(*args: str) -> subprocess.CompletedProcess:
 
 
 class TestLint:
-    def _write_new_syntax_cost_model(
-        self,
-        path: Path,
-        *,
-        investment_cost: str | int,
-        fixed_om_cost: str | int | None = None,
-        variable_om_cost: str | int | None = None,
-        override_investment_cost: str | int | None = None,
-    ) -> None:
-        lines = [
-            "model:",
-            "  name: CostLintModel",
-            "  regions: [REG1]",
-            "  milestone_years: [2020]",
-            "  commodities:",
-            "    - id: secondary:electricity",
-            "      type: energy",
-            "      unit: PJ",
-            "      combustible: false",
-            "  cases:",
-            "    - name: base",
-            "      is_baseline: true",
-            "      provider_overrides:",
-            "        - selector:",
-            "            variant: gen",
-        ]
-        if override_investment_cost is not None:
-            lines.append(
-                "          investment_cost: "
-                f"{json.dumps(override_investment_cost)}"
-            )
-        lines.extend(
-            [
-                "roles:",
-                "  - id: supply_power",
-                "    stage: supply",
-                "    activity_unit: PJ",
-                "    capacity_unit: GW",
-                "    required_inputs: []",
-                "    required_outputs:",
-                "      - commodity: secondary:electricity",
-                "variants:",
-                "  - id: gen",
-                "    role: supply_power",
-                "    inputs: []",
-                "    outputs:",
-                "      - commodity: secondary:electricity",
-                "    efficiency: 1.0",
-                f"    investment_cost: {json.dumps(investment_cost)}",
-            ]
-        )
-        if fixed_om_cost is not None:
-            lines.append(f"    fixed_om_cost: {json.dumps(fixed_om_cost)}")
-        if variable_om_cost is not None:
-            lines.append(f"    variable_om_cost: {json.dumps(variable_om_cost)}")
-        lines.extend(
-            [
-                "availability:",
-                "  - variant: gen",
-                "    regions: [REG1]",
-            ]
-        )
-        path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-
     def test_vedalang_lint_basic(self):
         """Lint runs successfully on quickstart/mini_plant.veda.yaml."""
         result = run_vedalang("lint", str(MINI_PLANT))
@@ -205,139 +141,46 @@ class TestLint:
             for d in data.get("diagnostics", [])
         )
 
-    def test_vedalang_lint_units_flags_numeric_cost_scalar(self, tmp_path):
-        """Numeric cost values fail deterministic denominator checks."""
-        src = tmp_path / "numeric_cost.veda.yaml"
-        self._write_new_syntax_cost_model(
-            src,
-            investment_cost=20,
-            fixed_om_cost=5,
-            variable_om_cost=2,
+    def test_vedalang_lint_rejects_legacy_role_variant_surface(self, tmp_path):
+        """Deterministic lint rejects the pre-v0.2 model/roles/variants surface."""
+        src = tmp_path / "legacy_roles.veda.yaml"
+        src.write_text(
+            "\n".join(
+                [
+                    "model:",
+                    "  name: LegacyRoles",
+                    "  regions: [REG1]",
+                    "  milestone_years: [2020]",
+                    "  commodities:",
+                    "    - id: secondary:electricity",
+                    "      type: energy",
+                    "      unit: PJ",
+                    "roles:",
+                    "  - id: supply_power",
+                    "    stage: supply",
+                    "    activity_unit: PJ",
+                    "    capacity_unit: GW",
+                    "    required_outputs:",
+                    "      - commodity: secondary:electricity",
+                    "variants:",
+                    "  - id: gen",
+                    "    role: supply_power",
+                    "    outputs:",
+                    "      - commodity: secondary:electricity",
+                    "    efficiency: 1.0",
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
         )
 
-        result = run_vedalang("lint", "--json", "--category", "units", str(src))
+        result = run_vedalang("lint", "--json", str(src))
         assert result.returncode == 2
         data = json.loads(result.stdout)
-        codes = {d.get("code") for d in data.get("diagnostics", [])}
-        assert "E_UNIT_INVESTMENT_COST_DENOM_MISMATCH" in codes
-        assert "E_UNIT_FIXED_OM_COST_DENOM_MISMATCH" in codes
-        assert "E_UNIT_VARIABLE_COST_DENOM_MISMATCH" in codes
-
-    def test_vedalang_lint_units_accepts_explicit_cost_literals(self, tmp_path):
-        """Explicit cost literals matching role units pass deterministic checks."""
-        src = tmp_path / "literal_cost.veda.yaml"
-        self._write_new_syntax_cost_model(
-            src,
-            investment_cost="20 MUSD24/GW",
-            fixed_om_cost="5 MUSD24/GW/yr",
-            variable_om_cost="2 MUSD24/PJ",
-            override_investment_cost="22 MUSD24/GW",
-        )
-
-        result = run_vedalang("lint", "--json", "--category", "units", str(src))
-        data = json.loads(result.stdout)
-        assert result.returncode == 0
-        assert data.get("diagnostics") == []
-
-    def test_vedalang_lint_emissions_includes_negative_emission_doc_guidance(
-        self, tmp_path
-    ):
-        """Negative-emission guidance stays in emissions lint category."""
-        src = tmp_path / "negative_emission_doc.veda.yaml"
-        src.write_text(
-            "\n".join(
-                [
-                    "model:",
-                    "  name: EmissionDocModel",
-                    "  regions: [REG1]",
-                    "  milestone_years: [2020]",
-                    "  commodities:",
-                    "    - id: emission:co2e",
-                    "      type: emission",
-                    "      unit: Mt",
-                    "      combustible: false",
-                    "roles:",
-                    "  - id: remove_co2",
-                    "    activity_unit: PJ",
-                    "    capacity_unit: GW",
-                    "    stage: sink",
-                    "    required_inputs: []",
-                    "    required_outputs: []",
-                    "variants:",
-                    "  - id: afforestation",
-                    "    role: remove_co2",
-                    "    inputs: []",
-                    "    outputs: []",
-                    "    efficiency: 1.0",
-                    "    emission_factors:",
-                    "      emission:co2e: -1.0",
-                    "availability:",
-                    "  - variant: afforestation",
-                    "    regions: [REG1]",
-                ]
-            )
-            + "\n",
-            encoding="utf-8",
-        )
-
-        result = run_vedalang("lint", "--json", "--category", "emissions", str(src))
-        assert result.returncode in (0, 1)
-        data = json.loads(result.stdout)
         assert any(
-            d.get("code") == "W_NEGATIVE_EMISSION_DOC"
-            for d in data["diagnostics"]
+            d.get("code") == "E_LEGACY_SYNTAX_UNSUPPORTED"
+            for d in data.get("diagnostics", [])
         )
-        assert all(d["category"] == "emissions" for d in data["diagnostics"])
-
-    def test_vedalang_lint_units_flags_emission_intensity_unit_mismatch(
-        self, tmp_path
-    ):
-        """Units lint flags emission_factors when emission numerator is not mass."""
-        src = tmp_path / "emission_intensity_units.veda.yaml"
-        src.write_text(
-            "\n".join(
-                [
-                    "model:",
-                    "  name: EmissionUnitMismatchModel",
-                    "  regions: [REG1]",
-                    "  milestone_years: [2020]",
-                    "  commodities:",
-                    "    - id: emission:co2e",
-                    "      type: emission",
-                    "      unit: GW",
-                    "      combustible: false",
-                    "roles:",
-                    "  - id: remove_co2",
-                    "    activity_unit: PJ",
-                    "    capacity_unit: GW",
-                    "    stage: sink",
-                    "    required_inputs: []",
-                    "    required_outputs: []",
-                    "variants:",
-                    "  - id: afforestation",
-                    "    role: remove_co2",
-                    "    inputs: []",
-                    "    outputs: []",
-                    "    efficiency: 1.0",
-                    "    emission_factors:",
-                    "      emission:co2e: 1.0",
-                    "availability:",
-                    "  - variant: afforestation",
-                    "    regions: [REG1]",
-                ]
-            )
-            + "\n",
-            encoding="utf-8",
-        )
-
-        result = run_vedalang("lint", "--json", "--category", "units", str(src))
-        assert result.returncode in (0, 1, 2)
-        data = json.loads(result.stdout)
-        assert any(
-            d.get("code") == "W_UNIT_EMISSION_INTENSITY_NUMERATOR"
-            for d in data["diagnostics"]
-        )
-        assert all(d["category"] == "units" for d in data["diagnostics"])
 
     def test_vedalang_lint_json_includes_line_and_excerpt(self, tmp_path):
         """Diagnostics include source line/column metadata and excerpt."""
