@@ -35,12 +35,14 @@ technology_roles:
     primary_service: service:space_heat
     technologies: [gas_heater]
 
-# Spatial metadata defines the region layer and partition used by compilation.
+# Spatial layers point to the underlying geographic data source.
 spatial_layers:
   - id: geo.demo
     kind: polygon
     key: region_id
     geometry_file: data/regions.geojson
+
+# Region partitions group geometry members into the model regions used at compile time.
 region_partitions:
   - id: toy_region
     layer: geo.demo
@@ -86,6 +88,8 @@ runs:
 - `commodities`: declares the physical inputs and service outputs
 - `technologies`: concrete technology definitions and coefficients
 - `technology_roles`: service-oriented role contracts that group allowed technologies
+- `spatial_layers`: the source geographic layer that sites and regions refer to
+- `region_partitions`: how underlying spatial members are grouped into model regions
 - `sites` and `facilities`: concrete assets and their existing stock
 - `runs`: compile-time selection of base year, currency year, and region partition
 

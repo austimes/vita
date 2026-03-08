@@ -22,6 +22,8 @@ Current `bd` state: all rollout and cleanup issues are closed.
 
 ## Recently Completed
 
+- `vedalang-bzb` — clarified that `region_partitions` group underlying spatial
+  members into compile-time model regions in the minimal example docs
 - `vedalang-d4l` — aligned the README filename guidance with current compiler
   output and normalized referenced scenario workbook naming to lowercase `scen_*`
 - `vedalang-b4r` — added concise block-level guidance to the README, tutorial,
