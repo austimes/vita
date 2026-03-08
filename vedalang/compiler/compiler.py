@@ -3512,22 +3512,15 @@ def load_vedalang_schema() -> dict:
         return json.load(f)
 
 
-def load_legacy_vedalang_schema() -> dict:
-    """Load the legacy VedaLang schema for explicitly quarantined callers."""
-    with open(SCHEMA_DIR / "vedalang.legacy.schema.json") as f:
-        return json.load(f)
-
-
 def load_tableir_schema() -> dict:
     """Load the TableIR JSON schema."""
     with open(SCHEMA_DIR / "tableir.schema.json") as f:
         return json.load(f)
 
 
-def validate_vedalang(source: dict, *, legacy: bool = False) -> None:
-    """Validate VedaLang source against the selected schema."""
-    schema = load_legacy_vedalang_schema() if legacy else load_vedalang_schema()
-    jsonschema.validate(source, schema)
+def validate_vedalang(source: dict) -> None:
+    """Validate VedaLang source against the active v0.2 schema."""
+    jsonschema.validate(source, load_vedalang_schema())
 
 
 def compile_vedalang_bundle(
@@ -3541,28 +3534,24 @@ def compile_vedalang_bundle(
     measure_weights: dict[str, dict[str, float]] | None = None,
     custom_weights: dict[str, dict[str, float]] | None = None,
 ) -> CompileBundle:
-    """Compile either legacy/new syntax or v0.2 syntax into a normalized bundle."""
-    if looks_like_v0_2_source(source):
-        bundle = compile_v0_2_bundle(
-            source,
-            validate_source=validate_vedalang if validate else None,
-            selected_run=selected_run,
-            packages=packages,
-            site_region_memberships=site_region_memberships,
-            site_zone_memberships=site_zone_memberships,
-            measure_weights=measure_weights,
-            custom_weights=custom_weights,
-        )
-        if validate:
-            _validate_compiled_tableir(bundle.tableir)
-        return bundle
-    return CompileBundle(
-        tableir=compile_vedalang_to_tableir(
-            source,
-            validate=validate,
-            selected_cases=selected_cases,
-        )
+    """Compile a v0.2 source into a normalized bundle."""
+    del selected_cases
+    validate_public_dsl_contract(source)
+    if not looks_like_v0_2_source(source):
+        validate_vedalang(source)
+    bundle = compile_v0_2_bundle(
+        source,
+        validate_source=validate_vedalang if validate else None,
+        selected_run=selected_run,
+        packages=packages,
+        site_region_memberships=site_region_memberships,
+        site_zone_memberships=site_zone_memberships,
+        measure_weights=measure_weights,
+        custom_weights=custom_weights,
     )
+    if validate:
+        _validate_compiled_tableir(bundle.tableir)
+    return bundle
 
 
 def _validate_compiled_tableir(tableir: dict) -> None:
@@ -4439,448 +4428,18 @@ def compile_vedalang_to_tableir(
         jsonschema.ValidationError: If source doesn't match VedaLang schema
         SemanticValidationError: If cross-references are invalid
     """
-    if looks_like_v0_2_source(source):
-        bundle = compile_v0_2_bundle(
-            source,
-            validate_source=validate_vedalang if validate else None,
-            selected_run=selected_run,
-        )
-        if validate:
-            _validate_compiled_tableir(bundle.tableir)
-        return bundle.tableir
-
-    if validate:
-        validate_vedalang(source, legacy=True)
-
-    # Detect new syntax: roles is at top-level (not in model)
-    if source.get("roles"):
-        return _compile_new_syntax(source, validate, selected_cases)
-
-    model = source["model"]
-
-    # Semantic cross-reference validation (before any emission)
-    if validate:
-        errors, warnings = validate_cross_references(model)
-        if errors:
-            raise SemanticValidationError(errors, warnings)
-
-    # Get regions from model
-    regions = model.get("regions", ["REG1"])
-    default_region = ",".join(regions)  # For multi-region models
-
-    # Extract milestone years early - needed for year expansion
-    # VedaLang principle: Always emit explicit values for all milestone years
-    milestone_years = model.get("milestone_years", [2020])
-
-    # Build commodity lookup for type checking during process compilation
-    commodity_types = {
-        c["name"]: c.get("type", "energy") for c in model.get("commodities", [])
-    }
-
-    # Build commodity table (~FI_COMM)
-    # Use lowercase column names for xl2times compatibility
-    comm_rows = []
-    for commodity in model.get("commodities", []):
-        # commodity.type is the canonical field
-        comm_kind = commodity.get("type", "energy")
-        # Use explicit unit or default based on commodity kind
-        unit = commodity.get("unit") or _get_default_unit(comm_kind)
-        comm_rows.append({
-            "region": default_region,
-            "csets": _commodity_type_to_csets(comm_kind),
-            "commodity": commodity["name"],
-            "unit": unit,
-        })
-
-    # Build process table (~FI_PROCESS)
-    # Use lowercase column names for xl2times compatibility
-    # primarycg is OPTIONAL - only emit when explicitly specified, else xl2times infers
-    process_rows = []
-    for raw_process in model.get("processes", []):
-        # Normalize shorthand input/output syntax
-        process = _normalize_process_flows(raw_process)
-        row = {
-            "region": default_region,
-            "process": process["name"],
-            "description": process.get("description", ""),
-            "sets": ",".join(process.get("sets", [])),
-            "tact": process.get("activity_unit", "PJ"),
-            "tcap": process.get("capacity_unit", "GW"),
-        }
-        pcg_override = process.get("primary_commodity_group")
-        if pcg_override is not None:
-            row["primarycg"] = pcg_override
-        process_rows.append(row)
-
-    # Build topology table (~FI_T) for inputs/outputs
-    # Use lowercase column names for xl2times compatibility
-    topology_rows = []
-    all_emission_factors = []  # Collected for separate ~TFM_INS table
-    all_pasti_rows = []  # NCAP_PASTI rows for ~TFM_INS table
-    for raw_process in model.get("processes", []):
-        # Normalize shorthand input/output syntax
-        process = _normalize_process_flows(raw_process)
-        inputs = process.get("inputs", [])
-        outputs = process.get("outputs", [])
-
-        # Collect cost parameters - separate scalar from time-varying
-        # Keys in cost_params use CANONICAL column names from ATTR_TO_COLUMN
-        cost_params = {}  # Scalar values to merge into rows
-        time_varying_attrs = []  # (attr_name, value) tuples for year-indexed rows
-        year_expand_attrs = []  # (attr_name, value) scalars that expand to all years
-
-        # All process attributes that can be emitted
-        process_attrs = [
-            "investment_cost", "fixed_om_cost", "variable_om_cost",
-            "import_price", "lifetime", "stock",
-        ]
-
-        for attr in process_attrs:
-            if attr not in process:
-                continue
-
-            _validate_attribute_for_emission(attr, "FI_T")
-            val = process[attr]
-            column = ATTR_TO_COLUMN.get(attr, attr)
-
-            if _is_time_varying(val):
-                # Always expand time-varying to all years
-                time_varying_attrs.append((attr, val))
-            elif attr in EXPAND_TO_ALL_YEARS_ATTRS:
-                # Scalar but must expand to all milestone years
-                year_expand_attrs.append((attr, val))
-            else:
-                # Scalar that doesn't need year expansion (e.g., lifetime)
-                cost_params[column] = val
-
-        # Add PRC_CAPACT (capacity-to-activity conversion) when units differ
-        # This is critical: if capacity is in GW and activity is in PJ, TIMES needs
-        # to know the conversion factor (31.536 PJ/GW/year for full-year operation)
-        activity_unit = process.get("activity_unit", "PJ")
-        capacity_unit = process.get("capacity_unit", "GW")
-        cap2act = _compute_cap2act(capacity_unit, activity_unit)
-        if cap2act is not None:
-            cost_params["prc_capact"] = cap2act
-
-        # Add input flows
-        for inp in inputs:
-            row = {
-                "region": default_region,
-                "process": process["name"],
-                "commodity-in": inp["commodity"],
-            }
-            if "share" in inp:
-                row["share-i"] = inp["share"]
-            topology_rows.append(row)
-
-        # Collect emission factors for separate rows (emitted via attribute column)
-        emission_factors = []
-
-        # Add output flows - merge cost params into first output row if no eff
-        for i, out in enumerate(outputs):
-            out_comm = out["commodity"]
-            out_comm_type = commodity_types.get(out_comm, "energy")
-            row = {
-                "region": default_region,
-                "process": process["name"],
-                "commodity-out": out_comm,
-            }
-
-            # Handle emission outputs: use ENV_ACT attribute for emission coefficients
-            # Reject 'share' on emission commodities (would become invalid FLO_SHAR)
-            if out_comm_type == "emission":
-                if "share" in out:
-                    raise SemanticValidationError([
-                        f"Process '{process['name']}': 'share' is not allowed on "
-                        f"emission output '{out_comm}'. Use 'emission_factor' instead."
-                    ])
-                if "emission_factor" in out:
-                    # Collect for separate attribute row
-                    emission_factors.append({
-                        "commodity": out_comm,
-                        "value": out["emission_factor"],
-                    })
-            else:
-                # Non-emission outputs: use share -> share-o
-                if "share" in out:
-                    row["share-o"] = out["share"]
-
-            # Merge cost params into first output row if no efficiency specified
-            if i == 0 and "efficiency" not in process and cost_params:
-                row.update(cost_params)
-                cost_params = {}  # Clear so we don't add again
-            topology_rows.append(row)
-
-        # Collect emission factors for VT process file ~TFM_INS table
-        # We'll emit these as a separate table after ~FI_T
-        for ef in emission_factors:
-            all_emission_factors.append({
-                "region": default_region,
-                "process": process["name"],
-                "commodity": ef["commodity"],
-                "attribute": "ENV_ACT",
-                "value": ef["value"],
-            })
-
-        # Collect bound parameters - expand to all milestone years
-        bound_params = _collect_bound_params(process, milestone_years)
-
-        # Add efficiency row with cost and bound parameters if specified
-        if "efficiency" in process:
-            _validate_attribute_for_emission("efficiency", "FI_T")
-            eff_val = process["efficiency"]
-            if _is_time_varying(eff_val):
-                # Time-varying efficiency - add to time_varying_attrs
-                time_varying_attrs.append(("efficiency", eff_val))
-                # Still emit a base row with scalar cost params if any
-                if cost_params:
-                    row = {
-                        "region": default_region,
-                        "process": process["name"],
-                    }
-                    # xl2times requires rows to have a commodity or eff/value
-                    # Add first output commodity for reference
-                    first_output = outputs[0]["commodity"] if outputs else None
-                    if first_output:
-                        row["commodity-out"] = first_output
-                    row.update(cost_params)
-                    if bound_params:
-                        first_bound = bound_params.pop(0)
-                        row.update(first_bound)
-                    topology_rows.append(row)
-            else:
-                # Scalar efficiency
-                row = {
-                    "region": default_region,
-                    "process": process["name"],
-                    "eff": eff_val,
-                }
-                row.update(cost_params)
-                # Merge first bound into efficiency row if present
-                if bound_params:
-                    first_bound = bound_params.pop(0)
-                    row.update(first_bound)
-                topology_rows.append(row)
-
-        # Emit remaining bounds merged with commodity-out references
-        # xl2times requires rows to have Comm-IN, Comm-OUT, EFF, or Value
-        for bound_param in bound_params:
-            # Find first output commodity for this process
-            first_output = outputs[0]["commodity"] if outputs else None
-            row = {
-                "region": default_region,
-                "process": process["name"],
-            }
-            if first_output:
-                row["commodity-out"] = first_output
-            row.update(bound_param)
-            topology_rows.append(row)
-
-        # Emit time-varying attributes as separate year-indexed rows
-        # xl2times requires at least one commodity reference per row
-        first_output = outputs[0]["commodity"] if outputs else None
-        for attr_name, attr_value in time_varying_attrs:
-            base_row = {
-                "region": default_region,
-                "process": process["name"],
-            }
-            if first_output:
-                base_row["commodity-out"] = first_output
-            # Use original _expand_time_varying_attr which emits year=0 + data rows
-            # This preserves backward compatibility for time-varying syntax
-            expanded_rows = _expand_time_varying_attr(attr_name, attr_value, base_row)
-            topology_rows.extend(expanded_rows)
-
-        # Emit scalar attributes that need year expansion (VedaLang design principle)
-        # These are attributes where TIMES interpolation could cause surprises
-        for attr_name, scalar_value in year_expand_attrs:
-            base_row = {
-                "region": default_region,
-                "process": process["name"],
-            }
-            if first_output:
-                base_row["commodity-out"] = first_output
-            expanded_rows = _expand_scalar_to_all_years(
-                attr_name, scalar_value, base_row, milestone_years
-            )
-            topology_rows.extend(expanded_rows)
-
-        # Handle existing_capacity (NCAP_PASTI) - past investments with vintage years
-        # Unlike PRC_RESID, NCAP_PASTI uses pastyear (vintage) not datayear
-        # Emitted via ~TFM_INS table using attribute/value pattern
-        if "existing_capacity" in process:
-            for pasti in process["existing_capacity"]:
-                pasti_row = {
-                    "region": default_region,
-                    "process": process["name"],
-                    "year": pasti["vintage"],
-                    "attribute": "NCAP_PASTI",
-                    "value": pasti["capacity"],
-                }
-                all_pasti_rows.append(pasti_row)
-
-    # Build system settings tables
-    regions = model.get("regions", ["REG1"])
-
-    # ~BOOKREGIONS_MAP - maps book regions to internal regions
-    # Use a single bookname for all regions to ensure all are treated as internal
-    # The bookname must match the VT_{bookname}_* file pattern
-    # IMPORTANT: Bookname must be uppercase for xl2times compatibility
-    model_name = model.get("name", "Model")
-    bookname = model_name.upper()  # Uppercase for xl2times BookRegions_Map matching
-    bookregions_rows = [{"bookname": bookname, "region": r} for r in regions]
-
-    # ~STARTYEAR - model start year (first milestone year)
-    # NOTE: milestone_years already extracted at start of function
-    start_year = milestone_years[0] if milestone_years else 2020
-    startyear_rows = [{"value": start_year}]
-
-    # ~MILESTONEYEARS - explicit milestone years (alternative to ~TIMEPERIODS)
-    # Format: type column + year column (named after model)
-    # This ensures VedaLang milestone_years appear directly in TIMES MILESTONYR
-    last_year = milestone_years[-1] if milestone_years else 2020
-    milestoneyears_rows = [{"type": "Endyear", "year": last_year + 10}]
-    milestoneyears_rows += [
-        {"type": "milestoneyear", "year": y} for y in milestone_years
-    ]
-
-    # ~CURRENCIES - default currency
-    output_currency = _model_output_currency(model)
-    currencies_rows = [{"currency": output_currency}]
-
-    # G_DRATE - discount rate (required for TIMES to process costs)
-    # Without G_DRATE, rdcur set is empty and all cost parameters are ignored
-    # Default: 5% discount rate; can be overridden via model.discount_rate
-    discount_rate = model.get("discount_rate", 0.05)
-    gdrate_rows = [
-        {
-            "region": r,
-            "attribute": "G_DRATE",
-            "currency": output_currency,
-            "value": discount_rate,
-        }
-        for r in regions
-    ]
-
-    # Use milestone_years for time-series expansion (already extracted above)
-    model_years = milestone_years
-
-    # Build scenario files (~TFM_DINS-AT tables)
-    # ARCHITECTURE/SCENARIO SEPARATION:
-    # - Scenario data (demand projections, commodity prices) goes to Scen_* files
-    # - This prevents forward-fill contamination when mixed with process topology
-    # - Uses ~TFM_DINS-AT for VedaOnline compatibility
-    # FILE NAMING: Scen_{case}_{category}.xlsx
-    # - Groups parameters by case and category
-    # - Constraints are co-located with their category (default: policies)
-
-    # Get scenario parameters (support new 'scenario_parameters' and legacy 'scenarios')
-    scenario_params = (
-        model.get("scenario_parameters", []) or model.get("scenarios", [])
+    del selected_cases
+    validate_public_dsl_contract(source)
+    if not looks_like_v0_2_source(source):
+        validate_vedalang(source)
+    bundle = compile_v0_2_bundle(
+        source,
+        validate_source=validate_vedalang if validate else None,
+        selected_run=selected_run,
     )
-
-    # Get cases - if none defined, create a default 'baseline' case
-    cases = model.get("cases", [])
-    if not cases:
-        # Default case includes all parameters
-        cases = [{"name": "baseline", "is_baseline": True}]
-    cases = _select_cases(cases, selected_cases)
-
-    # Build scenario files organized by case and category
-    scenario_files, cases_json = _compile_scenario_files(
-        scenario_params,
-        model.get("constraints", []),
-        cases,
-        regions,
-        model_years,
-        default_region,
-        process_metadata_map=None,
-    )
-
-    # Compile timeslices — always emit at least ANNUAL
-    timeslice_rows = []
-    yrfr_rows = []
-    if "timeslices" in model:
-        timeslice_rows, yrfr_rows = _compile_timeslices(
-            model["timeslices"], regions
-        )
-    else:
-        timeslice_rows = [{"season": "AN"}]
-        yrfr_rows = [
-            {"region": r, "attribute": "YRFR", "timeslice": "AN", "value": 1.0}
-            for r in regions
-        ]
-
-    # Build SysSets tables list
-    syssets_tables = [
-        {"tag": "~BOOKREGIONS_MAP", "rows": bookregions_rows},
-        {"tag": "~STARTYEAR", "rows": startyear_rows},
-        {"tag": "~MILESTONEYEARS", "rows": milestoneyears_rows},
-        {"tag": "~CURRENCIES", "rows": currencies_rows},
-        {"tag": "~TIMESLICES", "rows": timeslice_rows},
-    ]
-
-    # Build SysSettings sheets list
-    syssettings_sheets = [
-        {"name": "SysSets", "tables": syssets_tables},
-        {"name": "Commodities", "tables": [{"tag": "~FI_COMM", "rows": comm_rows}]},
-    ]
-
-    # Build constants tables - includes G_DRATE and optionally YRFR
-    constants_tables = [{"tag": "~TFM_INS", "rows": gdrate_rows}]
-    if yrfr_rows:
-        constants_tables.append({"tag": "~TFM_INS", "rows": yrfr_rows})
-
-    syssettings_sheets.append({
-        "name": "constants",
-        "tables": constants_tables,
-    })
-
-    # Build process file - use VT_{bookname}_ prefix for internal region recognition
-    # All regions map to this single bookname via BOOKREGIONS_MAP
-    # Use lowercase for consistent file naming (xl2times is case-insensitive)
-    process_file_path = f"vt_{bookname.lower()}_{model_name.lower()}.xlsx"
-
-    # Compile trade links if present - returns files only (no process/topology rows)
-    # Trade processes are auto-generated by VEDA/xl2times from ~TRADELINKS tables
-    trade_link_files, _ = _compile_trade_links(
-        model.get("trade_links", []),
-        model.get("commodities", []),
-    )
-
-    # Build TableIR structure
-    # ARCHITECTURE ONLY: VT_* and SysSettings files contain model structure
-    # Scenario data (demands, prices, policies) → Scen_{case}_{category}.xlsx
-    tableir = {
-        "files": [
-            {
-                "path": "syssettings.xlsx",
-                "sheets": syssettings_sheets,
-            },
-            {
-                "path": process_file_path,
-                "sheets": [
-                    {
-                        "name": "Processes",
-                        "tables": _build_process_tables(
-                            process_rows, topology_rows,
-                            all_emission_factors, all_pasti_rows
-                        ),
-                    },
-                ],
-            },
-            *scenario_files,
-            *trade_link_files,
-        ],
-        # Include cases.json metadata for VEDA integration
-        "cases": cases_json,
-    }
-    annotate_tableir(tableir, source=source)
-
     if validate:
-        _validate_compiled_tableir(tableir)
-
-    return tableir
+        _validate_compiled_tableir(bundle.tableir)
+    return bundle.tableir
 
 
 def _build_process_tables(

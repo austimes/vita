@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import pytest
 
-from vedalang.compiler.compiler import compile_vedalang_to_tableir
-from vedalang.compiler.registry import VedaLangError
+from vedalang.compiler.compiler import (
+    PublicDSLContractError,
+    compile_vedalang_to_tableir,
+)
 
 
 def _legacy_facility_source() -> dict:
@@ -72,8 +74,8 @@ def _legacy_facility_source() -> dict:
 
 def test_compile_rejects_legacy_facility_template_lowering():
     with pytest.raises(
-        VedaLangError,
-        match="Legacy facility/template/provider lowering has been removed",
+        PublicDSLContractError,
+        match="Legacy pre-v0.2 public DSL blocks are no longer supported",
     ):
         compile_vedalang_to_tableir(_legacy_facility_source(), validate=False)
 
@@ -92,7 +94,7 @@ def test_compile_rejects_legacy_provider_parameter_surfaces():
     ]
 
     with pytest.raises(
-        VedaLangError,
-        match="Legacy facility/template/provider lowering has been removed",
+        PublicDSLContractError,
+        match="Legacy pre-v0.2 public DSL blocks are no longer supported",
     ):
         compile_vedalang_to_tableir(source, validate=False)

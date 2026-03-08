@@ -4,7 +4,14 @@
 
 ## Executive Summary
 
-VedaLang is a typed DSL that compiles to VEDA Excel tables for TIMES energy models. **All core phases (P0–P3) remain complete**, the v0.2 package/run/CSIR/CPIR rollout is landed end-to-end, and the full example catalog is on the v0.2 DSL. The current `bd` tracker state is 127 closed issues and 3 open issues, with the remaining work narrowed to the final docs/LSP cleanup plus the last internal compiler hard-cut task.
+VedaLang is a typed DSL that compiles to VEDA Excel tables for TIMES energy
+models. **All core phases (P0-P3) remain complete**, the v0.2
+package/run/CSIR/CPIR rollout is landed end-to-end, and the full example
+catalog is on the v0.2 DSL. The current `bd` tracker state is 129 closed
+issues and 6 open issues. The remaining work is now the final v0.2-only
+cleanup pass across LSP runtime analysis, deterministic lint/heuristics, and
+dead legacy compiler/viz/pattern helpers that were discovered during the
+hard-cut review.
 
 | Milestone | Status |
 |-----------|--------|
@@ -22,25 +29,34 @@ VedaLang is a typed DSL that compiles to VEDA Excel tables for TIMES energy mode
 | Emissions Refactor | ✅ Complete |
 | Progressive Fixtures (ms1-8) | ✅ All passing |
 | v0.2 backend parity | ✅ Complete |
-| v0.2 rollout backlog | ✅ Complete |
+| v0.2 rollout backlog | 🔄 Cleanup follow-on open |
 
 ---
 
 ## Current Status: v0.2 Cleanup Epic
-Core design phases remain complete. The v0.2 frontend, diagnostics, downstream tooling surfaces, flagship examples/docs, regression matrix, and example catalog migration are all complete. The current follow-on work is a focused cleanup epic to remove the remaining runtime/tooling/docs/test compatibility surfaces that still preserve the pre-v0.2 public DSL.
+Core design phases remain complete. The v0.2 frontend, diagnostics,
+downstream tooling surfaces, flagship examples/docs, regression matrix, and
+example catalog migration are all complete. The current follow-on work is a
+focused cleanup epic to remove the last runtime/tooling/test compatibility
+surfaces that still preserve the pre-v0.2 public DSL internally.
 
 ### Active Work
 
 Open `bd` work is now:
 - `vedalang-y8e` — umbrella v0.2-only cleanup epic
-- `vedalang-y8e.3` — purge the remaining legacy role/variant/provider guidance from user docs and LSP schema help
-- `vedalang-m1s` — finish the internal compiler/runtime hard cut so library entrypoints can no longer route through the old roles/variants/providers compiler path
+- `vedalang-y8e.7` — remove legacy LSP source analysis paths from the server runtime
+- `vedalang-y8e.8` — port deterministic heuristics and identity lint to v0.2-only semantics
+- `vedalang-y8e.9` — quarantine or delete dead legacy compiler and IR helpers
+- `vedalang-y8e.10` — delete dead legacy graph-builder and trade-link visualization surfaces
+- `vedalang-y8e.11` — port or archive the legacy pattern library so normal pattern expansion no longer emits rejected pre-v0.2 fragments
 
 ### Recently Completed
 
 | Issue | Priority | Description | Status |
 |-------|----------|-------------|--------|
-| `vedalang-y8e` | P1 | v0.2-only cleanup epic remains open for the last docs/LSP cleanup and internal compiler hard cut | Open |
+| `vedalang-y8e` | P1 | v0.2-only cleanup epic remains open for the newly-audited final legacy-removal tranche | Open |
+| `vedalang-y8e.3` | P2 | Purged remaining legacy role/variant/provider guidance from active user docs and unpublished archive-only schema hover entries | ✓ Closed |
+| `vedalang-m1s` | P1 | Library/runtime compile and validate entrypoints now hard-cut to the v0.2 bundle path with no legacy selection hook | ✓ Closed |
 | `vedalang-y8e.6` | P2 | Removed compatibility-only compiler/acceptance suites and kept only v0.2-oriented coverage plus explicit legacy rejection tests | ✓ Closed |
 | `vedalang-y8e.5` | P1 | Query/viz/export tooling now routes only through the v0.2 graph stack; dead legacy Mermaid builder/test path removed | ✓ Closed |
 | `vedalang-y8e.4` | P2 | LLM lint prompts, component selection, and eval fixtures now use v0.2 technologies/technology_roles semantics | ✓ Closed |

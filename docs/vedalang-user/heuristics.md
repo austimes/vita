@@ -29,17 +29,30 @@ as part of the end-to-end pipeline.
 
 **Severity:** Warning (escalates to Error with growing demand)
 
-**Pattern detected:** Process has `ncap_bound.fx` (fixed new capacity) or tight `ncap_bound.up`, combined with a `life` shorter than the model horizon.
+**Pattern detected:** A v0.2 technology/deployment path has a fixed or tightly
+bounded new-capacity allowance together with a short `lifetime`.
 
 **Why it matters:** When a process's lifetime is shorter than the model horizon, capacity retires mid-horizon and needs replacement. With fixed/constrained new capacity, the model cannot add replacement capacity, leading to capacity shortfalls and potential infeasibility.
 
 **Example:**
 ```yaml
-processes:
-  - name: PP_SOLAR
-    ncap_bound:
-      fx: 1  # Fixed new capacity
-    life: 25  # Retires before end of 30-year horizon
+technologies:
+  - id: solar_pv
+    provides: service:electricity_supply
+    lifetime: 25 year
+facilities:
+  - id: reg1_solar
+    site: reg1_hub
+    technology_role: electricity_supply
+    stock:
+      items:
+        - technology: solar_pv
+          metric: installed_capacity
+          observed:
+            value: 1 GW
+            year: 2025
+          ncap_bound:
+            fx: 1 GW
 ```
 
 **Fix:** Either extend the lifetime, remove the fixed bound, or ensure sufficient capacity is available from other sources.
@@ -50,25 +63,34 @@ processes:
 
 **Severity:** Error
 
-**Pattern detected:** A demand device (process that outputs a demand commodity) has no `stock` or initial capacity specified.
+**Pattern detected:** A service-delivering facility has no `stock` or initial
+capacity specified.
 
 **Why it matters:** Demand devices convert energy commodities (like `secondary:electricity`) into demand services (like `service:residential_demand`). Without capacity, they cannot operate, and the model becomes infeasible in the base year.
 
 **Example (problematic):**
 ```yaml
-processes:
-  - name: DMD_RSD
-    sets: [DMD]
+technologies:
+  - id: residential_device
+    provides: service:residential_demand
     inputs:
       - commodity: secondary:electricity
-    outputs:
-      - commodity: service:residential_demand  # Service commodity
+facilities:
+  - id: reg1_residential_device
+    site: reg1_hub
+    technology_role: residential_demand
     # Missing: stock
 ```
 
 **Fix:** Add `stock` with sufficient capacity:
 ```yaml
-    stock: 100  # GW of demand device capacity
+    stock:
+      items:
+        - technology: residential_device
+          metric: installed_capacity
+          observed:
+            value: 100 GW
+            year: 2025
 ```
 
 ---
@@ -77,7 +99,8 @@ processes:
 
 **Severity:** Warning or Error (depending on coverage ratio)
 
-**Pattern detected:** The base year demand exceeds the estimated supply capacity from existing stock.
+**Pattern detected:** The base year service requirement exceeds the estimated
+supply capacity from existing stock.
 
 **Why it matters:** In the base year (typically historical/current), there should be enough existing capacity to produce the required demand. Insufficient stock causes immediate infeasibility.
 
@@ -87,14 +110,28 @@ processes:
 
 **Example:**
 ```yaml
-processes:
-  - name: PP_SIMPLE
-    stock: 1  # Only 1 GW
-scenario_parameters:
-  - type: demand_projection
-    commodity: service:residential_demand
+technologies:
+  - id: simple_supply
+    provides: service:residential_demand
+    lifetime: 30 year
+facilities:
+  - id: reg1_supply
+    site: reg1_hub
+    technology_role: residential_demand
+    stock:
+      items:
+        - technology: simple_supply
+          metric: installed_capacity
+          observed:
+            value: 1 GW
+            year: 2020
+temporal_index_series:
+  - id: residential_demand_index
+    unit: index
+    base_year: 2020
     values:
-      "2020": 500  # Needs ~500 PJ but only ~27 PJ available
+      "2020": 1.0
+      "2030": 10.0
 ```
 
 **Fix:** Increase generator stock or reduce base year demand.
@@ -105,7 +142,8 @@ scenario_parameters:
 
 **Severity:** Warning
 
-**Pattern detected:** Existing stock capacity can cover 95%+ of maximum projected demand throughout the model horizon.
+**Pattern detected:** Existing stock capacity can cover 95%+ of maximum
+projected demand throughout the model horizon.
 
 **Why it matters:** When stock covers all demand, the model may solve with zero investment and zero objective value. This is often unintentional and may indicate:
 - Stock values too high relative to demand
@@ -114,14 +152,28 @@ scenario_parameters:
 
 **Example:**
 ```yaml
-processes:
-  - name: PP_SIMPLE
-    stock: 100  # 100 GW × 31.536 × 0.85 ≈ 2680 PJ/yr
-scenario_parameters:
-  - type: demand_projection
-    commodity: service:residential_demand
+technologies:
+  - id: simple_supply
+    provides: service:residential_demand
+    lifetime: 30 year
+facilities:
+  - id: reg1_supply
+    site: reg1_hub
+    technology_role: residential_demand
+    stock:
+      items:
+        - technology: simple_supply
+          metric: installed_capacity
+          observed:
+            value: 100 GW
+            year: 2020
+temporal_index_series:
+  - id: residential_demand_index
+    unit: index
+    base_year: 2020
     values:
-      "2020": 50  # Only 50 PJ/yr needed
+      "2020": 1.0
+      "2030": 1.1
 ```
 
 **Guidance:**
@@ -180,42 +232,80 @@ To propose a new heuristic:
 ### Ensuring Feasible Base Year
 
 ```yaml
-model:
-  milestone_years: [2020, 2030, 2040, 2050]
-  
-  processes:
-  - name: PP_CCGT
-    stock: 10  # Enough for base demand
-    invcost: 800  # Investment available for growth
-    
-  - name: DMD_RSD
+dsl_version: "0.2"
+commodities:
+  - id: secondary:electricity
+    kind: secondary
+  - id: service:residential_demand
+    kind: service
+technologies:
+  - id: ccgt
+    provides: service:residential_demand
     inputs:
       - commodity: secondary:electricity
-    outputs:
-      - commodity: service:residential_demand
-    stock: 100  # Large capacity to avoid bottleneck
-    
-scenario_parameters:
-  - type: demand_projection
-    commodity: service:residential_demand
+    investment_cost: 800 AUD2024/kW
+    lifetime: 30 year
+technology_roles:
+  - id: residential_demand
+    primary_service: service:residential_demand
+    technologies: [ccgt]
+facilities:
+  - id: reg1_demand
+    site: reg1_hub
+    technology_role: residential_demand
+    stock:
+      items:
+        - technology: ccgt
+          metric: installed_capacity
+          observed:
+            value: 10 GW
+            year: 2020
+temporal_index_series:
+  - id: residential_demand_index
+    unit: index
+    base_year: 2020
     values:
-      "2020": 50   # Can be met by stock
-      "2030": 100  # Forces new investment
-      "2050": 200  # Significant growth
+      "2020": 1.0
+      "2030": 2.0
+      "2050": 4.0
+runs:
+  - id: reg1_2020
+    base_year: 2020
+    currency_year: 2024
+    region_partition: reg1_partition
 ```
 
 ### Forcing Investment Decisions
 
 ```yaml
-processes:
-  - name: PP_CCGT
-    stock: 2   # Low initial stock
-    invcost: 800
+technologies:
+  - id: ccgt
+    provides: service:electricity_supply
+    investment_cost: 800 AUD2024/kW
     cap_bound:
-      up: 50  # Allow new capacity
-      
-  - name: PP_WIND
-    stock: 1  # Very low
-    invcost: 1200
-    # No cap_bound = unlimited new capacity
+      up: 50 GW
+  - id: wind
+    provides: service:electricity_supply
+    investment_cost: 1200 AUD2024/kW
+facilities:
+  - id: reg1_ccgt
+    site: reg1_hub
+    technology_role: electricity_supply
+    stock:
+      items:
+        - technology: ccgt
+          metric: installed_capacity
+          observed:
+            value: 2 GW
+            year: 2025
+  - id: reg1_wind
+    site: reg1_hub
+    technology_role: electricity_supply
+    stock:
+      items:
+        - technology: wind
+          metric: installed_capacity
+          observed:
+            value: 1 GW
+            year: 2025
 ```

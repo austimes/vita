@@ -577,25 +577,19 @@ If `false`, only `origin → destination` flows are modeled.
     "efficiency": """\
 ## VedaLang: `efficiency`
 
-**Type**:
-- In `process` / `process_template`: number (0–1) or `time_varying_value`
-- In `trade_link`: number (0–1)
+**Type**: number (0-1) or `time_varying_value`
+**Used in**: v0.2 `technology.performance` objects where `kind: efficiency`
 
-**Purpose**:
-
-- **Process / template** – process energy/service efficiency.
-  - Maps to TIMES attribute **`ACT_EFF`**.
-  - Ratio of useful primary output to input based on **primary commodity group**.
-- **Trade link** – transport efficiency (1.0 = no losses).
+Energy or service conversion efficiency for a technology after lowering to
+TIMES `ACT_EFF`.
 
 **Examples**:
 ```yaml
-processes:
-  - name: PP_CCGT
-    efficiency: 0.55    # ACT_EFF
-
-trade_links:
-  - efficiency: 0.95    # 95% of energy arrives after transport
+technologies:
+  - id: ccgt
+    performance:
+      kind: efficiency
+      value: 0.55
 ```
 """,
     # ----------------------------------------------------------------------
@@ -688,15 +682,16 @@ instances. Prefer explicit spatial placement with `sites`, `facilities`,
 ## VedaLang: `unit`
 
 **Type**: string
-**Used in**: `commodity`, implicitly referenced by processes/parameters
+**Used in**: v0.2 commodities, temporal reference data, and stock metrics
 
-Unit of measurement for the commodity (e.g., `PJ`, `MWh`, `Mt`, `kNm3`).
-Cost, price, and emission factor units are interpreted relative to this.
+Unit of measurement for the surrounding value. For commodities, this anchors
+physical interpretation of flows and coefficients. For reference data, it
+documents the index or measurement basis used during adjustment.
 
 **Example**:
 ```yaml
 commodities:
-  - name: secondary:electricity
+  - id: secondary:electricity
     unit: PJ
 ```
 """,
@@ -748,9 +743,10 @@ VedaLang makes it explicit to avoid surprises.
 
 **Type**: string
 **Default**: `PJ`
-**Used in**: `process`
+**Used in**: v0.2 technology and deployment objects that define process activity
 
-Unit for **process activity**, i.e., the denominator for `ACT_EFF`, `ACT_COST`, and emission factors.
+Unit for modeled activity, i.e., the denominator for efficiency, variable cost,
+and emission-factor terms after lowering to TIMES.
 
 Must be an **extensive (non-rate)** unit.
 Supported families:
@@ -761,8 +757,8 @@ Supported families:
 
 **Example**:
 ```yaml
-processes:
-  - name: PP_CCGT
+technologies:
+  - id: ccgt
     activity_unit: PJ
 ```
 """,
@@ -771,9 +767,10 @@ processes:
 
 **Type**: string
 **Default**: `GW`
-**Used in**: `process`
+**Used in**: v0.2 technology and deployment objects that define buildable stock
 
-Unit for **process capacity**, used in capacity-related TIMES attributes like `NCAP_COST`, `NCAP_FOM`, `NCAP_TLIFE`.
+Unit for modeled capacity, used in capacity-related TIMES attributes such as
+capital cost, fixed O&M, and technical lifetime.
 
 Must be either:
 
@@ -788,8 +785,8 @@ Cap-to-activity linkage is derived as:
 
 **Example**:
 ```yaml
-processes:
-  - name: PP_CCGT
+technologies:
+  - id: ccgt
     capacity_unit: GW
 ```
 """,
@@ -813,15 +810,15 @@ processes:
 ## VedaLang: `inputs`
 
 **Type**: array of `flow` objects
-**Used in**: `process`, `process_template`
+**Used in**: v0.2 `technology` objects
 
-Detailed specification of input commodity flows.
-Each flow may define a `share` and/or `emission_factor`.
+Detailed specification of physical input commodities consumed by a technology.
+Each flow names a commodity and may add metadata such as `share`.
 
 **Example**:
 ```yaml
-processes:
-  - name: BOILER
+technologies:
+  - id: boiler
     inputs:
       - commodity: primary:natural_gas
       - commodity: primary:oil
@@ -841,14 +838,14 @@ Equivalent to `outputs: [{commodity: <name>}]`.
 ## VedaLang: `outputs`
 
 **Type**: array of `flow` objects
-**Used in**: `process`, `process_template`
+**Used in**: v0.2 `technology` objects
 
-Detailed specification of output commodity flows.
+Detailed specification of physical output commodities produced by a technology.
 
 **Example**:
 ```yaml
-processes:
-  - name: PP_CCGT
+technologies:
+  - id: ccgt
     outputs:
       - commodity: secondary:electricity
 ```
@@ -857,7 +854,7 @@ processes:
 ## VedaLang: `investment_cost`
 
 **Type**: number (≥0) or `time_varying_value`
-**Used in**: `process`, `process_template`, `process_instance`
+**Used in**: v0.2 technologies and deployment/stock objects that carry new-build cost data
 
 Investment cost per unit of **new capacity**.
 
@@ -866,11 +863,9 @@ Investment cost per unit of **new capacity**.
 
 **Example**:
 ```yaml
-processes:
-  - investment_cost: 1200   # e.g., $/kW aggregated as $/GW
-
-process_instances:
-  - investment_cost:
+technologies:
+  - id: heat_pump
+    investment_cost:
       values:
         "2030": 1000
         "2040": 800
@@ -881,7 +876,7 @@ process_instances:
 ## VedaLang: `fixed_om_cost`
 
 **Type**: number (≥0) or `time_varying_value`
-**Used in**: `process`, `process_template`, `process_instance`
+**Used in**: v0.2 technologies and deployment/stock objects with fixed cost assumptions
 
 Fixed operation & maintenance cost per unit **installed capacity per year**.
 
@@ -892,7 +887,7 @@ Fixed operation & maintenance cost per unit **installed capacity per year**.
 ## VedaLang: `variable_om_cost`
 
 **Type**: number (≥0) or `time_varying_value`
-**Used in**: `process`, `process_template`, `process_instance`
+**Used in**: v0.2 technologies and deployment objects with activity-linked cost assumptions
 
 Variable operation & maintenance cost per unit of **activity**.
 
@@ -903,7 +898,7 @@ Variable operation & maintenance cost per unit of **activity**.
 ## VedaLang: `import_price`
 
 **Type**: number (≥0) or `time_varying_value`
-**Used in**: `process`, `process_template`, `process_instance` (for import processes)
+**Used in**: v0.2 technologies or opportunities that model import-style supply
 
 Price of imported commodities.
 
@@ -914,7 +909,7 @@ Price of imported commodities.
 ## VedaLang: `lifetime`
 
 **Type**: number (≥0) or `time_varying_value`
-**Used in**: `process`, `process_template`, `process_instance`
+**Used in**: v0.2 technologies and stock-bearing deployment objects
 
 Technical lifetime of **new capacity**.
 
@@ -927,7 +922,7 @@ Affects when capacity retires and how capital costs are annualized.
 ## VedaLang: `availability_factor`
 
 **Type**: number (0–1) or `time_varying_value`
-**Used in**: `process`, `process_template`, `process_instance`
+**Used in**: v0.2 technologies and deployment objects with annual utilization limits
 
 Fraction of time capacity is available for use.
 
@@ -938,7 +933,7 @@ Fraction of time capacity is available for use.
 ## VedaLang: `activity_bound`
 
 **Type**: `bound` object (`up`, `lo`, `fx`)
-**Used in**: `process`, `process_instance`
+**Used in**: v0.2 technologies, facilities, fleets, opportunities, and networks where activity is bounded
 
 Bounds on **annual process activity**.
 
@@ -946,8 +941,8 @@ Bounds on **annual process activity**.
 
 **Example**:
 ```yaml
-processes:
-  - name: PP_COAL
+technologies:
+  - id: coal_plant
     activity_bound:
       up: 100    # max activity
 ```
@@ -956,7 +951,7 @@ processes:
 ## VedaLang: `cap_bound`
 
 **Type**: `bound` object (`up`, `lo`, `fx`)
-**Used in**: `process`, `process_instance`
+**Used in**: v0.2 stock-bearing deployment objects
 
 Bounds on **total installed capacity**.
 
@@ -966,7 +961,7 @@ Bounds on **total installed capacity**.
 ## VedaLang: `ncap_bound`
 
 **Type**: `bound` object (`up`, `lo`, `fx`)
-**Used in**: `process`, `process_instance`
+**Used in**: v0.2 stock-bearing deployment objects
 
 Bounds on **new capacity additions per period**.
 
@@ -976,7 +971,7 @@ Bounds on **new capacity additions per period**.
 ## VedaLang: `stock`
 
 **Type**: number (≥0) or `time_varying_value`
-**Used in**: `process`, `process_instance`
+**Used in**: v0.2 facilities, fleets, and other stock-bearing deployment objects
 
 Aggregate **residual capacity** stock.
 
@@ -989,7 +984,7 @@ For new models, prefer `existing_capacity` to track vintages explicitly.
 ## VedaLang: `existing_capacity`
 
 **Type**: array of `past_investment` objects
-**Used in**: `process`, `process_instance`
+**Used in**: v0.2 technologies and stock-bearing deployment objects
 
 Past capacity investments with explicit **vintage years**.
 
@@ -998,8 +993,8 @@ Past capacity investments with explicit **vintage years**.
 
 **Example**:
 ```yaml
-processes:
-  - name: PP_CCGT
+facilities:
+  - id: existing_ccgt
     existing_capacity:
       - vintage: 2010
         capacity: 1.0   # in capacity_unit, e.g., GW
@@ -1012,10 +1007,9 @@ processes:
 ## VedaLang: `technology`
 
 **Type**: string
-**Used in**: `process_template`
+**Used in**: v0.2 deployment objects that select one technology by ID
 
-Technology code from a registry or naming convention (e.g., `CCG`, `PV`, `BAT`).
-Used for grouping templates and for external documentation.
+Reference to a technology defined in the top-level `technologies` collection.
 """,
     "role": """\
 ## VedaLang: `role`
@@ -1039,29 +1033,11 @@ Some roles impose additional requirements (e.g., `EUS` often needs `scope`/`cont
     "scope": """\
 ## VedaLang: `scope`
 
-**Type**:
-- In `process_template`: string (`^[A-Z]{3}$`) – sector code
-- In `process_instance`: string (`^[A-Z]{3}\\.[A-Z0-9_]+(\\.[A-Z0-9_]+)?$`) – sector.scope[.subscope]
+**Status**: legacy archive field
 
-**Usage**:
-
-- `process_template.scope` – sector code only (e.g., `RES`, `COM`, `IND`).
-- `process_instance.scope` – full sectoral context, REQUIRED when `template.role = EUS`.
-
-Examples:
-
-```yaml
-process_templates:
-  - name: RES_BOILER
-    role: EUS
-    scope: RES
-
-processes:
-  - name: R1_RES_BOILER_1
-    template: RES_BOILER
-    region: R1
-    scope: RES.ALL
-```
+The active v0.2 public DSL does not use `scope` as an authoring primitive.
+Model service intent through `technology_roles`, placement through `sites` and
+`runs`, and reporting overlays through explicit v0.2 reference objects.
 """,
     "sankey_stage": """\
 ## VedaLang: `sankey_stage`
@@ -1096,11 +1072,12 @@ Use `technology_role`, `technology`, and deployment objects instead.
     "region": """\
 ## VedaLang: `region`
 
-**Status**: mixed field; legacy process field plus active network/site context
+**Type**: string
+**Used in**: v0.2 network arcs, spatial reference objects, and run-derived diagnostics
 
-In the active v0.2 DSL, region-like placement is expressed through
-`region_partitions`, `sites`, `membership_overrides`, and `networks`.
-Legacy `process_instance.region` usage is archive-only.
+Region identifier within the active run's selected `region_partition`.
+Source models usually express placement through `sites`, memberships, and run
+selection rather than attaching regions directly to legacy process instances.
 """,
     "variant": """\
 ## VedaLang: `variant`
@@ -1114,12 +1091,11 @@ one `technology_role`.
     "vintage": """\
 ## VedaLang: `vintage`
 
-**Type**:
-- In `process_instance`: string (label, e.g., `EXIST`, `NEW`).
-- In `past_investment`: integer year (≥1900).
+**Type**: integer year (≥1900)
+**Used in**: `past_investment`
 
-In `process_instance`, distinguishes vintages for documentation or special handling.
-In `past_investment`, is the **build year** controlling retirement timing.
+Build year for existing stock. Controls retirement timing when combined with the
+parent technology's `lifetime`.
 """,
     # ----------------------------------------------------------------------
     # Past investment & bounds
@@ -1132,7 +1108,8 @@ In `past_investment`, is the **build year** controlling retirement timing.
 
 Installed capacity associated with a specific vintage year.
 
-- Units: `capacity_unit` of the parent process (e.g., GW).
+- Units: `capacity_unit` of the parent technology or stock-bearing object
+  (for example `GW`).
 """,
     "up": """\
 ## VedaLang: `up`
@@ -1213,7 +1190,7 @@ outputs:
 ## VedaLang: `values`
 
 **Type**: object mapping `YYYY` → number
-**Used in**: `scenario_parameter`, `time_series`, `time_varying_value`
+**Used in**: v0.2 `time_varying_value`-style objects, temporal reference data, and year-indexed stock/cost series
 
 Sparse time-series of year-indexed values.
 
@@ -1223,16 +1200,51 @@ Sparse time-series of year-indexed values.
 
 **Examples**:
 ```yaml
-scenario_parameters:
-  - name: co2_price
+temporal_index_series:
+  - id: cpi
     values:
-      "2025": 30
-      "2030": 50
+      "2025": 1.00
+      "2030": 1.12
 
-time_varying_value:
-  values:
-    "2030": 1000
-    "2040": 800
+technologies:
+  - id: heat_pump
+    investment_cost:
+      values:
+        "2030": 1000
+        "2040": 800
 ```
 """,
 }
+
+LEGACY_ONLY_SCHEMA_FIELDS = {
+    "model",
+    "regions",
+    "milestone_years",
+    "timeslices",
+    "code",
+    "season",
+    "weekly",
+    "daynite",
+    "fractions",
+    "process_templates",
+    "processes",
+    "scenario_parameters",
+    "trade_links",
+    "destination",
+    "bidirectional",
+    "constraints",
+    "cases",
+    "studies",
+    "context",
+    "sets",
+    "primary_commodity_group",
+    "input",
+    "output",
+    "role",
+    "sankey_stage",
+    "template",
+    "variant",
+}
+
+for _legacy_field in LEGACY_ONLY_SCHEMA_FIELDS:
+    SCHEMA_FIELD_DOCS.pop(_legacy_field, None)

@@ -19,6 +19,7 @@ from vedalang.compiler.compiler import (
     collect_new_syntax_cost_unit_diagnostics,
     collect_new_syntax_structural_diagnostics,
     load_vedalang,
+    validate_public_dsl_contract,
     validate_vedalang,
 )
 from vedalang.lint.code_categories import collect_structural_by_category
@@ -29,7 +30,6 @@ from vedalang.lint.llm_runtime import canonical_model_name
 from vedalang.lint.llm_unit_check import CHECK_ID as UNITS_CHECK_ID
 from vedalang.lint.llm_unit_check import run_component_unit_check
 from vedalang.lint.prompt_registry import resolve_prompt_versions
-from vedalang.versioning import looks_like_v0_2_source
 
 from .config import (
     MODEL_FAMILIES,
@@ -1064,7 +1064,8 @@ def run_eval(
     case_det_refs: dict[tuple[str, str], list[dict[str, Any]] | None] = {}
     for case_index, case in enumerate(base_cases, start=1):
         source = load_vedalang(Path(case.source))
-        validate_vedalang(source, legacy=not looks_like_v0_2_source(source))
+        validate_public_dsl_contract(source)
+        validate_vedalang(source)
         case_sources[case.case_id] = source
         case_det_refs[(case.case_id, case.category)] = _deterministic_reference(
             source,

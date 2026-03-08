@@ -1,6 +1,4 @@
 """Tests for pattern expansion."""
-
-import json
 from pathlib import Path
 
 import pytest
@@ -173,11 +171,13 @@ class TestExpandPattern:
 
 
 class TestFullPipeline:
-    def test_expand_compile_validate(self):
-        """Expand pattern, wrap in model, compile to TableIR, validate."""
-        import jsonschema
+    def test_expand_compile_rejects_legacy_pattern_output(self):
+        """Legacy pattern output should be rejected by the v0.2-only compiler."""
 
-        from vedalang.compiler import compile_vedalang_to_tableir
+        from vedalang.compiler import (
+            PublicDSLContractError,
+            compile_vedalang_to_tableir,
+        )
 
         # Expand pattern - use namespace naming convention
         process_yaml = expand_pattern(
@@ -214,11 +214,8 @@ class TestFullPipeline:
             }
         }
 
-        # Compile to TableIR
-        tableir = compile_vedalang_to_tableir(model)
-
-        # Validate against schema
-        with open(SCHEMA_DIR / "tableir.schema.json") as f:
-            schema = json.load(f)
-
-        jsonschema.validate(tableir, schema)
+        with pytest.raises(
+            PublicDSLContractError,
+            match="Legacy pre-v0.2 public DSL blocks are no longer supported",
+        ):
+            compile_vedalang_to_tableir(model)
