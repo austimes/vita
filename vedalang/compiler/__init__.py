@@ -7,7 +7,6 @@ from .compiler import (
     compile_vedalang_bundle,
     compile_vedalang_to_tableir,
     load_vedalang,
-    validate_cross_references,
     validate_public_dsl_contract,
     validate_vedalang,
 )
@@ -85,7 +84,6 @@ __all__ = [
     "resolve_sites",
     "reset_registry",
     "validate_public_dsl_contract",
-    "validate_cross_references",
     "validate_tableir",
     "validate_vedalang",
 ]

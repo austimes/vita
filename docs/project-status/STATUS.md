@@ -9,7 +9,7 @@ models. **All core phases (P0-P3) remain complete**, the v0.2
 package/run/CSIR/CPIR rollout is landed end-to-end, and the full example
 catalog is on the v0.2 DSL. A stricter follow-up cleanup pass is now in
 progress to delete residual dead pre-v0.2 internals rather than merely fence
-them off. The current `bd` tracker state is 138 closed issues and 3 open
+them off. The current `bd` tracker state is 141 closed issues and 2 open
 issues.
 
 | Milestone | Status |
@@ -44,13 +44,16 @@ active docs/help assets after the main hard cut landed.
 
 Open `bd` work is now:
 - `vedalang-y0a` — strict follow-up cleanup epic for residual pre-v0.2 internals
-- `vedalang-mlf` — delete the dead legacy compiler block still embedded in `compiler.py`
-- `vedalang-up8` — remove remaining legacy schema/help prose from active docs and LSP assets
+- `vedalang-bc8` — remove remaining legacy schema-routing helpers from compiler and CLI
 
 ### Recently Completed
 
 | Issue | Priority | Description | Status |
 |-------|----------|-------------|--------|
+| `vedalang-up8` | P2 | Removed remaining legacy/help prose from active LSP assets and user docs, and dropped process-era hover handling from the LSP server | ✓ Closed |
+| `vedalang-mlf` | P1 | Removed the unreachable legacy compiler body from `_compile_new_syntax` and left only the explicit unsupported-syntax stub | ✓ Closed |
+| `vedalang-7n1` | P2 | Removed the legacy `check-pcg` dev command and deleted the `pcg_checker` module | ✓ Closed |
+| `vedalang-75l` | P1 | Deleted dead `template_resolver`/`registry_emitter` compatibility modules and their tests | ✓ Closed |
 | `vedalang-dnd` | P1 | Deleted the unused facility/provider quarantine module outright; the active runtime no longer imports those no-op hooks | ✓ Closed |
 | `vedalang-4jh` | P1 | Made pattern tooling tableir-only and removed legacy `vedalang_template` expansion payloads and mode flags | ✓ Closed |
 | `vedalang-y8e` | P1 | Closed the main v0.2-only cleanup epic; active runtime/tooling surfaces are now operationally v0.2-only | ✓ Closed |

@@ -1381,30 +1381,23 @@ def _is_yaml_file(path: Path) -> bool:
 
 
 FMT_ROOT_KEY_ORDER = (
-    "model",
-    "scoping",
-    "roles",
-    "variants",
-    "availability",
-    "process_parameters",
-    "demands",
-    "diagnostics",
-)
-
-FMT_MODEL_KEY_ORDER = (
-    "name",
-    "description",
-    "regions",
-    "milestone_years",
-    "unit_policy",
-    "monetary",
-    "timeslices",
+    "dsl_version",
+    "imports",
     "commodities",
-    "scenario_parameters",
-    "trade_links",
-    "constraints",
-    "cases",
-    "studies",
+    "technologies",
+    "technology_roles",
+    "stock_characterizations",
+    "spatial_layers",
+    "spatial_measure_sets",
+    "temporal_index_series",
+    "region_partitions",
+    "zone_overlays",
+    "sites",
+    "facilities",
+    "fleets",
+    "opportunities",
+    "networks",
+    "runs",
 )
 
 FMT_GENERIC_KEY_ORDER = (
@@ -1428,13 +1421,13 @@ FMT_GENERIC_KEY_ORDER = (
     "required_inputs",
     "required_outputs",
     "emission_factors",
+    "timeslices",
     "years",
     "values",
 )
 
 FMT_PATH_KEY_ORDER: dict[tuple[str, ...], tuple[str, ...]] = {
     (): FMT_ROOT_KEY_ORDER,
-    ("model",): FMT_MODEL_KEY_ORDER,
 }
 
 FMT_LIST_SORT_KEYS = (

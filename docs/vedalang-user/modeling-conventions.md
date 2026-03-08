@@ -1,8 +1,8 @@
 # VedaLang Modeling Conventions
 
-This guide describes the active **v0.2** modeling contract. Older
-`model/roles/variants/providers` examples are archive material only and should
-not be used for new authoring.
+This guide describes the active **v0.2** modeling contract. The older
+`model/roles/variants/providers` syntax is removed and is not supported for
+authoring or compilation.
 
 <!-- GENERATED:canonical-enums:start -->
 - `stage` = one of `supply | conversion | distribution | storage | end_use | sink`

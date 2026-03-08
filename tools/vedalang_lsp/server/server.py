@@ -118,35 +118,6 @@ VEDALANG_KEYWORDS = [
     "runs",
 ]
 
-# Process-level keywords
-PROCESS_KEYWORDS = [
-    "name",
-    "description",
-    "type",
-    "sets",
-    "primary_commodity_group",
-    "inputs",
-    "outputs",
-    "input",
-    "output",
-    "efficiency",
-    "investment_cost",
-    "fixed_om_cost",
-    "variable_om_cost",
-    "lifetime",
-    "availability_factor",
-    "stock",
-    "existing_capacity",
-    "emission_factor",
-    "cap2act",
-    "region",
-    "activity_unit",
-    "capacity_unit",
-    "cap_bound",
-    "ncap_bound",
-    "activity_bound",
-]
-
 # Commodity-level keywords
 COMMODITY_KEYWORDS = [
     "id",
@@ -178,67 +149,6 @@ TECHNOLOGY_ROLE_KEYWORDS = [
     "description",
 ]
 
-# Known TIMES sets (commonly used in VedaLang)
-KNOWN_SETS = [
-    "ELE", "DMD", "PRE", "PRW", "REF", "MIN", "CHP", "HPL", "STG", "DISTR",
-    "IRE", "XTRACT", "RENEW", "ANNUAL", "DAYNITE", "WEEKLY", "SEASONAL",
-    "NRG", "MAT", "DEM", "ENV", "FIN", "NRGO", "DEMO",
-]
-
-# Primary Commodity Group (PCG) values and documentation
-PCG_VALUES = [
-    "DEMI", "DEMO", "MATI", "MATO", "NRGI", "NRGO", "ENVI", "ENVO", "FINI", "FINO"
-]
-
-# noqa: E501 - documentation strings intentionally exceed line length for readability
-PCG_DOCUMENTATION = """\
-## VedaLang: `primary_commodity_group` (PCG)
-
-**Type**: string enum
-**Required**: Yes (on process definitions)
-**Values**: `DEMI` `DEMO` `MATI` `MATO` `NRGI` `NRGO` `ENVI` `ENVO` `FINI` `FINO`
-
-### Purpose
-
-Defines which commodity flows determine a process's activity and capacity in TIMES:
-
-- **Activity definition**: Sum of flows in the PCG equals process activity (VAR_ACT)
-- **Capacity relationship**: Capacity is tied to activity through PCG flows
-- **Efficiency direction**: Controls which side (input/output) is "primary" in EQ_PTRANS
-
-### Value Format
-
-`<commodity_type><I/O_direction>`
-
-| Suffix | Meaning |
-|--------|---------|
-| `NRG` | Energy commodity |
-| `DEM` | Demand commodity |
-| `MAT` | Material commodity |
-| `ENV` | Environment/emission |
-| `FIN` | Financial commodity |
-| `I` | Input side |
-| `O` | Output side |
-
-### Common Patterns
-
-| Process Type | PCG | Reason |
-|--------------|-----|--------|
-| Power plant | `NRGO` | Activity = electricity output |
-| Demand device (heater, car) | `DEMO` | Activity = demand served |
-| Refinery/material process | `MATO` | Activity = material output |
-| Import process | `NRGI` | Activity = energy imported |
-| Mining/extraction | `MATO` or `NRGO` | Activity = resource extracted |
-
-### Why Required?
-
-VedaLang makes PCG **explicit** to avoid hidden inference surprises.
-VEDA/xl2times would otherwise infer PCG using complex rules
-(output DEM > MAT > NRG > ENV > FIN, then inputs).
-Making it explicit ensures the modeler understands and controls activity definition.
-"""
-
-
 @dataclass
 class SymbolDef:
     """Definition of a commodity, process, or set in the model."""
@@ -256,7 +166,7 @@ class SymbolRef:
     name: str
     uri: str
     range: types.Range
-    context: str  # e.g., "process.inputs", "scenario_parameters.commodity"
+    context: str  # e.g., "technologies.inputs", "networks.commodity"
 
 
 class VedaLangServer(LanguageServer):
@@ -1092,35 +1002,9 @@ def hover(ls: VedaLangServer, params: types.HoverParams) -> types.Hover | None:
             range=technology.range,
         )
 
-    # Check if hovering over a known set
-    if word in KNOWN_SETS:
-        return types.Hover(
-            contents=types.MarkupContent(
-                kind=types.MarkupKind.Markdown,
-                value=f"### TIMES Set `{word}`\n\nPredefined TIMES process set.",
-            ),
-        )
-
-    # Check if hovering over a PCG value (e.g., NRGO, DEMO)
-    if word in PCG_VALUES:
-        return types.Hover(
-            contents=types.MarkupContent(
-                kind=types.MarkupKind.Markdown,
-                value=PCG_DOCUMENTATION,
-            ),
-        )
-
     # Fallback: check for VedaLang attribute hover
     key = get_yaml_key_at_position(doc, params.position)
     if key:
-        # Check for primary_commodity_group key
-        if key == "primary_commodity_group":
-            return types.Hover(
-                contents=types.MarkupContent(
-                    kind=types.MarkupKind.Markdown,
-                    value=PCG_DOCUMENTATION,
-                )
-            )
         # Check TIMES-mapped attributes first
         if md := format_vedalang_attribute_hover(key):
             return types.Hover(

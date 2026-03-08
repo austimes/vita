@@ -329,23 +329,6 @@ def main():
         help="Generate static HTML (single year/region) instead of interactive",
     )
 
-    # check-pcg subcommand
-    check_pcg_parser = subparsers.add_parser(
-        "check-pcg",
-        help="Compare explicit vs inferred PCG for migration help",
-    )
-    check_pcg_parser.add_argument(
-        "input",
-        type=Path,
-        help="VedaLang model file (.veda.yaml)",
-    )
-    check_pcg_parser.add_argument(
-        "--json",
-        action="store_true",
-        dest="json_output",
-        help="Output as JSON",
-    )
-
     # eval subcommand
     eval_parser = subparsers.add_parser(
         "eval",
@@ -485,8 +468,6 @@ def main():
         run_times_results_command(args)
     elif args.command == "sankey":
         run_sankey_command(args)
-    elif args.command == "check-pcg":
-        run_check_pcg_command(args)
     elif args.command == "eval":
         run_eval_command(args)
 
@@ -819,25 +800,6 @@ def run_sankey_command(args):
         print(f"Open in browser: file://{output_path.absolute()}")
 
     sys.exit(0)
-
-
-def run_check_pcg_command(args):
-    """Run the check-pcg command."""
-    from .pcg_checker import check_pcg, format_pcg_result
-
-    if not args.input.exists():
-        print(f"Error: File not found: {args.input}", file=sys.stderr)
-        sys.exit(2)
-
-    result = check_pcg(args.input)
-
-    if args.json_output:
-        print(json.dumps(result.to_dict(), indent=2))
-    else:
-        print(format_pcg_result(result))
-
-    sys.exit(0)
-
 
 def run_eval_command(args):
     """Run eval command family."""

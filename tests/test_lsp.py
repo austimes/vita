@@ -103,12 +103,16 @@ class TestHoverFormatting:
         assert "ACT_EFF" in content
 
     def test_schema_field_docs_loaded(self):
-        assert len(SCHEMA_FIELD_DOCS) >= 50
+        assert len(SCHEMA_FIELD_DOCS) >= 30
         assert "commodities" in SCHEMA_FIELD_DOCS
         assert "technologies" in SCHEMA_FIELD_DOCS
         assert "technology_roles" in SCHEMA_FIELD_DOCS
         assert "runs" in SCHEMA_FIELD_DOCS
+        assert "model" not in SCHEMA_FIELD_DOCS
         assert "processes" not in SCHEMA_FIELD_DOCS
+        assert "constraints" not in SCHEMA_FIELD_DOCS
+        assert "scenario_parameters" not in SCHEMA_FIELD_DOCS
+        assert "primary_commodity_group" not in SCHEMA_FIELD_DOCS
         assert "trade_links" not in SCHEMA_FIELD_DOCS
 
     def test_format_times_attribute_hover(self):
