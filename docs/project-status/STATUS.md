@@ -1,6 +1,6 @@
 # VedaLang Project Status
 
-**Last updated:** 2026-03-08
+**Last updated:** 2026-03-09
 
 ## Summary
 
@@ -22,6 +22,8 @@ Current `bd` state: all rollout and cleanup issues are closed.
 
 ## Recently Completed
 
+- `vedalang-d4l` — aligned the README filename guidance with current compiler
+  output and normalized referenced scenario workbook naming to lowercase `scen_*`
 - `vedalang-b4r` — added concise block-level guidance to the README, tutorial,
   and quickstart example docs for the minimal model structure
 - `vedalang-bc8` — removed residual compiler/CLI schema-routing helpers and the

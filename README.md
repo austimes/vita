@@ -30,12 +30,14 @@ VedaLang uses precise terminology to avoid ambiguity:
 **Canonical scenario categories:** `demands` | `prices` | `policies` | `technology_assumptions` | `resource_availability` | `global_settings`
 <!-- GENERATED:scenario-categories:end -->
 
-**File naming convention:** `Scen_{case}_{category}.xlsx`
-- Example: `Scen_baseline_demands.xlsx`, `Scen_ambitious_policies.xlsx`
+**Current compiler output:** `syssettings.xlsx` and `vt_{book}_{run}.xlsx` (lowercase)
+
+**Scenario workbook naming convention when referenced:** `scen_{case}_{category}.xlsx`
+- Example: `scen_baseline_demands.xlsx`, `scen_ambitious_policies.xlsx`
 
 This separation distinguishes between:
-- **Model architecture** (VT_* files): processes, commodities, topology
-- **Scenario instantiation** (Scen_* files): demands, prices, policies that instantiate the architecture
+- **Model architecture** (`VT` in VEDA terminology; compiler emits lowercase `vt_*` files): processes, commodities, topology
+- **Scenario instantiation** (`scen_*` files, when used): demands, prices, policies that instantiate the architecture
 
 ---
 
@@ -159,12 +161,14 @@ technology_roles:
     primary_service: service:space_heat
     technologies: [gas_heater]
 
-# Spatial metadata defines the region layer and partition used by compilation.
+# Spatial layers point to the underlying geographic data source.
 spatial_layers:
   - id: geo.demo
     kind: polygon
     key: region_id
     geometry_file: data/regions.geojson
+
+# Region partitions group geometry members into the model regions used at compile time.
 region_partitions:
   - id: toy_region
     layer: geo.demo
