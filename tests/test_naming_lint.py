@@ -29,14 +29,14 @@ class TestN001CommodityIDGrammar:
         diagnostics = N001_CommodityIDGrammar().check(source)
         assert diagnostics == []
 
-    def test_legacy_prefix_triggers(self):
+    def test_unsupported_prefix_triggers(self):
         source = make_source(
             commodities=[{"id": "fuel:natural_gas", "kind": "primary"}]
         )
         diagnostics = N001_CommodityIDGrammar().check(source)
         assert len(diagnostics) == 1
         assert diagnostics[0].code == "N001"
-        assert "Legacy commodity prefix" in diagnostics[0].message
+        assert "Unknown commodity namespace" in diagnostics[0].message
 
     def test_namespace_kind_mismatch_triggers(self):
         source = make_source(

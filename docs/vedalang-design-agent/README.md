@@ -23,11 +23,7 @@ This directory contains supporting documentation:
 | [`skills/vedalang-design-exploration/SKILL.md`](../../skills/vedalang-design-exploration/SKILL.md) | Canonical exploration protocol skill |
 | [exploration_prompt.md](exploration_prompt.md) | Compatibility pointer to the exploration skill |
 | [schema_evolution.md](schema_evolution.md) | Rules for evolving the VedaLang schema |
-| [pattern_validation.md](pattern_validation.md) | Pattern catalog and validation methodology |
 | [canonical_form.md](canonical_form.md) | Canonical table form and semantics |
-| [baseline_diagnostics.md](baseline_diagnostics.md) | xl2times diagnostic baseline |
-| [minisystem_spec.md](minisystem_spec.md) | MiniSystem stress test specification |
-| [ergonomic_improvements.md](ergonomic_improvements.md) | Proposed language improvements |
 | [pcg_investigation.md](pcg_investigation.md) | PCG research notes |
 
 ### Subdirectories

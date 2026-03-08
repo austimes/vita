@@ -288,7 +288,7 @@ def lower_v0_2_bundle_to_tableir(
     graph: ResolvedDefinitionGraph,
     artifacts: ResolvedArtifacts,
 ) -> dict[str, Any]:
-    """Lower a resolved v0.2 bundle into the legacy TableIR backend shape."""
+    """Lower a resolved v0.2 bundle into the existing TableIR backend shape."""
     run_id = artifacts.csir["run_id"]
     model_regions = list(artifacts.csir["model_regions"])
     default_region = ",".join(model_regions)

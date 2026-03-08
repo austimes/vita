@@ -1,6 +1,6 @@
 [project]
 name = "veda-devtools"
-version = "0.1.0"
+version = "0.2.0"
 description = "A typed DSL (VedaLang) that compiles to VEDA tables for TIMES energy models"
 requires-python = ">=3.11"
 dependencies = [

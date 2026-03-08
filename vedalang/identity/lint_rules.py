@@ -6,10 +6,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any
 
-from vedalang.conventions import (
-    is_legacy_commodity_namespace,
-    split_commodity_namespace,
-)
+from vedalang.conventions import split_commodity_namespace
 from vedalang.versioning import looks_like_v0_2_source
 
 V0_2_COMMODITY_NAMESPACE_TO_KINDS: dict[str, frozenset[str]] = {
@@ -21,8 +18,6 @@ V0_2_COMMODITY_NAMESPACE_TO_KINDS: dict[str, frozenset[str]] = {
     "material": frozenset({"material"}),
     "certificate": frozenset({"certificate"}),
 }
-LEGACY_NAMESPACE_ALIASES = {"fuel", "energy"}
-
 
 @dataclass
 class LintDiagnostic:
@@ -75,10 +70,7 @@ class N001_CommodityIDGrammar(NamingLintRule):
             if namespace is None:
                 continue
             path = f"commodities[{index}].id"
-            if (
-                is_legacy_commodity_namespace(namespace)
-                or namespace in LEGACY_NAMESPACE_ALIASES
-            ):
+            if namespace not in self._valid_namespaces:
                 expected = [
                     candidate
                     for candidate, allowed_kinds in self._namespace_to_kinds.items()
@@ -90,23 +82,9 @@ class N001_CommodityIDGrammar(NamingLintRule):
                         code=self.code,
                         severity="error",
                         message=(
-                            f"Legacy commodity prefix '{namespace}:' in "
-                            f"'{commodity_id}' is deprecated; use {expected_text} "
-                            f"for kind '{kind}'."
-                        ),
-                        path=path,
-                    )
-                )
-                continue
-            if namespace not in self._valid_namespaces:
-                diagnostics.append(
-                    LintDiagnostic(
-                        code=self.code,
-                        severity="error",
-                        message=(
                             f"Unknown commodity namespace '{namespace}' in "
-                            f"'{commodity_id}'. Expected one of: "
-                            f"{sorted(self._valid_namespaces)}"
+                            f"'{commodity_id}'. Use {expected_text} for "
+                            f"kind '{kind}'."
                         ),
                         path=path,
                     )

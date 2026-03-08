@@ -9,10 +9,10 @@ from vedalang.compiler import (
     validate_public_dsl_contract,
     validate_vedalang,
 )
-from vedalang.versioning import looks_like_legacy_source, looks_like_v0_2_source
+from vedalang.versioning import looks_like_v0_2_source
 
 
-def test_source_shape_helpers_distinguish_v0_2_from_legacy() -> None:
+def test_source_shape_helper_detects_only_v0_2_sources() -> None:
     legacy = {
         "model": {"name": "Legacy", "regions": ["R1"], "commodities": []},
         "roles": [],
@@ -22,10 +22,8 @@ def test_source_shape_helpers_distinguish_v0_2_from_legacy() -> None:
         "commodities": [{"id": "service:heat", "kind": "service"}],
     }
 
-    assert looks_like_legacy_source(legacy)
     assert not looks_like_v0_2_source(legacy)
     assert looks_like_v0_2_source(v0_2)
-    assert not looks_like_legacy_source(v0_2)
 
 
 def test_load_vedalang_only_injects_dsl_version_for_v0_2_files(tmp_path: Path) -> None:

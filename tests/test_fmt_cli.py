@@ -47,7 +47,10 @@ def test_cmd_fmt_json_reports_missing_path(tmp_path, capsys):
 
 def test_cmd_fmt_check_mode_returns_1_on_drift(tmp_path, monkeypatch, capsys):
     src = tmp_path / "drift.veda.yaml"
-    src.write_text("model: {name: Demo}\n", encoding="utf-8")
+    src.write_text(
+        "commodities: [{id: service:heat, kind: service}]\n",
+        encoding="utf-8",
+    )
 
     monkeypatch.setattr(cli, "_resolve_prettier_command", lambda _: ["prettier"])
 
@@ -74,7 +77,10 @@ def test_cmd_fmt_check_mode_returns_1_on_drift(tmp_path, monkeypatch, capsys):
 
 def test_cmd_fmt_write_mode_reports_success(tmp_path, monkeypatch, capsys):
     src = tmp_path / "format_me.veda.yaml"
-    src.write_text("model: {name: Demo}\n", encoding="utf-8")
+    src.write_text(
+        "commodities: [{id: service:heat, kind: service}]\n",
+        encoding="utf-8",
+    )
 
     monkeypatch.setattr(cli, "_resolve_prettier_command", lambda _: ["prettier"])
 
@@ -101,7 +107,10 @@ def test_cmd_fmt_write_mode_reports_success(tmp_path, monkeypatch, capsys):
 
 def test_cmd_fmt_returns_2_when_prettier_unavailable(tmp_path, monkeypatch, capsys):
     src = tmp_path / "model.veda.yaml"
-    src.write_text("model:\n  name: Demo\n", encoding="utf-8")
+    src.write_text(
+        "commodities:\n  - id: service:heat\n    kind: service\n",
+        encoding="utf-8",
+    )
 
     monkeypatch.setattr(cli, "_resolve_prettier_command", lambda _: None)
     args = argparse.Namespace(paths=[src], check=False, json=True)
@@ -133,38 +142,44 @@ def test_cmd_fmt_no_matching_files_is_success(tmp_path, capsys):
 def test_canonicalize_yaml_text_sorts_and_adds_blank_lines():
     source = textwrap.dedent(
         """\
-        roles:
-          - stage: demand
+        runs:
+          - region_partition: national
+            id: run_z
+          - id: run_a
+            region_partition: national
+        technology_roles:
+          - role: conversion
             id: role_b
           - id: role_a
-            stage: supply
-        model:
-          commodities:
-            - type: service
-              id: service:z
-            - id: service:a
-              type: service
-          name: Demo
+            role: conversion
+        commodities:
+          - kind: service
+            id: service:z
+          - id: service:a
+            kind: service
         """
     )
 
     formatted = cli._canonicalize_yaml_text(source)
     assert formatted is not None
-    assert formatted.startswith("model:\n")
-    assert "\n\nroles:\n" in formatted
+    assert formatted.startswith("commodities:\n")
+    assert "\n\ntechnology_roles:\n" in formatted
+    assert "\n\nruns:\n" in formatted
     assert formatted.index("id: service:a") < formatted.index("id: service:z")
     assert formatted.index("id: role_a") < formatted.index("id: role_b")
-    assert "\n\n  - id: service:z\n" in formatted
+    assert formatted.index("id: run_a") < formatted.index("id: run_z")
+    assert "\n\n- id: service:z\n" in formatted
 
 
 def test_cmd_fmt_check_mode_returns_1_on_canonical_drift(tmp_path, monkeypatch, capsys):
     src = tmp_path / "canonical_drift.veda.yaml"
     src.write_text(
-        "roles:\n"
-        "  - stage: demand\n"
+        "technology_roles:\n"
+        "  - role: conversion\n"
         "    id: role_b\n"
-        "model:\n"
-        "  name: Demo\n",
+        "commodities:\n"
+        "  - kind: service\n"
+        "    id: service:heat\n",
         encoding="utf-8",
     )
     original = src.read_text(encoding="utf-8")
@@ -196,18 +211,21 @@ def test_cmd_fmt_check_mode_returns_1_on_canonical_drift(tmp_path, monkeypatch, 
 def test_cmd_fmt_write_mode_applies_canonicalization(tmp_path, monkeypatch, capsys):
     src = tmp_path / "canonicalize_me.veda.yaml"
     src.write_text(
-        "roles:\n"
-        "  - stage: demand\n"
+        "technology_roles:\n"
+        "  - role: conversion\n"
         "    id: role_b\n"
-        "  - stage: supply\n"
+        "  - role: conversion\n"
         "    id: role_a\n"
-        "model:\n"
-        "  commodities:\n"
-        "    - type: service\n"
-        "      id: service:z\n"
-        "    - type: service\n"
-        "      id: service:a\n"
-        "  name: Demo\n",
+        "runs:\n"
+        "  - region_partition: national\n"
+        "    id: run_z\n"
+        "  - region_partition: national\n"
+        "    id: run_a\n"
+        "commodities:\n"
+        "  - kind: service\n"
+        "    id: service:z\n"
+        "  - kind: service\n"
+        "    id: service:a\n",
         encoding="utf-8",
     )
 
@@ -233,7 +251,9 @@ def test_cmd_fmt_write_mode_applies_canonicalization(tmp_path, monkeypatch, caps
     assert payload["canonical_drift_count"] == 1
 
     updated = src.read_text(encoding="utf-8")
-    assert updated.startswith("model:\n")
-    assert "\n\nroles:\n" in updated
+    assert updated.startswith("commodities:\n")
+    assert "\n\ntechnology_roles:\n" in updated
+    assert "\n\nruns:\n" in updated
     assert updated.index("id: service:a") < updated.index("id: service:z")
     assert updated.index("id: role_a") < updated.index("id: role_b")
+    assert updated.index("id: run_a") < updated.index("id: run_z")

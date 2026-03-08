@@ -16,8 +16,6 @@ from time import perf_counter
 from typing import Any
 
 from vedalang.compiler.compiler import (
-    collect_new_syntax_cost_unit_diagnostics,
-    collect_new_syntax_structural_diagnostics,
     load_vedalang,
     validate_public_dsl_contract,
     validate_vedalang,
@@ -322,71 +320,11 @@ def _parse_exception_diagnostics(
 
 def _component_unit_reference(source: dict, component: str) -> list[dict[str, Any]]:
     diagnostics: list[dict[str, Any]] = []
-
-    unit_errors, unit_warnings = collect_new_syntax_cost_unit_diagnostics(source)
-    for issue in [*unit_errors, *unit_warnings]:
-        if not _diagnostic_mentions_component(issue, component):
-            continue
-        mapped = _map_unit_diagnostic_code(
-            str(issue.get("code", "")),
-            str(issue.get("message", "")),
-        )
-        if mapped is None:
-            continue
-        context = {
-            "error_code": mapped,
-            "error_family": _UNIT_ERROR_FAMILY.get(mapped, "other"),
-        }
-        diagnostics.append(
-            with_meta(
-                {
-                    "code": str(issue.get("code", "")),
-                    "severity": (
-                        "warning"
-                        if str(issue.get("code", "")).startswith("W_")
-                        else "error"
-                    ),
-                    "message": str(issue.get("message", "")),
-                    "location": str(issue.get("location", "")),
-                    "context": context,
-                },
-                category="units",
-                engine="code",
-                check_id="code.units.cost_denominator",
-            )
-        )
-
-    structural_diags: list[dict[str, Any]]
     try:
-        struct_errors, struct_warnings = collect_new_syntax_structural_diagnostics(
-            source
-        )
+        grouped = collect_structural_by_category(source)
         structural_diags = [
-            with_meta(
-                {
-                    "code": d["code"],
-                    "severity": "error",
-                    "message": d["message"],
-                    "location": d["location"],
-                },
-                category="units",
-                engine="code",
-                check_id="code.units.compiler_semantics",
-            )
-            for d in struct_errors
-        ] + [
-            with_meta(
-                {
-                    "code": d["code"],
-                    "severity": "warning",
-                    "message": d["message"],
-                    "location": d["location"],
-                },
-                category="units",
-                engine="code",
-                check_id="code.units.compiler_semantics",
-            )
-            for d in struct_warnings
+            *grouped.get("units", []),
+            *grouped.get("structure", []),
         ]
     except Exception as exc:
         structural_diags = _parse_exception_diagnostics(exc, category="units")

@@ -700,7 +700,7 @@ def _format_step_detail(name: str, step: StepResult) -> str:
             if not execution.get("ran_solver"):
                 details.append("no-solve")
         else:
-            # Fall back to legacy fields
+            # Fall back to compatibility fields
             if step.artifacts.get("model_status"):
                 details.append(step.artifacts["model_status"])
             rc = step.artifacts.get("gams_return_code")

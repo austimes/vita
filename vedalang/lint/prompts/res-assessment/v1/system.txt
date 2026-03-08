@@ -124,8 +124,8 @@ IMPORTANT:
 if `has_variant_level_inputs` is true (variants provide the inputs).
 - Do NOT flag zero-input `sink` roles as errors when they clearly model \
 ledger-only removals with negative emission factors.
-- Commodity namespace migration advice (legacy `fuel:*`/`energy:*` → \
-`primary:*`/`secondary:*`) should normally be `warning` or `suggestion`, not \
+- Commodity namespace advice (`primary:*` for primary fuels, `secondary:*` for \
+secondary carriers) should normally be `warning` or `suggestion`, not \
 `critical`, unless it causes a concrete structural contradiction.
 - If no genuine issues are found, return: {"findings": []}
 - Prefer fewer, high-quality findings over many low-quality ones.

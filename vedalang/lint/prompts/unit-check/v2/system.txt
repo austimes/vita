@@ -22,7 +22,7 @@ Important: derive cap-to-activity consistency via
 PRC_CAPACT = convert(1 * capacity_unit * 1 yr -> activity_unit).
 Important: when model.monetary is present, cost fields are explicit literals
 like '<value> MAUD24/PJ' or '<value> MUSD23/Bvkm/yr'. Do not treat
-currency-year tokens (e.g., MAUD24, USD23) as invalid just because legacy
+currency-year tokens (e.g., MAUD24, USD23) as invalid just because older
 currency_unit enums list only USD/kUSD/MUSD/BUSD.
 
 Controlled error codes (use exactly one per finding):

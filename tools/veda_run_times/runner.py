@@ -448,7 +448,7 @@ def parse_lst_file(lst_path: Path) -> dict:
     diag = parse_gams_listing(content)
     result["diagnostics"] = diag
 
-    # Extract legacy fields from diagnostics
+    # Extract summary fields from diagnostics
     model_status = diag["execution"]["model_status"]
     if model_status["text"]:
         result["model_status"] = model_status["text"]
@@ -552,7 +552,8 @@ def run_times(
     lst_info = parse_lst_file(lst_file) if lst_file else {}
     diagnostics = lst_info.get("diagnostics")
 
-    # Determine success from diagnostics if available, else fall back to legacy check
+    # Determine success from diagnostics if available, else fall back
+    # to status-code checks.
     if diagnostics:
         success = proc.returncode == 0 and diagnostics["summary"]["ok"]
     else:

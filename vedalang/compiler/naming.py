@@ -160,8 +160,8 @@ class NamingRegistry:
     def get_all_processes(self) -> dict[tuple, str]:
         """Return registered process symbols.
 
-        For legacy symbols this returns 3-tuples `(variant, region, segment)`.
-        Provider-aware symbols return extended tuple keys.
+        Short-form process keys return 3-tuples `(variant, region, segment)`.
+        Extended process keys include additional scope fields.
         """
         result: dict[tuple, str] = {}
         for key, value in self._processes.items():

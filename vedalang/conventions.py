@@ -57,9 +57,6 @@ _FALLBACK_NAMESPACE_TO_TYPES: dict[str, tuple[str, ...]] = {
     "emission": ("emission",),
     "money": ("money",),
 }
-_FALLBACK_LEGACY_COMMODITY_NAMESPACES = frozenset({"C", "E", "S", "M", "D", "F"})
-
-
 @lru_cache(maxsize=1)
 def _load_schema() -> dict:
     with _SCHEMA_PATH.open(encoding="utf-8") as f:
@@ -130,13 +127,6 @@ def split_commodity_namespace(commodity_id: str) -> tuple[str | None, str]:
         return None, commodity_id if isinstance(commodity_id, str) else ""
     namespace, _, base = commodity_id.partition(":")
     return namespace, base
-
-
-def is_legacy_commodity_namespace(namespace: str | None) -> bool:
-    """True for legacy VEDA-style namespace prefixes (C:/E:/S:/...)."""
-    return namespace in _FALLBACK_LEGACY_COMMODITY_NAMESPACES
-
-
 def scenario_category_enum() -> tuple[str, ...]:
     """Canonical scenario category enum from schema."""
     enum = _load_schema().get("$defs", {}).get("category", {}).get("enum")

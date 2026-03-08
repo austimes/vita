@@ -10,20 +10,20 @@ Language Server Protocol (LSP) implementation for VedaLang, providing IDE suppor
   - Indexes, units, and metadata
 
 - **Autocompletion**: Context-aware suggestions for:
-  - VedaLang keywords (`model`, `processes`, `commodities`, etc.)
-  - Process/commodity attributes (`efficiency`, `investment_cost`, etc.)
-  - Enum values (`energy`, `emission`, `standard`, etc.)
+  - VedaLang v0.2 root objects (`commodities`, `technologies`, `technology_roles`, `sites`, `facilities`, `fleets`, `opportunities`, `networks`, `runs`)
+  - Technology and asset attributes (`performance`, `costs`, `stock`, `membership_overrides`, etc.)
+  - Enum values (`primary`, `secondary`, `service`, `material`, `emission`, etc.)
 
 - **Real-time Diagnostics**: Validates `.veda.yaml` files for:
   - YAML syntax errors
   - Missing required properties
-  - Undefined commodity/process/set references
+  - Undefined commodity/technology/technology-role references
   - Duplicate symbol names
-  - Deprecated syntax warnings
+  - v0.2 structural and semantic diagnostics
 
 - **Code Actions (Quick Fixes)**: For undefined reference errors:
   - Offers valid symbols as replacement suggestions
-  - Works for commodities, processes, and TIMES sets
+  - Works for commodities, technologies, technology roles, and runs
   - Diagnostic data includes `valid_symbols` for AI agent consumption
 
 ## Installation
@@ -63,7 +63,7 @@ bun run compile
 
 ```bash
 # Create symlink to VS Code extensions
-ln -s $(pwd)/tools/vedalang_lsp/extension ~/.vscode/extensions/vedalang-0.1.0
+ln -s $(pwd)/tools/vedalang_lsp/extension ~/.vscode/extensions/vedalang-0.2.0
 ```
 
 **Option 3: Build a VSIX (so you have something to “Install from VSIX…”)**

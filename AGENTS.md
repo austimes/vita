@@ -99,7 +99,6 @@ As of **2026-03-07**, the original core phases (**P0-P3**) remain complete and
 the **package/run/CSIR/CPIR** reset has landed as the active public DSL.
 
 What this means for design-agent work:
-- Treat the older provider-era public DSL as **legacy**.
 - Prefer the current object-model terminology and architecture:
   `package`, `run`, `commodity`, `technology`, `technology_role`,
   `stock_characterization`, `site`, `facility`, `fleet`, `opportunity`,
@@ -192,7 +191,7 @@ The goal is for an **AI agent to iteratively design VedaLang** using feedback to
 2. **vedalang validate** — Unified lint + compile + validate feedback
 3. **Decision heuristics** — Mapping physical concepts → VEDA table patterns
 
-We are NOT porting legacy models. This is for new model development.
+We are not porting older models. This is for new model development.
 
 ## Two Separate Concerns
 
@@ -214,19 +213,21 @@ We are NOT porting legacy models. This is for new model development.
 - `primary:` → NRG, `secondary:` → NRG, `resource:` → NRG, `material:` → MAT, `service:` → DEM, `emission:` → ENV, `money:` → FIN
 
 **Decision (2026-02-24):** Use `primary:*` for primary combustible/extractable fuels and
-`secondary:*` for secondary carriers. This replaces older `fuel:*`/`energy:*` namespace
-wording to make primary-vs-secondary energy pedigree explicit.
+`secondary:*` for secondary carriers to make primary-vs-secondary energy
+pedigree explicit.
 
 **Emissions are ledger entries, not flows.** `emission:*` commodities MUST NOT appear in process `inputs` or `outputs`. They enter the model only via `emission_factors`:
 
 ```yaml
-variants:
+technologies:
   - id: gas_heater
+    provides: service:space_heat
     inputs:
       - commodity: primary:natural_gas
+        basis: HHV
     outputs:
       - commodity: service:space_heat
-    emission_factors:
+    emissions:
       emission:co2: 0.056  # ledger entry, not a flow
 ```
 
@@ -383,12 +384,12 @@ The LSP has two parts: a **Python server** (`tools/vedalang_lsp/server/`) and a 
 cd tools/vedalang_lsp/extension && bun run compile
 
 # 2. Copy compiled JS to the installed extension (Cursor)
-cp tools/vedalang_lsp/extension/out/*.js ~/.cursor/extensions/austimes.vedalang-0.1.0/out/
+cp tools/vedalang_lsp/extension/out/*.js ~/.cursor/extensions/austimes.vedalang-0.2.0/out/
 
 # 3. Reload window: Cmd+Shift+P → "Developer: Reload Window"
 ```
 
-**Important:** Cursor loads the extension from `~/.cursor/extensions/austimes.vedalang-0.1.0/`, NOT from the repo's `out/` directory. After `bun run compile`, you MUST copy the built JS files to the installed extension path. For VS Code, the equivalent path is `~/.vscode/extensions/`.
+**Important:** Cursor loads the extension from `~/.cursor/extensions/austimes.vedalang-0.2.0/`, NOT from the repo's `out/` directory. After `bun run compile`, you MUST copy the built JS files to the installed extension path. For VS Code, the equivalent path is `~/.vscode/extensions/`.
 
 Python server changes (e.g., `tools/vedalang_lsp/server/server.py`) take effect on window reload without any build step.
 
@@ -467,9 +468,9 @@ The agent discovers and refines these heuristics through experimentation.
 - VedaLang schema is evolving — propose improvements via schema changes
 - Decision heuristics are learned, not hardcoded
 - TableIR is your experimentation layer before committing to VedaLang syntax
-- The active design target is the package/run/CSIR/CPIR reset; avoid adding new
-  public features to the legacy provider-era DSL unless required as temporary
-  backend-compat plumbing
+- The active design target is the package/run/CSIR/CPIR surface; avoid adding
+  public features outside that object model unless they are required backend
+  plumbing for emitted artifacts
 
 ---
 
@@ -525,7 +526,7 @@ now the baseline design surface rather than an active migration.
 
 | Landed Epic | Result |
 |-------------|--------|
-| `vedalang-txa.1` | Governance, versioning, and legacy rejection |
+| `vedalang-txa.1` | Governance, versioning, and unsupported-syntax diagnostics |
 | `vedalang-txa.3` | Public schema and AST reset |
 | `vedalang-txa.4` | Resolution: imports, runs, spatial/stock/site logic |
 | `vedalang-txa.5` | Canonical artifacts: CSIR, CPIR, explain.json |
@@ -663,7 +664,7 @@ Current status: this is still a prototype. Do not preserve backward compatibilit
 - **No deprecation cycles required** — remove or rename freely when it improves the design
 - **Focus on correctness** — better to fix a design flaw now than carry it forward
 - **Examples and fixtures are updated in-place** — when schema changes, update all examples
-- **Do not keep migration guides by default** — transitional docs/policies for legacy compatibility create agent/dev confusion and should be removed unless explicitly needed for an external release handoff
+- **Do not keep migration guides by default** — transitional compatibility docs create agent/dev confusion and should be removed unless explicitly needed for an external release handoff
 - **Do not carry backward-compat shims** — remove compatibility aliases and transitional pathways once the new design lands
 - **Record decisions in `HISTORY.md`** — concise dated rationale entries plus git history are sufficient for traceability during prototype phase
 
@@ -703,7 +704,8 @@ uv run vedalang validate vedalang/examples/quickstart/mini_plant.veda.yaml
 
 ## Diagnostic Codes Reference
 
-xl2times emits structured diagnostics. See [docs/vedalang-design-agent/baseline_diagnostics.md](docs/vedalang-design-agent/baseline_diagnostics.md) for details.
+xl2times emits structured diagnostics. Use `--diagnostics-json` and inspect the
+machine-readable output directly during design work.
 
 ### Quick Reference
 

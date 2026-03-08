@@ -1,8 +1,8 @@
 # VedaLang Heuristic Checks
 
-VedaLang's deterministic heuristics now target the active v0.2 public DSL
-only. They run before compilation and solver work, and focus on stock-coverage
-gaps that are cheap to detect from the authored source.
+VedaLang's deterministic heuristics run on the active v0.2 public DSL before
+compilation and solver work. They focus on stock-coverage gaps that are cheap
+to detect from the authored source.
 
 ## Running Heuristic Checks
 
@@ -16,10 +16,6 @@ uv run vedalang lint model.veda.yaml
 # Run heuristics as part of full validation
 uv run vedalang validate model.veda.yaml
 ```
-
-Legacy `model/roles/variants/providers` syntax is no longer part of the
-heuristics runtime. Unsupported legacy files fail the public DSL contract
-before heuristic analysis is attempted.
 
 ## Available Heuristic Checks
 

@@ -22,7 +22,7 @@ units like '<unit>/yr'. Treat ambiguous non-power denominators without '/yr'
 as invalid.
 Important: when runs define `currency_year`, cost fields should use explicit
 currency-year literals like '<value> MAUD24/MWh' or '<value> MUSD23/Bvkm/yr'.
-Do not reject such literals just because legacy currency enums were narrower.
+Do not reject such literals just because older currency enums were narrower.
 Important: lhv_mj_per_unit/hhv_mj_per_unit are basis-conversion anchors. Do not
 raise findings solely because those absolute values look unusual unless the
 provided model contains a concrete contradiction.
