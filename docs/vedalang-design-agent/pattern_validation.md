@@ -1,8 +1,7 @@
 # Pattern Validation Catalog
 
 This catalog documents historical pattern validation work. The active public
-DSL is now v0.2-only, so `veda_pattern expand --format vedalang` is treated as
-an archived pre-v0.2 surface. Current supported expansion workflow is
+DSL is now v0.2-only, and the supported pattern expansion workflow is
 `--format tableir`.
 
 This document catalogs each pattern in `rules/patterns.yaml` and its validation status.
@@ -214,7 +213,7 @@ commodities:
 
 **Validated In:** DC4
 
-**Note:** This pattern only has a `tableir_template`, not a `vedalang_template`. Use `--format tableir` when expanding.
+**Note:** This pattern is available only through `tableir` expansion.
 
 ### Parameters
 
@@ -265,7 +264,7 @@ Each pattern was validated through the following process:
 
 1. **Expansion Test:** Pattern expands without error with valid parameters
 2. **YAML Validity:** Expanded output parses as valid YAML
-3. **VedaLang Compilation:** Patterns with `vedalang_template` compile to TableIR
+3. **TableIR Expansion:** Supported patterns emit valid TableIR fragments
 4. **TableIR Schema Validation:** Compiled TableIR validates against `tableir.schema.json`
 5. **xl2times Validation:** Generated Excel passes xl2times (via `vedalang validate`)
 

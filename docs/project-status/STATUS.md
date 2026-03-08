@@ -6,9 +6,11 @@
 
 VedaLang is a typed DSL that compiles to VEDA Excel tables for TIMES energy
 models. **All core phases (P0-P3) remain complete**, the v0.2
-package/run/CSIR/CPIR rollout is landed end-to-end, the full example catalog
-is on the v0.2 DSL, and the v0.2-only cleanup epic is now closed. The current
-`bd` tracker state is 135 closed issues and 0 open issues.
+package/run/CSIR/CPIR rollout is landed end-to-end, and the full example
+catalog is on the v0.2 DSL. A stricter follow-up cleanup pass is now in
+progress to delete residual dead pre-v0.2 internals rather than merely fence
+them off. The current `bd` tracker state is 138 closed issues and 3 open
+issues.
 
 | Milestone | Status |
 |-----------|--------|
@@ -27,27 +29,37 @@ is on the v0.2 DSL, and the v0.2-only cleanup epic is now closed. The current
 | Progressive Fixtures (ms1-8) | ✅ All passing |
 | v0.2 backend parity | ✅ Complete |
 | v0.2 rollout backlog | ✅ Closed |
+| Residual hard-cut cleanup | 🔄 In progress |
 
 ---
 
-## Current Status: v0.2 Hard Cut Complete
+## Current Status: Residual Hard-Cut Cleanup
 Core design phases remain complete. The v0.2 frontend, diagnostics,
-downstream tooling surfaces, flagship examples/docs, regression matrix,
-example catalog migration, and the final v0.2-only cleanup pass are all
-complete. The active codebase now runs as a v0.2-only project: legacy public
-DSL surfaces are either removed or explicitly archived/rejected.
+downstream tooling surfaces, flagship examples/docs, regression matrix, and
+example catalog migration are complete. The current work is a narrow cleanup
+pass to delete leftover dead pre-v0.2 internals and remove legacy prose from
+active docs/help assets after the main hard cut landed.
+
+### Active Work
+
+Open `bd` work is now:
+- `vedalang-y0a` — strict follow-up cleanup epic for residual pre-v0.2 internals
+- `vedalang-mlf` — delete the dead legacy compiler block still embedded in `compiler.py`
+- `vedalang-up8` — remove remaining legacy schema/help prose from active docs and LSP assets
 
 ### Recently Completed
 
 | Issue | Priority | Description | Status |
 |-------|----------|-------------|--------|
-| `vedalang-y8e` | P1 | Closed the final v0.2-only cleanup epic; active runtime/tooling surfaces are now operationally v0.2-only | ✓ Closed |
-| `vedalang-y8e.11` | P2 | Archived broken pre-v0.2 VedaLang pattern expansion, switched supported pattern workflows to TableIR, and updated pattern docs/CLI/tests | ✓ Closed |
+| `vedalang-dnd` | P1 | Deleted the unused facility/provider quarantine module outright; the active runtime no longer imports those no-op hooks | ✓ Closed |
+| `vedalang-4jh` | P1 | Made pattern tooling tableir-only and removed legacy `vedalang_template` expansion payloads and mode flags | ✓ Closed |
+| `vedalang-y8e` | P1 | Closed the main v0.2-only cleanup epic; active runtime/tooling surfaces are now operationally v0.2-only | ✓ Closed |
+| `vedalang-y8e.11` | P2 | Removed the broken pre-v0.2 VedaLang pattern path from normal workflows, switched supported pattern workflows to TableIR, and updated pattern docs/CLI/tests | ✓ Closed |
 | `vedalang-y8e.10` | P2 | Deleted dead legacy graph-builder surfaces and renamed remaining trade-lens helpers to v0.2 network terminology | ✓ Closed |
-| `vedalang-y8e.9` | P1 | Deleted `vedalang/compiler/ir.py` and quarantined the archived `_compile_new_syntax` roles/variants/providers path | ✓ Closed |
+| `vedalang-y8e.9` | P1 | Deleted `vedalang/compiler/ir.py` and disabled the old `_compile_new_syntax` roles/variants/providers path | ✓ Closed |
 | `vedalang-y8e.8` | P1 | Rewrote deterministic heuristics and identity lint to v0.2-only semantics and refreshed docs/tests | ✓ Closed |
 | `vedalang-y8e.7` | P1 | Removed legacy LSP source-analysis behavior and updated runtime tests/syntax keywords to the v0.2 object model | ✓ Closed |
-| `vedalang-y8e.3` | P2 | Purged remaining legacy role/variant/provider guidance from active user docs and unpublished archive-only schema hover entries | ✓ Closed |
+| `vedalang-y8e.3` | P2 | Purged remaining legacy role/variant/provider guidance from active user docs and unpublished removed-schema hover entries | ✓ Closed |
 | `vedalang-m1s` | P1 | Library/runtime compile and validate entrypoints now hard-cut to the v0.2 bundle path with no legacy selection hook | ✓ Closed |
 | `vedalang-y8e.6` | P2 | Removed compatibility-only compiler/acceptance suites and kept only v0.2-oriented coverage plus explicit legacy rejection tests | ✓ Closed |
 | `vedalang-y8e.5` | P1 | Query/viz/export tooling now routes only through the v0.2 graph stack; dead legacy Mermaid builder/test path removed | ✓ Closed |

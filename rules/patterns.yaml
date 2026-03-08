@@ -1,6 +1,6 @@
 # VedaLang Pattern Library
-# Reusable patterns for common energy system modeling constructs.
-# These patterns can be expanded with parameters to generate VedaLang or TableIR.
+# Reusable patterns for common modeling constructs.
+# Active expansion support is TableIR-only.
 
 patterns:
   # ============================================================================
@@ -45,21 +45,6 @@ patterns:
         required: false
         default: 0.05
         description: CO2 emission factor per unit activity
-    vedalang_template: |
-      processes:
-        - name: {{ plant_name }}
-          description: Thermal power plant
-          sets: [ELE]
-          primary_commodity_group: NRGO
-          activity_unit: {{ activity_unit }}
-          capacity_unit: {{ capacity_unit }}
-          inputs:
-            - commodity: {{ fuel_commodity }}
-          outputs:
-            - commodity: {{ output_commodity }}
-          efficiency: {{ efficiency }}
-          emission_factors:
-            emission:co2: {{ emission_factor }}
     example:
       plant_name: PP_CCGT
       fuel_commodity: primary:natural_gas
@@ -87,17 +72,6 @@ patterns:
       - name: capacity_unit
         type: string
         default: GW
-    vedalang_template: |
-      processes:
-        - name: {{ plant_name }}
-          description: {{ technology_type }} renewable plant
-          sets: [ELE, RNEW]
-          primary_commodity_group: NRGO
-          capacity_unit: {{ capacity_unit }}
-          outputs:
-            - commodity: {{ output_commodity }}
-              share: 1.0
-
   add_chp_plant:
     description: |
       Define a Combined Heat and Power (CHP) process that produces multiple
@@ -138,21 +112,6 @@ patterns:
         required: false
         default: 0.80
         description: Total efficiency (should equal elec_share + heat_share)
-    vedalang_template: |
-      processes:
-        - name: {{ plant_name }}
-          description: CHP plant (combined heat and power)
-          sets: [ELE, CHP]
-          primary_commodity_group: NRGO
-          inputs:
-            - commodity: {{ fuel_commodity }}
-              share: 1.0
-          outputs:
-            - commodity: {{ electricity_commodity }}
-              share: {{ elec_share }}
-            - commodity: {{ heat_commodity }}
-              share: {{ heat_share }}
-          efficiency: {{ total_efficiency }}
     example:
       plant_name: CHP_GAS
       fuel_commodity: primary:natural_gas
@@ -187,20 +146,6 @@ patterns:
         required: false
         default: GW
         description: Unit for power capacity
-    vedalang_template: |
-      processes:
-        - name: {{ storage_name }}
-          description: Energy storage
-          sets: [ELE, STG]
-          primary_commodity_group: NRGO
-          capacity_unit: {{ capacity_unit }}
-          inputs:
-            - commodity: {{ commodity }}
-              share: 1.0
-          outputs:
-            - commodity: {{ commodity }}
-              share: 1.0
-          efficiency: {{ round_trip_efficiency }}
     example:
       storage_name: STG_BATTERY
       commodity: secondary:electricity
@@ -224,13 +169,6 @@ patterns:
       - name: description
         type: string
         default: ""
-    vedalang_template: |
-      commodities:
-        - name: secondary:{{ name }}
-          type: energy
-          unit: {{ unit }}
-          {% if description %}description: {{ description }}{% endif %}
-
   add_emission_commodity:
     description: Define an emission commodity (CO2, NOx, etc.).
     category: commodity
@@ -241,12 +179,6 @@ patterns:
       - name: unit
         type: string
         default: Mt
-    vedalang_template: |
-      commodities:
-        - name: emission:{{ name }}
-          type: emission
-          unit: {{ unit }}
-
   # ============================================================================
   # Scenario Patterns (TableIR level)
   # ============================================================================

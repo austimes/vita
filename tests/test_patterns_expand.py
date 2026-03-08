@@ -1,4 +1,4 @@
-"""Tests for the archived pattern-expansion helpers."""
+"""Tests for the pattern-expansion helpers."""
 
 import pytest
 import yaml
@@ -45,22 +45,6 @@ class TestListPatterns:
 
 
 class TestExpandPattern:
-    def test_vedalang_templates_are_archive_only(self):
-        """vedalang output is intentionally blocked until patterns are ported."""
-        with pytest.raises(
-            PatternError,
-            match="archived pre-v0.2 public DSL",
-        ):
-            expand_pattern(
-                "add_power_plant",
-                {
-                    "plant_name": "PP_TEST",
-                    "fuel_commodity": "COAL",
-                    "output_commodity": "ELC",
-                },
-                output_format="vedalang",
-            )
-
     def test_missing_required_param_raises(self):
         """Missing required parameter should raise PatternError."""
         with pytest.raises(PatternError, match="Missing required parameter"):
@@ -89,15 +73,7 @@ class TestExpandPattern:
         assert parsed["rows"][0]["YEAR"] == 2025
         assert parsed["rows"][0]["COST"] == 50
 
-    def test_co2_price_trajectory_vedalang_is_also_archive_only(self):
-        with pytest.raises(PatternError, match="archived pre-v0.2 public DSL"):
-            expand_pattern(
-                "co2_price_trajectory",
-                {"prices": {2025: 50}},
-                output_format="vedalang",
-            )
-
     def test_invalid_output_format_raises(self):
         """Invalid output format should raise PatternError."""
-        with pytest.raises(PatternError, match="Invalid output_format"):
+        with pytest.raises(PatternError, match="Use 'tableir'"):
             expand_pattern("add_power_plant", {}, output_format="invalid")
