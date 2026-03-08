@@ -263,4 +263,4 @@ def test_query_rejects_legacy_public_dsl_surface(tmp_path):
     )
 
     assert response["status"] == "error"
-    assert response["diagnostics"][0]["code"] == "E_LEGACY_SYNTAX_UNSUPPORTED"
+    assert response["diagnostics"][0]["code"] == "SCHEMA_ERROR"

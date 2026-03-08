@@ -26,11 +26,9 @@ import yaml
 from yaml.nodes import MappingNode, Node, SequenceNode
 
 from vedalang.compiler.compiler import (
-    PublicDSLContractError,
     SemanticValidationError,
     compile_vedalang_bundle,
     load_vedalang,
-    validate_public_dsl_contract,
     validate_vedalang,
 )
 from vedalang.compiler.v0_2_resolution import V0_2ResolutionError
@@ -545,39 +543,6 @@ def cmd_lint(args) -> int:
         )
 
     try:
-        validate_public_dsl_contract(source)
-    except PublicDSLContractError as e:
-        diagnostics.append(
-            with_meta(
-                {
-                    "code": e.code,
-                    "severity": "error",
-                    "message": e.message,
-                    "location": e.location,
-                    "suggestion": e.suggestion,
-                },
-                category="core",
-                engine="code",
-                check_id="code.core.schema_xref",
-            )
-        )
-        _attach_source_positions(diagnostics, source=source, file_path=file_path)
-        errors, warnings, _ = severity_counts(diagnostics)
-        summary = build_summary(
-            diagnostics,
-            checks_run=checks_run,
-            skipped_categories=skipped_categories,
-        )
-        return _output_lint_result(
-            file_path,
-            diagnostics,
-            errors,
-            warnings,
-            output_json,
-            summary=summary,
-        )
-
-    try:
         validate_vedalang(source)
     except jsonschema.ValidationError as e:
         path_str = _format_location_path(list(e.absolute_path))
@@ -714,18 +679,7 @@ def cmd_llm_lint(args) -> int:
 
     try:
         source = load_vedalang(file_path)
-        validate_public_dsl_contract(source)
         validate_vedalang(source)
-    except PublicDSLContractError as e:
-        _error(
-            e.message,
-            output_json,
-            str(file_path),
-            code=e.code,
-            location=e.location,
-            suggestion=e.suggestion,
-        )
-        return 2
     except Exception as e:
         _error(f"Failed to load/validate source: {e}", output_json, str(file_path))
         return 2
@@ -1860,7 +1814,6 @@ def cmd_compile(args) -> int:
 
     try:
         source = load_vedalang(file_path)
-        validate_public_dsl_contract(source)
         bundle = compile_vedalang_bundle(
             source,
             validate=True,
@@ -1870,16 +1823,6 @@ def cmd_compile(args) -> int:
         tableir = bundle.tableir
     except jsonschema.ValidationError as e:
         _error(f"Schema error: {e.message}", output_json, str(file_path))
-        return 2
-    except PublicDSLContractError as e:
-        _error(
-            e.message,
-            output_json,
-            str(file_path),
-            code=e.code,
-            location=e.location,
-            suggestion=e.suggestion,
-        )
         return 2
     except SemanticValidationError as e:
         _error(f"Semantic error: {e}", output_json, str(file_path))

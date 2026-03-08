@@ -31,6 +31,8 @@ Current `bd` state: all rollout and cleanup issues are closed.
   compiler and eval runner
 - `vedalang-99l` — removed final transition residue from docs, prompts,
   comments, and namespace lint
+- `vedalang-vyr` — removed the explicit old-syntax preflight so unsupported
+  sources now fail through normal schema validation
 - `vedalang-y0a` — completed the strict post-hard-cut cleanup sweep
 - `vedalang-txa` — completed the v0.2 rollout across schema, resolution, IR,
   backend, diagnostics, tooling, docs, and regressions

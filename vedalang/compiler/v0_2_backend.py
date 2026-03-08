@@ -7,7 +7,7 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
-from vedalang.versioning import annotate_tableir, looks_like_v0_2_source
+from vedalang.versioning import annotate_tableir
 
 from .v0_2_ast import V0_2Source, parse_v0_2_source
 from .v0_2_ir import ResolvedArtifacts, build_v0_2_artifacts
@@ -500,8 +500,6 @@ def compile_v0_2_bundle(
     custom_weights: dict[str, dict[str, float]] | None = None,
 ) -> CompileBundle:
     """Compile a v0.2 source into TableIR plus CSIR/CPIR/explain artifacts."""
-    if not looks_like_v0_2_source(source):
-        raise ValueError("compile_v0_2_bundle requires a v0.2 source")
     if validate_source is not None:
         validate_source(source)
     from .v0_2_diagnostics import collect_v0_2_diagnostics

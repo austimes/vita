@@ -15,7 +15,6 @@ from pygls.lsp.server import LanguageServer
 from pygls.workspace import TextDocument
 from yaml.nodes import MappingNode, Node, SequenceNode
 
-from vedalang.compiler import PublicDSLContractError, validate_public_dsl_contract
 from vedalang.compiler.source_maps import attach_source_positions
 from vedalang.compiler.v0_2_diagnostics import collect_v0_2_diagnostics
 from vedalang.versioning import looks_like_v0_2_source
@@ -582,7 +581,7 @@ def schema_validation_diagnostics(
 ) -> list[types.Diagnostic]:
     """Run JSON Schema validation and return diagnostics."""
     refresh_schema_cache()
-    validator = SCHEMA_VALIDATOR if looks_like_v0_2_source(parsed) else None
+    validator = SCHEMA_VALIDATOR
     if validator is None:
         return []
 
@@ -1243,25 +1242,10 @@ def validate_document(
     # Re-index after successful parse
     parse_and_index(ls, document)
 
+    diagnostics.extend(schema_validation_diagnostics(document, parsed))
     if not looks_like_v0_2_source(parsed):
-        try:
-            validate_public_dsl_contract(parsed)
-        except PublicDSLContractError as exc:
-            diagnostics.append(
-                types.Diagnostic(
-                    range=types.Range(
-                        start=types.Position(line=0, character=0),
-                        end=types.Position(line=0, character=1),
-                    ),
-                    message=str(exc),
-                    severity=types.DiagnosticSeverity.Error,
-                    source="vedalang",
-                    code=exc.code,
-                )
-            )
         return diagnostics
 
-    diagnostics.extend(schema_validation_diagnostics(document, parsed))
     raw_diagnostics = collect_v0_2_diagnostics(parsed)
     attach_source_positions(
         raw_diagnostics,

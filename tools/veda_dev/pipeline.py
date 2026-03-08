@@ -248,11 +248,9 @@ def run_pipeline(
         if input_kind == "vedalang":
             try:
                 from vedalang.compiler import (
-                    PublicDSLContractError,
                     V0_2ResolutionError,
                     compile_vedalang_bundle,
                     load_vedalang,
-                    validate_public_dsl_contract,
                 )
 
                 if verbose:
@@ -263,7 +261,6 @@ def run_pipeline(
                     vedalang_source if vedalang_source
                     else load_vedalang(input_path)
                 )
-                validate_public_dsl_contract(source)
                 bundle = compile_vedalang_bundle(
                     source,
                     validate=True,
@@ -302,9 +299,6 @@ def run_pipeline(
                 if verbose:
                     count = compile_result.artifacts["file_count"]
                     print(f"[compile] Created TableIR with {count} files")
-            except PublicDSLContractError as e:
-                compile_result.success = False
-                compile_result.errors.append(f"{e.code}: {e.message}")
             except V0_2ResolutionError as e:
                 compile_result.success = False
                 compile_result.errors.append(f"{e.code}: {e.message}")

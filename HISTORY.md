@@ -18,6 +18,9 @@ Chronological record of the current v0.2-era repository state.
   remaining repo-visible pre-v0.2 wording outside the explicit
   unsupported-syntax diagnostic path.
 - Normalized project and LSP version markers to `0.2.0`.
+- Removed the explicit old-syntax preflight from compiler and tooling entry
+  points, so unsupported sources now fail through normal YAML/schema
+  validation rather than a custom legacy-format diagnostic.
 
 ## 2026-03-07
 

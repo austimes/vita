@@ -881,71 +881,6 @@ class SemanticValidationError(Exception):
         return "\n".join(parts)
 
 
-class PublicDSLContractError(Exception):
-    """Raised when public CLI entrypoints receive unsupported DSL shapes."""
-
-    def __init__(
-        self,
-        *,
-        code: str,
-        message: str,
-        location: str,
-        suggestion: str | None = None,
-    ):
-        self.code = code
-        self.message = message
-        self.location = location
-        self.suggestion = suggestion
-        super().__init__(message)
-
-
-def validate_public_dsl_contract(source: dict) -> None:
-    """Reject legacy public source shapes at CLI-facing entrypoints."""
-    legacy_location = None
-    if source.get("processes"):
-        legacy_location = "processes"
-    elif isinstance(source.get("model"), dict) and source["model"].get("processes"):
-        legacy_location = "model.processes"
-    else:
-        for field in (
-            "model",
-            "scoping",
-            "roles",
-            "variants",
-            "availability",
-            "process_parameters",
-            "demands",
-            "diagnostics",
-            "commodity_groups",
-            "facility_templates",
-            "facility_selection",
-            "spatial_mappings",
-            "providers",
-            "provider_parameters",
-        ):
-            if field in source:
-                legacy_location = field
-                break
-
-    if legacy_location is not None:
-        raise PublicDSLContractError(
-            code="E_LEGACY_SYNTAX_UNSUPPORTED",
-            message=(
-                "Legacy pre-v0.2 public DSL blocks are no longer supported by "
-                "vedalang CLI entrypoints. Use the v0.2 package/run/object "
-                "model instead."
-            ),
-            location=legacy_location,
-            suggestion=(
-                "Replace legacy model/roles/variants/providers-style authoring "
-                "with v0.2 top-level objects such as commodities, technologies, "
-                "technology_roles, sites, facilities, fleets, opportunities, "
-                "networks, and runs. Track the v0.2 reset in "
-                "docs/prds/20260307-vedalang-v0.2.prd.txt."
-            ),
-        )
-
-
 def load_vedalang_schema() -> dict:
     """Load the VedaLang JSON schema."""
     with open(SCHEMA_DIR / "vedalang.schema.json") as f:
@@ -976,7 +911,6 @@ def compile_vedalang_bundle(
 ) -> CompileBundle:
     """Compile a v0.2 source into a normalized bundle."""
     del selected_cases
-    validate_public_dsl_contract(source)
     bundle = compile_v0_2_bundle(
         source,
         validate_source=validate_vedalang if validate else None,
@@ -1025,7 +959,6 @@ def compile_vedalang_to_tableir(
         SemanticValidationError: If cross-references are invalid
     """
     del selected_cases
-    validate_public_dsl_contract(source)
     bundle = compile_v0_2_bundle(
         source,
         validate_source=validate_vedalang if validate else None,

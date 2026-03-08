@@ -3,11 +3,9 @@
 from __future__ import annotations
 
 import pytest
+from jsonschema import ValidationError
 
-from vedalang.compiler.compiler import (
-    PublicDSLContractError,
-    compile_vedalang_to_tableir,
-)
+from vedalang.compiler.compiler import compile_vedalang_to_tableir
 
 
 def _legacy_facility_source() -> dict:
@@ -74,10 +72,9 @@ def _legacy_facility_source() -> dict:
 
 def test_compile_rejects_legacy_facility_template_lowering():
     with pytest.raises(
-        PublicDSLContractError,
-        match="Legacy pre-v0.2 public DSL blocks are no longer supported",
+        ValidationError,
     ):
-        compile_vedalang_to_tableir(_legacy_facility_source(), validate=False)
+        compile_vedalang_to_tableir(_legacy_facility_source())
 
 
 def test_compile_rejects_legacy_provider_parameter_surfaces():
@@ -94,7 +91,6 @@ def test_compile_rejects_legacy_provider_parameter_surfaces():
     ]
 
     with pytest.raises(
-        PublicDSLContractError,
-        match="Legacy pre-v0.2 public DSL blocks are no longer supported",
+        ValidationError,
     ):
-        compile_vedalang_to_tableir(source, validate=False)
+        compile_vedalang_to_tableir(source)

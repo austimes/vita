@@ -4,9 +4,7 @@ import pytest
 from jsonschema import ValidationError
 
 from vedalang.compiler import (
-    PublicDSLContractError,
     load_vedalang,
-    validate_public_dsl_contract,
     validate_vedalang,
 )
 from vedalang.versioning import looks_like_v0_2_source
@@ -64,15 +62,3 @@ def test_validate_vedalang_rejects_legacy_sources_by_default() -> None:
 
     with pytest.raises(ValidationError):
         validate_vedalang(legacy)
-
-
-def test_public_dsl_contract_rejects_legacy_roles_surface() -> None:
-    legacy = {
-        "model": {"name": "Legacy", "regions": ["R1"], "commodities": []},
-        "roles": [],
-        "variants": [],
-    }
-
-    with pytest.raises(PublicDSLContractError) as excinfo:
-        validate_public_dsl_contract(legacy)
-    assert excinfo.value.code == "E_LEGACY_SYNTAX_UNSUPPORTED"

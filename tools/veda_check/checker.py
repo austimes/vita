@@ -11,11 +11,9 @@ import jsonschema
 from tools.veda_check.invariants import check_tableir_invariants
 from tools.veda_emit_excel import emit_excel, load_tableir
 from vedalang.compiler import (
-    PublicDSLContractError,
     V0_2ResolutionError,
     compile_vedalang_bundle,
     load_vedalang,
-    validate_public_dsl_contract,
 )
 from vedalang.versioning import CHECK_OUTPUT_VERSION, DSL_VERSION
 
@@ -67,7 +65,6 @@ def run_check(
         # Step 1: Get TableIR
         if from_vedalang:
             source = load_vedalang(input_path)
-            validate_public_dsl_contract(source)
             bundle = compile_vedalang_bundle(
                 source,
                 selected_cases=selected_cases,
@@ -142,17 +139,15 @@ def run_check(
             # Determine success - xl2times exit code 0 means success
             result.success = proc.returncode == 0 and result.errors == 0
 
-    except PublicDSLContractError as e:
+    except jsonschema.ValidationError as e:
         result.errors += 1
-        result.error_messages.append(f"{e.code}: {e.message}")
+        result.error_messages.append(e.message)
         result.diagnostics = {
             "diagnostics": [
                 {
                     "severity": "error",
-                    "code": e.code,
+                    "code": "SCHEMA_ERROR",
                     "message": e.message,
-                    "location": e.location,
-                    "suggestion": e.suggestion,
                 }
             ]
         }

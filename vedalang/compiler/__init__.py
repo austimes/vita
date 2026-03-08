@@ -2,12 +2,10 @@
 
 from .compiler import (
     CompileBundle,
-    PublicDSLContractError,
     SemanticValidationError,
     compile_vedalang_bundle,
     compile_vedalang_to_tableir,
     load_vedalang,
-    validate_public_dsl_contract,
     validate_vedalang,
 )
 from .demands import DemandError, compile_demands
@@ -53,7 +51,6 @@ __all__ = [
     "DemandError",
     "IndexLayout",
     "NamingRegistry",
-    "PublicDSLContractError",
     "SemanticValidationError",
     "TableValidationError",
     "TagInfo",
@@ -83,7 +80,6 @@ __all__ = [
     "resolve_run",
     "resolve_sites",
     "reset_registry",
-    "validate_public_dsl_contract",
     "validate_tableir",
     "validate_vedalang",
 ]

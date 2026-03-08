@@ -136,10 +136,7 @@ class TestLint:
         result = run_vedalang("lint", "--json", str(src))
         assert result.returncode == 2
         data = json.loads(result.stdout)
-        assert any(
-            d.get("code") == "E_LEGACY_SYNTAX_UNSUPPORTED"
-            for d in data.get("diagnostics", [])
-        )
+        assert any(d.get("code") == "SCHEMA_ERROR" for d in data.get("diagnostics", []))
 
     def test_vedalang_lint_rejects_legacy_role_variant_surface(self, tmp_path):
         """Deterministic lint rejects the pre-v0.2 model/roles/variants surface."""
@@ -177,10 +174,7 @@ class TestLint:
         result = run_vedalang("lint", "--json", str(src))
         assert result.returncode == 2
         data = json.loads(result.stdout)
-        assert any(
-            d.get("code") == "E_LEGACY_SYNTAX_UNSUPPORTED"
-            for d in data.get("diagnostics", [])
-        )
+        assert any(d.get("code") == "SCHEMA_ERROR" for d in data.get("diagnostics", []))
 
     def test_vedalang_lint_json_includes_line_and_excerpt(self, tmp_path):
         """Diagnostics include source line/column metadata and excerpt."""
@@ -337,8 +331,7 @@ class TestCompile:
         )
         assert result.returncode == 2
         data = json.loads(result.stdout)
-        assert data["code"] == "E_LEGACY_SYNTAX_UNSUPPORTED"
-        assert data["location"] == "processes"
+        assert "Schema error:" in data["error"]
 
     def test_vedalang_compile_tableir_output(self, tmp_path):
         """Compile with --tableir creates TableIR YAML."""
@@ -424,10 +417,7 @@ class TestValidate:
         result = run_vedalang("validate", "--json", str(src))
         assert result.returncode == 2
         data = json.loads(result.stdout)
-        assert (
-            data["diagnostics"]["diagnostics"][0]["code"]
-            == "E_LEGACY_SYNTAX_UNSUPPORTED"
-        )
+        assert data["diagnostics"]["diagnostics"][0]["code"] == "SCHEMA_ERROR"
 
 
 class TestViz:

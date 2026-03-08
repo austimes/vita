@@ -83,7 +83,8 @@ def test_check_rejects_legacy_public_process_syntax():
         assert not result.success
         assert result.errors > 0
         assert any(
-            "E_LEGACY_SYNTAX_UNSUPPORTED" in msg for msg in result.error_messages
+            "Additional properties are not allowed" in msg
+            for msg in result.error_messages
         )
     finally:
         tmp_path.unlink()

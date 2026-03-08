@@ -233,8 +233,9 @@ class TestIndexingAndDiagnostics:
             "model:\n  name: Legacy\n  regions: [R1]\n  commodities: []\nroles: []\n"
         )
         diagnostics = validate_document(server, legacy)
-        assert len(diagnostics) == 1
-        assert diagnostics[0].code == "E_LEGACY_SYNTAX_UNSUPPORTED"
+        assert diagnostics
+        assert all(d.source == "vedalang-schema" for d in diagnostics)
+        assert all("Schema validation:" in d.message for d in diagnostics)
 
     def test_validate_document_surfaces_v0_2_semantic_errors(self):
         invalid = MockTextDocument(

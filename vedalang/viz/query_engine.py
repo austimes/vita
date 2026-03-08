@@ -5,7 +5,13 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from vedalang.compiler.compiler import compile_vedalang_bundle, load_vedalang
+import jsonschema
+
+from vedalang.compiler.compiler import (
+    compile_vedalang_bundle,
+    load_vedalang,
+    validate_vedalang,
+)
 from vedalang.conventions import stage_label
 from vedalang.versioning import looks_like_v0_2_source
 
@@ -255,13 +261,18 @@ def query_res_graph(request: dict[str, Any]) -> dict[str, Any]:
     facets = _facets_for_source(source)
 
     if not looks_like_v0_2_source(source):
-        diagnostics.append(
-            _diagnostic(
-                "E_LEGACY_SYNTAX_UNSUPPORTED",
-                "error",
-                "RES query and viz tooling now support only the v0.2 object model.",
+        try:
+            validate_vedalang(source)
+        except jsonschema.ValidationError as exc:
+            diagnostics.append(_diagnostic("SCHEMA_ERROR", "error", exc.message))
+        else:  # pragma: no cover - defensive
+            diagnostics.append(
+                _diagnostic(
+                    "SOURCE_UNSUPPORTED",
+                    "error",
+                    "Source shape is unsupported for RES query and viz tooling.",
+                )
             )
-        )
         return _empty_response(req["mode"], diagnostics, facets=facets)
 
     available_runs = _v0_2_runs(source)
