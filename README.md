@@ -132,12 +132,17 @@ for supported quantity strings and backend attribute mapping details.
 ### Minimal Example
 
 ```yaml
+# Schema version for this model file.
 dsl_version: "0.2"
+
+# Commodities declare the fuel and service namespaces used elsewhere.
 commodities:
   - id: primary:natural_gas
     kind: primary
   - id: service:space_heat
     kind: service
+
+# Technologies define the concrete conversion behavior and coefficients.
 technologies:
   - id: gas_heater
     provides: service:space_heat
@@ -147,10 +152,14 @@ technologies:
     performance:
       kind: efficiency
       value: 0.9
+
+# Technology roles group the technologies that may provide a service.
 technology_roles:
   - id: space_heat_supply
     primary_service: service:space_heat
     technologies: [gas_heater]
+
+# Spatial metadata defines the region layer and partition used by compilation.
 spatial_layers:
   - id: geo.demo
     kind: polygon
@@ -163,6 +172,8 @@ region_partitions:
     mapping:
       kind: constant
       value: QLD
+
+# Sites anchor assets to a location and region membership.
 sites:
   - id: brisbane_home
     location:
@@ -172,6 +183,8 @@ sites:
     membership_overrides:
       region_partitions:
         toy_region: QLD
+
+# Facilities declare the real-world asset stock attached to each site.
 facilities:
   - id: brisbane_space_heat
     site: brisbane_home
@@ -183,6 +196,8 @@ facilities:
           observed:
             value: 12 kW
             year: 2025
+
+# Runs select the base year and regional view to compile.
 runs:
   - id: toy_region_2025
     base_year: 2025

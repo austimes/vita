@@ -22,6 +22,8 @@ Current `bd` state: all rollout and cleanup issues are closed.
 
 ## Recently Completed
 
+- `vedalang-b4r` — added concise block-level guidance to the README, tutorial,
+  and quickstart example docs for the minimal model structure
 - `vedalang-bc8` — removed residual compiler/CLI schema-routing helpers and the
   dead scenario/trade/constraint lowering block
 - `vedalang-icc` — purged superseded wording from active user, LSP, status, and
