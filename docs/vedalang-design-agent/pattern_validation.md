@@ -1,5 +1,10 @@
 # Pattern Validation Catalog
 
+This catalog documents historical pattern validation work. The active public
+DSL is now v0.2-only, so `veda_pattern expand --format vedalang` is treated as
+an archived pre-v0.2 surface. Current supported expansion workflow is
+`--format tableir`.
+
 This document catalogs each pattern in `rules/patterns.yaml` and its validation status.
 
 ## Summary

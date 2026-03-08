@@ -22,31 +22,15 @@ from vedalang.conventions import (
     split_commodity_namespace,
 )
 from vedalang.versioning import (
-    annotate_tableir,
     looks_like_v0_2_source,
     with_dsl_version,
 )
 
-from .demands import compile_demands
-from .facilities import (
-    build_facility_variant_metadata,
-    generate_facility_artifacts,
-    prepare_facilities,
-)
-from .ir import (
-    apply_process_parameters,
-    apply_provider_parameters,
-    build_providers,
-    build_roles,
-    build_variants,
-    expand_availability,
-    expand_provider_instances,
-    lower_instances_to_tableir,
-)
 from .naming import NamingRegistry
 from .registry import VedaLangError, get_registry
-from .segments import build_segments, normalize_commodity
+from .segments import normalize_commodity
 from .v0_2_backend import CompileBundle, compile_v0_2_bundle
+from .v0_2_diagnostics import category_for_v0_2_code, collect_v0_2_diagnostics
 
 SCHEMA_DIR = Path(__file__).parent.parent / "schema"
 
@@ -1070,12 +1054,9 @@ def _validate_new_syntax_structural_invariants(
     roles: dict,
     commodities: dict[str, dict],
 ) -> list[dict[str, str]]:
-    """Validate compiler-enforced structural invariants for new syntax."""
-    errors, warnings = _collect_new_syntax_structural_invariants(
-        source,
-        roles,
-        commodities,
-    )
+    """Compatibility wrapper around the v0.2 structural diagnostics."""
+    del roles, commodities
+    errors, warnings = collect_new_syntax_structural_diagnostics(source)
     if errors:
         raise VedaLangError(_format_structural_errors(errors))
     return warnings
@@ -1084,18 +1065,33 @@ def _validate_new_syntax_structural_invariants(
 def collect_new_syntax_structural_diagnostics(
     source: dict,
 ) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
-    """Return structured structural/unit/emission diagnostics for new syntax models."""
-    if not source.get("roles"):
+    """Compatibility wrapper for tooling still calling the old helper name."""
+    if not looks_like_v0_2_source(source):
         return [], []
-
-    model = source["model"]
-    commodities = _normalize_commodities_for_new_syntax(model.get("commodities", []))
-    roles = build_roles(source, commodities)
-    return _collect_new_syntax_structural_invariants(
-        source,
-        roles,
-        commodities,
-    )
+    diagnostics = [
+        diag
+        for diag in collect_v0_2_diagnostics(source)
+        if category_for_v0_2_code(diag["code"]) != "identity"
+    ]
+    errors = [
+        {
+            "code": str(diag["code"]),
+            "message": str(diag["message"]),
+            "location": str(diag.get("location", "")),
+        }
+        for diag in diagnostics
+        if str(diag.get("severity", "warning")).lower() == "error"
+    ]
+    warnings = [
+        {
+            "code": str(diag["code"]),
+            "message": str(diag["message"]),
+            "location": str(diag.get("location", "")),
+        }
+        for diag in diagnostics
+        if str(diag.get("severity", "warning")).lower() != "error"
+    ]
+    return errors, warnings
 
 
 def _check_cost_rate_literal(
@@ -3572,23 +3568,24 @@ def _compile_new_syntax(
     selected_cases: list[str] | None = None,
 ) -> dict:
     """
-    Compile VedaLang source using new P4 syntax (roles/variants/availability).
+    Archived pre-v0.2 roles/variants/providers compiler path.
 
-    This is the new compilation pipeline that uses:
-    - roles: abstract transformations (topology)
-    - variants: concrete technologies with parameters
-    - availability: optional legacy placement declarations
-    - process_parameters: optional legacy selector-based overrides
-    - providers: provider-native object declarations
-    - provider_parameters: provider-selector parameter overrides
-    - demands: service commodity demands
-
-    Args:
-        source: VedaLang source dict with new syntax
-        validate: Whether to validate output
-
-    Returns:
-        TableIR dict
+    The public runtime now hard-cuts to the v0.2 object model and should route
+    all compilation through ``compile_v0_2_bundle`` instead.
+    """
+    del source, validate, selected_cases
+    raise PublicDSLContractError(
+        code="E_LEGACY_SYNTAX_UNSUPPORTED",
+        message=(
+            "The archived roles/variants/providers compiler path has been "
+            "removed from active use. Compile through the v0.2 object model."
+        ),
+        location="_compile_new_syntax",
+        suggestion=(
+            "Use compile_vedalang_to_tableir() or compile_vedalang_bundle() "
+            "with v0.2 top-level objects."
+        ),
+    )
     """
     source, monetary_policy = _normalize_new_syntax_monetary_costs(source)
     source = _normalize_new_syntax_heating_basis_values(source)
@@ -4035,6 +4032,7 @@ def _compile_new_syntax(
             raise TableValidationError(table_errors)
 
     return tableir
+    """
 
 
 def _produces_service_comm(outputs: list[str], commodities: dict[str, dict]) -> bool:

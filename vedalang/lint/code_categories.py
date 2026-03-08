@@ -2,11 +2,6 @@
 
 from __future__ import annotations
 
-from vedalang.compiler.compiler import (
-    collect_new_syntax_cost_unit_diagnostics,
-    collect_new_syntax_structural_diagnostics,
-    validate_cross_references,
-)
 from vedalang.compiler.v0_2_diagnostics import (
     category_for_v0_2_code,
     collect_v0_2_diagnostics,
@@ -17,79 +12,36 @@ from vedalang.lint.diagnostics import with_meta
 from vedalang.versioning import looks_like_v0_2_source
 
 
-def _category_for_structural_code(code: str) -> str:
-    if (
-        code.startswith("E_UNIT_")
-        or code.startswith("W_UNIT_")
-        or code.startswith("E_BASIS_")
-        or code.startswith("W_BASIS_")
-        or code in {"E_PROCESS_UNITS", "W_PROCESS_UNITS", "E_UNIT_TRANSFORM_PROCESS"}
-        or code.startswith("E_ENERGY_MASS_BASIS_")
-        or code.startswith("W_ENERGY_MASS_BASIS_")
-    ):
-        return "units"
-    if "EMISSION" in code:
-        return "emissions"
-    return "structure"
-
-
 def run_core(source: dict) -> list[dict]:
     """Run cross-reference checks for the core category."""
-    if looks_like_v0_2_source(source):
-        return []
-
-    diagnostics: list[dict] = []
-    model = source.get("model", source)
-    xref_errors, xref_warnings = validate_cross_references(model, source=source)
-    for msg in xref_errors:
-        diagnostics.append(
-            with_meta(
-                {
-                    "code": "XREF_ERROR",
-                    "severity": "error",
-                    "message": msg,
-                },
-                category="core",
-                engine="code",
-                check_id="code.core.schema_xref",
-            )
-        )
-    for msg in xref_warnings:
-        diagnostics.append(
-            with_meta(
-                {
-                    "code": "XREF_WARNING",
-                    "severity": "warning",
-                    "message": msg,
-                },
-                category="core",
-                engine="code",
-                check_id="code.core.schema_xref",
-            )
-        )
-    return diagnostics
+    del source
+    return []
 
 
 def run_identity(source: dict) -> list[dict]:
     """Run naming/identity checks."""
-    if looks_like_v0_2_source(source):
-        grouped = collect_structural_by_category(source)
-        return list(grouped.get("identity", []))
-
     diagnostics: list[dict] = []
     for diag in lint_naming_conventions(source):
-        data = diag.to_dict()
-        # Keep identity checks advisory for existing examples.
-        if data.get("severity") == "error":
-            data["severity"] = "warning"
         diagnostics.append(
             with_meta(
-                data,
+                diag.to_dict(),
                 category="identity",
                 engine="code",
                 check_id="code.identity.naming",
             )
         )
+    if looks_like_v0_2_source(source):
+        for diag in collect_v0_2_diagnostics(source):
+            if category_for_v0_2_code(diag["code"]) != "identity":
+                continue
+            diagnostics.append(
+                with_meta(
+                    diag,
+                    category="identity",
+                    engine="code",
+                    check_id="code.identity.v0_2_prd_section_14",
+                )
+            )
     return diagnostics
 
 
@@ -113,82 +65,18 @@ def collect_structural_by_category(source: dict) -> dict[str, list[dict]]:
         "structure": [],
         "units": [],
         "emissions": [],
+        "identity": [],
     }
-    if looks_like_v0_2_source(source):
-        grouped["identity"] = []
-        for d in collect_v0_2_diagnostics(source):
-            category = category_for_v0_2_code(d["code"])
-            grouped.setdefault(category, []).append(
-                with_meta(
-                    d,
-                    category=category,
-                    engine="code",
-                    check_id=f"code.{category}.v0_2_prd_section_14",
-                )
-            )
+    if not looks_like_v0_2_source(source):
         return grouped
-
-    semantic_errors, semantic_warnings = (
-        collect_new_syntax_structural_diagnostics(source)
-    )
-    for d in semantic_errors:
-        category = _category_for_structural_code(d["code"])
+    for diag in collect_v0_2_diagnostics(source):
+        category = category_for_v0_2_code(diag["code"])
         grouped.setdefault(category, []).append(
             with_meta(
-                {
-                    "code": d["code"],
-                    "severity": "error",
-                    "message": d["message"],
-                    "location": d["location"],
-                },
+                diag,
                 category=category,
                 engine="code",
-                check_id=f"code.{category}.compiler_semantics",
-            )
-        )
-    for d in semantic_warnings:
-        category = _category_for_structural_code(d["code"])
-        grouped.setdefault(category, []).append(
-            with_meta(
-                {
-                    "code": d["code"],
-                    "severity": "warning",
-                    "message": d["message"],
-                    "location": d["location"],
-                },
-                category=category,
-                engine="code",
-                check_id=f"code.{category}.compiler_semantics",
-            )
-        )
-
-    unit_errors, unit_warnings = collect_new_syntax_cost_unit_diagnostics(source)
-    for d in unit_errors:
-        grouped["units"].append(
-            with_meta(
-                {
-                    "code": d["code"],
-                    "severity": "error",
-                    "message": d["message"],
-                    "location": d["location"],
-                },
-                category="units",
-                engine="code",
-                check_id="code.units.cost_denominator",
-            )
-        )
-    for d in unit_warnings:
-        grouped["units"].append(
-            with_meta(
-                {
-                    "code": d["code"],
-                    "severity": "warning",
-                    "message": d["message"],
-                    "location": d["location"],
-                },
-                category="units",
-                engine="code",
-                check_id="code.units.cost_denominator",
+                check_id=f"code.{category}.v0_2_prd_section_14",
             )
         )
     return grouped

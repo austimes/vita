@@ -15,6 +15,12 @@ class PatternError(Exception):
     pass
 
 
+ARCHIVED_VEDALANG_TEMPLATE_MESSAGE = (
+    "Pattern '{pattern_name}' still expands to the archived pre-v0.2 public DSL. "
+    "Use tableir output or port the pattern to v0.2 object-model fragments."
+)
+
+
 def load_patterns() -> dict:
     """Load patterns from rules/patterns.yaml."""
     patterns_file = RULES_DIR / "patterns.yaml"
@@ -68,16 +74,17 @@ def expand_pattern(
 
     pattern = patterns[pattern_name]
 
-    # Determine which template to use
-    if output_format == "vedalang":
-        template_key = "vedalang_template"
-    elif output_format == "tableir":
-        template_key = "tableir_template"
-    else:
+    if output_format not in {"vedalang", "tableir"}:
         raise PatternError(
             f"Invalid output_format: {output_format}. Use 'vedalang' or 'tableir'"
         )
 
+    if output_format == "vedalang":
+        raise PatternError(
+            ARCHIVED_VEDALANG_TEMPLATE_MESSAGE.format(pattern_name=pattern_name)
+        )
+
+    template_key = "tableir_template"
     if template_key not in pattern:
         raise PatternError(
             f"Pattern '{pattern_name}' does not have a {output_format} template"

@@ -15,6 +15,7 @@ from pygls.lsp.server import LanguageServer
 from pygls.workspace import TextDocument
 from yaml.nodes import MappingNode, Node, SequenceNode
 
+from vedalang.compiler import PublicDSLContractError, validate_public_dsl_contract
 from vedalang.compiler.source_maps import attach_source_positions
 from vedalang.compiler.v0_2_diagnostics import collect_v0_2_diagnostics
 from vedalang.versioning import looks_like_v0_2_source
@@ -148,11 +149,33 @@ PROCESS_KEYWORDS = [
 
 # Commodity-level keywords
 COMMODITY_KEYWORDS = [
-    "name",
+    "id",
     "description",
-    "type",
+    "kind",
     "unit",
-    "region",
+]
+
+TECHNOLOGY_KEYWORDS = [
+    "id",
+    "description",
+    "provides",
+    "inputs",
+    "outputs",
+    "performance",
+    "emissions",
+    "investment_cost",
+    "fixed_om",
+    "variable_om",
+    "lifetime",
+    "stock_characterization",
+]
+
+TECHNOLOGY_ROLE_KEYWORDS = [
+    "id",
+    "primary_service",
+    "technologies",
+    "transitions",
+    "description",
 ]
 
 # Known TIMES sets (commonly used in VedaLang)
@@ -671,8 +694,21 @@ def find_definition_range(
     document: TextDocument, kind: str, name: str
 ) -> types.Range:
     """Find the line range where a definition occurs."""
-    section = "commodities" if kind == "commodity" else "processes"
-    name_pattern = re.compile(rf"\bname:\s*{re.escape(name)}\b")
+    section_by_kind = {
+        "commodity": "commodities",
+        "technology": "technologies",
+        "technology_role": "technology_roles",
+        "site": "sites",
+        "facility": "facilities",
+        "run": "runs",
+    }
+    section = section_by_kind.get(kind)
+    if section is None:
+        return types.Range(
+            start=types.Position(line=0, character=0),
+            end=types.Position(line=0, character=0),
+        )
+    name_pattern = re.compile(rf"\b(?:id|name):\s*{re.escape(name)}\b")
     in_section = False
     section_indent = None
 
@@ -697,8 +733,9 @@ def find_definition_range(
                     continue
 
             if name_pattern.search(line):
-                col = line.index("name:")
-                start = col + len("name:")
+                key = "id:" if "id:" in line else "name:"
+                col = line.index(key)
+                start = col + len(key)
                 while start < len(line) and line[start].isspace():
                     start += 1
                 end = start + len(name)
@@ -745,104 +782,149 @@ def parse_and_index(ls: VedaLangServer, document: TextDocument) -> dict | None:
         ls.references.pop(document.uri, None)
         return None
 
-    model = parsed.get("model", {})
     uri = document.uri
 
     commodity_defs: dict[str, SymbolDef] = {}
-    process_defs: dict[str, SymbolDef] = {}
-    set_defs: dict[str, SymbolDef] = {}
+    technology_defs: dict[str, SymbolDef] = {}
+    technology_role_defs: dict[str, SymbolDef] = {}
+    site_defs: dict[str, SymbolDef] = {}
+    facility_defs: dict[str, SymbolDef] = {}
     refs: list[SymbolRef] = []
 
+    if not looks_like_v0_2_source(parsed):
+        ls.symbols.pop(uri, None)
+        ls.references.pop(uri, None)
+        return parsed
+
     # Index commodities
-    for c in model.get("commodities", []) or []:
-        name = c.get("name")
-        if not name:
+    for c in parsed.get("commodities", []) or []:
+        commodity_id = c.get("id") or c.get("name")
+        if not commodity_id:
             continue
-        rng = find_definition_range(document, "commodity", name)
-        commodity_defs[name] = SymbolDef(
-            kind="commodity", name=name, uri=uri, range=rng, data=c
+        rng = find_definition_range(document, "commodity", commodity_id)
+        commodity_defs[commodity_id] = SymbolDef(
+            kind="commodity", name=commodity_id, uri=uri, range=rng, data=c
         )
 
-    # Index processes and collect references
-    for p in model.get("processes", []) or []:
-        name = p.get("name")
-        if not name:
+    for t in parsed.get("technologies", []) or []:
+        technology_id = t.get("id")
+        if not technology_id:
             continue
-        rng = find_definition_range(document, "process", name)
-        process_defs[name] = SymbolDef(
-            kind="process", name=name, uri=uri, range=rng, data=p
+        rng = find_definition_range(document, "technology", technology_id)
+        technology_defs[technology_id] = SymbolDef(
+            kind="technology", name=technology_id, uri=uri, range=rng, data=t
         )
-
-        # Collect set references
-        for s in p.get("sets", []) or []:
-            refs.append(SymbolRef(
-                kind="set", name=s, uri=uri,
-                range=find_reference_range(document, s, "sets"),
-                context=f"process.{name}.sets"
-            ))
-
-        # Collect commodity references from flows
         for key in ("inputs", "outputs"):
-            for flow in p.get(key, []) or []:
+            for flow in t.get(key, []) or []:
                 cname = flow.get("commodity")
                 if not cname:
                     continue
                 refs.append(SymbolRef(
                     kind="commodity", name=cname, uri=uri,
                     range=find_reference_range(document, cname, "commodity"),
-                    context=f"process.{name}.{key}.commodity"
+                    context=f"technology.{technology_id}.{key}.commodity"
                 ))
-
-        # Shorthand input/output
-        for key in ("input", "output"):
-            cname = p.get(key)
-            if cname:
-                refs.append(SymbolRef(
-                    kind="commodity", name=cname, uri=uri,
-                    range=find_reference_range(document, cname, key),
-                    context=f"process.{name}.{key}"
-                ))
-
-    # Scenario parameters commodity refs
-    for sp in model.get("scenario_parameters", []) or []:
-        cname = sp.get("commodity")
-        if cname:
+        provides = t.get("provides")
+        if provides:
+            refs.append(SymbolRef(
+                kind="commodity", name=provides, uri=uri,
+                range=find_reference_range(document, provides, "provides"),
+                context=f"technology.{technology_id}.provides"
+            ))
+        for emission in t.get("emissions", []) or []:
+            cname = emission.get("commodity")
+            if not cname:
+                continue
             refs.append(SymbolRef(
                 kind="commodity", name=cname, uri=uri,
                 range=find_reference_range(document, cname, "commodity"),
-                context="scenario_parameters.commodity"
+                context=f"technology.{technology_id}.emissions.commodity"
             ))
 
-    # Constraints references
-    for c in model.get("constraints", []) or []:
-        cname = c.get("commodity")
-        if cname:
+    for role in parsed.get("technology_roles", []) or []:
+        role_id = role.get("id")
+        if not role_id:
+            continue
+        rng = find_definition_range(document, "technology_role", role_id)
+        technology_role_defs[role_id] = SymbolDef(
+            kind="technology_role", name=role_id, uri=uri, range=rng, data=role
+        )
+        primary_service = role.get("primary_service")
+        if primary_service:
+            refs.append(
+                SymbolRef(
+                    kind="commodity",
+                    name=primary_service,
+                    uri=uri,
+                    range=find_reference_range(
+                        document,
+                        primary_service,
+                        "primary_service",
+                    ),
+                    context=f"technology_role.{role_id}.primary_service",
+                )
+            )
+        for technology_id in role.get("technologies", []) or []:
             refs.append(SymbolRef(
-                kind="commodity", name=cname, uri=uri,
-                range=find_reference_range(document, cname, "commodity"),
-                context="constraints.commodity"
-            ))
-        for pname in c.get("processes", []) or []:
-            refs.append(SymbolRef(
-                kind="process", name=pname, uri=uri,
-                range=find_reference_range(document, pname, "processes"),
-                context="constraints.processes"
+                kind="technology", name=technology_id, uri=uri,
+                range=find_reference_range(document, technology_id, "technologies"),
+                context=f"technology_role.{role_id}.technologies"
             ))
 
-    # Trade links references
-    for t in model.get("trade_links", []) or []:
-        cname = t.get("commodity")
-        if cname:
+    for site in parsed.get("sites", []) or []:
+        site_id = site.get("id")
+        if not site_id:
+            continue
+        site_defs[site_id] = SymbolDef(
+            kind="site",
+            name=site_id,
+            uri=uri,
+            range=find_definition_range(document, "site", site_id),
+            data=site,
+        )
+
+    for facility in parsed.get("facilities", []) or []:
+        facility_id = facility.get("id")
+        if not facility_id:
+            continue
+        facility_defs[facility_id] = SymbolDef(
+            kind="facility",
+            name=facility_id,
+            uri=uri,
+            range=find_definition_range(document, "facility", facility_id),
+            data=facility,
+        )
+        site_id = facility.get("site")
+        if site_id:
             refs.append(SymbolRef(
-                kind="commodity", name=cname, uri=uri,
-                range=find_reference_range(document, cname, "commodity"),
-                context="trade_links.commodity"
+                kind="site", name=site_id, uri=uri,
+                range=find_reference_range(document, site_id, "site"),
+                context=f"facility.{facility_id}.site"
+            ))
+        role_id = facility.get("technology_role")
+        if role_id:
+            refs.append(SymbolRef(
+                kind="technology_role", name=role_id, uri=uri,
+                range=find_reference_range(document, role_id, "technology_role"),
+                context=f"facility.{facility_id}.technology_role"
+            ))
+        stock = facility.get("stock", {}) or {}
+        for item in stock.get("items", []) or []:
+            technology_id = item.get("technology")
+            if not technology_id:
+                continue
+            refs.append(SymbolRef(
+                kind="technology", name=technology_id, uri=uri,
+                range=find_reference_range(document, technology_id, "technology"),
+                context=f"facility.{facility_id}.stock.technology"
             ))
 
     ls.symbols[uri] = {
         "commodity": commodity_defs,
-        "process": process_defs,
-        "set": set_defs,
+        "technology": technology_defs,
+        "technology_role": technology_role_defs,
+        "site": site_defs,
+        "facility": facility_defs,
     }
     ls.references[uri] = refs
 
@@ -938,55 +1020,44 @@ def format_commodity_hover(sym: SymbolDef) -> str:
     if desc := c.get("description"):
         lines.append(desc)
         lines.append("")
-    if t := c.get("type"):
-        lines.append(f"- **Type**: `{t}`")
+    if kind := c.get("kind"):
+        lines.append(f"- **Kind**: `{kind}`")
     if u := c.get("unit"):
         lines.append(f"- **Unit**: `{u}`")
-    if r := c.get("region"):
-        lines.append(f"- **Region**: `{r}`")
+    return "\n".join(lines)
+
+
+def format_technology_hover(sym: SymbolDef) -> str:
+    """Format hover documentation for a technology."""
+    technology = sym.data or {}
+    lines = [f"### Technology `{sym.name}`", ""]
+    if desc := technology.get("description"):
+        lines.append(desc)
+        lines.append("")
+    if provides := technology.get("provides"):
+        lines.append(f"- **Provides**: `{provides}`")
+    performance = technology.get("performance") or {}
+    if performance:
+        lines.append(
+            f"- **Performance**: `{performance.get('kind', 'custom')}` = "
+            f"`{performance.get('value')}`"
+        )
+    if lifetime := technology.get("lifetime"):
+        lines.append(f"- **Lifetime**: `{lifetime}`")
+    inputs = technology.get("inputs", []) or []
+    if inputs:
+        comm_names = [f.get("commodity", "?") for f in inputs]
+        lines.append(f"- **Inputs**: `{', '.join(comm_names)}`")
+    outputs = technology.get("outputs", []) or []
+    if outputs:
+        comm_names = [f.get("commodity", "?") for f in outputs]
+        lines.append(f"- **Outputs**: `{', '.join(comm_names)}`")
     return "\n".join(lines)
 
 
 def format_process_hover(sym: SymbolDef) -> str:
-    """Format hover documentation for a process."""
-    p = sym.data or {}
-    lines = [f"### Process `{sym.name}`", ""]
-    if desc := p.get("description"):
-        lines.append(desc)
-        lines.append("")
-    if t := p.get("type"):
-        lines.append(f"- **Type**: `{t}`")
-    if sets := p.get("sets"):
-        lines.append(f"- **Sets**: `{', '.join(sets)}`")
-    if pcg := p.get("primary_commodity_group"):
-        lines.append(f"- **Primary CG**: `{pcg}`")
-    if au := p.get("activity_unit"):
-        lines.append(f"- **Activity unit**: `{au}`")
-    if cu := p.get("capacity_unit"):
-        lines.append(f"- **Capacity unit**: `{cu}`")
-    if eff := p.get("efficiency"):
-        lines.append(f"- **Efficiency**: `{eff}`")
-    if lt := p.get("lifetime"):
-        lines.append(f"- **Lifetime**: `{lt}` years")
-
-    # Show inputs/outputs summary
-    inputs = p.get("inputs", []) or []
-    inp = p.get("input")
-    if inp:
-        inputs = [{"commodity": inp}]
-    if inputs:
-        comm_names = [f.get("commodity", "?") for f in inputs]
-        lines.append(f"- **Inputs**: `{', '.join(comm_names)}`")
-
-    outputs = p.get("outputs", []) or []
-    out = p.get("output")
-    if out:
-        outputs = [{"commodity": out}]
-    if outputs:
-        comm_names = [f.get("commodity", "?") for f in outputs]
-        lines.append(f"- **Outputs**: `{', '.join(comm_names)}`")
-
-    return "\n".join(lines)
+    """Backward-compatible alias for the former process hover helper."""
+    return format_technology_hover(sym)
 
 
 @server.feature(types.TEXT_DOCUMENT_HOVER)
@@ -1011,15 +1082,14 @@ def hover(ls: VedaLangServer, params: types.HoverParams) -> types.Hover | None:
             range=commodity.range,
         )
 
-    # Check if hovering over a process name
-    process = (symtab.get("process") or {}).get(word)
-    if process:
+    technology = (symtab.get("technology") or {}).get(word)
+    if technology:
         return types.Hover(
             contents=types.MarkupContent(
                 kind=types.MarkupKind.Markdown,
-                value=format_process_hover(process),
+                value=format_technology_hover(technology),
             ),
-            range=process.range,
+            range=technology.range,
         )
 
     # Check if hovering over a known set
@@ -1093,8 +1163,7 @@ def goto_definition(
 
     symtab = ls.symbols.get(uri) or {}
 
-    # Check commodities, then processes
-    for kind in ("commodity", "process"):
+    for kind in ("commodity", "technology", "technology_role", "site", "facility"):
         sym = (symtab.get(kind) or {}).get(word)
         if sym:
             return types.Location(uri=uri, range=sym.range)
@@ -1127,13 +1196,13 @@ def completions(params: types.CompletionParams) -> types.CompletionList:
     parent = get_parent_section(document, pos.line, indent)
 
     # Complete commodity references
-    if key in ("commodity", "input", "output") or (
-        parent in ("inputs", "outputs") and "commodity" in stripped
+    if key in ("commodity", "provides", "primary_service") or (
+        parent in ("inputs", "outputs", "emissions") and "commodity" in stripped
     ):
         commodities = (symtab.get("commodity") or {}).values()
         for c in commodities:
             desc = (c.data or {}).get("description", "")
-            ctype = (c.data or {}).get("type", "")
+            ctype = (c.data or {}).get("kind", "")
             items.append(
                 types.CompletionItem(
                     label=c.name,
@@ -1144,29 +1213,41 @@ def completions(params: types.CompletionParams) -> types.CompletionList:
             )
         return types.CompletionList(is_incomplete=False, items=items)
 
-    # Complete process references (in constraints.processes, etc.)
-    if key == "processes" and parent == "constraints":
-        processes = (symtab.get("process") or {}).values()
-        for p in processes:
-            desc = (p.data or {}).get("description", "")
+    if key == "technology" or (key == "technologies" and parent == "technology_roles"):
+        technologies = (symtab.get("technology") or {}).values()
+        for t in technologies:
+            desc = (t.data or {}).get("description", "")
             items.append(
                 types.CompletionItem(
-                    label=p.name,
+                    label=t.name,
                     kind=types.CompletionItemKind.Function,
-                    detail="Process",
+                    detail="Technology",
                     documentation=desc,
                 )
             )
         return types.CompletionList(is_incomplete=False, items=items)
 
-    # Complete sets
-    if key == "sets" or parent == "sets":
-        for s in KNOWN_SETS:
+    if key == "technology_role":
+        roles = (symtab.get("technology_role") or {}).values()
+        for role in roles:
             items.append(
                 types.CompletionItem(
-                    label=s,
+                    label=role.name,
+                    kind=types.CompletionItemKind.Class,
+                    detail="Technology role",
+                    documentation=(role.data or {}).get("description", ""),
+                )
+            )
+        return types.CompletionList(is_incomplete=False, items=items)
+
+    if key == "site":
+        sites = (symtab.get("site") or {}).values()
+        for site in sites:
+            items.append(
+                types.CompletionItem(
+                    label=site.name,
                     kind=types.CompletionItemKind.Enum,
-                    detail="TIMES Set",
+                    detail="Site",
                 )
             )
         return types.CompletionList(is_incomplete=False, items=items)
@@ -1191,42 +1272,34 @@ def completions(params: types.CompletionParams) -> types.CompletionList:
                     return types.CompletionList(is_incomplete=False, items=items)
 
     # Context-based completion
-    if indent == 0 or stripped == "" or stripped == "model":
-        items.append(
-            types.CompletionItem(
-                label="model",
-                kind=types.CompletionItemKind.Keyword,
-                detail="VedaLang model definition",
-                insert_text="model:\n  name: ",
-            )
-        )
-    elif indent <= 2:
-        for kw in VEDALANG_KEYWORDS[1:]:
+    if indent == 0 or stripped == "":
+        for kw in VEDALANG_KEYWORDS:
             items.append(
                 types.CompletionItem(
                     label=kw,
                     kind=types.CompletionItemKind.Property,
-                    detail=f"Model property: {kw}",
+                    detail=f"Top-level property: {kw}",
                 )
             )
-    elif parent == "processes" or (
-        "processes" in document.source.lower() and indent >= 4
-    ):
-        for kw in PROCESS_KEYWORDS:
-            detail = ""
-            if kw in SEMANTIC_TO_TIMES:
-                times_attr = SEMANTIC_TO_TIMES[kw]
-                detail = f"→ TIMES: {times_attr}"
+    elif parent == "technologies":
+        for kw in TECHNOLOGY_KEYWORDS:
             items.append(
                 types.CompletionItem(
                     label=kw,
                     kind=types.CompletionItemKind.Property,
-                    detail=detail or "Process property",
+                    detail="Technology property",
                 )
             )
-    elif parent == "commodities" or (
-        "commodities" in document.source.lower() and indent >= 4
-    ):
+    elif parent == "technology_roles":
+        for kw in TECHNOLOGY_ROLE_KEYWORDS:
+            items.append(
+                types.CompletionItem(
+                    label=kw,
+                    kind=types.CompletionItemKind.Property,
+                    detail="Technology role property",
+                )
+            )
+    elif parent == "commodities":
         for kw in COMMODITY_KEYWORDS:
             items.append(
                 types.CompletionItem(
@@ -1286,169 +1359,65 @@ def validate_document(
     # Re-index after successful parse
     parse_and_index(ls, document)
 
-    if looks_like_v0_2_source(parsed):
-        diagnostics.extend(schema_validation_diagnostics(document, parsed))
-        raw_diagnostics = collect_v0_2_diagnostics(parsed)
-        attach_source_positions(
-            raw_diagnostics,
-            source=parsed,
-            source_text=source,
-        )
-        for diag in raw_diagnostics:
-            line = int(diag.get("line", 1)) - 1
-            end_line = int(diag.get("end_line", line + 1)) - 1
-            column = int(diag.get("column", 1)) - 1
-            end_column = int(diag.get("end_column", column + 1)) - 1
-            range_ = types.Range(
-                start=types.Position(line=max(0, line), character=max(0, column)),
-                end=types.Position(
-                    line=max(0, end_line),
-                    character=max(column + 1, end_column),
-                ),
-            )
-            object_id = diag.get("object_id")
-            code = diag.get("code")
-            message = str(diag.get("message", ""))
-            if code and object_id:
-                rendered = f"{code} {object_id}: {message}"
-            elif code:
-                rendered = f"{code}: {message}"
-            else:
-                rendered = message
-            severity = types.DiagnosticSeverity.Warning
-            if str(diag.get("severity", "warning")).lower() == "error":
-                severity = types.DiagnosticSeverity.Error
+    if not looks_like_v0_2_source(parsed):
+        try:
+            validate_public_dsl_contract(parsed)
+        except PublicDSLContractError as exc:
             diagnostics.append(
                 types.Diagnostic(
-                    range=range_,
-                    message=rendered,
-                    severity=severity,
-                    source="vedalang",
-                    code=code,
-                    data=diag,
-                )
-            )
-        return diagnostics
-
-    # Check for required 'model' key
-    if "model" not in parsed:
-        diagnostics.append(
-            types.Diagnostic(
-                range=types.Range(
-                    start=types.Position(line=0, character=0),
-                    end=types.Position(line=0, character=5),
-                ),
-                message="Missing required 'model' key",
-                severity=types.DiagnosticSeverity.Error,
-                source="vedalang",
-            )
-        )
-        return diagnostics
-
-    model = parsed.get("model", {})
-
-    # Full schema validation keeps enum/required/type checks
-    # in sync with schema changes.
-    diagnostics.extend(schema_validation_diagnostics(document, parsed))
-
-    # Check required model properties
-    required_props = ["name", "regions", "commodities", "processes"]
-    for prop in required_props:
-        if prop not in model:
-            for i, line in enumerate(document.lines):
-                if line.strip().startswith("model:"):
-                    diagnostics.append(
-                        types.Diagnostic(
-                            range=types.Range(
-                                start=types.Position(line=i, character=0),
-                                end=types.Position(line=i, character=len(line)),
-                            ),
-                            message=f"Missing required property: '{prop}'",
-                            severity=types.DiagnosticSeverity.Warning,
-                            source="vedalang",
-                        )
-                    )
-                    break
-
-    # Check for deprecated 'scenarios' key
-    if "scenarios" in model:
-        for i, line in enumerate(document.lines):
-            if line.strip().startswith("scenarios:"):
-                diagnostics.append(
-                    types.Diagnostic(
-                        range=types.Range(
-                            start=types.Position(line=i, character=0),
-                            end=types.Position(line=i, character=len(line)),
-                        ),
-                        message="'scenarios' is deprecated. Use 'scenario_parameters'.",
-                        severity=types.DiagnosticSeverity.Warning,
-                        source="vedalang",
-                    )
-                )
-                break
-
-    # Check for duplicate commodity names
-    commodity_names: dict[str, int] = {}
-    for i, c in enumerate(model.get("commodities", []) or []):
-        name = c.get("name")
-        if name:
-            if name in commodity_names:
-                diagnostics.append(
-                    types.Diagnostic(
-                        range=find_definition_range(document, "commodity", name),
-                        message=f"Duplicate commodity name: '{name}'",
-                        severity=types.DiagnosticSeverity.Error,
-                        source="vedalang",
-                    )
-                )
-            else:
-                commodity_names[name] = i
-
-    # Check for duplicate process names
-    process_names: dict[str, int] = {}
-    for i, p in enumerate(model.get("processes", []) or []):
-        name = p.get("name")
-        if name:
-            if name in process_names:
-                diagnostics.append(
-                    types.Diagnostic(
-                        range=find_definition_range(document, "process", name),
-                        message=f"Duplicate process name: '{name}'",
-                        severity=types.DiagnosticSeverity.Error,
-                        source="vedalang",
-                    )
-                )
-            else:
-                process_names[name] = i
-
-    # Check for undefined references
-    uri = document.uri
-    symtab = ls.symbols.get(uri) or {}
-    defs_by_kind = {
-        k: set((symtab.get(k) or {}).keys())
-        for k in ("commodity", "process", "set")
-    }
-    # Add known sets to defined sets
-    defs_by_kind["set"] = defs_by_kind.get("set", set()) | set(KNOWN_SETS)
-
-    for ref in ls.references.get(uri) or []:
-        if ref.name not in defs_by_kind.get(ref.kind, set()):
-            valid_symbols = sorted(defs_by_kind.get(ref.kind, set()))
-            diagnostics.append(
-                types.Diagnostic(
-                    range=ref.range,
-                    message=f"Undefined {ref.kind}: '{ref.name}'",
+                    range=types.Range(
+                        start=types.Position(line=0, character=0),
+                        end=types.Position(line=0, character=1),
+                    ),
+                    message=str(exc),
                     severity=types.DiagnosticSeverity.Error,
                     source="vedalang",
-                    code="undefined-reference",
-                    data={
-                        "kind": ref.kind,
-                        "undefined_name": ref.name,
-                        "valid_symbols": valid_symbols,
-                    },
+                    code=exc.code,
                 )
             )
+        return diagnostics
 
+    diagnostics.extend(schema_validation_diagnostics(document, parsed))
+    raw_diagnostics = collect_v0_2_diagnostics(parsed)
+    attach_source_positions(
+        raw_diagnostics,
+        source=parsed,
+        source_text=source,
+    )
+    for diag in raw_diagnostics:
+        line = int(diag.get("line", 1)) - 1
+        end_line = int(diag.get("end_line", line + 1)) - 1
+        column = int(diag.get("column", 1)) - 1
+        end_column = int(diag.get("end_column", column + 1)) - 1
+        range_ = types.Range(
+            start=types.Position(line=max(0, line), character=max(0, column)),
+            end=types.Position(
+                line=max(0, end_line),
+                character=max(column + 1, end_column),
+            ),
+        )
+        object_id = diag.get("object_id")
+        code = diag.get("code")
+        message = str(diag.get("message", ""))
+        if code and object_id:
+            rendered = f"{code} {object_id}: {message}"
+        elif code:
+            rendered = f"{code}: {message}"
+        else:
+            rendered = message
+        severity = types.DiagnosticSeverity.Warning
+        if str(diag.get("severity", "warning")).lower() == "error":
+            severity = types.DiagnosticSeverity.Error
+        diagnostics.append(
+            types.Diagnostic(
+                range=range_,
+                message=rendered,
+                severity=severity,
+                source="vedalang",
+                code=code,
+                data=diag,
+            )
+        )
     return diagnostics
 
 

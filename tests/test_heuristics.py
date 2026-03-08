@@ -1,543 +1,216 @@
-"""Tests for VedaLang heuristics linter."""
+"""Tests for the v0.2 heuristics linter."""
 
 from vedalang.heuristics.linter import (
-    H001_FixedNewCapShortLife,
-    H002_DemandDeviceNoStock,
-    H003_BaseYearCapacityAdequacy,
-    H004_StockCoversAllDemand,
+    H001_ServiceAssetWithoutStock,
+    H002_AnnualActivityStockWithoutSupply,
     get_available_checks,
     run_heuristics,
     run_heuristics_detailed,
 )
 
 
-class TestH001_FixedNewCapShortLife:
-    """Tests for H001: Fixed new capacity with short lifetime."""
-
-    def test_triggers_on_fixed_ncap_short_life(self):
-        """Should warn when ncap_bound.fx is set with life < horizon."""
-        model = {
-            "model": {
-                "milestone_years": [2020, 2030, 2040, 2050],  # 30 year horizon
-                "commodities": [
-                    {"name": "ELC", "type": "energy"},
-                ],
-                "processes": [
-                    {
-                        "name": "PP_SOLAR",
-                        "outputs": [{"commodity": "ELC"}],
-                        "efficiency": 1.0,
-                        "life": 25,  # < 30 years
-                        "ncap_bound": {"fx": 1.0},
-                    }
-                ],
-                "scenarios": [],
+def make_source(**overrides) -> dict:
+    source = {
+        "dsl_version": "0.2",
+        "commodities": [
+            {"id": "secondary:electricity", "kind": "secondary"},
+            {"id": "service:space_heat", "kind": "service"},
+        ],
+        "technologies": [
+            {
+                "id": "heat_pump",
+                "provides": "service:space_heat",
+                "inputs": [{"commodity": "secondary:electricity"}],
+                "performance": {"kind": "cop", "value": 3.0},
+                "lifetime": "18 year",
             }
-        }
+        ],
+        "technology_roles": [
+            {
+                "id": "space_heat_supply",
+                "primary_service": "service:space_heat",
+                "technologies": ["heat_pump"],
+            }
+        ],
+        "sites": [
+            {
+                "id": "reg1_home",
+                "location": {"point": {"lat": -33.86, "lon": 151.21}},
+            }
+        ],
+        "facilities": [],
+        "runs": [
+            {
+                "id": "reg1_2025",
+                "base_year": 2025,
+                "currency_year": 2024,
+                "region_partition": "reg1_partition",
+            }
+        ],
+        "region_partitions": [
+            {
+                "id": "reg1_partition",
+                "layer": "geo.demo",
+                "members": ["REG1"],
+                "mapping": {"kind": "constant", "value": "REG1"},
+            }
+        ],
+        "spatial_layers": [
+            {
+                "id": "geo.demo",
+                "kind": "polygon",
+                "key": "region_id",
+                "geometry_file": "data/regions.geojson",
+            }
+        ],
+    }
+    source.update(overrides)
+    return source
 
-        rule = H001_FixedNewCapShortLife()
-        issues = rule.apply(model)
+
+class TestH001ServiceAssetWithoutStock:
+    def test_triggers_on_service_facility_without_stock(self):
+        source = make_source(
+            facilities=[
+                {
+                    "id": "reg1_heat",
+                    "site": "reg1_home",
+                    "technology_role": "space_heat_supply",
+                }
+            ]
+        )
+
+        issues = H001_ServiceAssetWithoutStock().apply(source)
 
         assert len(issues) == 1
         assert issues[0].code == "H001"
-        assert "PP_SOLAR" in issues[0].message
-        assert issues[0].severity == "warning"
+        assert "reg1_heat" in issues[0].message
 
-    def test_no_issue_when_life_exceeds_horizon(self):
-        """Should not warn when lifetime covers the horizon."""
-        model = {
-            "model": {
-                "milestone_years": [2020, 2030, 2040, 2050],
-                "commodities": [],
-                "processes": [
-                    {
-                        "name": "PP_CCGT",
-                        "outputs": [],
-                        "efficiency": 0.55,
-                        "life": 40,  # > 30 years
-                        "ncap_bound": {"fx": 10.0},
-                    }
-                ],
-                "scenarios": [],
-            }
-        }
-
-        rule = H001_FixedNewCapShortLife()
-        issues = rule.apply(model)
-
-        assert len(issues) == 0
-
-    def test_escalates_to_error_with_demand_growth(self):
-        """Should escalate to error when connected to growing demand."""
-        model = {
-            "model": {
-                "milestone_years": [2020, 2030, 2040, 2050],
-                "commodities": [
-                    {"name": "ELC", "type": "energy"},
-                    {"name": "RSD", "type": "demand"},
-                ],
-                "processes": [
-                    {
-                        "name": "PP_SOLAR",
-                        "outputs": [{"commodity": "ELC"}],
-                        "efficiency": 1.0,
-                        "life": 25,
-                        "ncap_bound": {"fx": 1.0},
+    def test_ignores_service_facility_with_stock(self):
+        source = make_source(
+            facilities=[
+                {
+                    "id": "reg1_heat",
+                    "site": "reg1_home",
+                    "technology_role": "space_heat_supply",
+                    "stock": {
+                        "items": [
+                            {
+                                "technology": "heat_pump",
+                                "metric": "installed_capacity",
+                                "observed": {"value": "10 kW", "year": 2025},
+                            }
+                        ]
                     },
-                    {
-                        "name": "DMD_RSD",
-                        "inputs": [{"commodity": "ELC"}],
-                        "outputs": [{"commodity": "RSD"}],
-                        "efficiency": 1.0,
+                }
+            ]
+        )
+
+        issues = H001_ServiceAssetWithoutStock().apply(source)
+        assert issues == []
+
+
+class TestH002AnnualActivityStockWithoutSupply:
+    def test_triggers_when_only_annual_activity_is_present(self):
+        source = make_source(
+            facilities=[
+                {
+                    "id": "reg1_heat",
+                    "site": "reg1_home",
+                    "technology_role": "space_heat_supply",
+                    "stock": {
+                        "items": [
+                            {
+                                "technology": "heat_pump",
+                                "metric": "annual_activity",
+                                "observed": {"value": "100 GWh/year", "year": 2025},
+                            }
+                        ]
                     },
-                ],
-                "scenarios": [
-                    {
-                        "type": "demand_projection",
-                        "commodity": "RSD",
-                        "values": {"2020": 10, "2050": 20},
-                    }
-                ],
-            }
-        }
+                }
+            ]
+        )
 
-        rule = H001_FixedNewCapShortLife()
-        issues = rule.apply(model)
-
-        assert len(issues) == 1
-        assert issues[0].severity == "error"
-
-
-class TestH002_DemandDeviceNoStock:
-    """Tests for H002: Demand device without stock."""
-
-    def test_triggers_on_demand_device_without_stock(self):
-        """Should error when demand device has no stock."""
-        model = {
-            "model": {
-                "commodities": [
-                    {"name": "ELC", "type": "energy"},
-                    {"name": "RSD", "type": "demand"},
-                ],
-                "processes": [
-                    {
-                        "name": "DMD_RSD",
-                        "inputs": [{"commodity": "ELC"}],
-                        "outputs": [{"commodity": "RSD"}],
-                        "efficiency": 1.0,
-                    }
-                ],
-            }
-        }
-
-        rule = H002_DemandDeviceNoStock()
-        issues = rule.apply(model)
+        issues = H002_AnnualActivityStockWithoutSupply().apply(source)
 
         assert len(issues) == 1
         assert issues[0].code == "H002"
-        assert "DMD_RSD" in issues[0].message
-        assert issues[0].severity == "error"
+        assert "annual_activity stock" in issues[0].message
 
-    def test_no_issue_when_stock_present(self):
-        """Should not warn when demand device has stock."""
-        model = {
-            "model": {
-                "commodities": [
-                    {"name": "ELC", "type": "energy"},
-                    {"name": "RSD", "type": "demand"},
-                ],
-                "processes": [
-                    {
-                        "name": "DMD_RSD",
-                        "inputs": [{"commodity": "ELC"}],
-                        "outputs": [{"commodity": "RSD"}],
-                        "efficiency": 1.0,
-                        "stock": 100,
-                    }
-                ],
-            }
-        }
-
-        rule = H002_DemandDeviceNoStock()
-        issues = rule.apply(model)
-
-        assert len(issues) == 0
-
-    def test_ignores_non_demand_processes(self):
-        """Should not check processes that don't output demand commodities."""
-        model = {
-            "model": {
-                "commodities": [
-                    {"name": "ELC", "type": "energy"},
-                ],
-                "processes": [
-                    {
-                        "name": "PP_CCGT",
-                        "outputs": [{"commodity": "ELC"}],
-                        "efficiency": 0.55,
-                    }
-                ],
-            }
-        }
-
-        rule = H002_DemandDeviceNoStock()
-        issues = rule.apply(model)
-
-        assert len(issues) == 0
-
-
-class TestH003_BaseYearCapacityAdequacy:
-    """Tests for H003: Base year capacity adequacy."""
-
-    def test_triggers_on_insufficient_capacity(self):
-        """Should warn when base year capacity is inadequate."""
-        model = {
-            "model": {
-                "milestone_years": [2020, 2030, 2040, 2050],
-                "commodities": [
-                    {"name": "ELC", "type": "energy"},
-                    {"name": "RSD", "type": "demand"},
-                ],
-                "processes": [
-                    {
-                        "name": "PP_CCGT",
-                        "outputs": [{"commodity": "ELC"}],
-                        "efficiency": 0.55,
-                        "stock": 0.1,  # Only 0.1 GW
+    def test_ignores_when_installed_capacity_exists(self):
+        source = make_source(
+            facilities=[
+                {
+                    "id": "reg1_heat",
+                    "site": "reg1_home",
+                    "technology_role": "space_heat_supply",
+                    "stock": {
+                        "items": [
+                            {
+                                "technology": "heat_pump",
+                                "metric": "annual_activity",
+                                "observed": {"value": "100 GWh/year", "year": 2025},
+                            },
+                            {
+                                "technology": "heat_pump",
+                                "metric": "installed_capacity",
+                                "observed": {"value": "15 kW", "year": 2025},
+                            },
+                        ]
                     },
-                    {
-                        "name": "DMD_RSD",
-                        "inputs": [{"commodity": "ELC"}],
-                        "outputs": [{"commodity": "RSD"}],
-                        "efficiency": 1.0,
-                        "stock": 100,
-                    },
-                ],
-                "scenarios": [
-                    {
-                        "type": "demand_projection",
-                        "commodity": "RSD",
-                        "values": {"2020": 100},  # 100 PJ demand
-                    }
-                ],
-            }
-        }
+                }
+            ]
+        )
 
-        rule = H003_BaseYearCapacityAdequacy()
-        issues = rule.apply(model)
-
-        assert len(issues) == 1
-        assert issues[0].code == "H003"
-        assert "RSD" in issues[0].message
-
-    def test_no_issue_with_adequate_capacity(self):
-        """Should not warn when capacity is sufficient."""
-        model = {
-            "model": {
-                "milestone_years": [2020, 2030, 2040, 2050],
-                "commodities": [
-                    {"name": "ELC", "type": "energy"},
-                    {"name": "RSD", "type": "demand"},
-                ],
-                "processes": [
-                    {
-                        "name": "PP_CCGT",
-                        "outputs": [{"commodity": "ELC"}],
-                        "efficiency": 0.55,
-                        "stock": 50,  # 50 GW = ~740 PJ/year
-                    },
-                    {
-                        "name": "DMD_RSD",
-                        "inputs": [{"commodity": "ELC"}],
-                        "outputs": [{"commodity": "RSD"}],
-                        "efficiency": 1.0,
-                        "stock": 100,
-                    },
-                ],
-                "scenarios": [
-                    {
-                        "type": "demand_projection",
-                        "commodity": "RSD",
-                        "values": {"2020": 10},  # Only 10 PJ demand
-                    }
-                ],
-            }
-        }
-
-        rule = H003_BaseYearCapacityAdequacy()
-        issues = rule.apply(model)
-
-        assert len(issues) == 0
+        issues = H002_AnnualActivityStockWithoutSupply().apply(source)
+        assert issues == []
 
 
-class TestH004_StockCoversAllDemand:
-    """Tests for H004: Stock covers all demand."""
-
-    def test_triggers_when_stock_covers_all_demand(self):
-        """Should warn when existing stock can meet all projected demand."""
-        model = {
-            "model": {
-                "milestone_years": [2020, 2030, 2040, 2050],
-                "commodities": [
-                    {"name": "ELC", "type": "energy"},
-                    {"name": "RSD", "type": "demand"},
-                ],
-                "processes": [
-                    {
-                        "name": "PP_CCGT",
-                        "outputs": [{"commodity": "ELC"}],
-                        "efficiency": 0.55,
-                        "stock": 100,  # 100 GW -> ~1478 PJ/yr
-                        "availability_factor": 0.85,
-                    },
-                    {
-                        "name": "DMD_RSD",
-                        "inputs": [{"commodity": "ELC"}],
-                        "outputs": [{"commodity": "RSD"}],
-                        "efficiency": 1.0,
-                        "stock": 1000,
-                    },
-                ],
-                "scenarios": [
-                    {
-                        "type": "demand_projection",
-                        "commodity": "RSD",
-                        "values": {"2020": 10, "2030": 15, "2050": 20},  # Max 20 PJ
-                    }
-                ],
-            }
-        }
-
-        rule = H004_StockCoversAllDemand()
-        issues = rule.apply(model)
-
-        assert len(issues) == 1
-        assert issues[0].code == "H004"
-        assert issues[0].severity == "warning"
-        assert "RSD" in issues[0].message
-        assert "brownfield" in issues[0].message.lower()
-
-    def test_no_issue_when_demand_exceeds_stock(self):
-        """Should not warn when demand exceeds available stock capacity."""
-        model = {
-            "model": {
-                "milestone_years": [2020, 2030, 2040, 2050],
-                "commodities": [
-                    {"name": "ELC", "type": "energy"},
-                    {"name": "RSD", "type": "demand"},
-                ],
-                "processes": [
-                    {
-                        "name": "PP_CCGT",
-                        "outputs": [{"commodity": "ELC"}],
-                        "efficiency": 0.55,
-                        "stock": 1,  # 1 GW -> ~14.8 PJ/yr
-                        "availability_factor": 0.85,
-                    },
-                    {
-                        "name": "DMD_RSD",
-                        "inputs": [{"commodity": "ELC"}],
-                        "outputs": [{"commodity": "RSD"}],
-                        "efficiency": 1.0,
-                        "stock": 1000,
-                    },
-                ],
-                "scenarios": [
-                    {
-                        "type": "demand_projection",
-                        "commodity": "RSD",
-                        "values": {"2020": 10, "2050": 100},  # Max 100 PJ >> 14.8 PJ
-                    }
-                ],
-            }
-        }
-
-        rule = H004_StockCoversAllDemand()
-        issues = rule.apply(model)
-
-        assert len(issues) == 0
-
-    def test_no_issue_when_no_stock(self):
-        """Should not warn when processes have no stock (greenfield model)."""
-        model = {
-            "model": {
-                "milestone_years": [2020, 2030, 2040, 2050],
-                "commodities": [
-                    {"name": "ELC", "type": "energy"},
-                    {"name": "RSD", "type": "demand"},
-                ],
-                "processes": [
-                    {
-                        "name": "PP_CCGT",
-                        "outputs": [{"commodity": "ELC"}],
-                        "efficiency": 0.55,
-                        # No stock
-                    },
-                    {
-                        "name": "DMD_RSD",
-                        "inputs": [{"commodity": "ELC"}],
-                        "outputs": [{"commodity": "RSD"}],
-                        "efficiency": 1.0,
-                        "stock": 1000,
-                    },
-                ],
-                "scenarios": [
-                    {
-                        "type": "demand_projection",
-                        "commodity": "RSD",
-                        "values": {"2020": 10, "2050": 20},
-                    }
-                ],
-            }
-        }
-
-        rule = H004_StockCoversAllDemand()
-        issues = rule.apply(model)
-
-        assert len(issues) == 0
-
-    def test_no_issue_when_no_demand_projections(self):
-        """Should not warn when there are no demand projections."""
-        model = {
-            "model": {
-                "milestone_years": [2020, 2030, 2040, 2050],
-                "commodities": [
-                    {"name": "ELC", "type": "energy"},
-                ],
-                "processes": [
-                    {
-                        "name": "PP_CCGT",
-                        "outputs": [{"commodity": "ELC"}],
-                        "efficiency": 0.55,
-                        "stock": 100,
-                    },
-                ],
-                "scenarios": [],
-            }
-        }
-
-        rule = H004_StockCoversAllDemand()
-        issues = rule.apply(model)
-
-        assert len(issues) == 0
-
-
-class TestRunHeuristics:
-    """Tests for the run_heuristics function."""
-
-    def test_runs_all_rules(self):
-        """Should run all registered rules."""
-        model = {
-            "model": {
-                "milestone_years": [2020, 2030, 2040, 2050],
-                "commodities": [
-                    {"name": "ELC", "type": "energy"},
-                    {"name": "RSD", "type": "demand"},
-                ],
-                "processes": [
-                    {
-                        "name": "PP_SOLAR",
-                        "outputs": [{"commodity": "ELC"}],
-                        "efficiency": 1.0,
-                        "life": 25,
-                        "ncap_bound": {"fx": 1.0},
-                    },
-                    {
-                        "name": "DMD_RSD",
-                        "inputs": [{"commodity": "ELC"}],
-                        "outputs": [{"commodity": "RSD"}],
-                        "efficiency": 1.0,
-                    },
-                ],
-                "scenarios": [],
-            }
-        }
-
-        issues = run_heuristics(model)
-
-        codes = {i.code for i in issues}
-        assert "H001" in codes  # Short life
-        assert "H002" in codes  # No stock on demand device
-
-    def test_handles_rule_exceptions(self):
-        """Should catch and report rule failures without crashing."""
-        issues = run_heuristics({})
-
-        assert all(i.severity == "warning" for i in issues if "_ERROR" in i.code)
-
-
-class TestHeuristicsAPI:
-    """Tests for heuristics API functions."""
-
+class TestHeuristicAPIs:
     def test_get_available_checks(self):
-        """Should return list of all registered checks."""
         checks = get_available_checks()
+        assert checks == [
+            {
+                "code": "H001",
+                "description": "Service asset without stock observations",
+            },
+            {
+                "code": "H002",
+                "description": (
+                    "Annual-activity stock without matching installed-capacity "
+                    "supply"
+                ),
+            },
+        ]
 
-        assert len(checks) >= 4  # H001-H004
-        codes = {c["code"] for c in checks}
-        assert "H001" in codes
-        assert "H002" in codes
-        assert "H003" in codes
-        assert "H004" in codes
+    def test_run_heuristics(self):
+        source = make_source(
+            facilities=[
+                {
+                    "id": "reg1_heat",
+                    "site": "reg1_home",
+                    "technology_role": "space_heat_supply",
+                }
+            ]
+        )
 
-        for check in checks:
-            assert "code" in check
-            assert "description" in check
-            assert check["description"]  # Non-empty
+        issues = run_heuristics(source)
+        assert len(issues) == 1
+        assert issues[0].code == "H001"
 
     def test_run_heuristics_detailed(self):
-        """Should return detailed results with checks run."""
-        model = {
-            "model": {
-                "start_year": 2020,
-                "time_periods": [10],
-                "commodities": [
-                    {"name": "ELC", "type": "energy"},
-                    {"name": "RSD", "type": "demand"},
-                ],
-                "processes": [
-                    {
-                        "name": "DMD_RSD",
-                        "inputs": [{"commodity": "ELC"}],
-                        "outputs": [{"commodity": "RSD"}],
-                        "efficiency": 1.0,
-                        # No stock - should trigger H002
-                    },
-                ],
-                "scenarios": [],
-            }
-        }
+        source = make_source(
+            facilities=[
+                {
+                    "id": "reg1_heat",
+                    "site": "reg1_home",
+                    "technology_role": "space_heat_supply",
+                }
+            ]
+        )
 
-        result = run_heuristics_detailed(model)
-
-        # Should have metadata
-        assert result.checks_run is not None
-        assert len(result.checks_run) >= 4
-
-        # Should have H002 error
-        assert result.error_count >= 1
-        h002_issues = [i for i in result.issues if i.code == "H002"]
-        assert len(h002_issues) == 1
-
-    def test_run_heuristics_detailed_to_dict(self):
-        """Should convert to JSON-serializable dict."""
-        model = {
-            "model": {
-                "start_year": 2020,
-                "time_periods": [10],
-                "commodities": [],
-                "processes": [],
-                "scenarios": [],
-            }
-        }
-
-        result = run_heuristics_detailed(model)
-        data = result.to_dict()
-
-        assert "issues" in data
-        assert "checks_run" in data
-        assert "summary" in data
-        assert "total_checks" in data["summary"]
-        assert "error_count" in data["summary"]
-        assert "warning_count" in data["summary"]
-        assert "issue_count" in data["summary"]
+        result = run_heuristics_detailed(source)
+        assert result.warning_count == 1
+        assert result.error_count == 0
+        assert len(result.issues) == 1
+        assert result.to_dict()["summary"]["issue_count"] == 1

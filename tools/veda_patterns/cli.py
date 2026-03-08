@@ -9,7 +9,7 @@ from .expander import PatternError, expand_pattern, get_pattern_info, list_patte
 def main():
     parser = argparse.ArgumentParser(
         prog="veda_pattern",
-        description="Expand VedaLang patterns from the pattern library",
+        description="Inspect archived VedaLang patterns and expand TableIR templates",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -36,8 +36,8 @@ def main():
         "--format",
         "-f",
         choices=["vedalang", "tableir"],
-        default="vedalang",
-        help="Output format (default: vedalang)",
+        default="tableir",
+        help="Output format (default: tableir; vedalang expansion is archived)",
     )
 
     args = parser.parse_args()

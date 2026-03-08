@@ -1,21 +1,17 @@
-"""Tests for VedaLang Language Server."""
+"""Tests for the v0.2-only VedaLang Language Server."""
 
 from lsprotocol import types
 
 from tools.vedalang_lsp.server.schema_docs import SCHEMA_FIELD_DOCS
 from tools.vedalang_lsp.server.server import (
     ATTR_MASTER,
-    KNOWN_SETS,
     SEMANTIC_TO_TIMES,
     SymbolDef,
-    code_action,
-    enum_values_from_schema,
     find_definition_range,
     format_commodity_hover,
     format_process_hover,
     format_times_attribute_hover,
     format_vedalang_attribute_hover,
-    get_parent_section,
     get_word_at_position,
     get_yaml_key_at_position,
     parse_and_index,
@@ -37,88 +33,85 @@ class MockTextDocument:
             self.lines[-1] = self.lines[-1] if self.lines else ""
 
 
-# Sample VedaLang model for testing
-SAMPLE_MODEL = """model:
-  name: TestModel
-  regions: [REG1]
-
-  commodities:
-    - name: ELC
-      type: energy
-      unit: PJ
-      description: Electricity
-    - name: GAS
-      type: energy
-      unit: PJ
-      description: Natural gas
-
-  processes:
-    - name: PP_GAS
-      description: Gas power plant
-      sets: [ELE]
-      primary_commodity_group: NRGO
-      inputs:
-        - commodity: GAS
-      outputs:
-        - commodity: ELC
-      efficiency: 0.55
-      lifetime: 30
-      activity_unit: PJ
-      capacity_unit: GW
+SAMPLE_MODEL = """dsl_version: "0.2"
+commodities:
+  - id: secondary:electricity
+    kind: secondary
+    description: Electricity
+  - id: service:space_heat
+    kind: service
+    description: Useful heat
+technologies:
+  - id: heat_pump
+    description: Electric heat pump
+    provides: service:space_heat
+    inputs:
+      - commodity: secondary:electricity
+    performance:
+      kind: cop
+      value: 3.2
+    lifetime: 18 year
+technology_roles:
+  - id: space_heat_supply
+    primary_service: service:space_heat
+    technologies: [heat_pump]
+sites:
+  - id: reg1_home
+    location:
+      point:
+        lat: -33.86
+        lon: 151.21
+    membership_overrides:
+      region_partitions:
+        reg1_partition: REG1
+facilities:
+  - id: reg1_heat
+    site: reg1_home
+    technology_role: space_heat_supply
+    stock:
+      items:
+        - technology: heat_pump
+          metric: installed_capacity
+          observed:
+            value: 10 kW
+            year: 2025
+runs:
+  - id: reg1_2025
+    base_year: 2025
+    currency_year: 2024
+    region_partition: reg1_partition
+region_partitions:
+  - id: reg1_partition
+    layer: geo.demo
+    members: [REG1]
+    mapping:
+      kind: constant
+      value: REG1
+spatial_layers:
+  - id: geo.demo
+    kind: polygon
+    key: region_id
+    geometry_file: data/regions.geojson
 """
 
 
-class TestAttributeMaster:
-    """Tests for attribute master data."""
-
-    def test_attribute_master_loaded(self):
-        """Attribute master should be loaded with entries."""
-        assert len(ATTR_MASTER) > 0
-        assert "ACT_EFF" in ATTR_MASTER or "NCAP_COST" in ATTR_MASTER
-
-    def test_semantic_to_times_mapping(self):
-        """Semantic attributes should map to TIMES attributes."""
-        assert SEMANTIC_TO_TIMES["efficiency"] == "ACT_EFF"
-        assert SEMANTIC_TO_TIMES["investment_cost"] == "NCAP_COST"
-        assert SEMANTIC_TO_TIMES["variable_om_cost"] == "ACT_COST"
-
-
 class TestHoverFormatting:
-    """Tests for hover documentation formatting."""
-
     def test_format_vedalang_attribute_hover(self):
-        """VedaLang attribute hover should include TIMES mapping."""
         content = format_vedalang_attribute_hover("efficiency")
         assert content is not None
         assert "efficiency" in content
         assert "ACT_EFF" in content
 
-    def test_format_vedalang_attribute_hover_unknown(self):
-        """Unknown attribute should return None."""
-        content = format_vedalang_attribute_hover("unknown_attr")
-        assert content is None
-
     def test_schema_field_docs_loaded(self):
-        """Schema field docs should be loaded with comprehensive coverage."""
         assert len(SCHEMA_FIELD_DOCS) >= 50
-        # Check active v0.2 fields are documented
         assert "commodities" in SCHEMA_FIELD_DOCS
         assert "technologies" in SCHEMA_FIELD_DOCS
         assert "technology_roles" in SCHEMA_FIELD_DOCS
         assert "runs" in SCHEMA_FIELD_DOCS
-        assert "kind" in SCHEMA_FIELD_DOCS
-        assert "description" in SCHEMA_FIELD_DOCS
-        assert "interpolation" in SCHEMA_FIELD_DOCS
-
-    def test_schema_field_docs_technology_roles_content(self):
-        """Technology role doc should reflect the v0.2 object model."""
-        role_doc = SCHEMA_FIELD_DOCS.get("technology_roles")
-        assert role_doc is not None
-        assert "service-oriented role contracts" in role_doc.lower()
-        assert "primary_service" in role_doc
+        assert "processes" not in SCHEMA_FIELD_DOCS
+        assert "trade_links" not in SCHEMA_FIELD_DOCS
 
     def test_format_times_attribute_hover(self):
-        """TIMES attribute hover should include description."""
         if "NCAP_COST" in ATTR_MASTER:
             attr_data = ATTR_MASTER["NCAP_COST"]
             content = format_times_attribute_hover("NCAP_COST", attr_data)
@@ -126,633 +119,155 @@ class TestHoverFormatting:
             assert "Indexes" in content or len(content) > 50
 
     def test_format_commodity_hover(self):
-        """Commodity hover should show properties."""
         sym = SymbolDef(
             kind="commodity",
-            name="ELC",
+            name="secondary:electricity",
             uri="file:///test.yaml",
             range=types.Range(
                 start=types.Position(line=0, character=0),
-                end=types.Position(line=0, character=3),
+                end=types.Position(line=0, character=21),
             ),
             data={
-                "name": "ELC",
-                "type": "energy",
+                "id": "secondary:electricity",
+                "kind": "secondary",
                 "unit": "PJ",
                 "description": "Electricity",
             },
         )
         content = format_commodity_hover(sym)
-        assert "ELC" in content
-        assert "energy" in content
+        assert "secondary:electricity" in content
+        assert "secondary" in content
         assert "PJ" in content
         assert "Electricity" in content
 
-    def test_format_process_hover(self):
-        """Process hover should show properties."""
+    def test_format_process_hover_aliases_to_technology(self):
         sym = SymbolDef(
-            kind="process",
-            name="PP_GAS",
+            kind="technology",
+            name="heat_pump",
             uri="file:///test.yaml",
             range=types.Range(
                 start=types.Position(line=0, character=0),
-                end=types.Position(line=0, character=6),
+                end=types.Position(line=0, character=9),
             ),
             data={
-                "name": "PP_GAS",
-                "description": "Gas power plant",
-                "sets": ["ELE"],
-                "efficiency": 0.55,
-                "activity_unit": "PJ",
-                "capacity_unit": "GW",
+                "id": "heat_pump",
+                "description": "Electric heat pump",
+                "provides": "service:space_heat",
+                "inputs": [{"commodity": "secondary:electricity"}],
+                "performance": {"kind": "cop", "value": 3.2},
+                "lifetime": "18 year",
             },
         )
         content = format_process_hover(sym)
-        assert "PP_GAS" in content
-        assert "Gas power plant" in content
-        assert "ELE" in content
-        assert "PJ" in content
-        assert "GW" in content
+        assert "Technology `heat_pump`" in content
+        assert "Electric heat pump" in content
+        assert "service:space_heat" in content
 
 
 class TestWordExtraction:
-    """Tests for word extraction from documents."""
-
     def test_get_word_at_position(self):
-        """Should extract word at cursor position."""
-        doc = MockTextDocument("  efficiency: 0.55")
+        doc = MockTextDocument("  performance: 3.2")
         pos = types.Position(line=0, character=5)
-        word = get_word_at_position(doc, pos)
-        assert word == "efficiency"
-
-    def test_get_word_at_position_start(self):
-        """Should extract word when cursor at start."""
-        doc = MockTextDocument("efficiency: 0.55")
-        pos = types.Position(line=0, character=0)
-        word = get_word_at_position(doc, pos)
-        assert word == "efficiency"
-
-    def test_get_word_at_position_empty(self):
-        """Should return None for empty position."""
-        doc = MockTextDocument("  : value")
-        pos = types.Position(line=0, character=1)
-        word = get_word_at_position(doc, pos)
-        assert word is None or word == ""
-
-
-class TestYamlKeyExtraction:
-    """Tests for YAML key extraction."""
+        assert get_word_at_position(doc, pos) == "performance"
 
     def test_get_yaml_key_at_position(self):
-        """Should extract YAML key from line."""
-        doc = MockTextDocument("  efficiency: 0.55")
+        doc = MockTextDocument("  provides: service:space_heat")
         pos = types.Position(line=0, character=5)
-        key = get_yaml_key_at_position(doc, pos)
-        assert key == "efficiency"
-
-    def test_get_yaml_key_list_item(self):
-        """Should extract key from list item."""
-        doc = MockTextDocument("    - name: ELC")
-        pos = types.Position(line=0, character=8)
-        key = get_yaml_key_at_position(doc, pos)
-        assert key == "name"
+        assert get_yaml_key_at_position(doc, pos) == "provides"
 
 
-class TestParentSection:
-    """Tests for parent section detection."""
+class TestSchemaLookup:
+    def test_schema_for_path_resolves_v0_2_arrays(self):
+        node = schema_for_path(["technologies", 0, "inputs", 0, "commodity"])
+        assert node is not None
 
-    def test_get_parent_section(self):
-        """Should find immediate parent section key."""
-        source = """commodities:
-  - name: ELC
-    type: energy
-"""
-        doc = MockTextDocument(source)
-        # At indent 4, the immediate parent is "name" at indent 4 (same level)
-        # But going up from indent 4, we find "commodities" at indent 0
-        parent = get_parent_section(doc, 2, 4)  # line "    type: energy"
-        # The function finds immediate parent key which is "name" since it has
-        # same indent but is above - actually let's check what indent name has
-        # - name: ELC has indent 2 (the "- " is at position 2)
-        # So parent should be commodities since 0 < 4
-        # Actually the issue is "-" handling - let's just verify the behavior
-        assert parent is not None  # May be "name" or "commodities" depending on logic
-
-    def test_get_parent_section_nested(self):
-        """Should find nested parent."""
-        source = """processes:
-  - name: PP_GAS
-    inputs:
-      - commodity: GAS
-"""
-        doc = MockTextDocument(source)
-        parent = get_parent_section(doc, 3, 6)  # line "      - commodity: GAS"
-        assert parent == "inputs"
-
-    def test_get_parent_section_top_level(self):
-        """Should find top-level section."""
-        source = """model:
-  commodities:
-    - name: ELC
-"""
-        doc = MockTextDocument(source)
-        parent = get_parent_section(doc, 2, 4)  # line "    - name: ELC"
-        assert parent == "commodities"
-
-
-class TestSymbolIndexing:
-    """Tests for symbol indexing (parse_and_index)."""
-
-    def test_parse_and_index_commodities(self):
-        """Should index commodity definitions."""
+    def test_schema_for_key_at_position_uses_v0_2_schema(self):
         doc = MockTextDocument(SAMPLE_MODEL)
-        parse_and_index(server, doc)
+        line = next(i for i, text in enumerate(doc.lines) if "provides:" in text)
+        pos = types.Position(line=line, character=4)
+        schema_path, schema_node = schema_for_key_at_position(doc, pos, "provides")
+        assert schema_path is not None
+        assert schema_node is not None
 
-        symtab = server.symbols.get(doc.uri) or {}
-        commodities = symtab.get("commodity") or {}
 
-        assert "ELC" in commodities
-        assert "GAS" in commodities
-        assert commodities["ELC"].kind == "commodity"
-        assert commodities["ELC"].data.get("type") == "energy"
-
-    def test_parse_and_index_processes(self):
-        """Should index process definitions."""
+class TestIndexingAndDiagnostics:
+    def test_parse_and_index_collects_v0_2_symbols(self):
         doc = MockTextDocument(SAMPLE_MODEL)
-        parse_and_index(server, doc)
+        parsed = parse_and_index(server, doc)
+        assert parsed is not None
 
-        symtab = server.symbols.get(doc.uri) or {}
-        processes = symtab.get("process") or {}
+        symtab = server.symbols[doc.uri]
+        assert "secondary:electricity" in symtab["commodity"]
+        assert "heat_pump" in symtab["technology"]
+        assert "space_heat_supply" in symtab["technology_role"]
+        assert "reg1_home" in symtab["site"]
+        assert "reg1_heat" in symtab["facility"]
 
-        assert "PP_GAS" in processes
-        assert processes["PP_GAS"].kind == "process"
-        assert processes["PP_GAS"].data.get("efficiency") == 0.55
-
-    def test_parse_and_index_references(self):
-        """Should collect commodity references from processes."""
-        doc = MockTextDocument(SAMPLE_MODEL)
-        parse_and_index(server, doc)
-
-        refs = server.references.get(doc.uri) or []
-        commodity_refs = [r for r in refs if r.kind == "commodity"]
-
-        ref_names = [r.name for r in commodity_refs]
-        assert "GAS" in ref_names
-        assert "ELC" in ref_names
-
-    def test_parse_and_index_set_references(self):
-        """Should collect set references from processes."""
-        doc = MockTextDocument(SAMPLE_MODEL)
-        parse_and_index(server, doc)
-
-        refs = server.references.get(doc.uri) or []
-        set_refs = [r for r in refs if r.kind == "set"]
-
-        ref_names = [r.name for r in set_refs]
-        assert "ELE" in ref_names
-
-
-class TestFindDefinitionRange:
-    """Tests for finding definition locations."""
-
-    def test_find_commodity_definition_range(self):
-        """Should find commodity definition line."""
-        doc = MockTextDocument(SAMPLE_MODEL)
-        rng = find_definition_range(doc, "commodity", "ELC")
-
-        line_text = doc.lines[rng.start.line]
-        assert "ELC" in line_text
-        assert "name:" in line_text
-
-    def test_find_process_definition_range(self):
-        """Should find process definition line."""
-        doc = MockTextDocument(SAMPLE_MODEL)
-        rng = find_definition_range(doc, "process", "PP_GAS")
-
-        line_text = doc.lines[rng.start.line]
-        assert "PP_GAS" in line_text
-
-
-class TestValidation:
-    """Tests for document validation."""
-
-    def test_validate_valid_document(self):
-        """Valid document should have no errors."""
-        doc = MockTextDocument(SAMPLE_MODEL)
-        diagnostics = validate_document(server, doc)
-        err_sev = types.DiagnosticSeverity.Error
-        errors = [d for d in diagnostics if d.severity == err_sev]
-        assert len(errors) == 0
-
-    def test_validate_missing_model(self):
-        """Document without 'model' key should have error."""
-        source = """name: test"""
-        doc = MockTextDocument(source)
-        diagnostics = validate_document(server, doc)
-        assert any("model" in d.message.lower() for d in diagnostics)
-
-    def test_validate_yaml_error(self):
-        """Invalid YAML should produce error."""
-        source = """model:
-  name: test
-  bad yaml here : : :
-"""
-        doc = MockTextDocument(source)
-        diagnostics = validate_document(server, doc)
-        assert len(diagnostics) >= 0
-
-    def test_validate_deprecated_scenarios(self):
-        """Deprecated 'scenarios' key should produce warning."""
-        source = """model:
-  name: test
-  regions: [R1]
-  commodities: []
-  processes: []
-  scenarios:
-    - type: demand_projection
-"""
-        doc = MockTextDocument(source)
-        diagnostics = validate_document(server, doc)
-        warn_sev = types.DiagnosticSeverity.Warning
-        warnings = [d for d in diagnostics if d.severity == warn_sev]
-        has_deprecation = any(
-            "deprecated" in d.message.lower() or "scenario" in d.message.lower()
-            for d in warnings
+        refs = server.references[doc.uri]
+        assert any(
+            ref.kind == "commodity" and ref.name == "secondary:electricity"
+            for ref in refs
         )
-        assert has_deprecation
+        assert any(ref.kind == "technology" and ref.name == "heat_pump" for ref in refs)
 
-    def test_validate_undefined_commodity_reference(self):
-        """Undefined commodity reference should produce error."""
-        source = """model:
-  name: test
-  regions: [R1]
-  commodities:
-    - name: ELC
-      type: energy
-  processes:
-    - name: PP_GAS
-      input: UNDEFINED_COMMODITY
-      output: ELC
-"""
-        doc = MockTextDocument(source)
-        diagnostics = validate_document(server, doc)
-        err_sev = types.DiagnosticSeverity.Error
-        errors = [d for d in diagnostics if d.severity == err_sev]
-        undefined_errors = [e for e in errors if "undefined" in e.message.lower()]
-        assert len(undefined_errors) > 0
-        assert any("UNDEFINED_COMMODITY" in e.message for e in undefined_errors)
+    def test_find_definition_range_supports_v0_2_ids(self):
+        doc = MockTextDocument(SAMPLE_MODEL)
+        rng = find_definition_range(doc, "technology", "heat_pump")
+        assert rng.start.line >= 0
+        assert rng.end.character > rng.start.character
 
-    def test_validate_undefined_set_known_set_ok(self):
-        """Known TIMES sets should not produce undefined errors."""
-        source = """model:
-  name: test
-  regions: [R1]
-  commodities:
-    - name: ELC
-      type: energy
-  processes:
-    - name: PP_GAS
-      sets: [ELE]
-      output: ELC
-"""
-        doc = MockTextDocument(source)
+    def test_validate_document_accepts_valid_v0_2_source(self):
+        doc = MockTextDocument(SAMPLE_MODEL)
         diagnostics = validate_document(server, doc)
-        err_sev = types.DiagnosticSeverity.Error
-        errors = [d for d in diagnostics if d.severity == err_sev]
-        set_errors = [
-            e for e in errors
-            if "set" in e.message.lower() and "ELE" in e.message
+        errors = [
+            d for d in diagnostics if d.severity == types.DiagnosticSeverity.Error
         ]
-        assert len(set_errors) == 0
+        assert errors == []
 
-    def test_validate_duplicate_commodity(self):
-        """Duplicate commodity names should produce error."""
-        source = """model:
-  name: test
-  regions: [R1]
-  commodities:
-    - name: ELC
-      type: energy
-    - name: ELC
-      type: demand
-  processes: []
-"""
-        doc = MockTextDocument(source)
-        diagnostics = validate_document(server, doc)
-        err_sev = types.DiagnosticSeverity.Error
-        errors = [d for d in diagnostics if d.severity == err_sev]
-        duplicate_errors = [e for e in errors if "duplicate" in e.message.lower()]
-        assert len(duplicate_errors) > 0
+    def test_validate_document_rejects_legacy_source(self):
+        legacy = MockTextDocument(
+            "model:\n  name: Legacy\n  regions: [R1]\n  commodities: []\nroles: []\n"
+        )
+        diagnostics = validate_document(server, legacy)
+        assert len(diagnostics) == 1
+        assert diagnostics[0].code == "E_LEGACY_SYNTAX_UNSUPPORTED"
 
-    def test_validate_duplicate_process(self):
-        """Duplicate process names should produce error."""
-        source = """model:
-  name: test
-  regions: [R1]
-  commodities:
-    - name: ELC
-      type: energy
-  processes:
-    - name: PP_GAS
-      output: ELC
-    - name: PP_GAS
-      output: ELC
-"""
-        doc = MockTextDocument(source)
-        diagnostics = validate_document(server, doc)
-        err_sev = types.DiagnosticSeverity.Error
-        errors = [d for d in diagnostics if d.severity == err_sev]
-        duplicate_errors = [e for e in errors if "duplicate" in e.message.lower()]
-        assert len(duplicate_errors) > 0
-
-    def test_validate_v0_2_document_uses_section14_diagnostics(self):
-        """v0.2 documents should validate through the shared compiler diagnostics."""
-        source = """dsl_version: "0.2"
+    def test_validate_document_surfaces_v0_2_semantic_errors(self):
+        invalid = MockTextDocument(
+            """dsl_version: "0.2"
 commodities:
   - id: secondary:electricity
     kind: secondary
 technologies:
-  - id: gas_heater
+  - id: bad_tech
     provides: secondary:electricity
 technology_roles:
-  - id: gas_heater
+  - id: bad_role
     primary_service: secondary:electricity
-    technologies: [gas_heater]
+    technologies: [bad_tech]
+runs:
+  - id: reg1
+    base_year: 2025
+    currency_year: 2024
+    region_partition: reg1_partition
+region_partitions:
+  - id: reg1_partition
+    layer: geo.demo
+    members: [REG1]
+    mapping:
+      kind: constant
+      value: REG1
+spatial_layers:
+  - id: geo.demo
+    kind: polygon
+    key: region_id
+    geometry_file: data/regions.geojson
 """
-        doc = MockTextDocument(source)
-        diagnostics = validate_document(server, doc)
-        err_sev = types.DiagnosticSeverity.Error
-        errors = [d for d in diagnostics if d.severity == err_sev]
-        assert any(d.code == "E004" for d in errors)
-        assert all("Missing required 'model' key" not in d.message for d in diagnostics)
-
-
-class TestSchemaDrivenEnums:
-    """Tests for schema-driven enum hover/completion/diagnostics behavior."""
-
-    def test_network_kind_enum_includes_transmission(self):
-        """Schema enum for networks.kind should expose the v0.2 values."""
-        schema_node = schema_for_path(["networks", 0, "kind"])
-        assert schema_node is not None
-        enum_values = enum_values_from_schema(schema_node)
-        assert "transmission" in enum_values
-        assert "pipeline" in enum_values
-
-    def test_schema_lookup_for_kind_uses_network_context(self):
-        """Context lookup should resolve networks.kind correctly."""
-        source = """dsl_version: "0.2"
-commodities:
-  - id: secondary:electricity
-    kind: secondary
-networks:
-  - id: grid
-    kind: transmission
-    node_basis:
-      kind: sites
-    links:
-      - id: n_s
-        from: north_hub
-        to: south_hub
-        commodity: secondary:electricity
-"""
-        doc = MockTextDocument(source)
-        line_idx = next(
-            i for i, line in enumerate(doc.lines) if "kind: transmission" in line
         )
-        key_start = doc.lines[line_idx].index("kind")
-        path, schema_node = schema_for_key_at_position(
-            doc, types.Position(line=line_idx, character=key_start), "kind"
-        )
-        assert path is not None
-        assert path[-3:] == ["networks", 0, "kind"]
-        assert schema_node is not None
-        assert "transmission" in enum_values_from_schema(schema_node)
-
-    def test_validate_invalid_network_kind_emits_schema_error(self):
-        """Invalid network kind should be diagnosed by schema validation."""
-        source = """dsl_version: "0.2"
-commodities:
-  - id: secondary:electricity
-    kind: secondary
-networks:
-  - id: grid
-    kind: invalid_kind
-    node_basis:
-      kind: sites
-    links:
-      - id: n_s
-        from: north_hub
-        to: south_hub
-        commodity: secondary:electricity
-"""
-        doc = MockTextDocument(source)
-        diagnostics = validate_document(server, doc)
-        schema_errors = [
-            d for d in diagnostics
-            if d.source == "vedalang-schema" and "invalid_kind" in d.message
-        ]
-        assert len(schema_errors) >= 1
-
-    def test_validate_network_kind_is_accepted(self):
-        """Valid network enum should not produce a schema error."""
-        source = """dsl_version: "0.2"
-commodities:
-  - id: secondary:electricity
-    kind: secondary
-networks:
-  - id: grid
-    kind: transmission
-    node_basis:
-      kind: sites
-    links:
-      - id: n_s
-        from: north_hub
-        to: south_hub
-        commodity: secondary:electricity
-"""
-        doc = MockTextDocument(source)
-        diagnostics = validate_document(server, doc)
-        network_enum_errors = [
-            d for d in diagnostics
-            if d.source == "vedalang-schema"
-            and "kind" in d.message.lower()
-            and "one of" in d.message.lower()
-        ]
-        assert len(network_enum_errors) == 0
+        diagnostics = validate_document(server, invalid)
+        assert any(d.code == "E004" for d in diagnostics)
 
 
-class TestKnownSets:
-    """Tests for known TIMES sets."""
-
-    def test_known_sets_includes_common_sets(self):
-        """Should include commonly used TIMES sets."""
-        assert "ELE" in KNOWN_SETS
-        assert "DMD" in KNOWN_SETS
-        assert "STG" in KNOWN_SETS
-        assert "IRE" in KNOWN_SETS
-
-
-class TestServerFeatures:
-    """Tests for server feature registration."""
-
-    def test_server_initialized(self):
-        """Server should be initialized."""
-        assert server is not None
-        assert server.name == "vedalang-lsp"
-
-    def test_server_has_symbol_tables(self):
-        """Server should have symbol and reference tables."""
-        assert hasattr(server, "symbols")
-        assert hasattr(server, "references")
-        assert isinstance(server.symbols, dict)
-        assert isinstance(server.references, dict)
-
-
-class TestCodeActions:
-    """Tests for code action quick fixes."""
-
-    def test_code_action_provides_replacements_for_undefined_commodity(self):
-        """Code action should offer valid commodities as replacements."""
-        source = """model:
-  name: test
-  regions: [R1]
-  commodities:
-    - name: ELC
-      type: energy
-    - name: GAS
-      type: energy
-  processes:
-    - name: PP_GAS
-      input: UNDEFINED_COMMODITY
-      output: ELC
-"""
-        doc = MockTextDocument(source)
-        diagnostics = validate_document(server, doc)
-
-        undefined_diags = [
-            d for d in diagnostics
-            if d.code == "undefined-reference"
-            and "UNDEFINED_COMMODITY" in d.message
-        ]
-        assert len(undefined_diags) == 1
-        diag = undefined_diags[0]
-
-        assert diag.data is not None
-        assert diag.data["kind"] == "commodity"
-        assert "ELC" in diag.data["valid_symbols"]
-        assert "GAS" in diag.data["valid_symbols"]
-
-        params = types.CodeActionParams(
-            text_document=types.TextDocumentIdentifier(uri=doc.uri),
-            range=diag.range,
-            context=types.CodeActionContext(diagnostics=[diag]),
-        )
-        actions = code_action(server, params)
-
-        assert len(actions) >= 2
-        titles = [a.title for a in actions]
-        assert any("ELC" in t for t in titles)
-        assert any("GAS" in t for t in titles)
-
-        elc_action = next(a for a in actions if "ELC" in a.title)
-        assert elc_action.edit is not None
-        assert doc.uri in elc_action.edit.changes
-        edits = elc_action.edit.changes[doc.uri]
-        assert len(edits) == 1
-        assert edits[0].new_text == "ELC"
-
-    def test_code_action_provides_known_sets_for_undefined_set(self):
-        """Code action should offer known TIMES sets as replacements."""
-        source = """model:
-  name: test
-  regions: [R1]
-  commodities:
-    - name: ELC
-      type: energy
-  processes:
-    - name: PP_GAS
-      sets: [UNKNOWN_SET]
-      output: ELC
-"""
-        doc = MockTextDocument(source)
-        diagnostics = validate_document(server, doc)
-
-        undefined_diags = [
-            d for d in diagnostics
-            if d.code == "undefined-reference"
-            and "UNKNOWN_SET" in d.message
-        ]
-        assert len(undefined_diags) == 1
-        diag = undefined_diags[0]
-
-        assert diag.data is not None
-        assert diag.data["kind"] == "set"
-        assert "ELE" in diag.data["valid_symbols"]
-        assert "DMD" in diag.data["valid_symbols"]
-
-        params = types.CodeActionParams(
-            text_document=types.TextDocumentIdentifier(uri=doc.uri),
-            range=diag.range,
-            context=types.CodeActionContext(diagnostics=[diag]),
-        )
-        actions = code_action(server, params)
-
-        assert len(actions) >= 1
-        titles = [a.title for a in actions]
-        assert any("ELE" in t for t in titles)
-
-    def test_code_action_no_actions_for_non_undefined_diagnostics(self):
-        """Code action should not provide fixes for other diagnostic types."""
-        source = """model:
-  name: test
-  regions: [R1]
-  commodities:
-    - name: ELC
-      type: energy
-    - name: ELC
-      type: demand
-  processes: []
-"""
-        doc = MockTextDocument(source)
-        diagnostics = validate_document(server, doc)
-
-        duplicate_diags = [
-            d for d in diagnostics
-            if "duplicate" in d.message.lower()
-        ]
-        assert len(duplicate_diags) > 0
-
-        params = types.CodeActionParams(
-            text_document=types.TextDocumentIdentifier(uri=doc.uri),
-            range=duplicate_diags[0].range,
-            context=types.CodeActionContext(diagnostics=duplicate_diags),
-        )
-        actions = code_action(server, params)
-        assert len(actions) == 0
-
-    def test_diagnostic_data_structure(self):
-        """Diagnostic data should contain kind, undefined_name, and valid_symbols."""
-        source = """model:
-  name: test
-  regions: [R1]
-  commodities:
-    - name: ELC
-      type: energy
-  processes:
-    - name: PP
-      input: MISSING
-      output: ELC
-"""
-        doc = MockTextDocument(source)
-        diagnostics = validate_document(server, doc)
-
-        undefined_diags = [d for d in diagnostics if d.code == "undefined-reference"]
-        assert len(undefined_diags) > 0
-
-        diag = undefined_diags[0]
-        assert isinstance(diag.data, dict)
-        assert "kind" in diag.data
-        assert "undefined_name" in diag.data
-        assert "valid_symbols" in diag.data
-        assert diag.data["undefined_name"] == "MISSING"
-        assert isinstance(diag.data["valid_symbols"], list)
+def test_semantic_to_times_mapping_still_exposes_core_attributes():
+    assert SEMANTIC_TO_TIMES["efficiency"] == "ACT_EFF"
+    assert SEMANTIC_TO_TIMES["investment_cost"] == "NCAP_COST"

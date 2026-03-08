@@ -206,15 +206,15 @@ def _empty_response(
     }
 
 
-def _trade_links_configured(source: dict[str, Any]) -> bool:
-    links = source.get("networks", [])
-    if not isinstance(links, list):
+def _networks_configured(source: dict[str, Any]) -> bool:
+    networks = source.get("networks", [])
+    if not isinstance(networks, list):
         return False
     return any(
         isinstance(network, dict)
         and isinstance(network.get("links"), list)
         and bool(network.get("links"))
-        for network in links
+        for network in networks
     )
 
 
@@ -418,13 +418,13 @@ def query_res_graph(request: dict[str, Any]) -> dict[str, Any]:
         graph = built.get("graph", {})
         nodes = graph.get("nodes", []) if isinstance(graph, dict) else []
         edges = graph.get("edges", []) if isinstance(graph, dict) else []
-        if not nodes and not edges and not _trade_links_configured(source):
+        if not nodes and not edges and not _networks_configured(source):
             diagnostics.append(
                 _diagnostic(
-                    "NO_TRADE_LINKS",
+                    "NO_NETWORKS",
                     "warning",
                     "Trade lens is empty because the v0.2 source defines no "
-                    "configured networks.",
+                    "networks with links.",
                 )
             )
 

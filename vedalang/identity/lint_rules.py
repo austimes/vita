@@ -1,39 +1,27 @@
-"""Naming convention lint rules for VedaLang.
+"""v0.2 naming convention lint rules for VedaLang."""
 
-Validates that commodity and process identifiers follow the naming grammar.
-"""
+from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any
 
 from vedalang.conventions import (
-    commodity_namespace_enum,
-    commodity_namespace_type_map,
     is_legacy_commodity_namespace,
-    namespaces_for_commodity_type,
     split_commodity_namespace,
 )
-from vedalang.identity.parser import (
-    VALID_ROLES,
-    parse_process_id,
-)
-from vedalang.identity.registry import AbbreviationRegistry
+from vedalang.versioning import looks_like_v0_2_source
 
-
-def _identifier_value_and_path(
-    item: dict[str, Any],
-    *,
-    base_path: str,
-) -> tuple[str, str]:
-    """Return identifier value + JSON path for id/name keyed objects."""
-    if "id" in item:
-        value = item.get("id")
-        return (str(value) if value is not None else "", f"{base_path}.id")
-    if "name" in item:
-        value = item.get("name")
-        return (str(value) if value is not None else "", f"{base_path}.name")
-    return "", base_path
+V0_2_COMMODITY_NAMESPACE_TO_KINDS: dict[str, frozenset[str]] = {
+    "primary": frozenset({"primary"}),
+    "secondary": frozenset({"secondary"}),
+    "resource": frozenset({"material"}),
+    "service": frozenset({"service"}),
+    "emission": frozenset({"emission"}),
+    "material": frozenset({"material"}),
+    "certificate": frozenset({"certificate"}),
+}
+LEGACY_NAMESPACE_ALIASES = {"fuel", "energy"}
 
 
 @dataclass
@@ -41,12 +29,11 @@ class LintDiagnostic:
     """A naming convention lint diagnostic."""
 
     code: str
-    severity: str  # 'error' or 'warning'
+    severity: str
     message: str
-    path: str  # JSON path to the issue (e.g., "model.commodities[0].name")
+    path: str
 
     def to_dict(self) -> dict[str, Any]:
-        """Convert to JSON-serializable dict."""
         return {
             "code": self.code,
             "severity": self.severity,
@@ -56,575 +43,160 @@ class LintDiagnostic:
 
 
 class NamingLintRule(ABC):
-    """Base class for naming lint rules."""
-
     code: str
     description: str
 
     @abstractmethod
-    def check(self, model: dict) -> list[LintDiagnostic]:
-        """Check the model for naming convention violations."""
+    def check(self, source: dict) -> list[LintDiagnostic]:
         raise NotImplementedError
 
 
 class N001_CommodityIDGrammar(NamingLintRule):
-    """Commodity namespace prefix must follow canonical namespace/type conventions."""
+    """Commodity IDs must use canonical v0.2 namespaces."""
 
     code = "N001"
     description = "Commodity ID namespace must match canonical conventions"
 
     def __init__(self) -> None:
-        self._valid_namespaces = set(commodity_namespace_enum())
-        self._namespace_to_types = commodity_namespace_type_map()
+        self._valid_namespaces = set(V0_2_COMMODITY_NAMESPACE_TO_KINDS)
+        self._namespace_to_kinds = V0_2_COMMODITY_NAMESPACE_TO_KINDS
 
-    def check(self, model: dict) -> list[LintDiagnostic]:
-        diagnostics = []
-        model_data = model.get("model", {})
+    def check(self, source: dict) -> list[LintDiagnostic]:
+        if not looks_like_v0_2_source(source):
+            return []
 
-        for i, comm in enumerate(model_data.get("commodities", [])):
-            name, path = _identifier_value_and_path(
-                comm,
-                base_path=f"model.commodities[{i}]",
-            )
-            commodity_type = self._canonical_commodity_type(comm.get("type"))
-            if not name or commodity_type is None:
+        diagnostics: list[LintDiagnostic] = []
+        for index, commodity in enumerate(source.get("commodities", []) or []):
+            commodity_id = commodity.get("id", "")
+            kind = commodity.get("kind")
+            if not commodity_id or not isinstance(kind, str):
                 continue
-            namespace, _ = split_commodity_namespace(name)
+            namespace, _ = split_commodity_namespace(str(commodity_id))
             if namespace is None:
                 continue
-            if is_legacy_commodity_namespace(namespace):
-                expected_namespaces = namespaces_for_commodity_type(commodity_type)
-                if expected_namespaces:
-                    expected_text = ", ".join(
-                        f"{candidate}:*" for candidate in expected_namespaces
-                    )
-                else:
-                    expected_text = "a canonical namespace"
+            path = f"commodities[{index}].id"
+            if (
+                is_legacy_commodity_namespace(namespace)
+                or namespace in LEGACY_NAMESPACE_ALIASES
+            ):
+                expected = [
+                    candidate
+                    for candidate, allowed_kinds in self._namespace_to_kinds.items()
+                    if kind in allowed_kinds
+                ]
+                expected_text = ", ".join(f"{candidate}:*" for candidate in expected)
                 diagnostics.append(
                     LintDiagnostic(
                         code=self.code,
                         severity="error",
                         message=(
-                            f"Legacy commodity prefix '{namespace}:' in '{name}' is "
-                            f"deprecated; use {expected_text} for type "
-                            f"'{commodity_type}'."
+                            f"Legacy commodity prefix '{namespace}:' in "
+                            f"'{commodity_id}' is deprecated; use {expected_text} "
+                            f"for kind '{kind}'."
                         ),
                         path=path,
                     )
                 )
                 continue
-
             if namespace not in self._valid_namespaces:
                 diagnostics.append(
                     LintDiagnostic(
                         code=self.code,
                         severity="error",
                         message=(
-                            f"Unknown commodity namespace '{namespace}' in '{name}'. "
-                            f"Expected one of: {sorted(self._valid_namespaces)}"
+                            f"Unknown commodity namespace '{namespace}' in "
+                            f"'{commodity_id}'. Expected one of: "
+                            f"{sorted(self._valid_namespaces)}"
                         ),
                         path=path,
                     )
                 )
                 continue
-
-            expected_types = self._namespace_to_types.get(namespace, frozenset())
-            if commodity_type not in expected_types:
+            expected_kinds = self._namespace_to_kinds.get(namespace, frozenset())
+            if kind not in expected_kinds:
                 diagnostics.append(
                     LintDiagnostic(
                         code=self.code,
                         severity="error",
                         message=(
-                            f"Commodity '{name}' namespace '{namespace}' implies "
-                            f"type in {sorted(expected_types)}, but commodity "
-                            f"type is '{commodity_type}'."
+                            f"Commodity '{commodity_id}' namespace '{namespace}' "
+                            f"implies kind in {sorted(expected_kinds)}, but "
+                            f"commodity kind is '{kind}'."
                         ),
                         path=path,
                     )
                 )
-
-        return diagnostics
-
-    def _canonical_commodity_type(self, comm_type: Any) -> str | None:
-        """Normalize legacy aliases to canonical schema commodity.type values."""
-        if not isinstance(comm_type, str) or not comm_type:
-            return None
-        if comm_type == "demand":
-            return "service"
-        return comm_type
-
-
-class N002_ProcessIDGrammar(NamingLintRule):
-    """Process names must parse as valid P:{TECH}:{ROLE}:{GEO}..."""
-
-    code = "N002"
-    description = "Process ID must follow P:TECH:ROLE:GEO grammar"
-
-    def check(self, model: dict) -> list[LintDiagnostic]:
-        diagnostics = []
-        model_data = model.get("model", {})
-
-        for i, proc in enumerate(model_data.get("processes", [])):
-            name = proc.get("name", "")
-
-            if not name.startswith("P:"):
-                continue
-
-            result = parse_process_id(name)
-
-            if not result.valid and result.error:
-                diagnostics.append(
-                    LintDiagnostic(
-                        code=self.code,
-                        severity="error",
-                        message=result.error,
-                        path=f"model.processes[{i}].name",
-                    )
-                )
-
-        return diagnostics
-
-
-class N003_UnknownTechnologyCode(NamingLintRule):
-    """Technology code in process ID must exist in registry."""
-
-    code = "N003"
-    description = "Technology code must be registered"
-
-    def __init__(self) -> None:
-        self._registry = AbbreviationRegistry()
-
-    def check(self, model: dict) -> list[LintDiagnostic]:
-        diagnostics = []
-        model_data = model.get("model", {})
-
-        for i, proc in enumerate(model_data.get("processes", [])):
-            name = proc.get("name", "")
-
-            if not name.startswith("P:"):
-                continue
-
-            result = parse_process_id(name)
-
-            if result.valid and result.parsed:
-                tech_code = result.parsed.technology
-                if self._registry.find_tech_by_code(tech_code) is None:
-                    diagnostics.append(
-                        LintDiagnostic(
-                            code=self.code,
-                            severity="error",
-                            message=f"Unknown technology code: {tech_code}",
-                            path=f"model.processes[{i}].name",
-                        )
-                    )
-
-        return diagnostics
-
-
-class N004_UnknownRoleCode(NamingLintRule):
-    """Role code must be one of: GEN, EUS, CNV, EXT, TRD, STO, CAP, SEQ."""
-
-    code = "N004"
-    description = "Role code must be valid"
-
-    def check(self, model: dict) -> list[LintDiagnostic]:
-        diagnostics = []
-        model_data = model.get("model", {})
-
-        for i, proc in enumerate(model_data.get("processes", [])):
-            name = proc.get("name", "")
-
-            if not name.startswith("P:"):
-                continue
-
-            parts = name.split(":")
-            if len(parts) >= 3:
-                role = parts[2]
-                if role not in VALID_ROLES:
-                    diagnostics.append(
-                        LintDiagnostic(
-                            code=self.code,
-                            severity="error",
-                            message=(
-                                f"Unknown role code: {role}. "
-                                f"Must be one of: {sorted(VALID_ROLES)}"
-                            ),
-                            path=f"model.processes[{i}].name",
-                        )
-                    )
-
-        return diagnostics
-
-
-class N005_GeoNotInRegions(NamingLintRule):
-    """GEO segment in process ID must be in model.regions."""
-
-    code = "N005"
-    description = "GEO segment must be a defined region"
-
-    def check(self, model: dict) -> list[LintDiagnostic]:
-        diagnostics = []
-        model_data = model.get("model", {})
-        regions = set(model_data.get("regions", []))
-
-        if not regions:
-            return diagnostics
-
-        for i, proc in enumerate(model_data.get("processes", [])):
-            name = proc.get("name", "")
-
-            if not name.startswith("P:"):
-                continue
-
-            result = parse_process_id(name)
-
-            if result.valid and result.parsed:
-                geo = result.parsed.geo
-                base_geo = geo.split(".")[0]
-                if base_geo not in regions:
-                    diagnostics.append(
-                        LintDiagnostic(
-                            code=self.code,
-                            severity="error",
-                            message=(
-                                f"GEO '{geo}' not in model regions: "
-                                f"{sorted(regions)}"
-                            ),
-                            path=f"model.processes[{i}].name",
-                        )
-                    )
-
-        return diagnostics
-
-
-class N006_EUSRequiresSegment(NamingLintRule):
-    """If role=EUS, process ID must include segment (sector.segment)."""
-
-    code = "N006"
-    description = "EUS role requires a segment"
-
-    def check(self, model: dict) -> list[LintDiagnostic]:
-        diagnostics = []
-        model_data = model.get("model", {})
-
-        for i, proc in enumerate(model_data.get("processes", [])):
-            name = proc.get("name", "")
-
-            if not name.startswith("P:"):
-                continue
-
-            result = parse_process_id(name)
-
-            is_eus_segment_error = (
-                not result.valid
-                and result.error
-                and "EUS requires a segment" in result.error
-            )
-            if is_eus_segment_error:
-                diagnostics.append(
-                    LintDiagnostic(
-                        code=self.code,
-                        severity="error",
-                        message=result.error,
-                        path=f"model.processes[{i}].name",
-                    )
-                )
-
-        return diagnostics
-
-
-class N007_EUSMustOutputService(NamingLintRule):
-    """If role=EUS, process must output at least one SERVICE commodity."""
-
-    code = "N007"
-    description = "EUS process must output a SERVICE commodity"
-
-    def check(self, model: dict) -> list[LintDiagnostic]:
-        diagnostics = []
-        model_data = model.get("model", {})
-
-        commodity_kinds = {}
-        for comm in model_data.get("commodities", []):
-            name = comm.get("name", "")
-            comm_type = comm.get("type", "")
-            kind = comm.get("kind")
-            if kind:
-                commodity_kinds[name] = kind
-            elif comm_type in {"demand", "service"}:
-                commodity_kinds[name] = "SERVICE"
-
-        for i, proc in enumerate(model_data.get("processes", [])):
-            name = proc.get("name", "")
-
-            if not name.startswith("P:"):
-                continue
-
-            result = parse_process_id(name)
-
-            if result.valid and result.parsed and result.parsed.role == "EUS":
-                outputs = proc.get("outputs", [])
-                has_service = any(
-                    commodity_kinds.get(o.get("commodity")) == "SERVICE"
-                    for o in outputs
-                )
-                if not has_service:
-                    diagnostics.append(
-                        LintDiagnostic(
-                            code=self.code,
-                            severity="error",
-                            message=(
-                                f"EUS process '{name}' must output at least "
-                                "one SERVICE commodity"
-                            ),
-                            path=f"model.processes[{i}].outputs",
-                        )
-                    )
-
-        return diagnostics
-
-
-ROLE_SANKEY_MAP = {
-    "GEN": {"GEN"},
-    "EUS": {"END", "SRV"},
-    "EXT": {"SUP"},
-    "CNV": {"PRC"},
-    "TRD": {"XFR", "EXP"},
-}
-
-
-class N008_RoleSankeyMismatch(NamingLintRule):
-    """Role and sankey_stage should be consistent."""
-
-    code = "N008"
-    description = "Role and sankey_stage should be consistent"
-
-    def check(self, model: dict) -> list[LintDiagnostic]:
-        diagnostics = []
-        model_data = model.get("model", {})
-
-        for i, proc in enumerate(model_data.get("processes", [])):
-            name = proc.get("name", "")
-            sankey_stage = proc.get("sankey_stage")
-
-            if not name.startswith("P:") or sankey_stage is None:
-                continue
-
-            result = parse_process_id(name)
-
-            if result.valid and result.parsed:
-                role = result.parsed.role
-                expected_stages = ROLE_SANKEY_MAP.get(role, set())
-
-                if expected_stages and sankey_stage not in expected_stages:
-                    diagnostics.append(
-                        LintDiagnostic(
-                            code=self.code,
-                            severity="warning",
-                            message=(
-                                f"Role '{role}' typically has sankey_stage in "
-                                f"{sorted(expected_stages)}, but got '{sankey_stage}'"
-                            ),
-                            path=f"model.processes[{i}].sankey_stage",
-                        )
-                    )
-
-        return diagnostics
-
-
-class N009_ServiceInTradeLink(NamingLintRule):
-    """SERVICE commodities cannot be used in trade_links."""
-
-    code = "N009"
-    description = "SERVICE commodities cannot be traded"
-
-    def check(self, model: dict) -> list[LintDiagnostic]:
-        diagnostics = []
-        model_data = model.get("model", {})
-
-        service_commodities = set()
-        for comm in model_data.get("commodities", []):
-            name = comm.get("name", "")
-            comm_type = comm.get("type", "")
-            kind = comm.get("kind")
-
-            if kind == "SERVICE" or comm_type == "demand":
-                service_commodities.add(name)
-            elif comm_type == "service":
-                service_commodities.add(name)
-            elif split_commodity_namespace(name)[0] == "service":
-                service_commodities.add(name)
-
-        for i, link in enumerate(model_data.get("trade_links", [])):
-            commodity = link.get("commodity", "")
-            if commodity in service_commodities:
-                diagnostics.append(
-                    LintDiagnostic(
-                        code=self.code,
-                        severity="error",
-                        message=(
-                            f"SERVICE commodity '{commodity}' cannot be "
-                            "used in trade_links"
-                        ),
-                        path=f"model.trade_links[{i}].commodity",
-                    )
-                )
-
-        return diagnostics
-
-
-class N010_ContextKindMismatch(NamingLintRule):
-    """SERVICE requires context; TRADABLE/EMISSION must not have context."""
-
-    code = "N010"
-    description = "Context field must match commodity kind"
-
-    def check(self, model: dict) -> list[LintDiagnostic]:
-        diagnostics = []
-        model_data = model.get("model", {})
-
-        for i, comm in enumerate(model_data.get("commodities", [])):
-            kind = comm.get("kind")
-            context = comm.get("context")
-            comm_type = comm.get("type", "")
-
-            if kind is None:
-                if comm_type in {"demand", "service"}:
-                    kind = "SERVICE"
-                elif comm_type == "emission":
-                    kind = "EMISSION"
-                elif comm_type in ("energy", "material"):
-                    kind = "TRADABLE"
-                else:
-                    continue
-
-            if kind == "SERVICE" and context is None:
-                name = comm.get("name", "")
-                if not name.startswith("S:"):
-                    continue
-                diagnostics.append(
-                    LintDiagnostic(
-                        code=self.code,
-                        severity="error",
-                        message="SERVICE commodity requires 'context' field",
-                        path=f"model.commodities[{i}]",
-                    )
-                )
-            elif kind in ("TRADABLE", "EMISSION") and context is not None:
-                diagnostics.append(
-                    LintDiagnostic(
-                        code=self.code,
-                        severity="error",
-                        message=f"{kind} commodity must not have 'context' field",
-                        path=f"model.commodities[{i}].context",
-                    )
-                )
-
         return diagnostics
 
 
 class N011_SnakeCasePreferred(NamingLintRule):
-    """Role, variant, and commodity IDs should use snake_case, not dashes."""
+    """Top-level v0.2 object IDs should prefer snake_case."""
 
     code = "N011"
     description = "IDs should use snake_case (underscores, not dashes)"
 
-    def check(self, model: dict) -> list[LintDiagnostic]:
-        diagnostics = []
+    def check(self, source: dict) -> list[LintDiagnostic]:
+        if not looks_like_v0_2_source(source):
+            return []
 
-        # Check commodity IDs
-        model_data = model.get("model", {})
-        for i, comm in enumerate(model_data.get("commodities", [])):
-            cid = comm.get("id", "")
-            if "-" in cid:
+        diagnostics: list[LintDiagnostic] = []
+        sections = (
+            "technologies",
+            "technology_roles",
+            "stock_characterizations",
+            "spatial_layers",
+            "spatial_measure_sets",
+            "temporal_index_series",
+            "region_partitions",
+            "zone_overlays",
+            "sites",
+            "facilities",
+            "fleets",
+            "opportunities",
+            "networks",
+            "runs",
+        )
+        for section in sections:
+            for index, item in enumerate(source.get(section, []) or []):
+                identifier = item.get("id", "")
+                if "-" not in str(identifier):
+                    continue
                 diagnostics.append(
                     LintDiagnostic(
                         code=self.code,
                         severity="warning",
                         message=(
-                            f"Commodity '{cid}' uses dashes. "
-                            f"Prefer snake_case: '{cid.replace('-', '_')}'"
+                            f"{section[:-1].replace('_', ' ')} '{identifier}' uses "
+                            f"dashes. Prefer snake_case: "
+                            f"'{str(identifier).replace('-', '_')}'"
                         ),
-                        path=f"model.commodities[{i}].id",
+                        path=f"{section}[{index}].id",
                     )
                 )
-
-        # Check process role IDs
-        for i, role in enumerate(model.get("roles", [])):
-            rid = role.get("id", "")
-            if "-" in rid:
-                diagnostics.append(
-                    LintDiagnostic(
-                        code=self.code,
-                        severity="warning",
-                        message=(
-                            f"Role '{rid}' uses dashes. "
-                            f"Prefer snake_case: '{rid.replace('-', '_')}'"
-                        ),
-                        path=f"roles[{i}].id",
-                    )
-                )
-
-        # Check process variant IDs
-        for i, var in enumerate(model.get("variants", [])):
-            vid = var.get("id", "")
-            if "-" in vid:
-                diagnostics.append(
-                    LintDiagnostic(
-                        code=self.code,
-                        severity="warning",
-                        message=(
-                            f"Variant '{vid}' uses dashes. "
-                            f"Prefer snake_case: '{vid.replace('-', '_')}'"
-                        ),
-                        path=f"variants[{i}].id",
-                    )
-                )
-
         return diagnostics
 
 
 ALL_NAMING_RULES: list[NamingLintRule] = [
     N001_CommodityIDGrammar(),
-    N002_ProcessIDGrammar(),
-    N003_UnknownTechnologyCode(),
-    N004_UnknownRoleCode(),
-    N005_GeoNotInRegions(),
-    N006_EUSRequiresSegment(),
-    N007_EUSMustOutputService(),
-    N008_RoleSankeyMismatch(),
-    N009_ServiceInTradeLink(),
-    N010_ContextKindMismatch(),
     N011_SnakeCasePreferred(),
 ]
 
 
-def lint_naming_conventions(model: dict) -> list[LintDiagnostic]:
-    """Run all naming convention lint rules on a model.
-
-    Returns list of diagnostics sorted by severity (errors first).
-    """
-    diagnostics = []
+def lint_naming_conventions(source: dict) -> list[LintDiagnostic]:
+    diagnostics: list[LintDiagnostic] = []
     for rule in ALL_NAMING_RULES:
         try:
-            diagnostics.extend(rule.check(model))
-        except Exception as e:
+            diagnostics.extend(rule.check(source))
+        except Exception as exc:
             diagnostics.append(
                 LintDiagnostic(
                     code=f"{rule.code}_ERROR",
                     severity="error",
-                    message=f"Rule {rule.code} failed: {e}",
+                    message=f"Rule {rule.code} failed: {exc}",
                     path="",
                 )
             )
-
     return sorted(
-        diagnostics, key=lambda d: (0 if d.severity == "error" else 1, d.code)
+        diagnostics,
+        key=lambda diag: (diag.severity != "error", diag.code, diag.path),
     )
-
-
-def get_naming_lint_rules() -> list[dict[str, str]]:
-    """Get list of all naming lint rules."""
-    return [
-        {"code": rule.code, "description": rule.description}
-        for rule in ALL_NAMING_RULES
-    ]

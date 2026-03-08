@@ -6,12 +6,9 @@
 
 VedaLang is a typed DSL that compiles to VEDA Excel tables for TIMES energy
 models. **All core phases (P0-P3) remain complete**, the v0.2
-package/run/CSIR/CPIR rollout is landed end-to-end, and the full example
-catalog is on the v0.2 DSL. The current `bd` tracker state is 129 closed
-issues and 6 open issues. The remaining work is now the final v0.2-only
-cleanup pass across LSP runtime analysis, deterministic lint/heuristics, and
-dead legacy compiler/viz/pattern helpers that were discovered during the
-hard-cut review.
+package/run/CSIR/CPIR rollout is landed end-to-end, the full example catalog
+is on the v0.2 DSL, and the v0.2-only cleanup epic is now closed. The current
+`bd` tracker state is 135 closed issues and 0 open issues.
 
 | Milestone | Status |
 |-----------|--------|
@@ -29,32 +26,27 @@ hard-cut review.
 | Emissions Refactor | ✅ Complete |
 | Progressive Fixtures (ms1-8) | ✅ All passing |
 | v0.2 backend parity | ✅ Complete |
-| v0.2 rollout backlog | 🔄 Cleanup follow-on open |
+| v0.2 rollout backlog | ✅ Closed |
 
 ---
 
-## Current Status: v0.2 Cleanup Epic
+## Current Status: v0.2 Hard Cut Complete
 Core design phases remain complete. The v0.2 frontend, diagnostics,
-downstream tooling surfaces, flagship examples/docs, regression matrix, and
-example catalog migration are all complete. The current follow-on work is a
-focused cleanup epic to remove the last runtime/tooling/test compatibility
-surfaces that still preserve the pre-v0.2 public DSL internally.
-
-### Active Work
-
-Open `bd` work is now:
-- `vedalang-y8e` — umbrella v0.2-only cleanup epic
-- `vedalang-y8e.7` — remove legacy LSP source analysis paths from the server runtime
-- `vedalang-y8e.8` — port deterministic heuristics and identity lint to v0.2-only semantics
-- `vedalang-y8e.9` — quarantine or delete dead legacy compiler and IR helpers
-- `vedalang-y8e.10` — delete dead legacy graph-builder and trade-link visualization surfaces
-- `vedalang-y8e.11` — port or archive the legacy pattern library so normal pattern expansion no longer emits rejected pre-v0.2 fragments
+downstream tooling surfaces, flagship examples/docs, regression matrix,
+example catalog migration, and the final v0.2-only cleanup pass are all
+complete. The active codebase now runs as a v0.2-only project: legacy public
+DSL surfaces are either removed or explicitly archived/rejected.
 
 ### Recently Completed
 
 | Issue | Priority | Description | Status |
 |-------|----------|-------------|--------|
-| `vedalang-y8e` | P1 | v0.2-only cleanup epic remains open for the newly-audited final legacy-removal tranche | Open |
+| `vedalang-y8e` | P1 | Closed the final v0.2-only cleanup epic; active runtime/tooling surfaces are now operationally v0.2-only | ✓ Closed |
+| `vedalang-y8e.11` | P2 | Archived broken pre-v0.2 VedaLang pattern expansion, switched supported pattern workflows to TableIR, and updated pattern docs/CLI/tests | ✓ Closed |
+| `vedalang-y8e.10` | P2 | Deleted dead legacy graph-builder surfaces and renamed remaining trade-lens helpers to v0.2 network terminology | ✓ Closed |
+| `vedalang-y8e.9` | P1 | Deleted `vedalang/compiler/ir.py` and quarantined the archived `_compile_new_syntax` roles/variants/providers path | ✓ Closed |
+| `vedalang-y8e.8` | P1 | Rewrote deterministic heuristics and identity lint to v0.2-only semantics and refreshed docs/tests | ✓ Closed |
+| `vedalang-y8e.7` | P1 | Removed legacy LSP source-analysis behavior and updated runtime tests/syntax keywords to the v0.2 object model | ✓ Closed |
 | `vedalang-y8e.3` | P2 | Purged remaining legacy role/variant/provider guidance from active user docs and unpublished archive-only schema hover entries | ✓ Closed |
 | `vedalang-m1s` | P1 | Library/runtime compile and validate entrypoints now hard-cut to the v0.2 bundle path with no legacy selection hook | ✓ Closed |
 | `vedalang-y8e.6` | P2 | Removed compatibility-only compiler/acceptance suites and kept only v0.2-oriented coverage plus explicit legacy rejection tests | ✓ Closed |
@@ -115,7 +107,9 @@ Open `bd` work is now:
 
 ### Future Work (P4+)
 
-The longer-term P4 roadmap (`vedalang-6qs`, `vedalang-9xy`, `vedalang-a9m`) still exists, but it is now a secondary backlog after completion of the `vedalang-txa` v0.2 reset.
+The longer-term P4 roadmap (`vedalang-6qs`, `vedalang-9xy`, `vedalang-a9m`)
+still exists, but it is now a secondary backlog after the completed v0.2
+reset and cleanup hard cut.
 
 ---
 

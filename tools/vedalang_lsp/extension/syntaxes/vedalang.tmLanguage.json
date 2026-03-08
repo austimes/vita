@@ -23,11 +23,11 @@
       "patterns": [
         {
           "name": "keyword.control.vedalang",
-          "match": "\\b(model|regions|commodities|processes|scenario_parameters|trade_links|constraints|cases|studies|timeslices)\\b"
+          "match": "\\b(dsl_version|imports|commodities|technologies|technology_roles|stock_characterizations|spatial_layers|spatial_measure_sets|temporal_index_series|region_partitions|zone_overlays|sites|facilities|fleets|opportunities|networks|runs)\\b"
         },
         {
           "name": "keyword.other.vedalang",
-          "match": "\\b(name|description|id|type|unit|region|inputs|outputs|input|output)\\b"
+          "match": "\\b(id|description|kind|provides|primary_service|technologies|inputs|outputs|emissions|commodity|factor|site|technology_role|stock|metric|observed|year|location|point|lat|lon|layer|members|mapping|value|base_year|currency_year|region_partition)\\b"
         }
       ]
     },
@@ -43,7 +43,7 @@
       "patterns": [
         {
           "name": "support.type.vedalang",
-          "match": "\\b(energy|emission|material|demand|financial|environment|standard|storage|interregional_exchange)\\b"
+          "match": "\\b(primary|secondary|service|emission|material|certificate|polygon|point|constant|cop|efficiency|custom|installed_capacity|annual_activity)\\b"
         },
         {
           "name": "constant.language.vedalang",

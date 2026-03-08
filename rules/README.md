@@ -15,12 +15,17 @@ These rules are used by:
 2. AI agents for understanding how to build models
 3. The pattern expansion tool (`veda_pattern`)
 
+The active public DSL is v0.2-only. The pattern library is currently:
+
+- `tableir` for supported expansion workflows
+- archive-only for pre-v0.2 `vedalang` source fragments
+
 ## Adding New Patterns
 
 1. Define the pattern in `patterns.yaml` with:
    - Clear description
    - Parameter definitions with types and defaults
-   - VedaLang or TableIR template
+   - TableIR template, or an explicitly archived legacy VedaLang template
    - Working example
 
 2. Add any new tags to `constraints.yaml`
