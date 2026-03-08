@@ -102,7 +102,7 @@ uv sync
 uv run vedalang validate model.veda.yaml --run <run_id>
 
 # Check formatting for VedaLang YAML
-bun run format:veda:check
+uv run vedalang fmt --check model.veda.yaml
 
 # Lint for heuristic issues
 uv run vedalang lint model.veda.yaml
@@ -260,7 +260,7 @@ Extend the VedaLang DSL, improve the compiler, or discover new VEDA patterns.
 uv run pytest
 
 # Check VedaLang YAML formatting
-bun run format:veda:check
+uv run vedalang fmt --check <path>
 
 # Run linter
 uv run ruff check .

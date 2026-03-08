@@ -8,7 +8,8 @@ VedaLang now runs as a v0.2-only repository. The package/run/CSIR/CPIR rollout,
 backend parity, diagnostics, tooling, supported example catalog, and strict
 cleanup pass are all landed.
 
-Current `bd` state: all rollout and cleanup issues are closed.
+Current `bd` state: rollout and cleanup issues are closed; one low-priority
+maintenance task remains open.
 
 ## Current Focus
 
@@ -18,10 +19,15 @@ Current `bd` state: all rollout and cleanup issues are closed.
 
 ## Open Work
 
-- No open transition work.
+- `vedalang-4ov` — clean up checked-in example `.veda.yaml` formatting drift so
+  documented `uv run vedalang fmt --check ...` examples on repo paths pass
+  cleanly
 
 ## Recently Completed
 
+- `vedalang-8o6` — updated the README Quick Start and development command
+  snippets to use `uv run vedalang fmt --check ...` instead of `bun run
+  format:veda:check`
 - `vedalang-5o0` — documented enum-backed README/tutorial fields and clarified
   that scenario categories are currently a runtime convention rather than a
   `vedalang.schema.json` enum
