@@ -1,4 +1,4 @@
-"""Sync generated canonical convention snippets in docs from schema enums.
+"""Sync generated canonical convention snippets in docs.
 
 Usage:
   uv run python tools/sync_conventions.py
@@ -8,6 +8,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -40,11 +41,76 @@ def _replace_generated_block(text: str, marker: str, body: str) -> str:
     return f"{prefix}{start}\n{body.rstrip()}\n{end}{suffix}"
 
 
+def _load_schema(repo_root: Path) -> dict:
+    schema_path = repo_root / "vedalang" / "schema" / "vedalang.schema.json"
+    with schema_path.open(encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _schema_property_choices(
+    schema: dict, def_name: str, property_name: str
+) -> tuple[str, ...]:
+    property_schema = (
+        schema.get("$defs", {})
+        .get(def_name, {})
+        .get("properties", {})
+        .get(property_name, {})
+    )
+    enum = property_schema.get("enum")
+    if isinstance(enum, list) and enum and all(isinstance(x, str) for x in enum):
+        return tuple(enum)
+
+    const = property_schema.get("const")
+    if isinstance(const, str) and const:
+        return (const,)
+
+    raise ValueError(
+        f"Could not find enum/const for {def_name}.{property_name} in schema."
+    )
+
+
+def _schema_root_property_choices(schema: dict, property_name: str) -> tuple[str, ...]:
+    property_schema = schema.get("properties", {}).get(property_name, {})
+    enum = property_schema.get("enum")
+    if isinstance(enum, list) and enum and all(isinstance(x, str) for x in enum):
+        return tuple(enum)
+
+    const = property_schema.get("const")
+    if isinstance(const, str) and const:
+        return (const,)
+
+    raise ValueError(f"Could not find enum/const for root property {property_name}.")
+
+
+def _schema_oneof_kind_choices(schema: dict, def_name: str) -> tuple[str, ...]:
+    kinds: list[str] = []
+    one_of = schema.get("$defs", {}).get(def_name, {}).get("oneOf", [])
+    for variant in one_of:
+        kind = (
+            variant.get("properties", {}).get("kind", {}).get("const")
+        )
+        if isinstance(kind, str) and kind:
+            kinds.append(kind)
+
+    if kinds:
+        return tuple(kinds)
+
+    raise ValueError(f"Could not find oneOf kind consts for {def_name} in schema.")
+
+
 def _specs(repo_root: Path) -> list[BlockSpec]:
+    schema = _load_schema(repo_root)
     stages = process_stage_enum()
     commodity_types = commodity_type_enum()
     commodity_namespaces = commodity_namespace_enum()
     scenario_categories = scenario_category_enum()
+    commodity_kinds = _schema_property_choices(schema, "commodity", "kind")
+    flow_bases = _schema_property_choices(schema, "flow_spec", "basis")
+    performance_kinds = _schema_property_choices(schema, "performance_spec", "kind")
+    spatial_layer_kinds = _schema_property_choices(schema, "spatial_layer", "kind")
+    partition_mapping_kinds = _schema_oneof_kind_choices(schema, "partition_mapping")
+    stock_metrics = _schema_property_choices(schema, "stock_observation", "metric")
+    dsl_versions = _schema_root_property_choices(schema, "dsl_version")
 
     canonical_enums_md = (
         f"- `stage` = one of `{format_enum_pipe(stages)}`\n"
@@ -55,6 +121,19 @@ def _specs(repo_root: Path) -> list[BlockSpec]:
     canonical_scenario_categories_md = (
         "**Canonical scenario categories:** "
         + " | ".join(f"`{category}`" for category in scenario_categories)
+    )
+    minimal_example_enums_md = (
+        "### Enum-backed Fields In This Example\n\n"
+        f"- `dsl_version`: `{format_enum_pipe(dsl_versions)}`\n"
+        f"- `commodities[*].kind`: `{format_enum_pipe(commodity_kinds)}`\n"
+        f"- `technologies[*].inputs[*].basis`: `{format_enum_pipe(flow_bases)}`\n"
+        "- `technologies[*].performance.kind`: "
+        f"`{format_enum_pipe(performance_kinds)}`\n"
+        f"- `spatial_layers[*].kind`: `{format_enum_pipe(spatial_layer_kinds)}`\n"
+        "- `region_partitions[*].mapping.kind`: "
+        f"`{format_enum_pipe(partition_mapping_kinds)}`\n"
+        "- `facilities[*].stock.items[*].metric`: "
+        f"`{format_enum_pipe(stock_metrics)}`"
     )
     llms_canonical_enums_md = (
         "### Canonical Enums (Schema-Derived)\n\n"
@@ -87,9 +166,19 @@ def _specs(repo_root: Path) -> list[BlockSpec]:
             body=canonical_scenario_categories_md,
         ),
         BlockSpec(
+            path=repo_root / "README.md",
+            marker="minimal-example-enums",
+            body=minimal_example_enums_md,
+        ),
+        BlockSpec(
             path=repo_root / "AGENTS.md",
             marker="scenario-categories",
             body=canonical_scenario_categories_md,
+        ),
+        BlockSpec(
+            path=repo_root / "docs" / "vedalang-user" / "tutorial.md",
+            marker="minimal-example-enums",
+            body=minimal_example_enums_md,
         ),
     ]
 

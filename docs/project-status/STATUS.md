@@ -22,6 +22,9 @@ Current `bd` state: all rollout and cleanup issues are closed.
 
 ## Recently Completed
 
+- `vedalang-5o0` — documented enum-backed README/tutorial fields and clarified
+  that scenario categories are currently a runtime convention rather than a
+  `vedalang.schema.json` enum
 - `vedalang-bzb` — clarified that `region_partitions` group underlying spatial
   members into compile-time model regions in the minimal example docs
 - `vedalang-d4l` — aligned the README filename guidance with current compiler

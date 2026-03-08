@@ -7,6 +7,18 @@ with one service commodity, one technology, one facility, and one run.
 
 Create `my_first_model.veda.yaml` with this content:
 
+<!-- GENERATED:minimal-example-enums:start -->
+### Enum-backed Fields In This Example
+
+- `dsl_version`: `0.2`
+- `commodities[*].kind`: `primary | secondary | service | emission | material | certificate`
+- `technologies[*].inputs[*].basis`: `HHV | LHV`
+- `technologies[*].performance.kind`: `efficiency | cop | custom`
+- `spatial_layers[*].kind`: `polygon | point | grid`
+- `region_partitions[*].mapping.kind`: `constant | file | spatial_join`
+- `facilities[*].stock.items[*].metric`: `asset_count | installed_capacity | annual_activity`
+<!-- GENERATED:minimal-example-enums:end -->
+
 ```yaml
 # Schema version for this model file.
 dsl_version: "0.2"

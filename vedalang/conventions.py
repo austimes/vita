@@ -1,4 +1,4 @@
-"""Canonical modeling conventions derived from the VedaLang schema.
+"""Canonical modeling conventions from the VedaLang schema and runtime defaults.
 
 This module is the single runtime source for canonical enum values used by:
 - compiler validation
@@ -127,8 +127,13 @@ def split_commodity_namespace(commodity_id: str) -> tuple[str | None, str]:
         return None, commodity_id if isinstance(commodity_id, str) else ""
     namespace, _, base = commodity_id.partition(":")
     return namespace, base
+
+
 def scenario_category_enum() -> tuple[str, ...]:
-    """Canonical scenario category enum from schema."""
+    """Canonical scenario category values.
+
+    Prefer schema values when available, else fall back to runtime defaults.
+    """
     enum = _load_schema().get("$defs", {}).get("category", {}).get("enum")
     if isinstance(enum, list) and enum and all(isinstance(x, str) for x in enum):
         return tuple(enum)

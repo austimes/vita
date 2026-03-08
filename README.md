@@ -17,7 +17,7 @@ VedaLang uses precise terminology to avoid ambiguity:
 | Term | Definition |
 |------|------------|
 | **Scenario Parameter** | An atomic time-series or value assumption (e.g., CO2 price path, demand projection) |
-| **Category** | Logical grouping of scenario parameters (canonical enum below) |
+| **Category** | Logical grouping of scenario parameters (canonical values listed below) |
 | **Case** | A named combination of scenario parameters for a specific model run (e.g., `baseline`, `ambitious`) |
 | **Study** | A collection of cases for comparison |
 | **Technology Role** | Service-oriented contract listing the technologies that may satisfy it |
@@ -29,6 +29,11 @@ VedaLang uses precise terminology to avoid ambiguity:
 <!-- GENERATED:scenario-categories:start -->
 **Canonical scenario categories:** `demands` | `prices` | `policies` | `technology_assumptions` | `resource_availability` | `global_settings`
 <!-- GENERATED:scenario-categories:end -->
+
+These category names are currently a compiler/runtime convention for
+`scen_{case}_{category}.xlsx` naming. They are not yet declared as a
+`vedalang.schema.json` enum because scenario workbooks are outside the authored
+v0.2 DSL surface.
 
 **Current compiler output:** `syssettings.xlsx` and `vt_{book}_{run}.xlsx` (lowercase)
 
@@ -53,7 +58,7 @@ This separation distinguishes between:
 The repo keeps LLM-facing guidance split by persona, with explicit ownership:
 
 - [docs/LLM_DOCS.md](docs/LLM_DOCS.md) — full index of each LLM-facing file, purpose, and source-of-truth
-- `vedalang/schema/vedalang.schema.json` — canonical enums and syntax truth
+- `vedalang/schema/vedalang.schema.json` — canonical authored-DSL enums and syntax truth
 - `vedalang/conventions.py` — canonical runtime accessors used by compiler, linter, and LLM prompts
 - `docs/vedalang-user/modeling-conventions.md` — canonical modeling conventions guidance text
 - `skills/vedalang-dsl-cli/SKILL.md` — canonical user-agent DSL+CLI skill
@@ -132,6 +137,18 @@ for supported quantity strings and backend attribute mapping details.
 - `uv run vedalang validate <model>.veda.yaml --run <run_id>`: full compile + oracle validation
 
 ### Minimal Example
+
+<!-- GENERATED:minimal-example-enums:start -->
+### Enum-backed Fields In This Example
+
+- `dsl_version`: `0.2`
+- `commodities[*].kind`: `primary | secondary | service | emission | material | certificate`
+- `technologies[*].inputs[*].basis`: `HHV | LHV`
+- `technologies[*].performance.kind`: `efficiency | cop | custom`
+- `spatial_layers[*].kind`: `polygon | point | grid`
+- `region_partitions[*].mapping.kind`: `constant | file | spatial_join`
+- `facilities[*].stock.items[*].metric`: `asset_count | installed_capacity | annual_activity`
+<!-- GENERATED:minimal-example-enums:end -->
 
 ```yaml
 # Schema version for this model file.

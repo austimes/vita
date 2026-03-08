@@ -121,13 +121,18 @@ VedaLang uses precise terminology to avoid ambiguity in the VEDA ecosystem:
 | Term | Definition |
 |------|------------|
 | **Scenario Parameter** | An atomic time-series or value assumption (e.g., CO2 price path, demand projection) |
-| **Category** | Logical grouping of scenario parameters (canonical enum below) |
+| **Category** | Logical grouping of scenario parameters (canonical values listed below) |
 | **Case** | A named combination of scenario parameters for a specific model run (e.g., `baseline`, `ambitious`) |
 | **Study** | A collection of cases for comparison |
 
 <!-- GENERATED:scenario-categories:start -->
 **Canonical scenario categories:** `demands` | `prices` | `policies` | `technology_assumptions` | `resource_availability` | `global_settings`
 <!-- GENERATED:scenario-categories:end -->
+
+These category names are currently a compiler/runtime convention for
+`scen_{case}_{category}.xlsx` naming. They are not yet declared as a
+`vedalang.schema.json` enum because scenario workbooks are outside the authored
+v0.2 DSL surface.
 
 **Key distinctions:**
 - **Model architecture** (VT_* files): processes, commodities, topology — the Reference Energy System
