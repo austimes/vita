@@ -25,6 +25,9 @@ formatting task remains open.
 
 ## Recently Completed
 
+- `vedalang-4p6` — strengthened dark-mode browser RES label hierarchy with a
+  heavier semantic top line and a separated, dimmer metadata block for
+  provenance lines
 - `vedalang-20i` — switched the browser RES viewer to an overlay label layer
   for process nodes so semantic top lines render stronger and provenance lines
   render lighter
