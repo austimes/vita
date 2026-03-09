@@ -27,6 +27,10 @@ issues remain open.
 
 ## Recently Completed
 
+- `vedalang-532` — fixed the browser RES viewer's duplicate VEDA tray shell by
+  making the hidden tray and hidden collapsed-bar actually leave layout, so the
+  tray now collapses to a single reopen handle instead of leaving an inert
+  middle container behind
 - `vedalang-b72` — trimmed the browser RES inspector so it only renders
   DSL, resolved semantic, and lowered IR sections, added a real collapsible
   bottom VEDA tray handle so the tray can reopen without toggling tables off,
