@@ -29,6 +29,10 @@ issues remain open.
 
 ## Recently Completed
 
+- `vedalang-wdu` — replaced the RES viewer's right-pane `VEDA/TIMES`
+  inspector section with a toggle-controlled bottom tray that renders the
+  actual emitted VEDA tables for selected system-lens process and commodity
+  nodes, backed by stable per-table inspector row identities
 - `vedalang-apz` — added a layered RES viewer inspector with collapsible
   `DSL attributes`, `Resolved semantic model`, `Lowered IR`, and `VEDA/TIMES`
   sections for process and commodity nodes, including collapsed-commodity

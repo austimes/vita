@@ -66,6 +66,12 @@
           </div>
 
           <div class="control-card">
+            <h2>VEDA Tables</h2>
+            <p id="vedaTablesHint" class="control-hint">Enable rendered VEDA/TIMES tables for the current selection.</p>
+            <div id="vedaTablesControls" class="option-list"></div>
+          </div>
+
+          <div class="control-card">
             <h2>Regions</h2>
             <p class="control-hint">Ctrl/Cmd-click for multi-select.</p>
             <div id="regionButtons" class="option-list"></div>
@@ -85,13 +91,22 @@
         </section>
 
         <main class="res-main">
-          <div id="graph"></div>
-          <aside class="details-pane">
-            <h2>Diagnostics</h2>
-            <pre id="diagnostics"></pre>
-            <h2>Details</h2>
-            <div id="detailsInspector" class="details-inspector"></div>
-          </aside>
+          <section class="res-main-top">
+            <div id="graph"></div>
+            <aside class="details-pane">
+              <h2>Diagnostics</h2>
+              <pre id="diagnostics"></pre>
+              <h2>Details</h2>
+              <div id="detailsInspector" class="details-inspector"></div>
+            </aside>
+          </section>
+          <section id="vedaTray" class="veda-tray" hidden>
+            <div class="veda-tray-topbar">
+              <div id="vedaTrayHeader" class="veda-tray-header"></div>
+              <button id="closeVedaTrayBtn" class="refresh-btn veda-tray-close-btn" type="button">Hide</button>
+            </div>
+            <div id="vedaTrayContent" class="veda-tray-content"></div>
+          </section>
         </main>
       </section>
     </section>

@@ -10,6 +10,17 @@ EXAMPLES_DIR = Path(__file__).resolve().parent.parent / "vedalang" / "examples"
 
 def _section_by_key(inspector: dict, key: str) -> dict:
     return next(section for section in inspector["sections"] if section["key"] == key)
+
+
+def _assert_table_row_ref_contract(row_ref: dict) -> None:
+    assert "table_index" in row_ref
+    assert isinstance(row_ref["table_index"], int)
+    assert "table_key" in row_ref
+    assert row_ref["table_key"] == (
+        f'{row_ref["file"]}::{row_ref["sheet"]}::{row_ref["table_index"]}::{row_ref["tag"]}'
+    )
+
+
 ROLE_REFOR_LABEL = (
     "farm_carbon_management\n"
     "reforestation_rollout@SINGLE\n"
@@ -117,10 +128,17 @@ def test_compiled_instance_query_returns_process_nodes():
     assert inspector["node_type"] == "instance"
     assert _section_by_key(inspector, "dsl")["default_open"] is True
     assert _section_by_key(inspector, "lowered")["items"][0]["kind"] == "cpir_process"
+    veda = _section_by_key(inspector, "veda")
     assert (
-        _section_by_key(inspector, "veda")["items"][0]["attributes"]["manifest_entry"]
-        is not None
+        veda["items"][0]["attributes"]["manifest_entry"] is not None
     )
+    process_rows = veda["items"][0]["attributes"]["fi_process_rows"]
+    fi_t_rows = veda["items"][0]["attributes"]["fi_t_rows"]
+    assert process_rows
+    assert fi_t_rows
+    _assert_table_row_ref_contract(process_rows[0])
+    _assert_table_row_ref_contract(fi_t_rows[0])
+    assert all(row["table_key"] == process_rows[0]["table_key"] for row in process_rows)
 
 
 def test_trade_query_exposes_network_edges():
@@ -329,6 +347,13 @@ def test_commodity_inspector_reports_usage_lists():
     assert usage["consumed_by"] == []
     veda = _section_by_key(inspector, "veda")
     assert veda["items"][0]["attributes"]["manifest_entry"] is not None
+    fi_comm_rows = veda["items"][0]["attributes"]["times_summary"]["fi_comm_rows"]
+    fi_t_rows = veda["items"][0]["attributes"]["times_summary"]["fi_t_rows"]
+    assert fi_comm_rows
+    assert fi_t_rows
+    _assert_table_row_ref_contract(fi_comm_rows[0])
+    _assert_table_row_ref_contract(fi_t_rows[0])
+    assert all(row["table_key"] == fi_comm_rows[0]["table_key"] for row in fi_comm_rows)
 
 
 def test_source_mode_inspector_marks_veda_section_partial_without_manifest():
@@ -354,6 +379,7 @@ def test_source_mode_inspector_marks_veda_section_partial_without_manifest():
     assert veda["status"] == "partial"
     assert veda["items"]
     assert veda["items"][0]["attributes"]["fi_process_rows"]
+    _assert_table_row_ref_contract(veda["items"][0]["attributes"]["fi_process_rows"][0])
 
 
 def test_collapse_scope_inspector_tracks_all_underlying_commodities(tmp_path):

@@ -81,6 +81,8 @@ class SourceLocator:
 class TableRowRef:
     file: str
     sheet: str
+    table_index: int
+    table_key: str
     tag: str
     row: dict[str, Any]
 
@@ -191,8 +193,9 @@ def _table_indexes(tableir: dict[str, Any] | None) -> TableIndexes:
         file_path = str(file_def.get("path", ""))
         for sheet in file_def.get("sheets", []):
             sheet_name = str(sheet.get("name", ""))
-            for table in sheet.get("tables", []):
+            for table_index, table in enumerate(sheet.get("tables", [])):
                 tag = str(table.get("tag", ""))
+                table_key = f"{file_path}::{sheet_name}::{table_index}::{tag}"
                 rows = table.get("rows", [])
                 if not isinstance(rows, list):
                     continue
@@ -204,6 +207,8 @@ def _table_indexes(tableir: dict[str, Any] | None) -> TableIndexes:
                             TableRowRef(
                                 file=file_path,
                                 sheet=sheet_name,
+                                table_index=table_index,
+                                table_key=table_key,
                                 tag=tag,
                                 row=row,
                             )

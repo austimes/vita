@@ -202,6 +202,15 @@ h1 {
   border-color: var(--button-active-border);
 }
 
+.option-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.option-btn:disabled:hover {
+  border-color: var(--button-border);
+}
+
 .option-btn.is-active {
   background: var(--button-active);
   color: #00101a;
@@ -233,6 +242,13 @@ h1 {
 }
 
 .res-main {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+
+.res-main-top {
   display: grid;
   grid-template-columns: 2fr 1fr;
   min-height: 0;
@@ -394,6 +410,163 @@ h1 {
   margin: 0;
 }
 
+.details-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  border: 1px dashed var(--button-border);
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
+.veda-tray {
+  display: flex;
+  flex-direction: column;
+  min-height: 220px;
+  height: 32vh;
+  max-height: 420px;
+  border-top: 1px solid var(--panel-border);
+  background: #0d1525;
+}
+
+.veda-tray-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.veda-tray-close-btn {
+  flex: none;
+}
+
+.veda-tray-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.veda-tray-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.veda-tray-title {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.veda-tray-badge {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #f59e0b;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fbbf24;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.veda-tray-status {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.veda-tray-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 16px;
+  overflow: auto;
+}
+
+.veda-tray-placeholder {
+  font-size: 12px;
+  color: var(--text-muted);
+  border: 1px dashed var(--button-border);
+  border-radius: 8px;
+  padding: 12px;
+  background: rgba(11, 18, 32, 0.45);
+}
+
+.veda-table-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 12px;
+  background: rgba(15, 23, 42, 0.35);
+}
+
+.veda-table-card-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.veda-table-card-tag {
+  font-size: 13px;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.veda-table-card-meta {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.veda-table-wrap {
+  overflow: auto;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  background: #0b1220;
+}
+
+.veda-table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.veda-table th,
+.veda-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid rgba(55, 65, 81, 0.7);
+  border-right: 1px solid rgba(55, 65, 81, 0.4);
+  text-align: left;
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+.veda-table th:last-child,
+.veda-table td:last-child {
+  border-right: none;
+}
+
+.veda-table thead th {
+  position: sticky;
+  top: 0;
+  background: #111827;
+  z-index: 1;
+  color: #f8fafc;
+}
+
+.veda-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
 pre {
   background: #0b1220;
   border: 1px solid var(--panel-border);
@@ -456,7 +629,7 @@ pre {
     justify-content: space-between;
   }
 
-  .res-main {
+  .res-main-top {
     grid-template-columns: 1fr;
   }
 
@@ -467,5 +640,14 @@ pre {
 
   .controls {
     grid-template-columns: 1fr;
+  }
+
+  .veda-tray {
+    height: 36vh;
+  }
+
+  .veda-tray-topbar,
+  .veda-table-card-header {
+    flex-direction: column;
   }
 }
