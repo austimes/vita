@@ -16,88 +16,112 @@
         <h1>RES Viewer</h1>
         <div id="status">Ready</div>
       </div>
-      <button id="refreshBtn" class="refresh-btn" type="button">Refresh</button>
+      <div class="header-actions">
+        <button id="resetViewBtn" class="refresh-btn" type="button">Reset View</button>
+        <button id="toggleInspectorBtn" class="refresh-btn" type="button">Hide Inspector</button>
+        <button id="refreshBtn" class="refresh-btn" type="button">Refresh</button>
+      </div>
     </header>
 
     <section class="workspace">
-      <aside class="file-sidebar" id="fileSidebar">
+      <aside class="left-sidebar" id="fileSidebar">
         <div class="sidebar-header">
-          <h2 id="fileSidebarTitle">Model Files</h2>
-          <button id="toggleSidebarBtn" class="sidebar-toggle" type="button" title="Collapse file sidebar">◀</button>
+          <h2 id="fileSidebarTitle">Explorer</h2>
+          <button id="toggleSidebarBtn" class="sidebar-toggle" type="button" title="Collapse left sidebar">◀</button>
         </div>
-        <div class="sidebar-nav">
-          <button id="upDirBtn" class="sidebar-up-btn" type="button">Up</button>
-          <div id="currentDirLabel" class="current-dir-label"></div>
-          <div id="selectedFileLabel" class="selected-file-label"></div>
+        <div class="sidebar-tabs" id="sidebarTabs">
+          <button class="sidebar-tab is-active" type="button" data-panel="files">Files</button>
+          <button class="sidebar-tab" type="button" data-panel="view">View</button>
+          <button class="sidebar-tab" type="button" data-panel="filters">Filters</button>
         </div>
-        <div id="fileButtons" class="option-list file-list"></div>
+
+        <div class="sidebar-panels">
+          <section class="sidebar-panel" id="sidebarPanelFiles" data-panel="files">
+            <div class="sidebar-nav">
+              <button id="upDirBtn" class="sidebar-up-btn" type="button">Up</button>
+              <div id="currentDirLabel" class="current-dir-label"></div>
+              <div id="selectedFileLabel" class="selected-file-label"></div>
+            </div>
+            <div id="fileButtons" class="option-list file-list"></div>
+          </section>
+
+          <section class="sidebar-panel" id="sidebarPanelView" data-panel="view" hidden>
+            <div class="control-card">
+              <h2>Mode</h2>
+              <div id="modeButtons" class="option-list"></div>
+            </div>
+
+            <div class="control-card">
+              <h2>Granularity</h2>
+              <div id="granularityButtons" class="option-list"></div>
+            </div>
+
+            <div class="control-card">
+              <h2>Lens</h2>
+              <div id="lensButtons" class="option-list"></div>
+            </div>
+
+            <div class="control-card">
+              <h2>Commodity View</h2>
+              <div id="commodityViewButtons" class="option-list"></div>
+            </div>
+
+            <div class="control-card">
+              <h2>Case</h2>
+              <div id="caseButtons" class="option-list"></div>
+            </div>
+
+            <div class="control-card">
+              <h2>Run</h2>
+              <div id="runButtons" class="option-list"></div>
+            </div>
+
+            <div class="control-card">
+              <h2>VEDA Tables</h2>
+              <p id="vedaTablesHint" class="control-hint">Enable rendered VEDA/TIMES tables for the current selection.</p>
+              <div id="vedaTablesControls" class="option-list"></div>
+            </div>
+          </section>
+
+          <section class="sidebar-panel" id="sidebarPanelFilters" data-panel="filters" hidden>
+            <div class="control-card">
+              <h2>Regions</h2>
+              <p class="control-hint">Ctrl/Cmd-click for multi-select.</p>
+              <div id="regionButtons" class="option-list"></div>
+            </div>
+
+            <div class="control-card">
+              <h2>Sectors</h2>
+              <p class="control-hint">Ctrl/Cmd-click for multi-select.</p>
+              <div id="sectorButtons" class="option-list"></div>
+            </div>
+
+            <div class="control-card">
+              <h2>Scopes</h2>
+              <p class="control-hint">Ctrl/Cmd-click for multi-select.</p>
+              <div id="scopeButtons" class="option-list"></div>
+            </div>
+          </section>
+        </div>
       </aside>
 
       <section class="main-panel">
-        <section class="controls">
-          <div class="control-card">
-            <h2>Mode</h2>
-            <div id="modeButtons" class="option-list"></div>
-          </div>
-
-          <div class="control-card">
-            <h2>Granularity</h2>
-            <div id="granularityButtons" class="option-list"></div>
-          </div>
-
-          <div class="control-card">
-            <h2>Lens</h2>
-            <div id="lensButtons" class="option-list"></div>
-          </div>
-
-          <div class="control-card">
-            <h2>Commodity View</h2>
-            <div id="commodityViewButtons" class="option-list"></div>
-          </div>
-
-          <div class="control-card">
-            <h2>Case</h2>
-            <div id="caseButtons" class="option-list"></div>
-          </div>
-
-          <div class="control-card">
-            <h2>Run</h2>
-            <div id="runButtons" class="option-list"></div>
-          </div>
-
-          <div class="control-card">
-            <h2>VEDA Tables</h2>
-            <p id="vedaTablesHint" class="control-hint">Enable rendered VEDA/TIMES tables for the current selection.</p>
-            <div id="vedaTablesControls" class="option-list"></div>
-          </div>
-
-          <div class="control-card">
-            <h2>Regions</h2>
-            <p class="control-hint">Ctrl/Cmd-click for multi-select.</p>
-            <div id="regionButtons" class="option-list"></div>
-          </div>
-
-          <div class="control-card">
-            <h2>Sectors</h2>
-            <p class="control-hint">Ctrl/Cmd-click for multi-select.</p>
-            <div id="sectorButtons" class="option-list"></div>
-          </div>
-
-          <div class="control-card">
-            <h2>Scopes</h2>
-            <p class="control-hint">Ctrl/Cmd-click for multi-select.</p>
-            <div id="scopeButtons" class="option-list"></div>
-          </div>
-        </section>
-
         <main class="res-main">
-          <section class="res-main-top">
+          <section class="res-main-top" id="resMainTop">
             <div id="graph"></div>
-            <aside class="details-pane">
-              <h2>Diagnostics</h2>
-              <pre id="diagnostics"></pre>
-              <h2>Details</h2>
+            <div id="detailsResizeHandle" class="pane-resize-handle" aria-hidden="true"></div>
+            <aside class="details-pane" id="detailsPane">
+              <div class="details-pane-header">
+                <h2>Inspector</h2>
+                <button id="toggleDetailsPaneBtn" class="refresh-btn details-toggle-btn" type="button">Hide</button>
+              </div>
               <div id="detailsInspector" class="details-inspector"></div>
+              <details id="diagnosticsSection" class="details-section diagnostics-section">
+                <summary id="diagnosticsSummary">Diagnostics</summary>
+                <div class="details-section-body">
+                  <pre id="diagnostics"></pre>
+                </div>
+              </details>
             </aside>
           </section>
           <section id="vedaTray" class="veda-tray" hidden>

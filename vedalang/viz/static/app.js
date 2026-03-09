@@ -2,9 +2,21 @@ let cy = null;
 let lastResponse = null;
 let labelLayer = null;
 let labelRefreshScheduled = false;
+let viewportResetScheduled = false;
+let windowResizeTimer = null;
 
 const SIDEBAR_STORAGE_KEY = "vedalang.viz.sidebarCollapsed";
+const SIDEBAR_TAB_STORAGE_KEY = "vedalang.viz.sidebarTab";
+const DETAILS_PANE_STORAGE_KEY = "vedalang.viz.detailsPaneCollapsed";
+const DETAILS_PANE_WIDTH_STORAGE_KEY = "vedalang.viz.detailsPaneWidth";
 const VEDA_TABLES_STORAGE_KEY = "vedalang.viz.vedaTablesEnabled";
+const SIDEBAR_TABS = new Set(["files", "view", "filters"]);
+const PROCESS_NODE_WIDTH = 184;
+const PROCESS_NODE_HEIGHT = 96;
+const PROCESS_LABEL_WIDTH = 164;
+const DEFAULT_DETAILS_PANE_WIDTH = 360;
+const MIN_DETAILS_PANE_WIDTH = 280;
+const MAX_DETAILS_PANE_WIDTH = 620;
 
 const MODE_OPTIONS = [
   { value: "compiled", label: "compiled" },
@@ -32,7 +44,6 @@ const PROCESS_NODE_TYPES = new Set([
   "role",
   "instance",
 ]);
-const MAX_AUTO_FIT_ZOOM = 1.6;
 
 const state = {
   file: "",
@@ -55,6 +66,9 @@ const state = {
   parentDir: null,
   currentEntries: [],
   sidebarCollapsed: false,
+  activeSidebarTab: "files",
+  detailsPaneCollapsed: false,
+  detailsPaneWidth: DEFAULT_DETAILS_PANE_WIDTH,
   vedaTablesEnabled: false,
   selectedNodeId: "",
   selectedSelectionType: "",
@@ -89,6 +103,14 @@ function relativeToWorkspace(path) {
   return rel || ".";
 }
 
+function savePreference(key, value) {
+  try {
+    localStorage.setItem(key, value);
+  } catch (error) {
+    void error;
+  }
+}
+
 function setSidebarCollapsed(collapsed) {
   state.sidebarCollapsed = collapsed;
   const appRoot = document.getElementById("appRoot");
@@ -96,13 +118,9 @@ function setSidebarCollapsed(collapsed) {
 
   appRoot.classList.toggle("sidebar-collapsed", collapsed);
   toggleButton.textContent = collapsed ? "▶" : "◀";
-  toggleButton.title = collapsed ? "Expand file sidebar" : "Collapse file sidebar";
-
-  try {
-    localStorage.setItem(SIDEBAR_STORAGE_KEY, collapsed ? "1" : "0");
-  } catch (error) {
-    void error;
-  }
+  toggleButton.title = collapsed ? "Expand left sidebar" : "Collapse left sidebar";
+  savePreference(SIDEBAR_STORAGE_KEY, collapsed ? "1" : "0");
+  scheduleViewportReset();
 }
 
 function loadSidebarPreference() {
@@ -114,13 +132,83 @@ function loadSidebarPreference() {
   }
 }
 
-function setVedaTablesEnabled(enabled) {
-  state.vedaTablesEnabled = enabled;
+function setSidebarTab(tab) {
+  const nextTab = SIDEBAR_TABS.has(tab) ? tab : "files";
+  state.activeSidebarTab = nextTab;
+  document.querySelectorAll(".sidebar-tab").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.panel === nextTab);
+  });
+  document.querySelectorAll(".sidebar-panel").forEach((panel) => {
+    panel.hidden = panel.dataset.panel !== nextTab;
+  });
+  savePreference(SIDEBAR_TAB_STORAGE_KEY, nextTab);
+}
+
+function loadSidebarTabPreference() {
   try {
-    localStorage.setItem(VEDA_TABLES_STORAGE_KEY, enabled ? "1" : "0");
+    const stored = localStorage.getItem(SIDEBAR_TAB_STORAGE_KEY);
+    return SIDEBAR_TABS.has(stored) ? stored : "files";
   } catch (error) {
     void error;
+    return "files";
   }
+}
+
+function clampDetailsPaneWidth(width) {
+  if (!Number.isFinite(width)) {
+    return DEFAULT_DETAILS_PANE_WIDTH;
+  }
+  return Math.max(MIN_DETAILS_PANE_WIDTH, Math.min(MAX_DETAILS_PANE_WIDTH, Math.round(width)));
+}
+
+function setDetailsPaneWidth(width, { persist = true } = {}) {
+  const nextWidth = clampDetailsPaneWidth(width);
+  state.detailsPaneWidth = nextWidth;
+  document.getElementById("appRoot").style.setProperty("--details-pane-width", `${nextWidth}px`);
+  if (persist) {
+    savePreference(DETAILS_PANE_WIDTH_STORAGE_KEY, String(nextWidth));
+  }
+}
+
+function loadDetailsPaneWidthPreference() {
+  try {
+    const raw = Number(localStorage.getItem(DETAILS_PANE_WIDTH_STORAGE_KEY));
+    return clampDetailsPaneWidth(raw);
+  } catch (error) {
+    void error;
+    return DEFAULT_DETAILS_PANE_WIDTH;
+  }
+}
+
+function updateInspectorToggleButtons(collapsed) {
+  const headerButton = document.getElementById("toggleInspectorBtn");
+  const paneButton = document.getElementById("toggleDetailsPaneBtn");
+  headerButton.textContent = collapsed ? "Show Inspector" : "Hide Inspector";
+  headerButton.title = collapsed ? "Show inspector sidebar" : "Hide inspector sidebar";
+  paneButton.textContent = collapsed ? "Show" : "Hide";
+  paneButton.title = collapsed ? "Show inspector sidebar" : "Hide inspector sidebar";
+}
+
+function setDetailsPaneCollapsed(collapsed) {
+  state.detailsPaneCollapsed = collapsed;
+  document.getElementById("appRoot").classList.toggle("details-collapsed", collapsed);
+  updateInspectorToggleButtons(collapsed);
+  savePreference(DETAILS_PANE_STORAGE_KEY, collapsed ? "1" : "0");
+  scheduleViewportReset();
+}
+
+function loadDetailsPaneCollapsedPreference() {
+  try {
+    return localStorage.getItem(DETAILS_PANE_STORAGE_KEY) === "1";
+  } catch (error) {
+    void error;
+    return false;
+  }
+}
+
+function setVedaTablesEnabled(enabled) {
+  state.vedaTablesEnabled = enabled;
+  savePreference(VEDA_TABLES_STORAGE_KEY, enabled ? "1" : "0");
 }
 
 function loadVedaTablesPreference() {
@@ -244,6 +332,16 @@ function renderSourceLocation(container, sourceLocation) {
 function renderRawDetails(details) {
   const container = clearDetailsInspector();
   container.appendChild(createJsonPre(details));
+}
+
+function renderDiagnostics(diagnostics) {
+  const items = Array.isArray(diagnostics) ? diagnostics : [];
+  const section = document.getElementById("diagnosticsSection");
+  const summary = document.getElementById("diagnosticsSummary");
+  const container = document.getElementById("diagnostics");
+  summary.textContent = items.length ? `Diagnostics (${items.length})` : "Diagnostics";
+  container.textContent = JSON.stringify(items, null, 2);
+  section.open = items.length > 0;
 }
 
 function getVedaSection(inspector) {
@@ -940,8 +1038,8 @@ function buildAlternatingColumnPositions(nodes, graphEdges) {
     }
   }
 
-  const columnGap = 170;
-  const yGap = 88;
+  const columnGap = 220;
+  const yGap = 116;
   const positions = {};
   for (const col of sortedColumns) {
     const bucket = columns.get(col) || [];
@@ -957,12 +1055,24 @@ function buildAlternatingColumnPositions(nodes, graphEdges) {
   return positions;
 }
 
-function fitViewportWithZoomCap() {
-  cy.fit(cy.elements(), 40);
-  if (cy.zoom() > MAX_AUTO_FIT_ZOOM) {
-    cy.zoom(MAX_AUTO_FIT_ZOOM);
-    cy.center();
+function resetGraphViewport() {
+  if (!cy || cy.elements().length === 0) {
+    return;
   }
+  cy.fit(cy.elements(), 48);
+  cy.center();
+  scheduleProcessLabelRefresh();
+}
+
+function scheduleViewportReset() {
+  if (viewportResetScheduled) {
+    return;
+  }
+  viewportResetScheduled = true;
+  window.requestAnimationFrame(() => {
+    viewportResetScheduled = false;
+    resetGraphViewport();
+  });
 }
 
 function ensureLabelLayer() {
@@ -1006,6 +1116,7 @@ function refreshProcessLabelLayer() {
     labelEl.className = `graph-process-label ${nodeType === "role" ? "is-role" : "is-instance"}`;
     labelEl.style.left = `${position.x}px`;
     labelEl.style.top = `${position.y}px`;
+    labelEl.style.width = `${PROCESS_LABEL_WIDTH}px`;
 
     const primaryEl = document.createElement("div");
     primaryEl.className = "graph-process-label-primary";
@@ -1171,8 +1282,8 @@ function initCy() {
         selector: 'node[type="role"], node[type="instance"]',
         style: {
           label: "",
-          width: 148,
-          height: 84,
+          width: PROCESS_NODE_WIDTH,
+          height: PROCESS_NODE_HEIGHT,
           padding: 8,
         },
       },
@@ -1287,7 +1398,7 @@ function renderGraph(response) {
       fit: false,
       animate: false,
     }).run();
-    fitViewportWithZoomCap();
+    resetGraphViewport();
   } else {
     cy.layout({
       name: "dagre",
@@ -1298,10 +1409,10 @@ function renderGraph(response) {
       fit: false,
       animate: false,
     }).run();
-    fitViewportWithZoomCap();
+    resetGraphViewport();
   }
 
-  document.getElementById("diagnostics").textContent = JSON.stringify(response.diagnostics || [], null, 2);
+  renderDiagnostics(response.diagnostics || []);
   renderSelectionFromState();
   scheduleProcessLabelRefresh();
 }
@@ -1321,7 +1432,7 @@ function createOptionButton({ label, active, title, className, disabled, onClick
     }
     Promise.resolve(onClick(event)).catch((error) => {
       setStatus("Sidebar action failed");
-      document.getElementById("diagnostics").textContent = String(error);
+      renderDiagnostics([{ severity: "error", message: String(error) }]);
     });
   });
   return button;
@@ -1545,6 +1656,7 @@ function renderVedaTablesControl() {
 
 function renderControls() {
   renderFileExplorer();
+  setSidebarTab(state.activeSidebarTab);
 
   renderSingleGroup("modeButtons", MODE_OPTIONS, state.mode, (value) => {
     state.mode = value;
@@ -1692,7 +1804,7 @@ async function runQuery() {
     setStatus(`${data.status} (${data.mode_used})`);
   } catch (error) {
     setStatus("Query failed");
-    document.getElementById("diagnostics").textContent = String(error);
+    renderDiagnostics([{ severity: "error", message: String(error) }]);
   }
 }
 
@@ -1731,14 +1843,28 @@ async function loadDirectory(targetDir) {
 }
 
 function wireControls() {
+  document.getElementById("resetViewBtn").addEventListener("click", () => {
+    resetGraphViewport();
+  });
   document.getElementById("refreshBtn").addEventListener("click", () => runQuery());
   document.getElementById("toggleSidebarBtn").addEventListener("click", () => {
     setSidebarCollapsed(!state.sidebarCollapsed);
   });
+  document.querySelectorAll(".sidebar-tab").forEach((button) => {
+    button.addEventListener("click", () => {
+      setSidebarTab(button.dataset.panel);
+    });
+  });
+  const toggleDetails = () => {
+    setDetailsPaneCollapsed(!state.detailsPaneCollapsed);
+  };
+  document.getElementById("toggleInspectorBtn").addEventListener("click", toggleDetails);
+  document.getElementById("toggleDetailsPaneBtn").addEventListener("click", toggleDetails);
   document.getElementById("closeVedaTrayBtn").addEventListener("click", () => {
     setVedaTablesEnabled(false);
     renderControls();
     renderSelectionFromState();
+    scheduleViewportReset();
   });
   document.getElementById("upDirBtn").addEventListener("click", async () => {
     if (!state.parentDir) {
@@ -1746,20 +1872,55 @@ function wireControls() {
     }
     await loadDirectory(state.parentDir);
   });
+  document.getElementById("detailsResizeHandle").addEventListener("pointerdown", (event) => {
+    if (state.detailsPaneCollapsed) {
+      return;
+    }
+    const appRoot = document.getElementById("appRoot");
+    const container = document.getElementById("resMainTop");
+    appRoot.classList.add("is-resizing");
+    const onPointerMove = (moveEvent) => {
+      const rect = container.getBoundingClientRect();
+      setDetailsPaneWidth(rect.right - moveEvent.clientX);
+      scheduleProcessLabelRefresh();
+    };
+    const onPointerUp = () => {
+      appRoot.classList.remove("is-resizing");
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+      scheduleViewportReset();
+    };
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+    event.preventDefault();
+  });
+  window.addEventListener("resize", () => {
+    scheduleProcessLabelRefresh();
+    if (windowResizeTimer) {
+      window.clearTimeout(windowResizeTimer);
+    }
+    windowResizeTimer = window.setTimeout(() => {
+      scheduleViewportReset();
+    }, 120);
+  });
 }
 
 async function bootstrap() {
   initCy();
   wireControls();
   setSidebarCollapsed(loadSidebarPreference());
+  setSidebarTab(loadSidebarTabPreference());
+  setDetailsPaneWidth(loadDetailsPaneWidthPreference(), { persist: false });
+  setDetailsPaneCollapsed(loadDetailsPaneCollapsedPreference());
   setVedaTablesEnabled(loadVedaTablesPreference());
+  renderDiagnostics([]);
 
   try {
     await loadDirectory();
     await runQuery();
   } catch (error) {
     setStatus("Failed to initialize sidebar");
-    document.getElementById("diagnostics").textContent = String(error);
+    renderDiagnostics([{ severity: "error", message: String(error) }]);
   }
 }
 

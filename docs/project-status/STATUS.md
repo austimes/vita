@@ -27,6 +27,11 @@ issues remain open.
 
 ## Recently Completed
 
+- `vedalang-1vn` — reworked the browser RES viewer shell so the graph is now
+  the dominant surface, moved controls into left `Files`/`View`/`Filters`
+  tabs, made the inspector collapsible and resizable on the right, added a
+  header `Reset View` action plus auto-fit on window resize, and enlarged the
+  process node/overlay sizing so labels stay contained more reliably
 - `vedalang-xxw` — removed region text from system-lens RES viewer labels,
   made region filtering affect graph construction, aggregated multi-region
   system nodes and edges across the selected regions, and surfaced normalized
