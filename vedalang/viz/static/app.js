@@ -109,6 +109,130 @@ function loadSidebarPreference() {
   }
 }
 
+function clearDetailsInspector() {
+  const container = document.getElementById("detailsInspector");
+  container.innerHTML = "";
+  return container;
+}
+
+function renderDetailsPlaceholder(text) {
+  const container = clearDetailsInspector();
+  const placeholder = document.createElement("div");
+  placeholder.className = "details-placeholder";
+  placeholder.textContent = text;
+  container.appendChild(placeholder);
+}
+
+function createJsonPre(value) {
+  const pre = document.createElement("pre");
+  pre.className = "details-pre";
+  pre.textContent = JSON.stringify(value, null, 2);
+  return pre;
+}
+
+function renderSourceLocation(container, sourceLocation) {
+  if (!sourceLocation) {
+    return;
+  }
+  const block = document.createElement("div");
+  block.className = "details-location";
+
+  const path = document.createElement("div");
+  path.className = "details-location-path";
+  const fileLabel = compactPath(sourceLocation.file || "");
+  const line = sourceLocation.line ? `:${sourceLocation.line}` : "";
+  path.textContent = `${fileLabel}${line}`;
+  block.appendChild(path);
+
+  if (sourceLocation.path) {
+    const ref = document.createElement("div");
+    ref.textContent = sourceLocation.path;
+    block.appendChild(ref);
+  }
+
+  if (sourceLocation.excerpt) {
+    block.appendChild(createJsonPre(sourceLocation.excerpt));
+  }
+  container.appendChild(block);
+}
+
+function renderRawDetails(details) {
+  const container = clearDetailsInspector();
+  container.appendChild(createJsonPre(details));
+}
+
+function renderInspector(inspector) {
+  const container = clearDetailsInspector();
+  if (!inspector || !Array.isArray(inspector.sections)) {
+    renderDetailsPlaceholder("No structured inspector data for this selection.");
+    return;
+  }
+
+  const title = document.createElement("div");
+  title.className = "details-title";
+  title.textContent = inspector.title || "Details";
+  container.appendChild(title);
+
+  if (inspector.summary) {
+    const summary = document.createElement("pre");
+    summary.className = "details-summary";
+    summary.textContent = JSON.stringify(inspector.summary, null, 2);
+    container.appendChild(summary);
+  }
+
+  inspector.sections.forEach((section) => {
+    const details = document.createElement("details");
+    details.className = "details-section";
+    details.open = Boolean(section.default_open);
+
+    const summary = document.createElement("summary");
+    summary.textContent = section.label || section.key || "Section";
+    details.appendChild(summary);
+
+    const body = document.createElement("div");
+    body.className = "details-section-body";
+
+    const status = document.createElement("div");
+    status.className = "details-section-status";
+    status.textContent = `Status: ${section.status || "ok"}`;
+    body.appendChild(status);
+
+    if (!Array.isArray(section.items) || section.items.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "details-placeholder";
+      empty.textContent = "No items";
+      body.appendChild(empty);
+    } else {
+      section.items.forEach((item) => {
+        const card = document.createElement("div");
+        card.className = "details-item";
+
+        const header = document.createElement("div");
+        header.className = "details-item-header";
+
+        const left = document.createElement("div");
+        left.className = "details-item-label";
+        const idText = item.id ? `: ${item.id}` : "";
+        left.textContent = `${item.label || item.kind || "item"}${idText}`;
+        header.appendChild(left);
+
+        const right = document.createElement("div");
+        right.className = "details-item-kind";
+        right.textContent = item.kind || "";
+        header.appendChild(right);
+
+        card.appendChild(header);
+        card.appendChild(createJsonPre(item.attributes || {}));
+        renderSourceLocation(card, item.source_location);
+        body.appendChild(card);
+      });
+    }
+
+    details.appendChild(body);
+    container.appendChild(details);
+  });
+}
+
 function getRequest() {
   return {
     version: "1",
@@ -611,13 +735,17 @@ function initCy() {
   cy.on("tap", "node", (event) => {
     const id = event.target.id();
     const details = (lastResponse && lastResponse.details && lastResponse.details.nodes[id]) || {};
-    document.getElementById("details").textContent = JSON.stringify(details, null, 2);
+    if (details.inspector) {
+      renderInspector(details.inspector);
+      return;
+    }
+    renderRawDetails(details);
   });
 
   cy.on("tap", "edge", (event) => {
     const id = event.target.id();
     const details = (lastResponse && lastResponse.details && lastResponse.details.edges[id]) || {};
-    document.getElementById("details").textContent = JSON.stringify(details, null, 2);
+    renderRawDetails(details);
   });
 
   cy.on("render layoutstop resize pan zoom", () => {
@@ -687,6 +815,7 @@ function renderGraph(response) {
   }
 
   document.getElementById("diagnostics").textContent = JSON.stringify(response.diagnostics || [], null, 2);
+  renderDetailsPlaceholder("Select a process or commodity node to inspect its layers.");
   scheduleProcessLabelRefresh();
 }
 

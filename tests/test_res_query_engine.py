@@ -6,6 +6,10 @@ from tests.test_v0_2_backend import _v0_2_backend_source
 from vedalang.viz.query_engine import query_res_graph, response_to_mermaid
 
 EXAMPLES_DIR = Path(__file__).resolve().parent.parent / "vedalang" / "examples"
+
+
+def _section_by_key(inspector: dict, key: str) -> dict:
+    return next(section for section in inspector["sections"] if section["key"] == key)
 ROLE_REFOR_LABEL = (
     "farm_carbon_management\n"
     "reforestation_rollout@SINGLE\n"
@@ -96,6 +100,26 @@ def test_compiled_instance_query_returns_process_nodes():
     assert any(
         detail.get("technology") == "heat_pump"
         for detail in response["details"]["nodes"].values()
+    )
+
+    instance_node = next(
+        node for node in response["graph"]["nodes"] if node["type"] == "instance"
+    )
+    details = response["details"]["nodes"][instance_node["id"]]
+    inspector = details["inspector"]
+    assert [section["key"] for section in inspector["sections"]] == [
+        "dsl",
+        "semantic",
+        "lowered",
+        "veda",
+    ]
+    assert inspector["kind"] == "process"
+    assert inspector["node_type"] == "instance"
+    assert _section_by_key(inspector, "dsl")["default_open"] is True
+    assert _section_by_key(inspector, "lowered")["items"][0]["kind"] == "cpir_process"
+    assert (
+        _section_by_key(inspector, "veda")["items"][0]["attributes"]["manifest_entry"]
+        is not None
     )
 
 
@@ -248,6 +272,232 @@ def test_role_granularity_exposes_opportunity_provenance_in_labels():
         response["details"]["nodes"][reforestation_node["id"]]["group_origin"]
         == "opportunity"
     )
+
+
+def test_role_query_inspector_aggregates_member_processes():
+    source_file = EXAMPLES_DIR / "toy_sectors/toy_buildings.veda.yaml"
+
+    response = query_res_graph(
+        {
+            "version": "1",
+            "file": str(source_file),
+            "mode": "compiled",
+            "granularity": "role",
+            "lens": "system",
+            "filters": {"regions": [], "case": None, "sectors": [], "scopes": []},
+            "compiled": {"truth": "auto", "cache": True, "allow_partial": True},
+        }
+    )
+
+    role_node = next(
+        node
+        for node in response["graph"]["nodes"]
+        if node["type"] == "role"
+        and len(response["details"]["nodes"][node["id"]]["member_process_ids"]) > 1
+    )
+    inspector = response["details"]["nodes"][role_node["id"]]["inspector"]
+    lowered = _section_by_key(inspector, "lowered")
+    dsl = _section_by_key(inspector, "dsl")
+    assert len(lowered["items"]) > 1
+    assert sum(1 for item in dsl["items"] if item["kind"] == "technology") > 1
+
+
+def test_commodity_inspector_reports_usage_lists():
+    source_file = EXAMPLES_DIR / "toy_sectors/toy_buildings.veda.yaml"
+
+    response = query_res_graph(
+        {
+            "version": "1",
+            "file": str(source_file),
+            "mode": "compiled",
+            "granularity": "instance",
+            "lens": "system",
+            "filters": {"regions": [], "case": None, "sectors": [], "scopes": []},
+            "compiled": {"truth": "auto", "cache": True, "allow_partial": True},
+        }
+    )
+
+    commodity_node = next(
+        node
+        for node in response["graph"]["nodes"]
+        if node["type"] == "commodity" and node["label"] == "service:space_heat"
+    )
+    inspector = response["details"]["nodes"][commodity_node["id"]]["inspector"]
+    lowered = _section_by_key(inspector, "lowered")
+    usage = lowered["items"][0]["attributes"]
+    assert usage["produced_by"]
+    assert usage["consumed_by"] == []
+    veda = _section_by_key(inspector, "veda")
+    assert veda["items"][0]["attributes"]["manifest_entry"] is not None
+
+
+def test_source_mode_inspector_marks_veda_section_partial_without_manifest():
+    source_file = EXAMPLES_DIR / "toy_sectors/toy_buildings.veda.yaml"
+
+    response = query_res_graph(
+        {
+            "version": "1",
+            "file": str(source_file),
+            "mode": "source",
+            "granularity": "instance",
+            "lens": "system",
+            "filters": {"regions": [], "case": None, "sectors": [], "scopes": []},
+            "compiled": {"truth": "auto", "cache": True, "allow_partial": True},
+        }
+    )
+
+    instance_node = next(
+        node for node in response["graph"]["nodes"] if node["type"] == "instance"
+    )
+    inspector = response["details"]["nodes"][instance_node["id"]]["inspector"]
+    veda = _section_by_key(inspector, "veda")
+    assert veda["status"] == "partial"
+    assert veda["items"]
+    assert veda["items"][0]["attributes"]["fi_process_rows"]
+
+
+def test_collapse_scope_inspector_tracks_all_underlying_commodities(tmp_path):
+    source = {
+        "dsl_version": "0.2",
+        "commodities": [
+            {"id": "secondary:electricity", "kind": "secondary"},
+            {"id": "service:space_heat@RES", "kind": "service"},
+            {"id": "service:space_heat@COM", "kind": "service"},
+        ],
+        "technologies": [
+            {
+                "id": "res_hp",
+                "provides": "service:space_heat@RES",
+                "inputs": [{"commodity": "secondary:electricity"}],
+                "performance": {"kind": "cop", "value": 3.0},
+                "emissions": [],
+            },
+            {
+                "id": "com_hp",
+                "provides": "service:space_heat@COM",
+                "inputs": [{"commodity": "secondary:electricity"}],
+                "performance": {"kind": "cop", "value": 3.0},
+                "emissions": [],
+            },
+        ],
+        "technology_roles": [
+            {
+                "id": "res_space_heat",
+                "primary_service": "service:space_heat@RES",
+                "technologies": ["res_hp"],
+            },
+            {
+                "id": "com_space_heat",
+                "primary_service": "service:space_heat@COM",
+                "technologies": ["com_hp"],
+            },
+        ],
+        "spatial_layers": [
+            {
+                "id": "geo.demo",
+                "kind": "polygon",
+                "key": "region_id",
+                "geometry_file": "data/regions.geojson",
+            }
+        ],
+        "region_partitions": [
+            {
+                "id": "single_partition",
+                "layer": "geo.demo",
+                "members": ["SINGLE"],
+                "mapping": {"kind": "constant", "value": "SINGLE"},
+            }
+        ],
+        "sites": [
+            {
+                "id": "single_site",
+                "location": {"point": {"lat": 0.0, "lon": 0.0}},
+                "membership_overrides": {
+                    "region_partitions": {"single_partition": "SINGLE"}
+                },
+            }
+        ],
+        "facilities": [
+            {
+                "id": "res_heat",
+                "site": "single_site",
+                "technology_role": "res_space_heat",
+                "available_technologies": ["res_hp"],
+                "stock": {
+                    "items": [
+                        {
+                            "technology": "res_hp",
+                            "metric": "installed_capacity",
+                            "observed": {"value": "10 MW", "year": 2025},
+                        }
+                    ]
+                },
+            },
+            {
+                "id": "com_heat",
+                "site": "single_site",
+                "technology_role": "com_space_heat",
+                "available_technologies": ["com_hp"],
+                "stock": {
+                    "items": [
+                        {
+                            "technology": "com_hp",
+                            "metric": "installed_capacity",
+                            "observed": {"value": "12 MW", "year": 2025},
+                        }
+                    ]
+                },
+            },
+        ],
+        "runs": [
+            {
+                "id": "single_run",
+                "base_year": 2025,
+                "currency_year": 2024,
+                "region_partition": "single_partition",
+            }
+        ],
+    }
+    source_file = tmp_path / "scoped.veda.yaml"
+    source_file.write_text(yaml.safe_dump(source), encoding="utf-8")
+
+    response = query_res_graph(
+        {
+            "version": "1",
+            "file": str(source_file),
+            "run": "single_run",
+            "mode": "source",
+            "granularity": "instance",
+            "lens": "system",
+            "commodity_view": "collapse_scope",
+            "filters": {"regions": [], "case": None, "sectors": [], "scopes": []},
+            "compiled": {"truth": "auto", "cache": True, "allow_partial": True},
+        }
+    )
+
+    commodity_node = next(
+        node
+        for node in response["graph"]["nodes"]
+        if node["type"] == "commodity" and node["label"] == "service:space_heat"
+    )
+    details = response["details"]["nodes"][commodity_node["id"]]
+    assert details["commodity_ids"] == [
+        "service:space_heat@COM",
+        "service:space_heat@RES",
+    ]
+    inspector = details["inspector"]
+    assert inspector["summary"]["commodity_view_members"] == [
+        "service:space_heat@COM",
+        "service:space_heat@RES",
+    ]
+    lowered = _section_by_key(inspector, "lowered")
+    produced = sorted(
+        item["attributes"]["produced_by"][0] for item in lowered["items"]
+    )
+    assert produced == [
+        "P::role_instance.com_heat@SINGLE::com_hp",
+        "P::role_instance.res_heat@SINGLE::res_hp",
+    ]
 
 
 def test_instance_granularity_uses_stacked_technology_role_and_provenance_labels():

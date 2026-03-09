@@ -8,8 +8,8 @@ VedaLang now runs as a v0.2-only repository. The package/run/CSIR/CPIR rollout,
 backend parity, diagnostics, tooling, supported example catalog, and strict
 cleanup pass are all landed.
 
-Current `bd` state: rollout and cleanup issues are closed; one low-priority
-formatting task remains open.
+Current `bd` state: rollout and cleanup issues are closed; three follow-up
+issues remain open.
 
 ## Current Focus
 
@@ -22,9 +22,17 @@ formatting task remains open.
 - `vedalang-4ov` — clean up checked-in example `.veda.yaml` formatting drift so
   documented `uv run vedalang fmt --check ...` examples on repo paths pass
   cleanly
+- `vedalang-8n3` — restore prompt manifest hash parity for historical LLM
+  prompt bundles so prompt-registry and llm-unit-check tests pass again
+- `vedalang-hcc` — align Mermaid multi-run role-label expectations with the
+  stacked role labels now emitted by the v0.2 RES viewer
 
 ## Recently Completed
 
+- `vedalang-apz` — added a layered RES viewer inspector with collapsible
+  `DSL attributes`, `Resolved semantic model`, `Lowered IR`, and `VEDA/TIMES`
+  sections for process and commodity nodes, including collapsed-commodity
+  membership tracking and query-engine regression coverage
 - `vedalang-4p6` — strengthened dark-mode browser RES label hierarchy with a
   heavier semantic top line and a separated, dimmer metadata block for
   provenance lines

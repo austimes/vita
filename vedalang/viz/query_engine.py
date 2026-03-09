@@ -12,10 +12,13 @@ from vedalang.compiler.compiler import (
     load_vedalang,
     validate_vedalang,
 )
+from vedalang.compiler.v0_2_ast import parse_v0_2_source
+from vedalang.compiler.v0_2_resolution import resolve_imports, resolve_run
 from vedalang.conventions import stage_label
 from vedalang.versioning import looks_like_v0_2_source
 
 from .compiled_artifacts import resolve_compiled_artifacts
+from .inspector import InspectorContext, build_system_node_inspectors
 from .v0_2_graph import (
     FilterSpec,
     build_v0_2_system_graph,
@@ -224,6 +227,54 @@ def _networks_configured(source: dict[str, Any]) -> bool:
     )
 
 
+def _attach_system_inspectors(
+    built: dict[str, Any],
+    *,
+    source: dict[str, Any],
+    file_path: Path,
+    run_id: str,
+    csir: dict[str, Any] | None,
+    cpir: dict[str, Any] | None,
+    explain: dict[str, Any] | None,
+    tableir: dict[str, Any] | None,
+    manifest: dict[str, Any] | None,
+) -> None:
+    if csir is None or cpir is None:
+        return
+    details = built.get("details")
+    graph = built.get("graph")
+    if not isinstance(details, dict) or not isinstance(graph, dict):
+        return
+    detail_nodes = details.get("nodes")
+    graph_nodes = graph.get("nodes")
+    if not isinstance(detail_nodes, dict) or not isinstance(graph_nodes, list):
+        return
+
+    parsed_source = parse_v0_2_source(source)
+    resolved_graph = resolve_imports(parsed_source, {})
+    run_context = resolve_run(resolved_graph, run_id)
+    inspectors = build_system_node_inspectors(
+        graph_nodes=graph_nodes,
+        details_nodes=detail_nodes,
+        context=InspectorContext(
+            source=source,
+            source_file=file_path,
+            parsed_source=parsed_source,
+            graph=resolved_graph,
+            run_context=run_context,
+            csir=csir,
+            cpir=cpir,
+            explain=explain,
+            tableir=tableir,
+            manifest=manifest,
+        ),
+    )
+    for node_id, inspector in inspectors.items():
+        detail = detail_nodes.get(node_id)
+        if isinstance(detail, dict):
+            detail["inspector"] = inspector
+
+
 def query_res_graph(request: dict[str, Any]) -> dict[str, Any]:
     """Run a graph query and return a stable JSON response contract."""
     req = _normalize_request(request)
@@ -339,6 +390,17 @@ def query_res_graph(request: dict[str, Any]) -> dict[str, Any]:
                     granularity=req["granularity"],
                     commodity_view=req["commodity_view"],
                 )
+                _attach_system_inspectors(
+                    built,
+                    source=source,
+                    file_path=file_path,
+                    run_id=run_id,
+                    csir=bundle.csir,
+                    cpir=bundle.cpir,
+                    explain=bundle.explain,
+                    tableir=bundle.tableir,
+                    manifest=None,
+                )
             return {
                 "version": "1",
                 "status": "ok",
@@ -378,6 +440,17 @@ def query_res_graph(request: dict[str, Any]) -> dict[str, Any]:
                 granularity=req["granularity"],
                 commodity_view=req["commodity_view"],
             )
+            _attach_system_inspectors(
+                built,
+                source=source,
+                file_path=file_path,
+                run_id=run_id,
+                csir=compiled.csir,
+                cpir=compiled.cpir,
+                explain=compiled.explain,
+                tableir=compiled.tableir,
+                manifest=compiled.manifest,
+            )
         status = compiled.status
     elif req["compiled"].get("allow_partial", True):
         mode_used = "source"
@@ -406,6 +479,18 @@ def query_res_graph(request: dict[str, Any]) -> dict[str, Any]:
                 commodity_view=req["commodity_view"],
             )
         )
+        if req["lens"] != "trade":
+            _attach_system_inspectors(
+                built,
+                source=source,
+                file_path=file_path,
+                run_id=run_id,
+                csir=bundle.csir,
+                cpir=bundle.cpir,
+                explain=bundle.explain,
+                tableir=bundle.tableir,
+                manifest=None,
+            )
         status = "partial"
         diagnostics.append(
             _diagnostic(

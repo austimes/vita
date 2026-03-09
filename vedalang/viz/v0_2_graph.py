@@ -150,6 +150,13 @@ def _display_commodity(symbol: str, commodity_view: str) -> str:
     return symbol
 
 
+def _append_unique(target: list[Any], value: Any) -> None:
+    if value in (None, ""):
+        return
+    if value not in target:
+        target.append(value)
+
+
 def build_v0_2_system_graph(
     *,
     csir: dict[str, Any],
@@ -187,6 +194,7 @@ def build_v0_2_system_graph(
             node_map[group_id] = node
             if node_type == "instance":
                 details_nodes[group_id] = {
+                    "process_id": process.get("id"),
                     "technology_role": _role_name_for_process(
                         process,
                         role_instances=role_instances,
@@ -207,6 +215,11 @@ def build_v0_2_system_graph(
                     ).get("source_asset"),
                     "source_opportunity": process.get("source_opportunity"),
                     "initial_stock": process.get("initial_stock"),
+                    "member_process_ids": [],
+                    "member_technologies": [],
+                    "member_source_role_instances": [],
+                    "member_source_opportunities": [],
+                    "member_source_assets": [],
                 }
             else:
                 role_instance_id = process.get("source_role_instance", "")
@@ -234,16 +247,39 @@ def build_v0_2_system_graph(
                         else [],
                     ),
                     "max_new_capacity": opportunity.get("max_new_capacity"),
+                    "member_process_ids": [],
+                    "member_technologies": [],
+                    "member_source_role_instances": [],
+                    "member_source_opportunities": [],
+                    "member_source_assets": [],
                 }
+        group_details = details_nodes[group_id]
+        _append_unique(group_details["member_process_ids"], process.get("id"))
+        _append_unique(group_details["member_technologies"], process.get("technology"))
+        _append_unique(
+            group_details["member_source_role_instances"],
+            process.get("source_role_instance"),
+        )
+        _append_unique(
+            group_details["member_source_opportunities"],
+            process.get("source_opportunity"),
+        )
+        _append_unique(
+            group_details["member_source_assets"],
+            role_instances.get(
+                str(process.get("source_role_instance", "") or ""),
+                {},
+            ).get("source_asset"),
+        )
 
         for flow in process.get("flows", []):
             commodity = str(flow.get("commodity", ""))
             commodity_label = _display_commodity(commodity, commodity_view)
             commodity_node_id = _commodity_node_id(commodity_label)
+            commodity_kind = (
+                commodity.split(":", 1)[0] if ":" in commodity else "commodity"
+            )
             if commodity_node_id not in node_map:
-                commodity_kind = (
-                    commodity.split(":", 1)[0] if ":" in commodity else "commodity"
-                )
                 node = {
                     "id": commodity_node_id,
                     "label": commodity_label,
@@ -254,7 +290,12 @@ def build_v0_2_system_graph(
                 details_nodes[commodity_node_id] = {
                     "commodity": commodity,
                     "kind": commodity_kind,
+                    "commodity_ids": [],
+                    "kinds": [],
                 }
+            commodity_details = details_nodes[commodity_node_id]
+            _append_unique(commodity_details["commodity_ids"], commodity)
+            _append_unique(commodity_details["kinds"], commodity_kind)
             direction = str(flow.get("direction", ""))
             if direction == "in":
                 source_id, target_id, edge_type = commodity_node_id, group_id, "input"
@@ -278,6 +319,26 @@ def build_v0_2_system_graph(
                 "technology": process.get("technology"),
                 "source_role_instance": process.get("source_role_instance"),
             }
+
+    for detail in details_nodes.values():
+        if isinstance(detail.get("member_process_ids"), list):
+            detail["member_process_ids"] = sorted(detail["member_process_ids"])
+        if isinstance(detail.get("member_technologies"), list):
+            detail["member_technologies"] = sorted(detail["member_technologies"])
+        if isinstance(detail.get("member_source_role_instances"), list):
+            detail["member_source_role_instances"] = sorted(
+                detail["member_source_role_instances"]
+            )
+        if isinstance(detail.get("member_source_opportunities"), list):
+            detail["member_source_opportunities"] = sorted(
+                detail["member_source_opportunities"]
+            )
+        if isinstance(detail.get("member_source_assets"), list):
+            detail["member_source_assets"] = sorted(detail["member_source_assets"])
+        if isinstance(detail.get("commodity_ids"), list):
+            detail["commodity_ids"] = sorted(detail["commodity_ids"])
+        if isinstance(detail.get("kinds"), list):
+            detail["kinds"] = sorted(detail["kinds"])
 
     nodes.sort(key=lambda node: (node["type"], node["label"], node["id"]))
     edges.sort(
