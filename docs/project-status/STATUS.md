@@ -25,6 +25,9 @@ formatting task remains open.
 
 ## Recently Completed
 
+- `vedalang-4r4` — adopted stacked multiline labels for v0.2 RES role and
+  instance nodes so semantic role or technology stays on the first line and
+  provenance moves to lower lines
 - `vedalang-ndd` — updated the v0.2 RES role-granularity viewer so
   opportunity-backed groups expose their opportunity provenance in node labels
   and no longer collide with role-instance-backed groups

@@ -26,34 +26,122 @@ def _commodity_node_id(symbol: str) -> str:
     return f"commodity:{symbol}"
 
 
+def _role_instance_asset_name(role_instance_id: str) -> str:
+    return role_instance_id.split(".", 1)[-1].split("@", 1)[0]
+
+
+def _role_name_for_process(
+    process: dict[str, Any],
+    *,
+    role_instances: dict[str, dict[str, Any]],
+    technology_to_role: dict[str, str],
+) -> str:
+    role_instance_id = str(process.get("source_role_instance", "") or "")
+    role_instance = role_instances.get(role_instance_id, {})
+    role_name = role_instance.get("technology_role")
+    if role_name:
+        return str(role_name)
+    return technology_to_role.get(
+        str(process.get("technology", "")),
+        str(process.get("technology", "")) or str(process.get("id", "")),
+    )
+
+
+def _process_label(
+    granularity: str,
+    process: dict[str, Any],
+    *,
+    role_instances: dict[str, dict[str, Any]],
+    technology_to_role: dict[str, str],
+) -> str:
+    region = str(process["model_region"])
+    role_name = _role_name_for_process(
+        process,
+        role_instances=role_instances,
+        technology_to_role=technology_to_role,
+    )
+    source_opportunity = str(process.get("source_opportunity", "") or "")
+    source_role_instance = str(process.get("source_role_instance", "") or "")
+
+    if granularity == "instance":
+        technology = str(process.get("technology", "") or process.get("id", ""))
+        if source_role_instance:
+            asset_name = _role_instance_asset_name(source_role_instance)
+            provenance = f"[{asset_name}@{region}, role instance]"
+        elif source_opportunity:
+            provenance = f"[{source_opportunity}@{region}, opportunity]"
+        else:
+            provenance = f"[{region}]"
+        return "\n".join([technology, role_name, provenance])
+
+    if source_role_instance:
+        asset_name = _role_instance_asset_name(source_role_instance)
+        return "\n".join([role_name, f"{asset_name}@{region}", "[role instance]"])
+    if source_opportunity:
+        return "\n".join([role_name, f"{source_opportunity}@{region}", "[opportunity]"])
+    return "\n".join([role_name, f"{role_name}@{region}", "[group]"])
+
+
 def _group_key(
     granularity: str,
     process: dict[str, Any],
     *,
+    role_instances: dict[str, dict[str, Any]],
     technology_to_role: dict[str, str],
 ) -> tuple[str, str, str]:
     if granularity == "instance":
         process_id = str(process["id"])
-        return (f"instance:{process_id}", process_id, "instance")
+        return (
+            f"instance:{process_id}",
+            _process_label(
+                granularity,
+                process,
+                role_instances=role_instances,
+                technology_to_role=technology_to_role,
+            ),
+            "instance",
+        )
     role_instance = process.get("source_role_instance")
     if role_instance:
         role_instance = str(role_instance)
-        region = str(process["model_region"])
-        asset_name = role_instance.split(".", 1)[-1].split("@", 1)[0]
-        return (f"role:{role_instance}", f"{asset_name}@{region}", "role")
-    role_name = technology_to_role.get(
-        str(process.get("technology", "")),
-        str(process.get("technology", "")) or str(process.get("id", "")),
-    )
-    region = str(process["model_region"])
+        return (
+            f"role:{role_instance}",
+            _process_label(
+                granularity,
+                process,
+                role_instances=role_instances,
+                technology_to_role=technology_to_role,
+            ),
+            "role",
+        )
     source_opportunity = process.get("source_opportunity")
     if source_opportunity:
         return (
             f"role:opportunity:{source_opportunity}",
-            f"{role_name}@{region} [opportunity:{source_opportunity}]",
+            _process_label(
+                granularity,
+                process,
+                role_instances=role_instances,
+                technology_to_role=technology_to_role,
+            ),
             "role",
         )
-    return (f"role:{role_name}@{region}", f"{role_name}@{region}", "role")
+    role_name = _role_name_for_process(
+        process,
+        role_instances=role_instances,
+        technology_to_role=technology_to_role,
+    )
+    region = str(process["model_region"])
+    return (
+        f"role:{role_name}@{region}",
+        _process_label(
+            granularity,
+            process,
+            role_instances=role_instances,
+            technology_to_role=technology_to_role,
+        ),
+        "role",
+    )
 
 
 def _display_commodity(symbol: str, commodity_view: str) -> str:
@@ -90,6 +178,7 @@ def build_v0_2_system_graph(
         group_id, label, node_type = _group_key(
             granularity,
             process,
+            role_instances=role_instances,
             technology_to_role=technology_to_role,
         )
         if group_id not in node_map:
@@ -98,10 +187,24 @@ def build_v0_2_system_graph(
             node_map[group_id] = node
             if node_type == "instance":
                 details_nodes[group_id] = {
+                    "technology_role": _role_name_for_process(
+                        process,
+                        role_instances=role_instances,
+                        technology_to_role=technology_to_role,
+                    ),
                     "technology": process.get("technology"),
                     "model_region": process.get("model_region"),
                     "model_stock_metric": process.get("model_stock_metric"),
+                    "group_origin": (
+                        "opportunity"
+                        if process.get("source_opportunity")
+                        else "role_instance"
+                    ),
                     "source_role_instance": process.get("source_role_instance"),
+                    "source_asset": role_instances.get(
+                        str(process.get("source_role_instance", "") or ""),
+                        {},
+                    ).get("source_asset"),
                     "source_opportunity": process.get("source_opportunity"),
                     "initial_stock": process.get("initial_stock"),
                 }

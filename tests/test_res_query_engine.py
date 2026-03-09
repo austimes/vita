@@ -6,6 +6,31 @@ from tests.test_v0_2_backend import _v0_2_backend_source
 from vedalang.viz.query_engine import query_res_graph, response_to_mermaid
 
 EXAMPLES_DIR = Path(__file__).resolve().parent.parent / "vedalang" / "examples"
+ROLE_REFOR_LABEL = (
+    "farm_carbon_management\n"
+    "reforestation_rollout@SINGLE\n"
+    "[opportunity]"
+)
+ROLE_SOIL_LABEL = (
+    "farm_carbon_management\n"
+    "soil_carbon_rollout@SINGLE\n"
+    "[opportunity]"
+)
+ROLE_PROD_LABEL = (
+    "agricultural_production\n"
+    "farm_production_asset@SINGLE\n"
+    "[role instance]"
+)
+INSTANCE_BASELINE_LABEL = (
+    "traditional_baseline\n"
+    "agricultural_production\n"
+    "[farm_production_asset@SINGLE, role instance]"
+)
+INSTANCE_SOIL_LABEL = (
+    "soil_carbon\n"
+    "farm_carbon_management\n"
+    "[soil_carbon_rollout@SINGLE, opportunity]"
+)
 
 
 def _write_multi_run_source(path: Path) -> None:
@@ -210,21 +235,56 @@ def test_role_granularity_exposes_opportunity_provenance_in_labels():
     labels = [node["label"] for node in role_nodes]
 
     assert len(labels) == len(set(labels))
-    assert (
-        "farm_carbon_management@SINGLE [opportunity:reforestation_rollout]"
-        in labels
-    )
-    assert "farm_carbon_management@SINGLE [opportunity:soil_carbon_rollout]" in labels
+    assert ROLE_REFOR_LABEL in labels
+    assert ROLE_SOIL_LABEL in labels
+    assert ROLE_PROD_LABEL in labels
 
     reforestation_node = next(
         node
         for node in role_nodes
-        if node["label"]
-        == "farm_carbon_management@SINGLE [opportunity:reforestation_rollout]"
+        if node["label"] == ROLE_REFOR_LABEL
     )
     assert (
         response["details"]["nodes"][reforestation_node["id"]]["group_origin"]
         == "opportunity"
+    )
+
+
+def test_instance_granularity_uses_stacked_technology_role_and_provenance_labels():
+    source_file = EXAMPLES_DIR / "toy_sectors/toy_agriculture.veda.yaml"
+
+    response = query_res_graph(
+        {
+            "version": "1",
+            "file": str(source_file),
+            "mode": "compiled",
+            "granularity": "instance",
+            "lens": "system",
+            "filters": {"regions": [], "case": None, "sectors": [], "scopes": []},
+            "compiled": {"truth": "auto", "cache": True, "allow_partial": True},
+        }
+    )
+
+    instance_nodes = [
+        node for node in response["graph"]["nodes"] if node["type"] == "instance"
+    ]
+    labels = [node["label"] for node in instance_nodes]
+
+    assert INSTANCE_BASELINE_LABEL in labels
+    assert INSTANCE_SOIL_LABEL in labels
+
+    baseline_node = next(
+        node
+        for node in instance_nodes
+        if node["label"] == INSTANCE_BASELINE_LABEL
+    )
+    assert (
+        response["details"]["nodes"][baseline_node["id"]]["group_origin"]
+        == "role_instance"
+    )
+    assert (
+        response["details"]["nodes"][baseline_node["id"]]["technology_role"]
+        == "agricultural_production"
     )
 
 

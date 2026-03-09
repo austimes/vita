@@ -490,6 +490,16 @@ function initCy() {
         },
       },
       {
+        selector: 'node[type="role"], node[type="instance"]',
+        style: {
+          width: 148,
+          height: 84,
+          "text-max-width": 136,
+          "font-size": 9,
+          padding: 8,
+        },
+      },
+      {
         selector: "edge",
         style: {
           width: 2,
