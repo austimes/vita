@@ -212,6 +212,14 @@ function setVedaTrayVisible(visible) {
   tray.hidden = !visible;
 }
 
+function ensureVedaTrayVisible() {
+  const tray = document.getElementById("vedaTray");
+  if (tray.hidden) {
+    return;
+  }
+  tray.scrollIntoView({ block: "nearest" });
+}
+
 function fileNameOnly(path) {
   if (!path) {
     return "";
@@ -262,6 +270,7 @@ function renderVedaTrayPlaceholder(title, text, { partial = false } = {}) {
   placeholder.textContent = text;
   content.appendChild(placeholder);
   setVedaTrayVisible(true);
+  ensureVedaTrayVisible();
 }
 
 function hideVedaTray() {
@@ -449,6 +458,7 @@ function renderVedaTrayForInspector(inspector) {
     });
   }
   setVedaTrayVisible(true);
+  ensureVedaTrayVisible();
 }
 
 function renderInspector(inspector) {
@@ -1138,10 +1148,13 @@ function initCy() {
     selectNode(id, details.inspector || null);
     if (details.inspector) {
       renderInspector(details.inspector);
+      if (state.vedaTablesEnabled) {
+        renderVedaTrayForInspector(details.inspector);
+      }
     } else {
       renderRawDetails(details);
+      renderVedaTrayForCurrentSelection();
     }
-    renderVedaTrayForCurrentSelection();
   });
 
   cy.on("tap", "edge", (event) => {

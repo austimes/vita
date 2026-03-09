@@ -29,6 +29,11 @@ issues remain open.
 
 ## Recently Completed
 
+- `vedalang-7lw` — fixed the RES viewer follow-up where the VEDA tables tray
+  could appear inert because the graph/details region was allowed to grow and
+  push the tray out of view; the top pane is now height-bounded, diagnostics
+  scroll internally, and tray rendering is triggered directly on eligible node
+  clicks
 - `vedalang-wdu` — replaced the RES viewer's right-pane `VEDA/TIMES`
   inspector section with a toggle-controlled bottom tray that renders the
   actual emitted VEDA tables for selected system-lens process and commodity
