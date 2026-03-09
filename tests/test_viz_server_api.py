@@ -38,6 +38,33 @@ def test_viz_server_health_and_query():
     response = query.json()
     assert response["status"] in {"ok", "partial"}
     assert response["graph"]["nodes"]
+    assert all("@SINGLE" not in node["label"] for node in response["graph"]["nodes"])
+
+    filtered_query = client.post(
+        "/api/query",
+        json={
+            "version": "1",
+            "mode": "source",
+            "granularity": "role",
+            "lens": "system",
+            "filters": {
+                "regions": ["SINGLE"],
+                "case": None,
+                "sectors": [],
+                "scopes": [],
+            },
+            "compiled": {"truth": "auto", "cache": True, "allow_partial": True},
+        },
+    )
+    assert filtered_query.status_code == 200
+    filtered = filtered_query.json()
+    role_node = next(
+        node for node in filtered["graph"]["nodes"] if node["type"] == "role"
+    )
+    assert (
+        filtered["details"]["nodes"][role_node["id"]]["scopes"]["regions"]
+        == ["SINGLE"]
+    )
 
     trade_file = EXAMPLES_DIR / "feature_demos/example_with_trade.veda.yaml"
     trade_query = client.post(
@@ -55,6 +82,26 @@ def test_viz_server_health_and_query():
     assert trade_query.status_code == 200
     trade_response = trade_query.json()
     assert any(edge["type"] == "trade" for edge in trade_response["graph"]["edges"])
+    assert all(node["type"] == "region" for node in trade_response["graph"]["nodes"])
+
+    pruned_trade_query = client.post(
+        "/api/query",
+        json={
+            "version": "1",
+            "file": str(trade_file),
+            "mode": "compiled",
+            "granularity": "instance",
+            "lens": "trade",
+            "filters": {"regions": ["REG1"], "case": None, "sectors": [], "scopes": []},
+            "compiled": {"truth": "auto", "cache": True, "allow_partial": True},
+        },
+    )
+    assert pruned_trade_query.status_code == 200
+    pruned_trade = pruned_trade_query.json()
+    assert pruned_trade["graph"]["nodes"] == [
+        {"id": "region:REG1", "label": "REG1", "type": "region"}
+    ]
+    assert pruned_trade["graph"]["edges"] == []
 
 
 def test_viz_server_multi_run_query_uses_selected_run(tmp_path):

@@ -362,7 +362,6 @@ def query_res_graph(request: dict[str, Any]) -> dict[str, Any]:
     facets = _facets_for_source(source, run_id=run_id)
     filters, filter_diags = _filters_from_request(req, source, run_id=run_id)
     diagnostics.extend(filter_diags)
-    del filters
 
     if req["mode"] == "source":
         try:
@@ -382,13 +381,18 @@ def query_res_graph(request: dict[str, Any]) -> dict[str, Any]:
             return _empty_response(req["mode"], diagnostics, facets=facets)
         if bundle.csir and bundle.cpir:
             if req["lens"] == "trade":
-                built = build_v0_2_trade_graph(csir=bundle.csir, cpir=bundle.cpir)
+                built = build_v0_2_trade_graph(
+                    csir=bundle.csir,
+                    cpir=bundle.cpir,
+                    filters=filters,
+                )
             else:
                 built = build_v0_2_system_graph(
                     csir=bundle.csir,
                     cpir=bundle.cpir,
                     granularity=req["granularity"],
                     commodity_view=req["commodity_view"],
+                    filters=filters,
                 )
                 _attach_system_inspectors(
                     built,
@@ -432,13 +436,18 @@ def query_res_graph(request: dict[str, Any]) -> dict[str, Any]:
     artifacts.update(compiled.artifacts)
     if compiled.csir is not None and compiled.cpir is not None:
         if req["lens"] == "trade":
-            built = build_v0_2_trade_graph(csir=compiled.csir, cpir=compiled.cpir)
+            built = build_v0_2_trade_graph(
+                csir=compiled.csir,
+                cpir=compiled.cpir,
+                filters=filters,
+            )
         else:
             built = build_v0_2_system_graph(
                 csir=compiled.csir,
                 cpir=compiled.cpir,
                 granularity=req["granularity"],
                 commodity_view=req["commodity_view"],
+                filters=filters,
             )
             _attach_system_inspectors(
                 built,
@@ -470,13 +479,18 @@ def query_res_graph(request: dict[str, Any]) -> dict[str, Any]:
             )
             return _empty_response(mode_used, diagnostics, facets=facets)
         built = (
-            build_v0_2_trade_graph(csir=bundle.csir, cpir=bundle.cpir)
+            build_v0_2_trade_graph(
+                csir=bundle.csir,
+                cpir=bundle.cpir,
+                filters=filters,
+            )
             if req["lens"] == "trade"
             else build_v0_2_system_graph(
                 csir=bundle.csir or {},
                 cpir=bundle.cpir or {},
                 granularity=req["granularity"],
                 commodity_view=req["commodity_view"],
+                filters=filters,
             )
         )
         if req["lens"] != "trade":

@@ -430,6 +430,30 @@ h1 {
   margin: 0;
 }
 
+.details-fields {
+  display: grid;
+  grid-template-columns: minmax(90px, 130px) 1fr;
+  gap: 6px 10px;
+  margin: 0;
+}
+
+.details-field-key {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.details-field {
+  margin: 0;
+  min-width: 0;
+}
+
+.details-field-value {
+  font-size: 11px;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
 .details-hint {
   font-size: 11px;
   color: var(--text-muted);

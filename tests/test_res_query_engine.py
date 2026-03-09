@@ -3,7 +3,9 @@ from pathlib import Path
 import yaml
 
 from tests.test_v0_2_backend import _v0_2_backend_source
+from vedalang.compiler import compile_vedalang_bundle
 from vedalang.viz.query_engine import query_res_graph, response_to_mermaid
+from vedalang.viz.v0_2_graph import FilterSpec, build_v0_2_system_graph
 
 EXAMPLES_DIR = Path(__file__).resolve().parent.parent / "vedalang" / "examples"
 
@@ -23,28 +25,28 @@ def _assert_table_row_ref_contract(row_ref: dict) -> None:
 
 ROLE_REFOR_LABEL = (
     "farm_carbon_management\n"
-    "reforestation_rollout@SINGLE\n"
+    "reforestation_rollout\n"
     "[opportunity]"
 )
 ROLE_SOIL_LABEL = (
     "farm_carbon_management\n"
-    "soil_carbon_rollout@SINGLE\n"
+    "soil_carbon_rollout\n"
     "[opportunity]"
 )
 ROLE_PROD_LABEL = (
     "agricultural_production\n"
-    "farm_production_asset@SINGLE\n"
+    "farm_production_asset\n"
     "[role instance]"
 )
 INSTANCE_BASELINE_LABEL = (
     "traditional_baseline\n"
     "agricultural_production\n"
-    "[farm_production_asset@SINGLE, role instance]"
+    "[farm_production_asset, role instance]"
 )
 INSTANCE_SOIL_LABEL = (
     "soil_carbon\n"
     "farm_carbon_management\n"
-    "[soil_carbon_rollout@SINGLE, opportunity]"
+    "[soil_carbon_rollout, opportunity]"
 )
 
 
@@ -119,6 +121,11 @@ def test_compiled_instance_query_returns_process_nodes():
     details = response["details"]["nodes"][instance_node["id"]]
     inspector = details["inspector"]
     assert [section["key"] for section in inspector["sections"]] == [
+        "identity",
+        "scopes",
+        "provenance",
+        "aggregation",
+        "metrics",
         "dsl",
         "semantic",
         "lowered",
@@ -126,7 +133,10 @@ def test_compiled_instance_query_returns_process_nodes():
     ]
     assert inspector["kind"] == "process"
     assert inspector["node_type"] == "instance"
-    assert _section_by_key(inspector, "dsl")["default_open"] is True
+    assert _section_by_key(inspector, "identity")["default_open"] is True
+    assert details["scopes"]["regions"] == ["SINGLE"]
+    assert details["aggregation"]["is_aggregated"] is False
+    assert details["metrics"]["stock"]["total"]["unit"] == "MW"
     assert _section_by_key(inspector, "lowered")["items"][0]["kind"] == "cpir_process"
     veda = _section_by_key(inspector, "veda")
     assert (
@@ -168,6 +178,34 @@ def test_trade_query_exposes_network_edges():
     assert len(trade_edges) == 2
     first_edge_detail = response["details"]["edges"][trade_edges[0]["id"]]
     assert "source_network" in first_edge_detail
+    assert first_edge_detail["scopes"]["regions"] == ["REG1", "REG2"]
+
+
+def test_trade_query_region_filter_prunes_nodes_and_edges():
+    source_file = EXAMPLES_DIR / "feature_demos/example_with_trade.veda.yaml"
+
+    response = query_res_graph(
+        {
+            "version": "1",
+            "file": str(source_file),
+            "mode": "compiled",
+            "granularity": "instance",
+            "lens": "trade",
+            "filters": {
+                "regions": ["REG1"],
+                "case": None,
+                "sectors": [],
+                "scopes": [],
+            },
+            "compiled": {"truth": "auto", "cache": True, "allow_partial": True},
+        }
+    )
+
+    assert response["status"] in {"ok", "partial"}
+    assert response["graph"]["nodes"] == [
+        {"id": "region:REG1", "label": "REG1", "type": "region"}
+    ]
+    assert response["graph"]["edges"] == []
 
 
 def test_trade_lens_returns_empty_graph_when_no_networks_defined():
@@ -290,6 +328,74 @@ def test_role_granularity_exposes_opportunity_provenance_in_labels():
         response["details"]["nodes"][reforestation_node["id"]]["group_origin"]
         == "opportunity"
     )
+    assert (
+        response["details"]["nodes"][reforestation_node["id"]]["scopes"]["regions"]
+        == ["SINGLE"]
+    )
+
+
+def test_system_graph_aggregates_multi_region_fleet_role_nodes():
+    bundle = compile_vedalang_bundle(
+        _v0_2_backend_source(include_fleet=True),
+        selected_run="toy_states_2025",
+        custom_weights={"weights/custom_heat.csv": {"NSW": 0.6, "QLD": 0.4}},
+    )
+
+    built = build_v0_2_system_graph(
+        csir=bundle.csir or {},
+        cpir=bundle.cpir or {},
+        granularity="role",
+        commodity_view="collapse_scope",
+        filters=FilterSpec(regions={"NSW", "QLD"}, sectors=set(), scopes=set()),
+    )
+
+    fleet_role = next(
+        node
+        for node in built["graph"]["nodes"]
+        if node["id"] == "role:asset:fleets.residential_heat"
+    )
+    assert fleet_role["label"] == "space_heat_supply\nresidential_heat\n[role instance]"
+    detail = built["details"]["nodes"][fleet_role["id"]]
+    assert detail["scopes"]["regions"] == ["NSW", "QLD"]
+    assert detail["aggregation"]["is_aggregated"] is True
+    assert detail["aggregation"]["member_regions"] == ["NSW", "QLD"]
+    assert detail["metrics"]["stock"]["total"]["unit"] == "kW"
+    assert len(detail["metrics"]["stock"]["by_region"]) == 2
+
+
+def test_region_filter_excludes_other_system_regions(tmp_path):
+    source_file = tmp_path / "two_region.veda.yaml"
+    source_file.write_text(yaml.safe_dump(_v0_2_backend_source()), encoding="utf-8")
+
+    qld = query_res_graph(
+        {
+            "version": "1",
+            "file": str(source_file),
+            "run": "toy_states_2025",
+            "mode": "source",
+            "granularity": "role",
+            "lens": "system",
+            "filters": {"regions": ["QLD"], "case": None, "sectors": [], "scopes": []},
+            "compiled": {"truth": "auto", "cache": True, "allow_partial": True},
+        }
+    )
+    nsw = query_res_graph(
+        {
+            "version": "1",
+            "file": str(source_file),
+            "run": "toy_states_2025",
+            "mode": "source",
+            "granularity": "role",
+            "lens": "system",
+            "filters": {"regions": ["NSW"], "case": None, "sectors": [], "scopes": []},
+            "compiled": {"truth": "auto", "cache": True, "allow_partial": True},
+        }
+    )
+
+    assert qld["status"] == "ok"
+    assert any(node["type"] == "role" for node in qld["graph"]["nodes"])
+    assert nsw["status"] == "ok"
+    assert [node for node in nsw["graph"]["nodes"] if node["type"] == "role"] == []
 
 
 def test_role_query_inspector_aggregates_member_processes():
@@ -314,6 +420,9 @@ def test_role_query_inspector_aggregates_member_processes():
         and len(response["details"]["nodes"][node["id"]]["member_process_ids"]) > 1
     )
     inspector = response["details"]["nodes"][role_node["id"]]["inspector"]
+    assert _section_by_key(inspector, "aggregation")["items"][0]["attributes"][
+        "member_count"
+    ] == len(response["details"]["nodes"][role_node["id"]]["member_process_ids"])
     lowered = _section_by_key(inspector, "lowered")
     dsl = _section_by_key(inspector, "dsl")
     assert len(lowered["items"]) > 1
@@ -516,6 +625,7 @@ def test_collapse_scope_inspector_tracks_all_underlying_commodities(tmp_path):
         "service:space_heat@COM",
         "service:space_heat@RES",
     ]
+    assert details["scopes"]["regions"] == ["SINGLE"]
     lowered = _section_by_key(inspector, "lowered")
     produced = sorted(
         item["attributes"]["produced_by"][0] for item in lowered["items"]

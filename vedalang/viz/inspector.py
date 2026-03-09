@@ -156,6 +156,29 @@ def _section(
     }
 
 
+def _detail_section(
+    *,
+    key: str,
+    label: str,
+    attributes: dict[str, Any] | None,
+    default_open: bool = False,
+) -> dict[str, Any]:
+    return _section(
+        key=key,
+        label=label,
+        default_open=default_open,
+        items=[
+            _item(
+                label=label,
+                kind=key,
+                object_id=None,
+                attributes=attributes or {},
+                source_location=None,
+            )
+        ],
+    )
+
+
 def _symbol_manifest_entries(
     manifest: dict[str, Any] | None,
     symbol_type: str,
@@ -741,16 +764,51 @@ def build_system_node_inspectors(
                 manifest_processes=manifest_processes,
                 table_indexes=table_indexes,
             )
+            title = " / ".join(
+                part
+                for part in str(node.get("label", node_id)).split("\n")
+                if part and not part.startswith("[")
+            ) or str(node.get("label", node_id))
             inspectors[node_id] = {
-                "title": str(node.get("label", node_id)).split("\n", 1)[0],
+                "title": title,
                 "kind": "process",
                 "node_type": node_type,
                 "summary": {
                     "run_id": context.run_context.run_id,
                     "origin_kind": node_details.get("group_origin"),
-                    "model_region": node_details.get("model_region"),
+                    "regions": node_details.get("scopes", {}).get("regions", []),
+                    "aggregated": node_details.get("aggregation", {}).get(
+                        "is_aggregated"
+                    ),
                 },
                 "sections": [
+                    _detail_section(
+                        key="identity",
+                        label="Identity",
+                        attributes=node_details.get("identity"),
+                        default_open=True,
+                    ),
+                    _detail_section(
+                        key="scopes",
+                        label="Scopes",
+                        attributes=node_details.get("scopes"),
+                        default_open=True,
+                    ),
+                    _detail_section(
+                        key="provenance",
+                        label="Provenance",
+                        attributes=node_details.get("provenance"),
+                    ),
+                    _detail_section(
+                        key="aggregation",
+                        label="Aggregation",
+                        attributes=node_details.get("aggregation"),
+                    ),
+                    _detail_section(
+                        key="metrics",
+                        label="Metrics",
+                        attributes=node_details.get("metrics"),
+                    ),
                     _section(
                         key="dsl",
                         label="DSL attributes",
@@ -834,15 +892,39 @@ def build_system_node_inspectors(
             manifest_commodities=manifest_commodities,
             table_indexes=table_indexes,
         )
+        title = str(node.get("label", node_id))
         inspectors[node_id] = {
-            "title": str(node.get("label", node_id)),
+            "title": title,
             "kind": "commodity",
             "node_type": node_type,
             "summary": {
                 "run_id": context.run_context.run_id,
                 "commodity_view_members": commodity_ids,
+                "regions": node_details.get("scopes", {}).get("regions", []),
             },
             "sections": [
+                _detail_section(
+                    key="identity",
+                    label="Identity",
+                    attributes=node_details.get("identity"),
+                    default_open=True,
+                ),
+                _detail_section(
+                    key="scopes",
+                    label="Scopes",
+                    attributes=node_details.get("scopes"),
+                    default_open=True,
+                ),
+                _detail_section(
+                    key="aggregation",
+                    label="Aggregation",
+                    attributes=node_details.get("aggregation"),
+                ),
+                _detail_section(
+                    key="metrics",
+                    label="Metrics",
+                    attributes=node_details.get("metrics"),
+                ),
                 _section(
                     key="dsl",
                     label="DSL attributes",

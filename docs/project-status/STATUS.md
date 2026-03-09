@@ -8,7 +8,7 @@ VedaLang now runs as a v0.2-only repository. The package/run/CSIR/CPIR rollout,
 backend parity, diagnostics, tooling, supported example catalog, and strict
 cleanup pass are all landed.
 
-Current `bd` state: rollout and cleanup issues are closed; three follow-up
+Current `bd` state: rollout and cleanup issues are closed; two follow-up
 issues remain open.
 
 ## Current Focus
@@ -24,11 +24,16 @@ issues remain open.
   cleanly
 - `vedalang-8n3` — restore prompt manifest hash parity for historical LLM
   prompt bundles so prompt-registry and llm-unit-check tests pass again
-- `vedalang-hcc` — align Mermaid multi-run role-label expectations with the
-  stacked role labels now emitted by the v0.2 RES viewer
 
 ## Recently Completed
 
+- `vedalang-xxw` — removed region text from system-lens RES viewer labels,
+  made region filtering affect graph construction, aggregated multi-region
+  system nodes and edges across the selected regions, and surfaced normalized
+  scope/provenance/aggregation details in the viewer inspector
+- `vedalang-hcc` — updated the Mermaid multi-run RES viewer regression to
+  assert the current stacked, region-free role labels instead of the old
+  `space_heat_supply@QLD` substring
 - `vedalang-7lw` — fixed the RES viewer follow-up where the VEDA tables tray
   could appear inert because the graph/details region was allowed to grow and
   push the tray out of view; the top pane is now height-bounded, diagnostics

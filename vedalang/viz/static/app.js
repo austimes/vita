@@ -153,6 +153,68 @@ function createJsonPre(value) {
   return pre;
 }
 
+function isPrimitiveValue(value) {
+  return value === null || ["string", "number", "boolean"].includes(typeof value);
+}
+
+function isScalarArray(value) {
+  return Array.isArray(value) && value.every((item) => isPrimitiveValue(item));
+}
+
+function isFlatRecord(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return false;
+  }
+  return Object.values(value).every((item) => isPrimitiveValue(item) || isScalarArray(item));
+}
+
+function formatDetailValue(value) {
+  if (value === null) {
+    return "null";
+  }
+  if (Array.isArray(value)) {
+    return value.length ? value.map((item) => String(item)).join(", ") : "[]";
+  }
+  if (typeof value === "boolean") {
+    return value ? "true" : "false";
+  }
+  return String(value);
+}
+
+function renderStructuredAttributes(attributes) {
+  if (!attributes || typeof attributes !== "object" || Array.isArray(attributes)) {
+    return createJsonPre(attributes);
+  }
+
+  const fields = document.createElement("dl");
+  fields.className = "details-fields";
+
+  Object.entries(attributes).forEach(([key, value]) => {
+    const term = document.createElement("dt");
+    term.className = "details-field-key";
+    term.textContent = key;
+    fields.appendChild(term);
+
+    const description = document.createElement("dd");
+    description.className = "details-field";
+
+    if (isFlatRecord(value)) {
+      description.appendChild(renderStructuredAttributes(value));
+    } else if (isPrimitiveValue(value) || isScalarArray(value)) {
+      const text = document.createElement("div");
+      text.className = "details-field-value";
+      text.textContent = formatDetailValue(value);
+      description.appendChild(text);
+    } else {
+      description.appendChild(createJsonPre(value));
+    }
+
+    fields.appendChild(description);
+  });
+
+  return fields;
+}
+
 function renderSourceLocation(container, sourceLocation) {
   if (!sourceLocation) {
     return;
@@ -474,9 +536,9 @@ function renderInspector(inspector) {
   container.appendChild(title);
 
   if (inspector.summary) {
-    const summary = document.createElement("pre");
+    const summary = document.createElement("div");
     summary.className = "details-summary";
-    summary.textContent = JSON.stringify(inspector.summary, null, 2);
+    summary.appendChild(renderStructuredAttributes(inspector.summary));
     container.appendChild(summary);
   }
 
@@ -532,7 +594,7 @@ function renderInspector(inspector) {
           header.appendChild(right);
 
           card.appendChild(header);
-          card.appendChild(createJsonPre(item.attributes || {}));
+          card.appendChild(renderStructuredAttributes(item.attributes || {}));
           renderSourceLocation(card, item.source_location);
           body.appendChild(card);
         });
@@ -1074,7 +1136,11 @@ function renderSelectionFromState() {
     renderVedaTrayForCurrentSelection();
     return;
   }
-  renderRawDetails(details);
+  if (details.inspector) {
+    renderInspector(details.inspector);
+  } else {
+    renderRawDetails(details);
+  }
   renderVedaTrayForCurrentSelection();
 }
 
@@ -1161,7 +1227,11 @@ function initCy() {
     const id = event.target.id();
     const details = (lastResponse && lastResponse.details && lastResponse.details.edges[id]) || {};
     selectEdge(id);
-    renderRawDetails(details);
+    if (details.inspector) {
+      renderInspector(details.inspector);
+    } else {
+      renderRawDetails(details);
+    }
     renderVedaTrayForCurrentSelection();
   });
 
