@@ -25,6 +25,9 @@ formatting task remains open.
 
 ## Recently Completed
 
+- `vedalang-20i` — switched the browser RES viewer to an overlay label layer
+  for process nodes so semantic top lines render stronger and provenance lines
+  render lighter
 - `vedalang-4r4` — adopted stacked multiline labels for v0.2 RES role and
   instance nodes so semantic role or technology stays on the first line and
   provenance moves to lower lines

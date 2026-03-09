@@ -1,5 +1,7 @@
 let cy = null;
 let lastResponse = null;
+let labelLayer = null;
+let labelRefreshScheduled = false;
 
 const SIDEBAR_STORAGE_KEY = "vedalang.viz.sidebarCollapsed";
 
@@ -467,7 +469,83 @@ function fitViewportWithZoomCap() {
   }
 }
 
+function ensureLabelLayer() {
+  if (labelLayer) {
+    return labelLayer;
+  }
+  const graph = document.getElementById("graph");
+  labelLayer = document.createElement("div");
+  labelLayer.className = "graph-label-layer";
+  graph.appendChild(labelLayer);
+  return labelLayer;
+}
+
+function splitProcessLabel(label) {
+  const lines = String(label || "").split("\n");
+  return {
+    primary: lines[0] || "",
+    secondary: lines[1] || "",
+    meta: lines.slice(2).join("\n"),
+  };
+}
+
+function refreshProcessLabelLayer() {
+  labelRefreshScheduled = false;
+  const layer = ensureLabelLayer();
+  layer.innerHTML = "";
+
+  if (!cy) {
+    return;
+  }
+
+  cy.nodes().forEach((node) => {
+    const nodeType = node.data("type");
+    if (!isProcessNodeType(nodeType) || !node.visible()) {
+      return;
+    }
+
+    const { primary, secondary, meta } = splitProcessLabel(node.data("label"));
+    const position = node.renderedPosition();
+    const labelEl = document.createElement("div");
+    labelEl.className = `graph-process-label ${nodeType === "role" ? "is-role" : "is-instance"}`;
+    labelEl.style.left = `${position.x}px`;
+    labelEl.style.top = `${position.y}px`;
+
+    const primaryEl = document.createElement("div");
+    primaryEl.className = "graph-process-label-primary";
+    primaryEl.textContent = primary;
+    labelEl.appendChild(primaryEl);
+
+    if (secondary) {
+      const secondaryEl = document.createElement("div");
+      secondaryEl.className = "graph-process-label-secondary";
+      secondaryEl.textContent = secondary;
+      labelEl.appendChild(secondaryEl);
+    }
+
+    if (meta) {
+      const metaEl = document.createElement("div");
+      metaEl.className = "graph-process-label-meta";
+      metaEl.textContent = meta;
+      labelEl.appendChild(metaEl);
+    }
+
+    layer.appendChild(labelEl);
+  });
+}
+
+function scheduleProcessLabelRefresh() {
+  if (labelRefreshScheduled) {
+    return;
+  }
+  labelRefreshScheduled = true;
+  window.requestAnimationFrame(() => {
+    refreshProcessLabelLayer();
+  });
+}
+
 function initCy() {
+  ensureLabelLayer();
   cy = cytoscape({
     container: document.getElementById("graph"),
     style: [
@@ -492,10 +570,9 @@ function initCy() {
       {
         selector: 'node[type="role"], node[type="instance"]',
         style: {
+          label: "",
           width: 148,
           height: 84,
-          "text-max-width": 136,
-          "font-size": 9,
           padding: 8,
         },
       },
@@ -541,6 +618,10 @@ function initCy() {
     const id = event.target.id();
     const details = (lastResponse && lastResponse.details && lastResponse.details.edges[id]) || {};
     document.getElementById("details").textContent = JSON.stringify(details, null, 2);
+  });
+
+  cy.on("render layoutstop resize pan zoom", () => {
+    scheduleProcessLabelRefresh();
   });
 }
 
@@ -606,6 +687,7 @@ function renderGraph(response) {
   }
 
   document.getElementById("diagnostics").textContent = JSON.stringify(response.diagnostics || [], null, 2);
+  scheduleProcessLabelRefresh();
 }
 
 function createOptionButton({ label, active, title, className, onClick }) {
