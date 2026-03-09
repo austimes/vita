@@ -446,7 +446,7 @@ class TestViz:
 
         assert result.returncode == 0
         assert result.stdout.startswith("flowchart LR")
-        assert "space_heat_supply\nbrisbane_heat\n[role instance]" in result.stdout
+        assert "space_heat_supply\nbrisbane_heat\n[facility instance]" in result.stdout
 
 
 class TestHelp:

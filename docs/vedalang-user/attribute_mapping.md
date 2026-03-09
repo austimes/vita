@@ -9,7 +9,9 @@ TIMES/VEDA concepts.
   technology-level costs.
 - `technology_roles` carry service intent and allowed substitutions.
 - `facilities` and `fleets` carry existing stock observations.
-- `opportunities` carry future build limits.
+- `facilities[*].new_build_limits` and `fleets[*].new_build_limits` carry
+  technology-specific new-build caps on instantiated asset boundaries.
+- `opportunities` carry place-bound future build classes.
 - `runs` carry base year and currency year context.
 
 ## Technology Attributes
@@ -50,15 +52,16 @@ technologies:
 | VedaLang v0.2 attribute | TIMES concept | Notes |
 |---|---|---|
 | `facilities[*].stock.items[*]` | `PRC_RESID` / stock initialization | Site-bound existing stock |
-| `fleets[*].stock.items[*]` | regional stock initialization | Distributed stock rolled up by run region |
-| `opportunities[*].max_new_capacity` | new-build cap | Optional future build limit |
+| `fleets[*].stock.items[*]` | regional stock initialization | Distributed stock or direct-bound toy stock |
+| `facilities[*].new_build_limits[*]` | `NCAP_BND` | New-build cap on the facility-instantiated process |
+| `fleets[*].new_build_limits[*]` | `NCAP_BND` | New-build cap on the fleet-instantiated process |
+| `opportunities[*].max_new_capacity` | `NCAP_BND` | Place-bound greenfield/resource build class |
 
 Example:
 
 ```yaml
-facilities:
+fleets:
   - id: residential_heat
-    site: single_energy_hub
     technology_role: space_heat_supply
     stock:
       items:
@@ -67,6 +70,11 @@ facilities:
           observed:
             value: 80 MW
             year: 2025
+    new_build_limits:
+      - technology: heat_pump
+        max_new_capacity: 60 MW
+    distribution:
+      method: direct
 ```
 
 ## Run Context
@@ -83,4 +91,8 @@ facilities:
 - Emit emissions via `technologies[*].emissions`, not via output flows.
 - Prefer service-oriented `technology_roles` with multiple technologies over
   fuel-specific roles.
+- Prefer `fleets` with `distribution.method: direct` for toy-scale sectors where
+  the site identity is not part of the example.
+- Reserve `opportunities` for site/zone/region-specific build classes rather
+  than generic rollout caps.
 - Treat Excel and DD files as compiled artifacts, not authoring surfaces.

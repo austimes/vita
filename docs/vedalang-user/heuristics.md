@@ -4,6 +4,16 @@ VedaLang's deterministic heuristics run on the active v0.2 public DSL before
 compilation and solver work. They focus on stock-coverage gaps that are cheap
 to detect from the authored source.
 
+Separate from the `H0xx` heuristic rules, the compiler also emits structural
+`W0xx` diagnostics for ambiguous object usage. Recent additions include:
+
+- duplicated opportunity-vs-asset rollout patterns
+- single-region generic service stock modeled as a facility instead of a fleet
+- site-bound opportunities that look like retrofits on existing assets
+
+For toy models, prefer `fleets` with `distribution.method: direct` and use
+`new_build_limits` on the fleet rather than a duplicate `opportunity`.
+
 ## Running Heuristic Checks
 
 ```bash

@@ -207,6 +207,106 @@ def test_collect_v0_2_diagnostics_emits_prd_warning_codes():
     assert {"W001", "W002", "W003", "W006", "W007", "W009", "W010", "W011"} <= codes
 
 
+def test_collect_v0_2_diagnostics_flags_duplicate_rollout_patterns():
+    source = {
+        "dsl_version": "0.2",
+        "commodities": [
+            {"id": "secondary:electricity", "kind": "secondary"},
+            {"id": "service:space_heat", "kind": "service"},
+        ],
+        "technologies": [
+            {
+                "id": "gas_heater",
+                "provides": "service:space_heat",
+                "performance": {"kind": "efficiency", "value": 0.9},
+            },
+            {
+                "id": "heat_pump",
+                "provides": "service:space_heat",
+                "inputs": [{"commodity": "secondary:electricity"}],
+                "performance": {"kind": "cop", "value": 3.0},
+            },
+        ],
+        "technology_roles": [
+            {
+                "id": "space_heat_supply",
+                "primary_service": "service:space_heat",
+                "technologies": ["gas_heater", "heat_pump"],
+                "transitions": [
+                    {
+                        "from": "gas_heater",
+                        "to": "heat_pump",
+                        "kind": "retrofit",
+                    }
+                ],
+            }
+        ],
+        "spatial_layers": [
+            {
+                "id": "geo.demo",
+                "kind": "polygon",
+                "key": "region_id",
+                "geometry_file": "data/regions.geojson",
+            }
+        ],
+        "region_partitions": [
+            {
+                "id": "single_region",
+                "layer": "geo.demo",
+                "members": ["SINGLE"],
+                "mapping": {"kind": "constant", "value": "SINGLE"},
+            }
+        ],
+        "sites": [
+            {
+                "id": "single_site",
+                "location": {"point": {"lat": -33.9, "lon": 151.2}},
+                "membership_overrides": {
+                    "region_partitions": {"single_region": "SINGLE"}
+                },
+            }
+        ],
+        "facilities": [
+            {
+                "id": "residential_heat",
+                "site": "single_site",
+                "technology_role": "space_heat_supply",
+                "available_technologies": ["gas_heater", "heat_pump"],
+                "stock": {
+                    "items": [
+                        {
+                            "technology": "gas_heater",
+                            "metric": "installed_capacity",
+                            "observed": {"value": "80 MW", "year": 2025},
+                        }
+                    ]
+                },
+            }
+        ],
+        "opportunities": [
+            {
+                "id": "heat_pump_rollout",
+                "technology": "heat_pump",
+                "siting": {"site": "single_site"},
+                "max_new_capacity": "60 MW",
+            }
+        ],
+        "runs": [
+            {
+                "id": "single_2025",
+                "base_year": 2025,
+                "currency_year": 2024,
+                "region_partition": "single_region",
+            }
+        ],
+    }
+
+    diagnostics = collect_v0_2_diagnostics(source, selected_run="single_2025")
+    codes = {diag["code"] for diag in diagnostics}
+
+    assert {"W012", "W013", "W014"} <= codes
+
+
 def test_lsp_validate_document_uses_v0_2_diagnostics():
     doc = MockTextDocument(
         "\n".join(

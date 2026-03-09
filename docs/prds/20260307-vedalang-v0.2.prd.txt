@@ -856,6 +856,7 @@ Fields:
 - technology_role: Ref<technology_role>
 - available_technologies?: [Ref<technology>]
 - stock?: stock_block
+- new_build_limits?: [asset_new_build_limit]
 - policies?: [Ref<policy>]          # policy object reserved
 - description?: string
 
@@ -898,21 +899,27 @@ Fields:
 - technology_role: Ref<technology_role>
 - available_technologies?: [Ref<technology>]
 - stock?: stock_block
+- new_build_limits?: [asset_new_build_limit]
 - distribution: distribution_block
 - policies?: [Ref<policy>]          # reserved
 - description?: string
 
 Distribution block:
-- method: proportional | custom
+- method: proportional | custom | direct
 - weight_by?: Ref<spatial_measure>
 - custom_weights_file?: string
+- target_regions?: [string]
 
 Rules:
 - A fleet instantiates one technology_role in the authored model.
 - In a run, a fleet expands into one technology_role_instance per model_region
-  with non-zero allocation (or per all regions if configured that way).
+  with non-zero allocation, or one instance per directly targeted region.
 - `weight_by` MUST resolve to a measure indexed on a layer that can be rolled up
   to the selected region_partition.
+- `direct` distribution does not require spatial weights.
+- In a single-region run, `direct` MAY omit `target_regions` and binds to the
+  sole run region.
+- In a multi-region run, `direct` MUST specify `target_regions`.
 
 Example:
 
@@ -932,6 +939,10 @@ Example:
       distribution:
         method: proportional
         weight_by: demo.abs_demography.dwelling_stock
+
+Asset new build limit:
+- technology: Ref<technology>
+- max_new_capacity: quantity
 
 9.13 stock_block
 
@@ -1003,6 +1014,11 @@ Rules:
 - Opportunities are not technology-role instances by default.
 - Opportunities compile to resolved opportunities in CSIR and to processes in
   CPIR.
+- Opportunities are reserved for place-bound greenfield/resource/build classes.
+- Generic alternative technologies with zero stock belong in
+  `technology_roles[*].technologies`, not in `opportunities`.
+- Technology-specific capped buildout on an instantiated facility or fleet
+  belongs in `new_build_limits`, not in `opportunities`.
 
 Example:
 
@@ -1129,6 +1145,7 @@ A fleet is:
 - distributed rather than site-bound
 - an asset boundary defined over a stock pool
 - spatially allocated during compilation according to distribution rules
+- the default authoring surface for toy or generic distributed sectors
 
 The public model defines the fleet once.
 A run determines how that fleet expands into regional slices.
@@ -1511,6 +1528,12 @@ E016. quantities fail dimensional parsing
 E017. invalid membership override target
 E018. missing dependency closure object after import resolution
 E019. CSIR emission attempted with unresolved placeholders or formula strings
+E020. fleet distribution.method=direct requires target_regions on multi-region runs
+E021. fleet distribution.target_regions contains a region outside the selected
+      run partition
+E022. duplicate new_build_limits entry exists for one technology on a single asset
+E023. new_build_limits technology is not allowed by the asset's technology_role
+      or available_technologies subset
 
 14.2 Lints / warnings (compiler SHOULD warn)
 
@@ -1529,6 +1552,12 @@ W009. facility or fleet declares stock for only one technology but exposes many
       technologies without transitions, potentially under-specified
 W010. annual growth adjustment used where a temporal_index_series is available
 W011. asset_count used without counted_asset_label in stock_characterization
+W012. opportunity duplicates a technology already available through a facility
+      or fleet in the same resolved region
+W013. single-region generic service stock is modeled as a facility where a
+      fleet with direct distribution would be clearer
+W014. site-bound opportunity appears to represent retrofit/upgrade on existing
+      asset stock rather than a distinct place-bound build class
 
 14.3 Error message requirements
 

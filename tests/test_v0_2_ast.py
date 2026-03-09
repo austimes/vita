@@ -120,6 +120,12 @@ def valid_v0_2_source() -> dict:
                 "id": "gladstone_steam",
                 "site": "gladstone_refinery",
                 "technology_role": "heat.residential_space_heat_supply",
+                "new_build_limits": [
+                    {
+                        "technology": "heat.heat_pump",
+                        "max_new_capacity": "150 MW",
+                    }
+                ],
                 "stock": {
                     "items": [
                         {
@@ -198,7 +204,9 @@ def test_parse_v0_2_source_returns_typed_document() -> None:
     )
     assert ast.sites[0].location.point == {"lat": -23.842, "lon": 151.248}
     assert ast.facilities[0].stock.items[0].metric == "installed_capacity"
+    assert ast.facilities[0].new_build_limits[0].technology == "heat.heat_pump"
     assert ast.fleets[0].distribution.weight_by == "demo.abs_demography.dwelling_stock"
+    assert ast.fleets[0].distribution.target_regions == ()
     assert ast.opportunities[0].siting.region_member == {
         "partition": "regions.toy_states_3",
         "member": "QLD",
@@ -215,6 +223,10 @@ def test_parse_v0_2_source_keeps_structural_source_paths() -> None:
     assert (
         ast.facilities[0].stock.items[0].source_ref.path
         == "facilities[0].stock.items[0]"
+    )
+    assert (
+        ast.facilities[0].new_build_limits[0].source_ref.path
+        == "facilities[0].new_build_limits[0]"
     )
     assert ast.fleets[0].distribution.source_ref.path == "fleets[0].distribution"
     assert ast.networks[0].links[0].source_ref.path == "networks[0].links[0]"

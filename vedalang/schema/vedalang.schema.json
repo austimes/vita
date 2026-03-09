@@ -988,6 +988,22 @@
         }
       }
     },
+    "asset_new_build_limit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "technology",
+        "max_new_capacity"
+      ],
+      "properties": {
+        "technology": {
+          "$ref": "#/$defs/identifier"
+        },
+        "max_new_capacity": {
+          "$ref": "#/$defs/quantity"
+        }
+      }
+    },
     "facility": {
       "type": "object",
       "additionalProperties": false,
@@ -1012,6 +1028,13 @@
         "stock": {
           "$ref": "#/$defs/stock_block"
         },
+        "new_build_limits": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/asset_new_build_limit"
+          },
+          "minItems": 1
+        },
         "policies": {
           "$ref": "#/$defs/ref_array"
         },
@@ -1031,7 +1054,8 @@
           "type": "string",
           "enum": [
             "proportional",
-            "custom"
+            "custom",
+            "direct"
           ]
         },
         "weight_by": {
@@ -1040,6 +1064,15 @@
         "custom_weights_file": {
           "type": "string",
           "minLength": 1
+        },
+        "target_regions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1,
+          "uniqueItems": true
         }
       },
       "allOf": [
@@ -1093,6 +1126,13 @@
         },
         "stock": {
           "$ref": "#/$defs/stock_block"
+        },
+        "new_build_limits": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/asset_new_build_limit"
+          },
+          "minItems": 1
         },
         "distribution": {
           "$ref": "#/$defs/distribution_block"

@@ -235,12 +235,20 @@ class StockBlock:
 
 
 @dataclass(frozen=True)
+class AssetNewBuildLimit:
+    technology: str
+    max_new_capacity: str | int | float
+    source_ref: SourceRef
+
+
+@dataclass(frozen=True)
 class FacilityDecl:
     id: str
     site: str
     technology_role: str
     available_technologies: tuple[str, ...]
     stock: StockBlock | None
+    new_build_limits: tuple[AssetNewBuildLimit, ...]
     policies: tuple[str, ...]
     description: str | None
     source_ref: SourceRef
@@ -251,6 +259,7 @@ class DistributionBlock:
     method: str
     weight_by: str | None
     custom_weights_file: str | None
+    target_regions: tuple[str, ...]
     source_ref: SourceRef
 
 
@@ -260,6 +269,7 @@ class FleetDecl:
     technology_role: str
     available_technologies: tuple[str, ...]
     stock: StockBlock | None
+    new_build_limits: tuple[AssetNewBuildLimit, ...]
     distribution: DistributionBlock
     policies: tuple[str, ...]
     description: str | None
@@ -443,6 +453,20 @@ def _parse_stock_block(data: dict[str, Any] | None, path: str) -> StockBlock | N
             for idx, item in enumerate(data.get("items") or [])
         ),
         source_ref=_source_ref(path),
+    )
+
+
+def _parse_asset_new_build_limits(
+    values: Any,
+    path: str,
+) -> tuple[AssetNewBuildLimit, ...]:
+    return tuple(
+        AssetNewBuildLimit(
+            technology=str(item["technology"]),
+            max_new_capacity=item["max_new_capacity"],
+            source_ref=_source_ref(f"{path}[{idx}]"),
+        )
+        for idx, item in enumerate(values or [])
     )
 
 
@@ -733,6 +757,10 @@ def parse_v0_2_source(source: dict[str, Any]) -> V0_2Source:
                     item.get("available_technologies")
                 ),
                 stock=_parse_stock_block(item.get("stock"), f"facilities[{idx}].stock"),
+                new_build_limits=_parse_asset_new_build_limits(
+                    item.get("new_build_limits"),
+                    f"facilities[{idx}].new_build_limits",
+                ),
                 policies=_tuple_strings(item.get("policies")),
                 description=(
                     str(item["description"]) if item.get("description") else None
@@ -749,6 +777,10 @@ def parse_v0_2_source(source: dict[str, Any]) -> V0_2Source:
                     item.get("available_technologies")
                 ),
                 stock=_parse_stock_block(item.get("stock"), f"fleets[{idx}].stock"),
+                new_build_limits=_parse_asset_new_build_limits(
+                    item.get("new_build_limits"),
+                    f"fleets[{idx}].new_build_limits",
+                ),
                 distribution=DistributionBlock(
                     method=str(item["distribution"]["method"]),
                     weight_by=(
@@ -760,6 +792,9 @@ def parse_v0_2_source(source: dict[str, Any]) -> V0_2Source:
                         str(item["distribution"]["custom_weights_file"])
                         if item["distribution"].get("custom_weights_file")
                         else None
+                    ),
+                    target_regions=_tuple_strings(
+                        item["distribution"].get("target_regions")
                     ),
                     source_ref=_source_ref(f"fleets[{idx}].distribution"),
                 ),

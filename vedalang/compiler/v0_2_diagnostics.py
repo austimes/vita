@@ -19,8 +19,12 @@ from .v0_2_resolution import (
     ResolvedDefinitionGraph,
     RunContext,
     V0_2ResolutionError,
+    allocate_fleet_stock,
+    resolve_asset_stock,
     resolve_imports,
+    resolve_opportunities,
     resolve_run,
+    resolve_sites,
 )
 
 ROLE_IMPL_HINTS = (
@@ -353,6 +357,11 @@ def _warn_stock_characterization(
 def _warn_run_specific(
     graph: ResolvedDefinitionGraph,
     run: RunContext | None,
+    *,
+    site_region_memberships: dict[str, str | list[str]] | None = None,
+    site_zone_memberships: dict[str, dict[str, str | list[str]]] | None = None,
+    measure_weights: dict[str, dict[str, float]] | None = None,
+    custom_weights: dict[str, dict[str, float]] | None = None,
 ) -> list[dict[str, Any]]:
     warnings: list[dict[str, Any]] = []
     if run is None:
@@ -426,6 +435,113 @@ def _warn_run_specific(
                         location=_location_of(adjustment.annual_growth),
                     )
                 )
+    resolved_sites = resolve_sites(
+        graph,
+        run,
+        site_region_memberships=site_region_memberships,
+        site_zone_memberships=site_zone_memberships,
+    )
+    resolved_opportunities = resolve_opportunities(graph, run, resolved_sites)
+    asset_regions: list[tuple[str, str, str, str, str | None]] = []
+    for facility in graph.facilities.values():
+        role = graph.technology_roles.get(facility.technology_role)
+        site = resolved_sites.get(facility.site)
+        if role is None or site is None:
+            continue
+        for technology in facility.available_technologies or role.technologies:
+            asset_regions.append(
+                ("facility", facility.id, site.model_region, technology, facility.site)
+            )
+        available = tuple(facility.available_technologies or role.technologies)
+        if (
+            len(run.model_regions) == 1
+            and role.primary_service.startswith("service:")
+            and (len(available) > 1 or role.transitions or len(available) != 1)
+        ):
+            warnings.append(
+                _diagnostic(
+                    "W013",
+                    "warning",
+                    "single-region service facility looks like generic stock; "
+                    "prefer a fleet with distribution.method: direct for toy "
+                    "models unless the site identity matters",
+                    object_id=facility.id,
+                    location=_location_of(facility),
+                )
+            )
+    for fleet in graph.fleets.values():
+        role = graph.technology_roles.get(fleet.technology_role)
+        if role is None:
+            continue
+        adjusted = resolve_asset_stock(fleet, graph=graph, run=run)
+        allocations = allocate_fleet_stock(
+            graph,
+            run,
+            fleet,
+            adjusted,
+            measure_weights=measure_weights,
+            custom_weights=custom_weights,
+        )
+        for allocation in allocations:
+            for technology in fleet.available_technologies or role.technologies:
+                asset_regions.append(
+                    ("fleet", fleet.id, allocation.model_region, technology, None)
+                )
+    for opportunity in graph.opportunities.values():
+        resolved = resolved_opportunities.get(opportunity.id)
+        if resolved is None:
+            continue
+        duplicates = [
+            (asset_kind, asset_id)
+            for (
+                asset_kind,
+                asset_id,
+                model_region,
+                technology,
+                _site_id,
+            ) in asset_regions
+            if (
+                model_region == resolved.model_region
+                and technology == opportunity.technology
+            )
+        ]
+        if duplicates:
+            warnings.append(
+                _diagnostic(
+                    "W012",
+                    "warning",
+                    "opportunity duplicates a technology already available "
+                    "through a facility or fleet in the same resolved region; "
+                    "prefer asset new_build_limits for generic capped buildout",
+                    object_id=opportunity.id,
+                    location=_location_of(opportunity),
+                )
+            )
+        if opportunity.siting.site:
+            for facility in graph.facilities.values():
+                if facility.site != opportunity.siting.site:
+                    continue
+                role = graph.technology_roles.get(facility.technology_role)
+                if role is None:
+                    continue
+                allowed = set(facility.available_technologies or role.technologies)
+                transition_targets = {item.to_technology for item in role.transitions}
+                if (
+                    opportunity.technology in allowed
+                    or opportunity.technology in transition_targets
+                ):
+                    warnings.append(
+                        _diagnostic(
+                            "W014",
+                            "warning",
+                            "site-bound opportunity looks like a retrofit or "
+                            "upgrade on existing asset stock; prefer transitions "
+                            "or asset new_build_limits",
+                            object_id=opportunity.id,
+                            location=_location_of(opportunity),
+                        )
+                    )
+                    break
     return warnings
 
 
@@ -473,7 +589,16 @@ def collect_v0_2_diagnostics(
                 measure_weights=measure_weights,
                 custom_weights=custom_weights,
             )
-        diagnostics.extend(_warn_run_specific(graph, run))
+        diagnostics.extend(
+            _warn_run_specific(
+                graph,
+                run,
+                site_region_memberships=site_region_memberships,
+                site_zone_memberships=site_zone_memberships,
+                measure_weights=measure_weights,
+                custom_weights=custom_weights,
+            )
+        )
         return sorted(
             diagnostics,
             key=lambda diag: (diag["severity"], diag["code"], diag["object_id"]),

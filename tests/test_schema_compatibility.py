@@ -135,6 +135,13 @@ class TestV0_2SchemaContract:
             "max_new_capacity",
         ]
         assert defs["network"]["required"] == ["id", "kind", "node_basis", "links"]
+        assert defs["distribution_block"]["properties"]["method"]["enum"] == [
+            "proportional",
+            "custom",
+            "direct",
+        ]
+        assert "new_build_limits" in defs["facility"]["properties"]
+        assert "new_build_limits" in defs["fleet"]["properties"]
 
     def test_commodity_kind_enum_matches_v0_2_namespaces(self) -> None:
         enum_values = self.schema["$defs"]["commodity"]["properties"]["kind"]["enum"]

@@ -237,3 +237,32 @@ def test_compile_v0_2_bundle_allocates_fleet_stock_with_custom_weights():
     assert {row["region"] for row in prc_resid} >= {"NSW", "QLD"}
     assert any(row.get("value") == 320.0 for row in prc_resid)
     assert any(row.get("value") == 480.0 for row in prc_resid)
+
+
+def test_compile_v0_2_bundle_attaches_asset_new_build_limits_to_role_processes():
+    source = _v0_2_backend_source(include_fleet=True)
+    source["fleets"][0]["distribution"] = {
+        "method": "direct",
+        "target_regions": ["QLD"],
+    }
+    source["fleets"][0]["new_build_limits"] = [
+        {"technology": "heat_pump", "max_new_capacity": "500 MW"}
+    ]
+    source.pop("opportunities", None)
+
+    bundle = compile_vedalang_bundle(
+        source,
+        selected_run="toy_states_2025",
+    )
+
+    tfm_rows = _table_rows(bundle.tableir, "~TFM_INS")
+    assert any(
+        row.get("attribute") == "NCAP_BND"
+        and row.get("region") == "QLD"
+        and row.get("value") == 500.0
+        for row in tfm_rows
+    )
+    assert not any(
+        process.get("source_opportunity")
+        for process in bundle.cpir.get("processes", [])
+    )

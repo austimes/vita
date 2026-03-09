@@ -96,6 +96,31 @@ def _asset_name_for_process(
     return source_asset.split(".", 1)[-1]
 
 
+def _asset_provenance_label(
+    process: dict[str, Any],
+    *,
+    role_instances: dict[str, dict[str, Any]],
+) -> str | None:
+    source_asset = _source_asset_for_process(process, role_instances=role_instances)
+    if not source_asset:
+        return None
+    if source_asset.startswith("facilities."):
+        return "facility instance"
+    if source_asset.startswith("fleets."):
+        return "fleet instance"
+    return "role instance"
+
+
+def _asset_kind(source_asset: str | None) -> str | None:
+    if not source_asset:
+        return None
+    if source_asset.startswith("facilities."):
+        return "facility"
+    if source_asset.startswith("fleets."):
+        return "fleet"
+    return None
+
+
 def _group_origin(process: dict[str, Any]) -> str:
     if process.get("source_role_instance"):
         return "role_instance"
@@ -118,11 +143,15 @@ def _display_process_label(
     )
     source_opportunity = str(process.get("source_opportunity", "") or "")
     asset_name = _asset_name_for_process(process, role_instances=role_instances)
+    asset_provenance = _asset_provenance_label(
+        process,
+        role_instances=role_instances,
+    )
 
     if granularity == "instance":
         technology = str(process.get("technology", "") or process.get("id", ""))
         if asset_name:
-            provenance = f"[{asset_name}, role instance]"
+            provenance = f"[{asset_name}, {asset_provenance}]"
         elif source_opportunity:
             provenance = f"[{source_opportunity}, opportunity]"
         else:
@@ -130,7 +159,7 @@ def _display_process_label(
         return "\n".join([technology, role_name, provenance])
 
     if asset_name:
-        return "\n".join([role_name, asset_name, "[role instance]"])
+        return "\n".join([role_name, asset_name, f"[{asset_provenance}]"])
     if source_opportunity:
         return "\n".join([role_name, source_opportunity, "[opportunity]"])
     return "\n".join([role_name, "[group]"])
@@ -376,6 +405,7 @@ def _build_system_node_detail(
         "provenance": {
             "group_origin": group_origin,
             "source_asset": source_asset,
+            "source_asset_kind": _asset_kind(source_asset),
             "source_role_instance": source_role_instance,
             "source_opportunity": source_opportunity,
         },

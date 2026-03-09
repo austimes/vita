@@ -556,3 +556,120 @@ def test_allocate_fleet_requires_weights_and_stock_characterization():
                 }
             },
         )
+
+
+def test_allocate_direct_fleet_defaults_to_single_region_and_copies_stock():
+    source = parse_v0_2_source(
+        {
+            "dsl_version": "0.2",
+            "commodities": [
+                {"id": "secondary:electricity", "kind": "secondary"},
+                {"id": "service:space_heat", "kind": "service"},
+            ],
+            "technologies": [
+                {
+                    "id": "heat_pump",
+                    "provides": "service:space_heat",
+                    "inputs": [{"commodity": "secondary:electricity"}],
+                    "performance": {"kind": "cop", "value": 3.0},
+                }
+            ],
+            "technology_roles": [
+                {
+                    "id": "space_heat_supply",
+                    "primary_service": "service:space_heat",
+                    "technologies": ["heat_pump"],
+                }
+            ],
+            "spatial_layers": [
+                {
+                    "id": "geo.demo",
+                    "kind": "polygon",
+                    "key": "region_id",
+                    "geometry_file": "data/regions.geojson",
+                }
+            ],
+            "region_partitions": [
+                {
+                    "id": "single_region",
+                    "layer": "geo.demo",
+                    "members": ["QLD"],
+                    "mapping": {"kind": "constant", "value": "QLD"},
+                }
+            ],
+            "fleets": [
+                {
+                    "id": "residential_heat",
+                    "technology_role": "space_heat_supply",
+                    "stock": {
+                        "items": [
+                            {
+                                "technology": "heat_pump",
+                                "metric": "installed_capacity",
+                                "observed": {"value": "10 MW", "year": 2025},
+                            }
+                        ]
+                    },
+                    "distribution": {"method": "direct"},
+                }
+            ],
+            "runs": [
+                {
+                    "id": "single_2025",
+                    "base_year": 2025,
+                    "currency_year": 2024,
+                    "region_partition": "single_region",
+                }
+            ],
+        }
+    )
+    graph = resolve_imports(source, {})
+    run = resolve_run(graph, "single_2025")
+    fleet = graph.fleets["residential_heat"]
+    adjusted = resolve_asset_stock(fleet, graph=graph, run=run)
+
+    allocations = allocate_fleet_stock(graph, run, fleet, adjusted)
+
+    assert len(allocations) == 1
+    assert allocations[0].model_region == "QLD"
+    assert allocations[0].initial_stock[0].adjusted.value == pytest.approx(10.0)
+
+
+def test_allocate_direct_fleet_requires_targets_for_multi_region_run():
+    packages, model = _packages_and_model()
+    graph = resolve_imports(model, packages)
+    run = resolve_run(graph, "toy_states_2025")
+    direct_fleet = parse_v0_2_source(
+        {
+            "dsl_version": "0.2",
+            "imports": [
+                {
+                    "package": "vedalang.std.heat@1",
+                    "as": "heat",
+                    "only": {"technology_roles": ["residential_space_heat_supply"]},
+                }
+            ],
+            "fleets": [
+                {
+                    "id": "residential_space_heat",
+                    "technology_role": "heat.residential_space_heat_supply",
+                    "stock": {
+                        "items": [
+                            {
+                                "technology": "heat.gas_heater",
+                                "metric": "asset_count",
+                                "observed": {"value": "100 assets", "year": 2025},
+                            }
+                        ]
+                    },
+                    "distribution": {"method": "direct"},
+                }
+            ],
+        }
+    )
+    broken_graph = resolve_imports(direct_fleet, packages)
+    fleet = broken_graph.fleets["residential_space_heat"]
+    adjusted = resolve_asset_stock(fleet, graph=broken_graph, run=run)
+
+    with pytest.raises(V0_2ResolutionError, match="E020"):
+        allocate_fleet_stock(broken_graph, run, fleet, adjusted)

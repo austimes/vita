@@ -13,8 +13,9 @@ This guide describes the active **v0.2** modeling contract.
 - `commodities` define the ledger vocabulary.
 - `technologies` define concrete physical pathways.
 - `technology_roles` group substitutable technologies around one service intent.
-- `sites`, `facilities`, and `fleets` place existing stock in space.
-- `opportunities` represent new-build options.
+- `facilities` place named site-bound stock.
+- `fleets` place distributed or generic stock boundaries.
+- `opportunities` represent place-bound greenfield/new-build classes.
 - `networks` represent inter-regional transfer infrastructure.
 - `runs` define the model region partition and reporting currency year.
 
@@ -84,25 +85,56 @@ technology_roles:
 ## Spatial Deployment
 
 - Put exact point/polygon placement on `sites`.
-- Use `facilities` for named site-bound assets.
-- Use `fleets` for distributed stock allocated across a run’s model regions.
+- Use `facilities` for named site-bound assets whose site identity matters.
+- Use `fleets` for distributed stock and for toy-scale generic sector stock.
+- For toy models, prefer `fleets[*].distribution.method: direct` so authors do
+  not need spatial weights or site geometry just to instantiate stock.
 - Use `membership_overrides` only when the site-to-region mapping would be
   ambiguous otherwise.
-- Use `opportunities` for optional future build rather than encoding “latent”
-  technologies as fake existing stock.
+- Use `opportunities` only for place-bound build classes: site, zone, or region
+  specific greenfield/resource opportunities.
+- Do not use `opportunities` for generic “technology exists in the role but has
+  zero stock” cases.
 
 ## Stocks and Costs
 
 - Existing stock belongs under `facilities[*].stock.items` or `fleets[*].stock.items`.
+- Technology-specific capped buildout on an instantiated asset boundary belongs
+  under `facilities[*].new_build_limits` or `fleets[*].new_build_limits`.
 - Costs belong on `technologies` as explicit literals, for example
   `220 AUD2024/kW` or `25 AUD2024/MWh`.
 - Heating-value basis must be explicit on combustible flow sites.
 - Do not rely on implicit interpolation; prefer explicit year-indexed values.
 
+## Relationship Guide
+
+| Intent | Preferred object |
+|---|---|
+| Existing stock at a named place | `facility.stock` |
+| Existing generic/distributed stock | `fleet.stock` |
+| Generic alternative technology with no current stock | `technology_roles[*].technologies` |
+| Retrofit or upgrade of existing stock | `technology_roles[*].transitions` |
+| Technology-specific new-build cap on an instantiated asset boundary | `facility.new_build_limits` or `fleet.new_build_limits` |
+| Place-bound greenfield/resource/build class | `opportunity` |
+
+Valid `opportunity` examples:
+
+- REZ-specific wind class
+- Region-specific mine expansion step
+- Site-specific greenfield project with distinct place identity
+
+Non-`opportunity` examples:
+
+- Generic heat pump rollout in a single-region residential fleet
+- EV uptake in a generic passenger fleet
+- Retrofit of an existing facility already represented in role transitions
+
 ## Diagnostics Expectations
 
 - A technology role that delivers end-use service must still have physical
   inputs somewhere in its technologies unless it is a true supply or sink role.
+- Facilities and opportunities are place-based objects; fleets are the default
+  authoring surface for toy models and generic distributed sectors.
 - Commodity kind should align with topology:
   `primary` for fuels, `secondary` for carriers, `service` for demands,
   `emission` for ledger outputs.
@@ -115,6 +147,8 @@ technology_roles:
 - [ ] Technology names describe whole pathways.
 - [ ] Combustible flows carry explicit `basis`.
 - [ ] Existing stock is placed through `facilities` or `fleets`.
-- [ ] Optional future build is represented with `opportunities`.
+- [ ] Generic toy-model stock uses fleets with `distribution.method: direct`.
+- [ ] Capped buildout on existing assets uses `new_build_limits`.
+- [ ] `opportunities` are reserved for place-bound build classes.
 - [ ] Networks are modeled with `networks`, not fake technologies.
 - [ ] Runs are present and identify the intended region partition.

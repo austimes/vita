@@ -133,6 +133,12 @@ class ResolvedOpportunity:
     model_region: str
 
 
+@dataclass(frozen=True)
+class ResolvedAssetNewBuildLimit:
+    technology: str
+    max_new_capacity: ParsedQuantity
+
+
 def parse_quantity(value: str | int | float) -> ParsedQuantity:
     """Parse a loose quantity literal into numeric value plus unit suffix."""
     if isinstance(value, (int, float)):
@@ -750,6 +756,48 @@ def resolve_asset_stock(
     return tuple(adjusted)
 
 
+def resolve_asset_new_build_limits(
+    asset: FacilityDecl | FleetDecl,
+    *,
+    graph: ResolvedDefinitionGraph,
+) -> tuple[ResolvedAssetNewBuildLimit, ...]:
+    role = graph.technology_roles.get(asset.technology_role)
+    if role is None:
+        raise V0_2ResolutionError(
+            "E002",
+            asset.technology_role,
+            "asset references missing technology_role",
+        )
+    allowed = set(asset.available_technologies or role.technologies)
+    resolved: list[ResolvedAssetNewBuildLimit] = []
+    seen: set[str] = set()
+    for item in asset.new_build_limits:
+        if item.technology in seen:
+            raise V0_2ResolutionError(
+                "E022",
+                asset.id,
+                "duplicate new_build_limits entry for technology "
+                f"'{item.technology}'",
+                location=item.source_ref.path,
+            )
+        seen.add(item.technology)
+        if item.technology not in allowed:
+            raise V0_2ResolutionError(
+                "E023",
+                asset.id,
+                "new_build_limits technology "
+                f"'{item.technology}' is not allowed by the asset",
+                location=item.source_ref.path,
+            )
+        resolved.append(
+            ResolvedAssetNewBuildLimit(
+                technology=item.technology,
+                max_new_capacity=parse_quantity(item.max_new_capacity),
+            )
+        )
+    return tuple(resolved)
+
+
 def _find_stock_characterization(
     graph: ResolvedDefinitionGraph,
     technology: str,
@@ -808,6 +856,61 @@ def allocate_fleet_stock(
     custom_weights: dict[str, dict[str, float]] | None = None,
 ) -> tuple[FleetAllocation, ...]:
     """Allocate fleet stock across model regions and derive stock views."""
+    if fleet.distribution.method == "direct":
+        target_regions = tuple(fleet.distribution.target_regions)
+        if not target_regions:
+            if len(run.model_regions) != 1:
+                raise V0_2ResolutionError(
+                    "E020",
+                    fleet.id,
+                    "direct fleet distribution requires target_regions for "
+                    "multi-region runs",
+                    location=fleet.distribution.source_ref.path,
+                )
+            target_regions = (run.model_regions[0],)
+        invalid = [
+            region for region in target_regions if region not in run.model_regions
+        ]
+        if invalid:
+            raise V0_2ResolutionError(
+                "E021",
+                fleet.id,
+                "distribution.target_regions contains regions outside the "
+                "selected run partition",
+                location=fleet.distribution.source_ref.path,
+            )
+        allocations: list[FleetAllocation] = []
+        for region in target_regions:
+            regional_items = tuple(
+                AdjustedStock(
+                    technology=item.technology,
+                    declared_metric=item.declared_metric,
+                    observed=item.observed,
+                    adjusted=_format_quantity(item.adjusted.value, item.adjusted.unit),
+                    observed_year=item.observed_year,
+                    base_year=item.base_year,
+                    trace={
+                        **item.trace,
+                        "direct_binding": True,
+                        "model_region": region,
+                    },
+                )
+                for item in adjusted_stock
+            )
+            stock_views = {
+                item.technology: derive_stock_views(graph, item)
+                for item in regional_items
+            }
+            allocations.append(
+                FleetAllocation(
+                    fleet_id=fleet.id,
+                    model_region=region,
+                    share=1.0,
+                    initial_stock=regional_items,
+                    derived_stock_views=stock_views,
+                )
+            )
+        return tuple(allocations)
     if fleet.distribution.method == "proportional":
         weight_ref = fleet.distribution.weight_by or ""
         weights = dict((measure_weights or {}).get(weight_ref, {}))

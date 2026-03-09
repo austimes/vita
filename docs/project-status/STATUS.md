@@ -27,6 +27,11 @@ issues remain open.
 
 ## Recently Completed
 
+- `vedalang-3qd` — added direct fleet distribution and asset-scoped
+  `new_build_limits`, reserved `opportunities` for place-bound build classes,
+  split viewer provenance labels into facility-vs-fleet instances, and
+  migrated the toy-sector examples and tutorial to fleet-first single-region
+  authoring
 - `vedalang-532` — fixed the browser RES viewer's duplicate VEDA tray shell by
   making the hidden tray and hidden collapsed-bar actually leave layout, so the
   tray now collapses to a single reopen handle instead of leaving an inert

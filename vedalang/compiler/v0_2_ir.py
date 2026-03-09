@@ -14,6 +14,7 @@ from .v0_2_resolution import (
     allocate_fleet_stock,
     derive_stock_views,
     parse_quantity,
+    resolve_asset_new_build_limits,
     resolve_asset_stock,
     resolve_opportunities,
     resolve_sites,
@@ -78,6 +79,7 @@ def emit_csir(
     for facility_id in sorted(graph.facilities):
         facility = graph.facilities[facility_id]
         adjusted = resolve_asset_stock(facility, graph=graph, run=run)
+        new_build_limits = resolve_asset_new_build_limits(facility, graph=graph)
         site = resolved_sites[facility.site]
         role = graph.technology_roles[facility.technology_role]
         available = tuple(facility.available_technologies or role.technologies)
@@ -123,6 +125,16 @@ def emit_csir(
                 "technology_role": facility.technology_role,
                 "model_region": site.model_region,
                 "available_technologies": list(sorted(available)),
+                "new_build_limits": [
+                    {
+                        "technology": item.technology,
+                        "max_new_capacity": _quantity_dict(item.max_new_capacity),
+                    }
+                    for item in sorted(
+                        new_build_limits,
+                        key=lambda item: item.technology,
+                    )
+                ],
                 "initial_stock": sorted(
                     stock_items, key=lambda item: item["technology"]
                 ),
@@ -141,6 +153,7 @@ def emit_csir(
     for fleet_id in sorted(graph.fleets):
         fleet = graph.fleets[fleet_id]
         adjusted = resolve_asset_stock(fleet, graph=graph, run=run)
+        new_build_limits = resolve_asset_new_build_limits(fleet, graph=graph)
         allocations = allocate_fleet_stock(
             graph,
             run,
@@ -168,11 +181,16 @@ def emit_csir(
         for allocation in allocations:
             alloc_trace = f"trace.alloc.{fleet_id}.{allocation.model_region}"
             explain_traces[alloc_trace] = {
-                "kind": "spatial_allocation",
+                "kind": (
+                    "direct_region_binding"
+                    if fleet.distribution.method == "direct"
+                    else "spatial_allocation"
+                ),
                 "fleet": fleet_id,
                 "model_region": allocation.model_region,
                 "share": allocation.share,
                 "weight_measure": fleet.distribution.weight_by,
+                "target_regions": list(fleet.distribution.target_regions),
             }
             stock_items = []
             for item in allocation.initial_stock:
@@ -210,6 +228,16 @@ def emit_csir(
                     "technology_role": fleet.technology_role,
                     "model_region": allocation.model_region,
                     "available_technologies": list(sorted(available)),
+                    "new_build_limits": [
+                        {
+                            "technology": item.technology,
+                            "max_new_capacity": _quantity_dict(item.max_new_capacity),
+                        }
+                        for item in sorted(
+                            new_build_limits,
+                            key=lambda item: item.technology,
+                        )
+                    ],
                     "initial_stock": sorted(
                         stock_items,
                         key=lambda item: item["technology"],
@@ -401,21 +429,28 @@ def lower_csir_to_cpir(
             item["technology"]: item["stock_views"]
             for item in role_instance.get("initial_stock", [])
         }
+        new_build_by_technology = {
+            item["technology"]: item["max_new_capacity"]
+            for item in role_instance.get("new_build_limits", [])
+            if isinstance(item, dict)
+        }
         for technology_id in sorted(role_instance["available_technologies"]):
             process_id = f"P::{role_instance['id']}::{technology_id}"
             stock_view = stock_by_technology.get(technology_id, {})
             quantity = stock_view.get(metric) or {"amount": 0.0, "unit": metric_unit}
-            processes.append(
-                {
-                    "id": process_id,
-                    "source_role_instance": role_instance["id"],
-                    "technology": technology_id,
-                    "model_region": role_instance["model_region"],
-                    "model_stock_metric": metric,
-                    "initial_stock": quantity,
-                    "flows": _technology_flows(graph.technologies[technology_id]),
-                }
-            )
+            process = {
+                "id": process_id,
+                "source_role_instance": role_instance["id"],
+                "technology": technology_id,
+                "model_region": role_instance["model_region"],
+                "model_stock_metric": metric,
+                "initial_stock": quantity,
+                "flows": _technology_flows(graph.technologies[technology_id]),
+            }
+            max_new_capacity = new_build_by_technology.get(technology_id)
+            if isinstance(max_new_capacity, dict):
+                process["max_new_capacity"] = max_new_capacity
+            processes.append(process)
             lower_trace = f"trace.lower.{process_id}"
             explain_traces[lower_trace] = {
                 "kind": "role_instance_to_process",

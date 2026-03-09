@@ -65,6 +65,7 @@
           "technology_role",
           "model_region",
           "available_technologies",
+          "new_build_limits",
           "initial_stock",
           "trace_ids"
         ],
@@ -74,6 +75,18 @@
           "technology_role": {"type": "string"},
           "model_region": {"type": "string"},
           "available_technologies": {"type": "array", "items": {"type": "string"}},
+          "new_build_limits": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["technology", "max_new_capacity"],
+              "properties": {
+                "technology": {"type": "string"},
+                "max_new_capacity": {"type": "object"}
+              }
+            }
+          },
           "trace_ids": {"type": "array", "items": {"type": "string"}},
           "initial_stock": {
             "type": "array",

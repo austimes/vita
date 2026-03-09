@@ -281,6 +281,15 @@ def test_distribution_requires_matching_method_field() -> None:
         jsonschema.validate(data, load_schema())
 
 
+def test_distribution_direct_accepts_target_regions() -> None:
+    data = valid_v0_2_source()
+    data["fleets"][0]["distribution"] = {
+        "method": "direct",
+        "target_regions": ["QLD"],
+    }
+    jsonschema.validate(data, load_schema())
+
+
 def test_site_location_requires_point_or_feature_ref() -> None:
     data = valid_v0_2_source()
     data["sites"][0]["location"] = {}
@@ -315,6 +324,13 @@ def test_temporal_index_series_requires_index_unit() -> None:
 def test_stock_characterization_requires_conversions() -> None:
     data = valid_v0_2_source()
     data["stock_characterizations"][0]["conversions"] = []
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(data, load_schema())
+
+
+def test_asset_new_build_limits_require_technology_and_capacity() -> None:
+    data = valid_v0_2_source()
+    data["facilities"][0]["new_build_limits"] = [{"technology": "heat.gas_heater"}]
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(data, load_schema())
 

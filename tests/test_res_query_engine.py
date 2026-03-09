@@ -36,12 +36,12 @@ ROLE_SOIL_LABEL = (
 ROLE_PROD_LABEL = (
     "agricultural_production\n"
     "farm_production_asset\n"
-    "[role instance]"
+    "[facility instance]"
 )
 INSTANCE_BASELINE_LABEL = (
     "traditional_baseline\n"
     "agricultural_production\n"
-    "[farm_production_asset, role instance]"
+    "[farm_production_asset, facility instance]"
 )
 INSTANCE_SOIL_LABEL = (
     "soil_carbon\n"
@@ -354,7 +354,10 @@ def test_system_graph_aggregates_multi_region_fleet_role_nodes():
         for node in built["graph"]["nodes"]
         if node["id"] == "role:asset:fleets.residential_heat"
     )
-    assert fleet_role["label"] == "space_heat_supply\nresidential_heat\n[role instance]"
+    assert (
+        fleet_role["label"]
+        == "space_heat_supply\nresidential_heat\n[fleet instance]"
+    )
     detail = built["details"]["nodes"][fleet_role["id"]]
     assert detail["scopes"]["regions"] == ["NSW", "QLD"]
     assert detail["aggregation"]["is_aggregated"] is True

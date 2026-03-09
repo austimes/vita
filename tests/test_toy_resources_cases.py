@@ -9,7 +9,7 @@ TOY_RESOURCES_PATH = (
 )
 
 
-def test_toy_resources_is_a_single_v0_2_opportunity_model():
+def test_toy_resources_is_a_single_v0_2_fleet_capped_model():
     source = load_vedalang(TOY_RESOURCES_PATH)
     bundle = compile_vedalang_bundle(
         source,
@@ -18,8 +18,14 @@ def test_toy_resources_is_a_single_v0_2_opportunity_model():
     )
 
     assert bundle.run_id == "single_2025"
-    assert len(bundle.csir["opportunities"]) == 1
-    assert bundle.csir["opportunities"][0]["technology"] == "electric_haul"
+    assert bundle.csir["opportunities"] == []
+    capped_process = next(
+        process
+        for process in bundle.cpir["processes"]
+        if process.get("source_role_instance") == "role_instance.haul_service@SINGLE"
+        and process.get("technology") == "electric_haul"
+    )
+    assert capped_process["max_new_capacity"]["amount"] == 12.0
 
 
 def test_toy_resources_validates_end_to_end():

@@ -1,7 +1,7 @@
 # Your First VedaLang Model
 
 This tutorial uses the v0.2 DSL. You will build a minimal space-heating model
-with one service commodity, one technology, one facility, and one run.
+with one service commodity, one technology, one fleet, and one run.
 
 ## Step 1: Create a Minimal Model File
 
@@ -63,21 +63,9 @@ region_partitions:
       kind: constant
       value: QLD
 
-# Sites anchor assets to a location and region membership.
-sites:
-  - id: brisbane_home
-    location:
-      point:
-        lat: -27.47
-        lon: 153.02
-    membership_overrides:
-      region_partitions:
-        toy_region: QLD
-
-# Facilities declare the real-world asset stock attached to each site.
-facilities:
-  - id: brisbane_space_heat
-    site: brisbane_home
+# Fleets are the simplest way to place generic toy-model stock.
+fleets:
+  - id: residential_space_heat
     technology_role: space_heat_supply
     stock:
       items:
@@ -86,6 +74,8 @@ facilities:
           observed:
             value: 12 kW
             year: 2025
+    distribution:
+      method: direct
 
 # Runs select the base year and regional view to compile.
 runs:
@@ -102,7 +92,8 @@ runs:
 - `technology_roles`: service-oriented role contracts that group allowed technologies
 - `spatial_layers`: the source geographic layer that sites and regions refer to
 - `region_partitions`: how underlying spatial members are grouped into model regions
-- `sites` and `facilities`: concrete assets and their existing stock
+- `fleets`: generic or distributed stock, using `distribution.method: direct`
+  for toy single-region models
 - `runs`: compile-time selection of base year, currency year, and region partition
 
 ## Step 2: Validate the Model
@@ -160,6 +151,14 @@ uv run vedalang compile my_first_model.veda.yaml --run toy_region_2025 --out out
 
 **Fix**: if you declare fleet/facility stock in `asset_count`, add a
 `stock_characterizations` entry that converts to the required lowering metrics.
+
+### Missing Direct Fleet Targets
+
+**Error**: `E020 direct fleet distribution requires target_regions for multi-region runs`
+
+**Fix**: on multi-region runs, add `distribution.target_regions` to the fleet,
+or switch to `proportional`/`custom` distribution if you actually want an
+allocation.
 
 ## Next Steps
 

@@ -25,9 +25,8 @@ commodities:
 
 dsl_version: "0.2"
 
-facilities:
-  - id: biodiesel_supply_facility
-    site: single_mine
+fleets:
+  - id: biodiesel_supply
     stock:
       items:
         - metric: installed_capacity
@@ -36,9 +35,10 @@ facilities:
             year: 2025
           technology: biodiesel_import
     technology_role: biodiesel_supply
+    distribution:
+      method: direct
 
-  - id: diesel_supply_facility
-    site: single_mine
+  - id: diesel_supply
     stock:
       items:
         - metric: installed_capacity
@@ -47,9 +47,10 @@ facilities:
             year: 2025
           technology: diesel_import
     technology_role: diesel_supply
+    distribution:
+      method: direct
 
-  - id: electricity_supply_facility
-    site: single_mine
+  - id: electricity_supply
     stock:
       items:
         - metric: installed_capacity
@@ -58,13 +59,14 @@ facilities:
             year: 2025
           technology: electricity_import
     technology_role: electricity_supply
+    distribution:
+      method: direct
 
-  - id: haul_service_facility
+  - id: haul_service
     available_technologies:
       - diesel_haul
       - biodiesel_haul
       - electric_haul
-    site: single_mine
     stock:
       items:
         - metric: installed_capacity
@@ -85,13 +87,11 @@ facilities:
             year: 2025
           technology: electric_haul
     technology_role: haul_service
-
-opportunities:
-  - id: electric_haul_rollout
-    max_new_capacity: 12 MW
-    siting:
-      site: single_mine
-    technology: electric_haul
+    new_build_limits:
+      - technology: electric_haul
+        max_new_capacity: 12 MW
+    distribution:
+      method: direct
 
 region_partitions:
   - id: single_region
@@ -107,16 +107,6 @@ runs:
     base_year: 2025
     currency_year: 2024
     region_partition: single_region
-
-sites:
-  - id: single_mine
-    location:
-      point:
-        lat: -22.91
-        lon: 119.45
-    membership_overrides:
-      region_partitions:
-        single_region: SINGLE
 
 spatial_layers:
   - id: geo.demo
