@@ -189,6 +189,45 @@ def test_compiled_commodity_view_collapse_scope_merges_namespaces():
     assert len(collapsed_labels) <= len(scoped_labels)
 
 
+def test_role_granularity_exposes_opportunity_provenance_in_labels():
+    source_file = EXAMPLES_DIR / "toy_sectors/toy_agriculture.veda.yaml"
+
+    response = query_res_graph(
+        {
+            "version": "1",
+            "file": str(source_file),
+            "mode": "compiled",
+            "granularity": "role",
+            "lens": "system",
+            "filters": {"regions": [], "case": None, "sectors": [], "scopes": []},
+            "compiled": {"truth": "auto", "cache": True, "allow_partial": True},
+        }
+    )
+
+    role_nodes = [
+        node for node in response["graph"]["nodes"] if node["type"] == "role"
+    ]
+    labels = [node["label"] for node in role_nodes]
+
+    assert len(labels) == len(set(labels))
+    assert (
+        "farm_carbon_management@SINGLE [opportunity:reforestation_rollout]"
+        in labels
+    )
+    assert "farm_carbon_management@SINGLE [opportunity:soil_carbon_rollout]" in labels
+
+    reforestation_node = next(
+        node
+        for node in role_nodes
+        if node["label"]
+        == "farm_carbon_management@SINGLE [opportunity:reforestation_rollout]"
+    )
+    assert (
+        response["details"]["nodes"][reforestation_node["id"]]["group_origin"]
+        == "opportunity"
+    )
+
+
 def test_multi_run_v0_2_query_requires_explicit_run_and_exposes_facets(tmp_path):
     source_file = tmp_path / "multi_run.veda.yaml"
     _write_multi_run_source(source_file)

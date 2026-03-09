@@ -38,9 +38,9 @@ def _group_key(
     role_instance = process.get("source_role_instance")
     if role_instance:
         role_instance = str(role_instance)
-        role_name = role_instance.split(".", 1)[-1].split("@", 1)[0]
         region = str(process["model_region"])
-        return (f"role:{role_instance}", f"{role_name}@{region}", "role")
+        asset_name = role_instance.split(".", 1)[-1].split("@", 1)[0]
+        return (f"role:{role_instance}", f"{asset_name}@{region}", "role")
     role_name = technology_to_role.get(
         str(process.get("technology", "")),
         str(process.get("technology", "")) or str(process.get("id", "")),
@@ -50,7 +50,7 @@ def _group_key(
     if source_opportunity:
         return (
             f"role:opportunity:{source_opportunity}",
-            f"{role_name}@{region}",
+            f"{role_name}@{region} [opportunity:{source_opportunity}]",
             "role",
         )
     return (f"role:{role_name}@{region}", f"{role_name}@{region}", "role")
@@ -116,6 +116,11 @@ def build_v0_2_system_graph(
                     "technology_role": role_instance.get("technology_role")
                     or role_name,
                     "model_region": process.get("model_region"),
+                    "group_origin": (
+                        "opportunity"
+                        if process.get("source_opportunity")
+                        else "role_instance"
+                    ),
                     "source_role_instance": role_instance_id or None,
                     "source_asset": role_instance.get("source_asset"),
                     "source_opportunity": process.get("source_opportunity"),
