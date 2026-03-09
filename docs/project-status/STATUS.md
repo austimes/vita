@@ -27,6 +27,10 @@ issues remain open.
 
 ## Recently Completed
 
+- `vedalang-61i` — fixed the RES viewer follow-up where the bottom VEDA tray
+  needed to collapse independently of the global `Show VEDA tables` toggle,
+  tray open/close was still causing page-level viewport jumps, and process
+  overlay labels were not scaling coherently with graph zoom
 - `vedalang-1vn` — reworked the browser RES viewer shell so the graph is now
   the dominant surface, moved controls into left `Files`/`View`/`Filters`
   tabs, made the inspector collapsible and resizable on the right, added a

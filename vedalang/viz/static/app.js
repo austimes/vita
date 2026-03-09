@@ -14,6 +14,8 @@ const SIDEBAR_TABS = new Set(["files", "view", "filters"]);
 const PROCESS_NODE_WIDTH = 184;
 const PROCESS_NODE_HEIGHT = 96;
 const PROCESS_LABEL_WIDTH = 164;
+const MIN_LABEL_SCALE = 0.35;
+const MAX_LABEL_SCALE = 6;
 const DEFAULT_DETAILS_PANE_WIDTH = 360;
 const MIN_DETAILS_PANE_WIDTH = 280;
 const MAX_DETAILS_PANE_WIDTH = 620;
@@ -70,6 +72,7 @@ const state = {
   detailsPaneCollapsed: false,
   detailsPaneWidth: DEFAULT_DETAILS_PANE_WIDTH,
   vedaTablesEnabled: false,
+  vedaTrayCollapsed: false,
   selectedNodeId: "",
   selectedSelectionType: "",
   selectedInspector: null,
@@ -369,15 +372,15 @@ function clearVedaTrayContent() {
 
 function setVedaTrayVisible(visible) {
   const tray = document.getElementById("vedaTray");
+  const wasVisible = !tray.hidden;
   tray.hidden = !visible;
+  if (wasVisible !== visible) {
+    scheduleViewportReset();
+  }
 }
 
-function ensureVedaTrayVisible() {
-  const tray = document.getElementById("vedaTray");
-  if (tray.hidden) {
-    return;
-  }
-  tray.scrollIntoView({ block: "nearest" });
+function setVedaTrayCollapsed(collapsed) {
+  state.vedaTrayCollapsed = collapsed;
 }
 
 function fileNameOnly(path) {
@@ -418,6 +421,10 @@ function createVedaTrayHeader({ title, statusText, partial }) {
 }
 
 function renderVedaTrayPlaceholder(title, text, { partial = false } = {}) {
+  if (state.vedaTrayCollapsed) {
+    hideVedaTray();
+    return;
+  }
   const { content } = clearVedaTrayContent();
   createVedaTrayHeader({
     title,
@@ -430,7 +437,6 @@ function renderVedaTrayPlaceholder(title, text, { partial = false } = {}) {
   placeholder.textContent = text;
   content.appendChild(placeholder);
   setVedaTrayVisible(true);
-  ensureVedaTrayVisible();
 }
 
 function hideVedaTray() {
@@ -571,24 +577,18 @@ function renderVedaTableCard(tableGroup) {
 }
 
 function renderVedaTrayForInspector(inspector) {
-  if (!state.vedaTablesEnabled) {
+  if (!state.vedaTablesEnabled || state.vedaTrayCollapsed) {
     hideVedaTray();
     return;
   }
 
   if (state.lens !== "system") {
-    renderVedaTrayPlaceholder(
-      "VEDA Tables",
-      "Available in system lens only.",
-    );
+    hideVedaTray();
     return;
   }
 
   if (!inspector || !isVedaTrayEligibleInspector(inspector)) {
-    renderVedaTrayPlaceholder(
-      "VEDA Tables",
-      "Rendered VEDA/TIMES tables are only available for system-lens process and commodity nodes.",
-    );
+    hideVedaTray();
     return;
   }
 
@@ -618,7 +618,6 @@ function renderVedaTrayForInspector(inspector) {
     });
   }
   setVedaTrayVisible(true);
-  ensureVedaTrayVisible();
 }
 
 function renderInspector(inspector) {
@@ -1104,6 +1103,8 @@ function refreshProcessLabelLayer() {
     return;
   }
 
+  const labelScale = Math.max(MIN_LABEL_SCALE, Math.min(MAX_LABEL_SCALE, cy.zoom()));
+
   cy.nodes().forEach((node) => {
     const nodeType = node.data("type");
     if (!isProcessNodeType(nodeType) || !node.visible()) {
@@ -1117,6 +1118,7 @@ function refreshProcessLabelLayer() {
     labelEl.style.left = `${position.x}px`;
     labelEl.style.top = `${position.y}px`;
     labelEl.style.width = `${PROCESS_LABEL_WIDTH}px`;
+    labelEl.style.transform = `translate(-50%, -50%) scale(${labelScale})`;
 
     const primaryEl = document.createElement("div");
     primaryEl.className = "graph-process-label-primary";
@@ -1170,16 +1172,13 @@ function selectEdge(id) {
 }
 
 function renderVedaTrayForCurrentSelection() {
-  if (!state.vedaTablesEnabled) {
+  if (!state.vedaTablesEnabled || state.vedaTrayCollapsed) {
     hideVedaTray();
     return;
   }
 
   if (state.lens !== "system") {
-    renderVedaTrayPlaceholder(
-      "VEDA Tables",
-      "Available in system lens only.",
-    );
+    hideVedaTray();
     return;
   }
 
@@ -1189,10 +1188,7 @@ function renderVedaTrayForCurrentSelection() {
   }
 
   if (state.selectedSelectionType === "edge") {
-    renderVedaTrayPlaceholder(
-      "VEDA Tables",
-      "Rendered VEDA/TIMES tables are only available for system-lens process and commodity nodes.",
-    );
+    hideVedaTray();
     return;
   }
 
@@ -1202,10 +1198,7 @@ function renderVedaTrayForCurrentSelection() {
     return;
   }
 
-  renderVedaTrayPlaceholder(
-    "VEDA Tables",
-    "Rendered VEDA/TIMES tables are only available for system-lens process and commodity nodes.",
-  );
+  hideVedaTray();
 }
 
 function renderSelectionFromState() {
@@ -1323,6 +1316,7 @@ function initCy() {
     const id = event.target.id();
     const details = (lastResponse && lastResponse.details && lastResponse.details.nodes[id]) || {};
     selectNode(id, details.inspector || null);
+    setVedaTrayCollapsed(false);
     if (details.inspector) {
       renderInspector(details.inspector);
       if (state.vedaTablesEnabled) {
@@ -1646,7 +1640,13 @@ function renderVedaTablesControl() {
       active: state.vedaTablesEnabled,
       disabled,
       onClick: () => {
-        setVedaTablesEnabled(!state.vedaTablesEnabled);
+        const nextEnabled = !state.vedaTablesEnabled;
+        setVedaTablesEnabled(nextEnabled);
+        if (nextEnabled) {
+          setVedaTrayCollapsed(false);
+        } else {
+          hideVedaTray();
+        }
         renderControls();
         renderSelectionFromState();
       },
@@ -1861,10 +1861,8 @@ function wireControls() {
   document.getElementById("toggleInspectorBtn").addEventListener("click", toggleDetails);
   document.getElementById("toggleDetailsPaneBtn").addEventListener("click", toggleDetails);
   document.getElementById("closeVedaTrayBtn").addEventListener("click", () => {
-    setVedaTablesEnabled(false);
-    renderControls();
-    renderSelectionFromState();
-    scheduleViewportReset();
+    setVedaTrayCollapsed(true);
+    hideVedaTray();
   });
   document.getElementById("upDirBtn").addEventListener("click", async () => {
     if (!state.parentDir) {

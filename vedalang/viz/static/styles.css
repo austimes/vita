@@ -18,17 +18,24 @@
   box-sizing: border-box;
 }
 
+html,
+body {
+  height: 100%;
+}
+
 body {
   margin: 0;
   font-family: Menlo, Monaco, "Courier New", monospace;
   background: var(--bg);
   color: var(--text);
+  overflow: hidden;
 }
 
 .app {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  height: 100vh;
+  min-height: 0;
 }
 
 header {
@@ -75,6 +82,7 @@ h1 {
   grid-template-columns: var(--left-sidebar-width) minmax(0, 1fr);
   min-height: 0;
   flex: 1;
+  overflow: hidden;
 }
 
 .left-sidebar {
