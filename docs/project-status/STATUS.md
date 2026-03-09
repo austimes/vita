@@ -27,6 +27,10 @@ issues remain open.
 
 ## Recently Completed
 
+- `vedalang-b72` — trimmed the browser RES inspector so it only renders
+  DSL, resolved semantic, and lowered IR sections, added a real collapsible
+  bottom VEDA tray handle so the tray can reopen without toggling tables off,
+  and tightened process label box padding and dimensions
 - `vedalang-61i` — fixed the RES viewer follow-up where the bottom VEDA tray
   needed to collapse independently of the global `Show VEDA tables` toggle,
   tray open/close was still causing page-level viewport jumps, and process

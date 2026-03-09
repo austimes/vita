@@ -11,14 +11,15 @@ const DETAILS_PANE_STORAGE_KEY = "vedalang.viz.detailsPaneCollapsed";
 const DETAILS_PANE_WIDTH_STORAGE_KEY = "vedalang.viz.detailsPaneWidth";
 const VEDA_TABLES_STORAGE_KEY = "vedalang.viz.vedaTablesEnabled";
 const SIDEBAR_TABS = new Set(["files", "view", "filters"]);
-const PROCESS_NODE_WIDTH = 184;
-const PROCESS_NODE_HEIGHT = 96;
-const PROCESS_LABEL_WIDTH = 164;
+const PROCESS_NODE_WIDTH = 168;
+const PROCESS_NODE_HEIGHT = 82;
+const PROCESS_LABEL_WIDTH = 148;
 const MIN_LABEL_SCALE = 0.35;
 const MAX_LABEL_SCALE = 6;
 const DEFAULT_DETAILS_PANE_WIDTH = 360;
 const MIN_DETAILS_PANE_WIDTH = 280;
 const MAX_DETAILS_PANE_WIDTH = 620;
+const INSPECTOR_RENDERED_SECTION_KEYS = new Set(["dsl", "semantic", "lowered"]);
 
 const MODE_OPTIONS = [
   { value: "compiled", label: "compiled" },
@@ -73,6 +74,7 @@ const state = {
   detailsPaneWidth: DEFAULT_DETAILS_PANE_WIDTH,
   vedaTablesEnabled: false,
   vedaTrayCollapsed: false,
+  vedaTrayTitle: "VEDA Tables",
   selectedNodeId: "",
   selectedSelectionType: "",
   selectedInspector: null,
@@ -374,6 +376,11 @@ function setVedaTrayVisible(visible) {
   const tray = document.getElementById("vedaTray");
   const wasVisible = !tray.hidden;
   tray.hidden = !visible;
+  if (visible) {
+    document.getElementById("vedaTrayCollapsedBar").hidden = true;
+  } else {
+    updateVedaTrayCollapsedBar();
+  }
   if (wasVisible !== visible) {
     scheduleViewportReset();
   }
@@ -381,6 +388,30 @@ function setVedaTrayVisible(visible) {
 
 function setVedaTrayCollapsed(collapsed) {
   state.vedaTrayCollapsed = collapsed;
+  updateVedaTrayCollapsedBar();
+}
+
+function currentVedaTrayInspector() {
+  if (!state.vedaTablesEnabled || state.lens !== "system") {
+    return null;
+  }
+  if (!state.selectedSelectionType || state.selectedSelectionType !== "node" || !lastResponse) {
+    return null;
+  }
+  const details = (((lastResponse || {}).details || {}).nodes || {})[state.selectedNodeId] || null;
+  if (!details || !details.inspector || !isVedaTrayEligibleInspector(details.inspector)) {
+    return null;
+  }
+  return details.inspector;
+}
+
+function updateVedaTrayCollapsedBar() {
+  const bar = document.getElementById("vedaTrayCollapsedBar");
+  const label = document.getElementById("vedaTrayCollapsedLabel");
+  const inspector = currentVedaTrayInspector();
+  const shouldShow = Boolean(state.vedaTrayCollapsed && inspector);
+  label.textContent = state.vedaTrayTitle || "VEDA Tables";
+  bar.hidden = !shouldShow;
 }
 
 function fileNameOnly(path) {
@@ -394,6 +425,7 @@ function fileNameOnly(path) {
 function createVedaTrayHeader({ title, statusText, partial }) {
   const header = document.getElementById("vedaTrayHeader");
   header.innerHTML = "";
+  state.vedaTrayTitle = title;
 
   const titleRow = document.createElement("div");
   titleRow.className = "veda-tray-title-row";
@@ -632,13 +664,6 @@ function renderInspector(inspector) {
   title.textContent = inspector.title || "Details";
   container.appendChild(title);
 
-  if (inspector.summary) {
-    const summary = document.createElement("div");
-    summary.className = "details-summary";
-    summary.appendChild(renderStructuredAttributes(inspector.summary));
-    container.appendChild(summary);
-  }
-
   const vedaSection = getVedaSection(inspector);
   if (vedaSection && !state.vedaTablesEnabled) {
     const hint = document.createElement("div");
@@ -647,9 +672,19 @@ function renderInspector(inspector) {
     container.appendChild(hint);
   }
 
-  inspector.sections
-    .filter((section) => section.key !== "veda")
-    .forEach((section) => {
+  const renderedSections = inspector.sections.filter(
+    (section) => INSPECTOR_RENDERED_SECTION_KEYS.has(section.key),
+  );
+
+  if (renderedSections.length === 0) {
+    const placeholder = document.createElement("div");
+    placeholder.className = "details-placeholder";
+    placeholder.textContent = "No DSL, resolved semantic, or lowered IR details for this selection.";
+    container.appendChild(placeholder);
+    return;
+  }
+
+  renderedSections.forEach((section) => {
       const details = document.createElement("details");
       details.className = "details-section";
       details.open = Boolean(section.default_open);
@@ -1863,6 +1898,10 @@ function wireControls() {
   document.getElementById("closeVedaTrayBtn").addEventListener("click", () => {
     setVedaTrayCollapsed(true);
     hideVedaTray();
+  });
+  document.getElementById("openVedaTrayBtn").addEventListener("click", () => {
+    setVedaTrayCollapsed(false);
+    renderVedaTrayForCurrentSelection();
   });
   document.getElementById("upDirBtn").addEventListener("click", async () => {
     if (!state.parentDir) {
