@@ -8,8 +8,8 @@ VedaLang now runs as a v0.2-only repository. The package/run/CSIR/CPIR rollout,
 backend parity, diagnostics, tooling, supported example catalog, and strict
 cleanup pass are all landed.
 
-Current `bd` state: rollout and cleanup issues are closed; one low-priority
-maintenance task remains open.
+Current `bd` state: rollout and cleanup issues are closed; one high-priority
+viewer bug and one low-priority formatting task remain open.
 
 ## Current Focus
 
@@ -19,12 +19,19 @@ maintenance task remains open.
 
 ## Open Work
 
+- `vedalang-ndd` — fix the v0.2 RES role-granularity viewer so distinct
+  role-instance-backed and opportunity-backed process groups do not render with
+  identical labels
 - `vedalang-4ov` — clean up checked-in example `.veda.yaml` formatting drift so
   documented `uv run vedalang fmt --check ...` examples on repo paths pass
   cleanly
 
 ## Recently Completed
 
+- `vedalang-ky3` — rewrote `toy_agriculture.veda.yaml` with coherent `farm_*`
+  naming, explicit retrofit transitions for agricultural production, and a
+  separate land-carbon management role where soil carbon and reforestation
+  consume `material:farm_land` and provide `service:carbon_removal`
 - `vedalang-8o6` — updated the README Quick Start and development command
   snippets to use `uv run vedalang fmt --check ...` instead of `bun run
   format:veda:check`

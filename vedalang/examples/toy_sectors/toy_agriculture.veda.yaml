@@ -1,114 +1,49 @@
+dsl_version: "0.2"
+
 commodities:
   - id: emission:co2e
     kind: emission
 
-  - id: material:ag_inputs
+  - id: material:farm_inputs
     kind: material
 
-  - id: service:ag_input_supply
-    kind: service
+  - id: material:farm_land
+    kind: material
 
   - id: service:agricultural_output
     kind: service
 
-dsl_version: "0.2"
+  - id: service:carbon_removal
+    kind: service
 
-facilities:
-  - id: farm_inputs
-    site: single_farm
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 1000 MW
-            year: 2025
-          technology: primary_supply
-    technology_role: ag_input_supply
+  - id: service:farm_input_supply
+    kind: service
 
-  - id: farm_output
-    available_technologies:
-      - traditional_baseline
-      - traditional_with_feed_additives
-      - traditional_with_improved_manure
-      - soil_carbon
-      - reforestation
-    site: single_farm
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 10 MW
-            year: 2025
-          technology: traditional_baseline
-
-        - metric: installed_capacity
-          observed:
-            value: 0.5 MW
-            year: 2025
-          technology: soil_carbon
-
-        - metric: installed_capacity
-          observed:
-            value: 0.5 MW
-            year: 2025
-          technology: reforestation
-    technology_role: ag_output
-
-opportunities:
-  - id: feed_additives_rollout
-    max_new_capacity: 4 MW
-    siting:
-      site: single_farm
-    technology: traditional_with_feed_additives
-
-  - id: improved_manure_rollout
-    max_new_capacity: 6 MW
-    siting:
-      site: single_farm
-    technology: traditional_with_improved_manure
-
-region_partitions:
-  - id: single_region
-    layer: geo.demo
-    mapping:
-      kind: constant
-      value: SINGLE
-    members:
-      - SINGLE
-
-runs:
-  - id: single_2025
-    base_year: 2025
-    currency_year: 2024
-    region_partition: single_region
-
-sites:
-  - id: single_farm
-    location:
-      point:
-        lat: -35.31
-        lon: 149.12
-    membership_overrides:
-      region_partitions:
-        single_region: SINGLE
-
-spatial_layers:
-  - id: geo.demo
-    geometry_file: data/regions.geojson
-    key: region_id
-    kind: polygon
+  - id: service:farm_land_supply
+    kind: service
 
 technologies:
-  - id: primary_supply
+  - id: farm_input_import
     outputs:
-      - commodity: material:ag_inputs
+      - commodity: material:farm_inputs
     lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:ag_input_supply
+    provides: service:farm_input_supply
+
+  - id: land_endowment
+    outputs:
+      - commodity: material:farm_land
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:farm_land_supply
 
   - id: reforestation
+    inputs:
+      - commodity: material:farm_land
     emissions:
       - commodity: emission:co2e
         factor: -1 t/t
@@ -117,9 +52,11 @@ technologies:
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:agricultural_output
+    provides: service:carbon_removal
 
   - id: soil_carbon
+    inputs:
+      - commodity: material:farm_land
     emissions:
       - commodity: emission:co2e
         factor: -1 t/t
@@ -128,11 +65,13 @@ technologies:
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:agricultural_output
+    provides: service:carbon_removal
 
   - id: traditional_baseline
     inputs:
-      - commodity: material:ag_inputs
+      - commodity: material:farm_inputs
+
+      - commodity: material:farm_land
     emissions:
       - commodity: emission:co2e
         factor: 5 t/t
@@ -144,7 +83,9 @@ technologies:
 
   - id: traditional_with_feed_additives
     inputs:
-      - commodity: material:ag_inputs
+      - commodity: material:farm_inputs
+
+      - commodity: material:farm_land
     emissions:
       - commodity: emission:co2e
         factor: 3 t/t
@@ -157,7 +98,9 @@ technologies:
 
   - id: traditional_with_improved_manure
     inputs:
-      - commodity: material:ag_inputs
+      - commodity: material:farm_inputs
+
+      - commodity: material:farm_land
     emissions:
       - commodity: emission:co2e
         factor: 3.75 t/t
@@ -169,16 +112,117 @@ technologies:
     provides: service:agricultural_output
 
 technology_roles:
-  - id: ag_input_supply
-    primary_service: service:ag_input_supply
-    technologies:
-      - primary_supply
-
-  - id: ag_output
+  - id: agricultural_production
     primary_service: service:agricultural_output
     technologies:
       - traditional_baseline
       - traditional_with_feed_additives
       - traditional_with_improved_manure
+    transitions:
+      - cost: 20 AUD2024/kW
+        from: traditional_baseline
+        kind: retrofit
+        to: traditional_with_feed_additives
+
+      - cost: 10 AUD2024/kW
+        from: traditional_baseline
+        kind: retrofit
+        to: traditional_with_improved_manure
+
+  - id: farm_carbon_management
+    primary_service: service:carbon_removal
+    technologies:
       - soil_carbon
       - reforestation
+
+  - id: farm_input_supply
+    primary_service: service:farm_input_supply
+    technologies:
+      - farm_input_import
+
+  - id: farm_land_supply
+    primary_service: service:farm_land_supply
+    technologies:
+      - land_endowment
+
+spatial_layers:
+  - id: geo.demo
+    geometry_file: data/regions.geojson
+    key: region_id
+    kind: polygon
+
+region_partitions:
+  - id: single_region
+    layer: geo.demo
+    mapping:
+      kind: constant
+      value: SINGLE
+    members:
+      - SINGLE
+
+sites:
+  - id: single_farm
+    location:
+      point:
+        lat: -35.31
+        lon: 149.12
+    membership_overrides:
+      region_partitions:
+        single_region: SINGLE
+
+facilities:
+  - id: farm_input_supply_asset
+    site: single_farm
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 1000 MW
+            year: 2025
+          technology: farm_input_import
+    technology_role: farm_input_supply
+
+  - id: farm_land_endowment
+    site: single_farm
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 12 MW
+            year: 2025
+          technology: land_endowment
+    technology_role: farm_land_supply
+
+  - id: farm_production_asset
+    available_technologies:
+      - traditional_baseline
+      - traditional_with_feed_additives
+      - traditional_with_improved_manure
+    site: single_farm
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 10 MW
+            year: 2025
+          technology: traditional_baseline
+    technology_role: agricultural_production
+
+opportunities:
+  - id: reforestation_rollout
+    max_new_capacity: 1 MW
+    siting:
+      site: single_farm
+    technology: reforestation
+
+  - id: soil_carbon_rollout
+    max_new_capacity: 1 MW
+    siting:
+      site: single_farm
+    technology: soil_carbon
+
+runs:
+  - id: single_2025
+    base_year: 2025
+    currency_year: 2024
+    region_partition: single_region
