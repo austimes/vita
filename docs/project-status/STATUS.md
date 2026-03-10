@@ -1,6 +1,6 @@
 # VedaLang Project Status
 
-**Last updated:** 2026-03-09
+**Last updated:** 2026-03-10
 
 ## Summary
 
@@ -8,7 +8,7 @@ VedaLang now runs as a v0.2-only repository. The package/run/CSIR/CPIR rollout,
 backend parity, diagnostics, tooling, supported example catalog, and strict
 cleanup pass are all landed.
 
-Current `bd` state: rollout and cleanup issues are closed; two follow-up
+Current `bd` state: rollout and cleanup issues are closed; three follow-up
 issues remain open.
 
 ## Current Focus
@@ -19,6 +19,9 @@ issues remain open.
 
 ## Open Work
 
+- `vedalang-bit` — require authored descriptions for RES object-explorer types
+  so facilities, fleets, opportunities, technology roles, and technologies all
+  carry user-facing explanatory copy in the viewer
 - `vedalang-4ov` — clean up checked-in example `.veda.yaml` formatting drift so
   documented `uv run vedalang fmt --check ...` examples on repo paths pass
   cleanly
@@ -27,6 +30,11 @@ issues remain open.
 
 ## Recently Completed
 
+- `vedalang-6y5` — replaced the RES viewer's `DSL attributes` pane with an
+  `Object explorer`, fixed missing asset-backed facility cards in process-node
+  inspectors, added built-in kind explainer text and per-item YAML source
+  expanders with line gutters, and switched inspector source snippets from
+  processed JSON excerpts to exact authored `.veda.yaml` blocks
 - `vedalang-3qd` — added direct fleet distribution and asset-scoped
   `new_build_limits`, reserved `opportunities` for place-bound build classes,
   split viewer provenance labels into facility-vs-fleet instances, and

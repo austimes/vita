@@ -134,10 +134,16 @@ def test_compiled_instance_query_returns_process_nodes():
     assert inspector["kind"] == "process"
     assert inspector["node_type"] == "instance"
     assert _section_by_key(inspector, "identity")["default_open"] is True
+    assert _section_by_key(inspector, "dsl")["label"] == "Object explorer"
     assert details["scopes"]["regions"] == ["SINGLE"]
     assert details["aggregation"]["is_aggregated"] is False
     assert details["metrics"]["stock"]["total"]["unit"] == "MW"
     assert _section_by_key(inspector, "lowered")["items"][0]["kind"] == "cpir_process"
+    dsl_item = _section_by_key(inspector, "dsl")["items"][0]
+    assert "excerpt" not in (dsl_item["source_location"] or {})
+    assert "start_line" in (dsl_item["source_location"] or {})
+    assert "end_line" in (dsl_item["source_location"] or {})
+    assert "lines" in (dsl_item["source_location"] or {})
     veda = _section_by_key(inspector, "veda")
     assert (
         veda["items"][0]["attributes"]["manifest_entry"] is not None
@@ -428,6 +434,7 @@ def test_role_query_inspector_aggregates_member_processes():
     ] == len(response["details"]["nodes"][role_node["id"]]["member_process_ids"])
     lowered = _section_by_key(inspector, "lowered")
     dsl = _section_by_key(inspector, "dsl")
+    assert dsl["label"] == "Object explorer"
     assert len(lowered["items"]) > 1
     assert sum(1 for item in dsl["items"] if item["kind"] == "technology") > 1
 
@@ -453,6 +460,7 @@ def test_commodity_inspector_reports_usage_lists():
         if node["type"] == "commodity" and node["label"] == "service:space_heat"
     )
     inspector = response["details"]["nodes"][commodity_node["id"]]["inspector"]
+    assert _section_by_key(inspector, "dsl")["label"] == "Object explorer"
     lowered = _section_by_key(inspector, "lowered")
     usage = lowered["items"][0]["attributes"]
     assert usage["produced_by"]
@@ -674,6 +682,81 @@ def test_instance_granularity_uses_stacked_technology_role_and_provenance_labels
     assert (
         response["details"]["nodes"][baseline_node["id"]]["technology_role"]
         == "agricultural_production"
+    )
+
+
+def test_asset_backed_role_object_explorer_orders_facility_role_then_technology():
+    source_file = EXAMPLES_DIR / "toy_sectors/toy_agriculture.veda.yaml"
+
+    response = query_res_graph(
+        {
+            "version": "1",
+            "file": str(source_file),
+            "mode": "compiled",
+            "granularity": "role",
+            "lens": "system",
+            "filters": {"regions": [], "case": None, "sectors": [], "scopes": []},
+            "compiled": {"truth": "auto", "cache": True, "allow_partial": True},
+        }
+    )
+
+    node_id = "role:asset:facilities.farm_input_supply_asset"
+    inspector = response["details"]["nodes"][node_id]["inspector"]
+    dsl = _section_by_key(inspector, "dsl")
+    assert dsl["label"] == "Object explorer"
+    assert [item["kind"] for item in dsl["items"]] == [
+        "facility",
+        "technology_role",
+        "technology",
+    ]
+    assert [item["id"] for item in dsl["items"]] == [
+        "farm_input_supply_asset",
+        "farm_input_supply",
+        "farm_input_import",
+    ]
+
+
+def test_object_explorer_source_blocks_use_exact_yaml_item_lines():
+    source_file = EXAMPLES_DIR / "toy_sectors/toy_agriculture.veda.yaml"
+
+    response = query_res_graph(
+        {
+            "version": "1",
+            "file": str(source_file),
+            "mode": "compiled",
+            "granularity": "role",
+            "lens": "system",
+            "filters": {"regions": [], "case": None, "sectors": [], "scopes": []},
+            "compiled": {"truth": "auto", "cache": True, "allow_partial": True},
+        }
+    )
+
+    node_id = "role:asset:facilities.farm_input_supply_asset"
+    inspector = response["details"]["nodes"][node_id]["inspector"]
+    dsl_items = _section_by_key(inspector, "dsl")["items"]
+    role_item = next(item for item in dsl_items if item["kind"] == "technology_role")
+    tech_item = next(item for item in dsl_items if item["kind"] == "technology")
+
+    assert role_item["source_location"]["start_line"] == 138
+    assert role_item["source_location"]["end_line"] == 141
+    assert (
+        role_item["source_location"]["lines"][0]["text"]
+        == "  - id: farm_input_supply"
+    )
+    assert all(
+        line["text"] != "technology_roles:"
+        for line in role_item["source_location"]["lines"]
+    )
+    assert "excerpt" not in role_item["source_location"]
+
+    assert tech_item["source_location"]["start_line"] == 26
+    assert (
+        tech_item["source_location"]["lines"][0]["text"]
+        == "  - id: farm_input_import"
+    )
+    assert all(
+        line["text"] != "technologies:"
+        for line in tech_item["source_location"]["lines"]
     )
 
 

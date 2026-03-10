@@ -197,6 +197,35 @@ def build_source_excerpt(
     }
 
 
+def build_source_block(
+    source_lines: list[str],
+    *,
+    start_line: int,
+    end_line_exclusive: int,
+) -> dict[str, Any] | None:
+    """Build an exact YAML source block with per-line numbers."""
+    if not source_lines:
+        return None
+
+    first_line = max(1, start_line)
+    exclusive_line = max(first_line + 1, end_line_exclusive)
+    block_lines = source_lines[first_line - 1 : max(first_line - 1, exclusive_line - 1)]
+    while block_lines and not block_lines[-1].strip():
+        block_lines.pop()
+    if not block_lines:
+        return None
+
+    lines: list[dict[str, Any]] = []
+    for offset, text in enumerate(block_lines):
+        lines.append({"line": first_line + offset, "text": text})
+
+    return {
+        "start_line": first_line,
+        "end_line": first_line + len(block_lines) - 1,
+        "lines": lines,
+    }
+
+
 def attach_source_positions(
     diagnostics: list[dict[str, Any]],
     *,

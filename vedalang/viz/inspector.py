@@ -9,7 +9,7 @@ from typing import Any
 import yaml
 
 from vedalang.compiler.source_maps import (
-    build_source_excerpt,
+    build_source_block,
     resolve_location_to_runtime_path,
     yaml_node_for_path,
 )
@@ -33,7 +33,7 @@ class InspectorContext:
 
 
 class SourceLocator:
-    """Resolve structural source paths into file/line/excerpt metadata."""
+    """Resolve structural source paths into file/line/YAML-block metadata."""
 
     def __init__(self, source: dict[str, Any], source_file: Path) -> None:
         self._source = source
@@ -61,19 +61,21 @@ class SourceLocator:
             return None
         line = node.start_mark.line + 1
         column = node.start_mark.column + 1
-        end_line = max(line, node.end_mark.line + 1)
-        excerpt = build_source_excerpt(
+        source_block = build_source_block(
             self._source_lines,
-            line=line,
-            end_line=end_line,
-            column=column,
+            start_line=line,
+            end_line_exclusive=max(line + 1, node.end_mark.line + 1),
         )
+        if source_block is None:
+            return None
         return {
             "file": str(self._source_file),
             "path": path,
             "line": line,
             "column": column,
-            "excerpt": excerpt,
+            "start_line": source_block["start_line"],
+            "end_line": source_block["end_line"],
+            "lines": source_block["lines"],
         }
 
 
@@ -349,6 +351,14 @@ def _asset_kind_and_id(source_asset: str | None) -> tuple[str | None, str | None
     return None, None
 
 
+def _local_map_key_for_kind(kind: str) -> str:
+    if kind == "facility":
+        return "facilities"
+    if kind == "opportunity":
+        return "opportunities"
+    return f"{kind}s"
+
+
 def _sorted_unique(values: list[Any]) -> list[Any]:
     seen: set[Any] = set()
     out: list[Any] = []
@@ -407,6 +417,34 @@ def _local_or_resolved_item(
         ),
         True,
     )
+
+
+def _source_asset_for_dsl_item(
+    node_details: dict[str, Any],
+    primary_process: dict[str, Any],
+    *,
+    role_instances: dict[str, dict[str, Any]],
+) -> str:
+    source_asset = str(node_details.get("source_asset", "") or "")
+    if source_asset:
+        return source_asset
+    source_asset = str(primary_process.get("source_asset", "") or "")
+    if source_asset:
+        return source_asset
+    source_role_instance = str(primary_process.get("source_role_instance", "") or "")
+    return str(
+        role_instances.get(source_role_instance, {}).get("source_asset", "") or ""
+    )
+
+
+def _source_opportunity_for_dsl_item(
+    node_details: dict[str, Any],
+    primary_process: dict[str, Any],
+) -> str:
+    source_opportunity = str(node_details.get("source_opportunity", "") or "")
+    if source_opportunity:
+        return source_opportunity
+    return str(primary_process.get("source_opportunity", "") or "")
 
 
 def _process_semantic_origin_item(
@@ -626,21 +664,17 @@ def build_system_node_inspectors(
 
             dsl_items: list[dict[str, Any]] = []
             dsl_partial = False
-            source_asset = str(primary_process.get("source_asset", "") or "")
-            if not source_asset:
-                source_role_instance = str(
-                    primary_process.get("source_role_instance", "") or ""
-                )
-                source_asset = str(
-                    role_instances.get(source_role_instance, {}).get("source_asset", "")
-                    or ""
-                )
+            source_asset = _source_asset_for_dsl_item(
+                node_details,
+                primary_process,
+                role_instances=role_instances,
+            )
             asset_kind, asset_id = _asset_kind_and_id(source_asset)
             if asset_kind and asset_id:
                 asset_item, missing = _local_or_resolved_item(
                     local_maps=local_maps,
                     resolved_maps=resolved_maps,
-                    map_key=f"{asset_kind}s",
+                    map_key=_local_map_key_for_kind(asset_kind),
                     object_id=asset_id,
                     label=asset_kind,
                     kind=asset_kind,
@@ -649,8 +683,9 @@ def build_system_node_inspectors(
                 if asset_item is not None:
                     dsl_items.append(asset_item)
                 dsl_partial = dsl_partial or missing
-            source_opportunity = str(
-                primary_process.get("source_opportunity", "") or ""
+            source_opportunity = _source_opportunity_for_dsl_item(
+                node_details,
+                primary_process,
             )
             if source_opportunity:
                 opportunity_item, missing = _local_or_resolved_item(
@@ -811,7 +846,7 @@ def build_system_node_inspectors(
                     ),
                     _section(
                         key="dsl",
-                        label="DSL attributes",
+                        label="Object explorer",
                         default_open=True,
                         items=dsl_items,
                         partial=dsl_partial,
@@ -927,7 +962,7 @@ def build_system_node_inspectors(
                 ),
                 _section(
                     key="dsl",
-                    label="DSL attributes",
+                    label="Object explorer",
                     default_open=True,
                     items=dsl_items,
                     partial=dsl_partial,

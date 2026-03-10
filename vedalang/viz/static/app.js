@@ -20,6 +20,14 @@ const DEFAULT_DETAILS_PANE_WIDTH = 360;
 const MIN_DETAILS_PANE_WIDTH = 280;
 const MAX_DETAILS_PANE_WIDTH = 620;
 const INSPECTOR_RENDERED_SECTION_KEYS = new Set(["dsl", "semantic", "lowered"]);
+const OBJECT_EXPLAINERS = {
+  facility: "Facility instance. An authored asset instance at a specific site. It binds a technology role to a concrete place and can carry stock, build limits, and policies.",
+  fleet: "Fleet instance. An authored distributed asset instance. It binds a technology role to a regional distribution and can carry stock, build limits, and policies.",
+  opportunity: "Opportunity instance. An authored candidate build instance for one technology at a site, zone, or region with capped new-build potential.",
+  technology_role: "Technology role type. A reusable type that groups interchangeable technologies delivering the same primary service.",
+  technology: "Technology type. A reusable process definition describing inputs, outputs, performance, costs, lifetime, and emissions.",
+  commodity: "Commodity type. A reusable flow type used as an input, output, service, resource, emission ledger, or financial commodity in the RES.",
+};
 
 const MODE_OPTIONS = [
   { value: "compiled", label: "compiled" },
@@ -308,30 +316,124 @@ function renderStructuredAttributes(attributes) {
   return fields;
 }
 
+function displayKindLabel(kind) {
+  return String(kind || "item").replaceAll("_", " ");
+}
+
+function objectExplorerTitle(item) {
+  const objectId = item && item.id ? String(item.id) : "";
+  switch (item.kind) {
+    case "facility":
+      return objectId ? `Facility instance: ${objectId}` : "Facility instance";
+    case "fleet":
+      return objectId ? `Fleet instance: ${objectId}` : "Fleet instance";
+    case "opportunity":
+      return objectId ? `Opportunity instance: ${objectId}` : "Opportunity instance";
+    case "technology_role":
+      return objectId ? `Technology role: ${objectId}` : "Technology role";
+    case "technology":
+      return objectId ? `Technology: ${objectId}` : "Technology";
+    case "commodity":
+      return objectId ? `Commodity: ${objectId}` : "Commodity";
+    default:
+      return item.label || item.kind || "Item";
+  }
+}
+
+function renderDescriptionBlock(descriptionText) {
+  const block = document.createElement("div");
+  block.className = "details-description";
+
+  const label = document.createElement("div");
+  label.className = "details-description-label";
+  label.textContent = "Description";
+  block.appendChild(label);
+
+  const text = document.createElement("div");
+  text.className = "details-description-value";
+  text.textContent = descriptionText;
+  block.appendChild(text);
+
+  return block;
+}
+
 function renderSourceLocation(container, sourceLocation) {
-  if (!sourceLocation) {
+  if (!sourceLocation || !Array.isArray(sourceLocation.lines) || sourceLocation.lines.length === 0) {
     return;
   }
-  const block = document.createElement("div");
-  block.className = "details-location";
+  const block = document.createElement("details");
+  block.className = "details-item-source";
 
-  const path = document.createElement("div");
-  path.className = "details-location-path";
-  const fileLabel = compactPath(sourceLocation.file || "");
-  const line = sourceLocation.line ? `:${sourceLocation.line}` : "";
-  path.textContent = `${fileLabel}${line}`;
-  block.appendChild(path);
+  const summary = document.createElement("summary");
+  const fileLabel = fileNameOnly(sourceLocation.file || "");
+  const startLine = sourceLocation.start_line || sourceLocation.line || 0;
+  const endLine = sourceLocation.end_line || startLine;
+  const lineLabel = startLine === endLine ? `${startLine}` : `${startLine}-${endLine}`;
+  summary.textContent = `Source · ${fileLabel}:${lineLabel}`;
+  block.appendChild(summary);
 
-  if (sourceLocation.path) {
-    const ref = document.createElement("div");
-    ref.textContent = sourceLocation.path;
-    block.appendChild(ref);
-  }
+  const code = document.createElement("div");
+  code.className = "details-source-code";
+  sourceLocation.lines.forEach((entry) => {
+    const row = document.createElement("div");
+    row.className = "details-source-line";
 
-  if (sourceLocation.excerpt) {
-    block.appendChild(createJsonPre(sourceLocation.excerpt));
-  }
+    const gutter = document.createElement("div");
+    gutter.className = "details-source-line-number";
+    gutter.textContent = String(entry.line ?? "");
+    row.appendChild(gutter);
+
+    const text = document.createElement("div");
+    text.className = "details-source-line-text";
+    text.textContent = entry.text ?? "";
+    row.appendChild(text);
+
+    code.appendChild(row);
+  });
+  block.appendChild(code);
   container.appendChild(block);
+}
+
+function renderObjectExplorerItem(item) {
+  const card = document.createElement("div");
+  card.className = "details-item details-item-object";
+
+  const header = document.createElement("div");
+  header.className = "details-item-header";
+
+  const left = document.createElement("div");
+  left.className = "details-item-label";
+  left.textContent = objectExplorerTitle(item);
+  header.appendChild(left);
+
+  const right = document.createElement("div");
+  right.className = "details-item-kind";
+  right.textContent = displayKindLabel(item.kind || "");
+  header.appendChild(right);
+
+  card.appendChild(header);
+
+  const explainer = OBJECT_EXPLAINERS[item.kind];
+  if (explainer) {
+    const explainerEl = document.createElement("div");
+    explainerEl.className = "details-item-explainer";
+    explainerEl.textContent = explainer;
+    card.appendChild(explainerEl);
+  }
+
+  const attributes = { ...(item.attributes || {}) };
+  const descriptionText = typeof attributes.description === "string"
+    ? attributes.description.trim()
+    : "";
+  delete attributes.description;
+
+  if (descriptionText) {
+    card.appendChild(renderDescriptionBlock(descriptionText));
+  }
+
+  card.appendChild(renderStructuredAttributes(attributes));
+  renderSourceLocation(card, item.source_location);
+  return card;
 }
 
 function renderRawDetails(details) {
@@ -708,26 +810,31 @@ function renderInspector(inspector) {
         body.appendChild(empty);
       } else {
         section.items.forEach((item) => {
-          const card = document.createElement("div");
-          card.className = "details-item";
+          let card = null;
+          if (section.key === "dsl") {
+            card = renderObjectExplorerItem(item);
+          } else {
+            card = document.createElement("div");
+            card.className = "details-item";
 
-          const header = document.createElement("div");
-          header.className = "details-item-header";
+            const header = document.createElement("div");
+            header.className = "details-item-header";
 
-          const left = document.createElement("div");
-          left.className = "details-item-label";
-          const idText = item.id ? `: ${item.id}` : "";
-          left.textContent = `${item.label || item.kind || "item"}${idText}`;
-          header.appendChild(left);
+            const left = document.createElement("div");
+            left.className = "details-item-label";
+            const idText = item.id ? `: ${item.id}` : "";
+            left.textContent = `${item.label || item.kind || "item"}${idText}`;
+            header.appendChild(left);
 
-          const right = document.createElement("div");
-          right.className = "details-item-kind";
-          right.textContent = item.kind || "";
-          header.appendChild(right);
+            const right = document.createElement("div");
+            right.className = "details-item-kind";
+            right.textContent = item.kind || "";
+            header.appendChild(right);
 
-          card.appendChild(header);
-          card.appendChild(renderStructuredAttributes(item.attributes || {}));
-          renderSourceLocation(card, item.source_location);
+            card.appendChild(header);
+            card.appendChild(renderStructuredAttributes(item.attributes || {}));
+            renderSourceLocation(card, item.source_location);
+          }
           body.appendChild(card);
         });
       }
