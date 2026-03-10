@@ -131,14 +131,18 @@ def _item(
     object_id: str | None,
     attributes: Any,
     source_location: dict[str, Any] | None,
+    children: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    return {
+    item = {
         "label": label,
         "kind": kind,
         "id": object_id,
         "attributes": _normalize_json(attributes),
         "source_location": source_location,
     }
+    if children:
+        item["children"] = children
+    return item
 
 
 def _section(
@@ -419,6 +423,121 @@ def _local_or_resolved_item(
     )
 
 
+def _transition_inspector_items(
+    role_item: dict[str, Any] | None,
+) -> list[dict[str, Any]]:
+    if role_item is None:
+        return []
+    role_attributes = role_item.get("attributes")
+    if not isinstance(role_attributes, dict):
+        return []
+    transitions = role_attributes.get("transitions")
+    if not isinstance(transitions, list):
+        return []
+    items: list[dict[str, Any]] = []
+    for index, transition in enumerate(transitions):
+        if not isinstance(transition, dict):
+            continue
+        transition_id = (
+            f"{transition.get('from_technology', 'from')}->"
+            f"{transition.get('to_technology', 'to')}"
+        )
+        items.append(
+            _item(
+                label="transition",
+                kind="transition",
+                object_id=transition_id,
+                attributes=transition,
+                source_location=None,
+            )
+        )
+    return items
+
+
+def _build_nested_dsl_items(
+    *,
+    local_maps: dict[str, dict[str, Any]],
+    resolved_maps: dict[str, dict[str, Any]],
+    locator: SourceLocator,
+    asset_kind: str | None,
+    asset_id: str | None,
+    source_opportunity: str,
+    role_id: str | None,
+    technology_ids: list[str],
+) -> tuple[list[dict[str, Any]], bool]:
+    partial = False
+    root_item: dict[str, Any] | None = None
+
+    if asset_kind and asset_id:
+        root_item, missing = _local_or_resolved_item(
+            local_maps=local_maps,
+            resolved_maps=resolved_maps,
+            map_key=_local_map_key_for_kind(asset_kind),
+            object_id=asset_id,
+            label=asset_kind,
+            kind=asset_kind,
+            locator=locator,
+        )
+        partial = partial or missing
+    elif source_opportunity:
+        root_item, missing = _local_or_resolved_item(
+            local_maps=local_maps,
+            resolved_maps=resolved_maps,
+            map_key="opportunities",
+            object_id=source_opportunity,
+            label="opportunity",
+            kind="opportunity",
+            locator=locator,
+        )
+        partial = partial or missing
+
+    role_item: dict[str, Any] | None = None
+    if isinstance(role_id, str) and role_id:
+        role_item, missing = _local_or_resolved_item(
+            local_maps=local_maps,
+            resolved_maps=resolved_maps,
+            map_key="technology_roles",
+            object_id=role_id,
+            label="technology role",
+            kind="technology_role",
+            locator=locator,
+        )
+        partial = partial or missing
+
+    technology_items: list[dict[str, Any]] = []
+    for technology_id in _sorted_unique(technology_ids):
+        technology_item, missing = _local_or_resolved_item(
+            local_maps=local_maps,
+            resolved_maps=resolved_maps,
+            map_key="technologies",
+            object_id=technology_id,
+            label="technology",
+            kind="technology",
+            locator=locator,
+        )
+        if technology_item is not None:
+            technology_items.append(technology_item)
+        partial = partial or missing
+
+    transition_items = _transition_inspector_items(role_item)
+
+    if role_item is not None:
+        role_children = [*technology_items, *transition_items]
+        if role_children:
+            role_item["children"] = role_children
+
+    if root_item is not None:
+        root_children = [role_item] if role_item is not None else technology_items
+        if root_children:
+            root_item["children"] = root_children
+        return [root_item], partial
+
+    if role_item is not None:
+        return [role_item], partial
+
+    return technology_items, partial
+
+
 def _source_asset_for_dsl_item(
     node_details: dict[str, Any],
     primary_process: dict[str, Any],
@@ -662,57 +781,16 @@ def build_system_node_inspectors(
             if not isinstance(role_id, str) or not role_id:
                 role_id = technology_to_role.get(str(primary_process.get("technology")))
 
-            dsl_items: list[dict[str, Any]] = []
-            dsl_partial = False
             source_asset = _source_asset_for_dsl_item(
                 node_details,
                 primary_process,
                 role_instances=role_instances,
             )
             asset_kind, asset_id = _asset_kind_and_id(source_asset)
-            if asset_kind and asset_id:
-                asset_item, missing = _local_or_resolved_item(
-                    local_maps=local_maps,
-                    resolved_maps=resolved_maps,
-                    map_key=_local_map_key_for_kind(asset_kind),
-                    object_id=asset_id,
-                    label=asset_kind,
-                    kind=asset_kind,
-                    locator=locator,
-                )
-                if asset_item is not None:
-                    dsl_items.append(asset_item)
-                dsl_partial = dsl_partial or missing
             source_opportunity = _source_opportunity_for_dsl_item(
                 node_details,
                 primary_process,
             )
-            if source_opportunity:
-                opportunity_item, missing = _local_or_resolved_item(
-                    local_maps=local_maps,
-                    resolved_maps=resolved_maps,
-                    map_key="opportunities",
-                    object_id=source_opportunity,
-                    label="opportunity",
-                    kind="opportunity",
-                    locator=locator,
-                )
-                if opportunity_item is not None:
-                    dsl_items.append(opportunity_item)
-                dsl_partial = dsl_partial or missing
-            if isinstance(role_id, str) and role_id:
-                role_item, missing = _local_or_resolved_item(
-                    local_maps=local_maps,
-                    resolved_maps=resolved_maps,
-                    map_key="technology_roles",
-                    object_id=role_id,
-                    label="technology role",
-                    kind="technology_role",
-                    locator=locator,
-                )
-                if role_item is not None:
-                    dsl_items.append(role_item)
-                dsl_partial = dsl_partial or missing
             technology_ids = [
                 str(value)
                 for value in node_details.get("member_technologies", []) or []
@@ -722,19 +800,16 @@ def build_system_node_inspectors(
                 for process in member_processes
                 if process.get("technology")
             ]
-            for technology_id in _sorted_unique(technology_ids):
-                technology_item, missing = _local_or_resolved_item(
-                    local_maps=local_maps,
-                    resolved_maps=resolved_maps,
-                    map_key="technologies",
-                    object_id=technology_id,
-                    label="technology",
-                    kind="technology",
-                    locator=locator,
-                )
-                if technology_item is not None:
-                    dsl_items.append(technology_item)
-                dsl_partial = dsl_partial or missing
+            dsl_items, dsl_partial = _build_nested_dsl_items(
+                local_maps=local_maps,
+                resolved_maps=resolved_maps,
+                locator=locator,
+                asset_kind=asset_kind,
+                asset_id=asset_id,
+                source_opportunity=source_opportunity,
+                role_id=role_id,
+                technology_ids=technology_ids,
+            )
 
             semantic_items: list[dict[str, Any]] = []
             origin_item = _process_semantic_origin_item(

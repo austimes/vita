@@ -20,13 +20,27 @@ const DEFAULT_DETAILS_PANE_WIDTH = 360;
 const MIN_DETAILS_PANE_WIDTH = 280;
 const MAX_DETAILS_PANE_WIDTH = 620;
 const INSPECTOR_RENDERED_SECTION_KEYS = new Set(["dsl", "semantic", "lowered"]);
+const COLLAPSED_OBJECT_FIELD_KEYS = new Set([
+  "stock",
+  "new_build_limits",
+  "policies",
+  "performance",
+  "emissions",
+  "investment_cost",
+  "fixed_om",
+  "variable_om",
+  "inputs",
+  "outputs",
+  "transitions",
+]);
 const OBJECT_EXPLAINERS = {
-  facility: "Facility instance. An authored asset instance at a specific site. It binds a technology role to a concrete place and can carry stock, build limits, and policies.",
-  fleet: "Fleet instance. An authored distributed asset instance. It binds a technology role to a regional distribution and can carry stock, build limits, and policies.",
-  opportunity: "Opportunity instance. An authored candidate build instance for one technology at a site, zone, or region with capped new-build potential.",
-  technology_role: "Technology role type. A reusable type that groups interchangeable technologies delivering the same primary service.",
-  technology: "Technology type. A reusable process definition describing inputs, outputs, performance, costs, lifetime, and emissions.",
-  commodity: "Commodity type. A reusable flow type used as an input, output, service, resource, emission ledger, or financial commodity in the RES.",
+  facility: "Binds a technology role to a concrete place and can carry stock, build limits, and policies.",
+  fleet: "Binds a technology role to distributed stock and can carry stock, build limits, and policies.",
+  opportunity: "Represents a place-bound candidate build option with capped new-build potential.",
+  technology_role: "Groups interchangeable technologies delivering the same primary service.",
+  technology: "Describes inputs, outputs, performance, costs, lifetime, and emissions.",
+  commodity: "Defines a flow type used as an input, output, service, resource, emission ledger, or financial commodity.",
+  transition: "Describes a change path from one technology to another, including retrofit cost or lead time when present.",
 };
 
 const MODE_OPTIONS = [
@@ -89,7 +103,10 @@ const state = {
 };
 
 function setStatus(text) {
-  document.getElementById("status").textContent = text;
+  const el = document.getElementById("status");
+  const value = String(text || "");
+  el.textContent = value;
+  el.hidden = value.length === 0;
 }
 
 function normalizeToKnown(values, available) {
@@ -282,6 +299,23 @@ function formatDetailValue(value) {
   return String(value);
 }
 
+function formatFieldLabel(key) {
+  return String(key || "item").replaceAll("_", " ");
+}
+
+function shouldCollapseObjectField(key, value) {
+  if (COLLAPSED_OBJECT_FIELD_KEYS.has(String(key || ""))) {
+    return true;
+  }
+  if (Array.isArray(value)) {
+    return value.length > 1 && value.some((item) => !isPrimitiveValue(item));
+  }
+  if (value && typeof value === "object") {
+    return true;
+  }
+  return false;
+}
+
 function renderStructuredAttributes(attributes) {
   if (!attributes || typeof attributes !== "object" || Array.isArray(attributes)) {
     return createJsonPre(attributes);
@@ -321,23 +355,10 @@ function displayKindLabel(kind) {
 }
 
 function objectExplorerTitle(item) {
-  const objectId = item && item.id ? String(item.id) : "";
-  switch (item.kind) {
-    case "facility":
-      return objectId ? `Facility instance: ${objectId}` : "Facility instance";
-    case "fleet":
-      return objectId ? `Fleet instance: ${objectId}` : "Fleet instance";
-    case "opportunity":
-      return objectId ? `Opportunity instance: ${objectId}` : "Opportunity instance";
-    case "technology_role":
-      return objectId ? `Technology role: ${objectId}` : "Technology role";
-    case "technology":
-      return objectId ? `Technology: ${objectId}` : "Technology";
-    case "commodity":
-      return objectId ? `Commodity: ${objectId}` : "Commodity";
-    default:
-      return item.label || item.kind || "Item";
+  if (item && item.id) {
+    return String(item.id);
   }
+  return item.label || displayKindLabel(item.kind || "item");
 }
 
 function renderDescriptionBlock(descriptionText) {
@@ -394,22 +415,121 @@ function renderSourceLocation(container, sourceLocation) {
   container.appendChild(block);
 }
 
-function renderObjectExplorerItem(item) {
+function renderNestedArrayItems(items, depth) {
+  const list = document.createElement("div");
+  list.className = "details-tree-list";
+  items.forEach((item, index) => {
+    const row = document.createElement("details");
+    row.className = "details-tree-group";
+    row.open = index === 0;
+
+    const summary = document.createElement("summary");
+    summary.className = "details-tree-group-summary";
+    summary.textContent = `Item ${index + 1}`;
+    row.appendChild(summary);
+
+    const body = document.createElement("div");
+    body.className = "details-tree-group-body";
+    if (isPrimitiveValue(item) || isScalarArray(item)) {
+      const text = document.createElement("div");
+      text.className = "details-field-value";
+      text.textContent = formatDetailValue(item);
+      body.appendChild(text);
+    } else {
+      body.appendChild(renderNestedStructuredAttributes(item, depth + 1));
+    }
+    row.appendChild(body);
+    list.appendChild(row);
+  });
+  return list;
+}
+
+function renderNestedStructuredAttributes(attributes, depth = 0) {
+  if (!attributes || typeof attributes !== "object" || Array.isArray(attributes)) {
+    const text = document.createElement("div");
+    text.className = "details-field-value";
+    text.textContent = formatDetailValue(attributes);
+    return text;
+  }
+
+  const fields = document.createElement("div");
+  fields.className = "details-fields details-fields-nested";
+  fields.dataset.depth = String(depth);
+
+  Object.entries(attributes).forEach(([key, value]) => {
+    if (value === null || value === "" || (Array.isArray(value) && value.length === 0)) {
+      return;
+    }
+
+    if (isPrimitiveValue(value) || isScalarArray(value)) {
+      const row = document.createElement("div");
+      row.className = "details-field-row";
+
+      const label = document.createElement("div");
+      label.className = "details-field-key";
+      label.textContent = formatFieldLabel(key);
+      row.appendChild(label);
+
+      const text = document.createElement("div");
+      text.className = "details-field-value";
+      text.textContent = formatDetailValue(value);
+      row.appendChild(text);
+
+      fields.appendChild(row);
+      return;
+    }
+
+    const group = document.createElement("details");
+    group.className = "details-tree-group";
+    group.open = !shouldCollapseObjectField(key, value);
+
+    const summary = document.createElement("summary");
+    summary.className = "details-tree-group-summary";
+    if (Array.isArray(value)) {
+      summary.textContent = `${formatFieldLabel(key)} (${value.length})`;
+    } else {
+      summary.textContent = formatFieldLabel(key);
+    }
+    group.appendChild(summary);
+
+    const body = document.createElement("div");
+    body.className = "details-tree-group-body";
+    if (Array.isArray(value)) {
+      body.appendChild(renderNestedArrayItems(value, depth + 1));
+    } else {
+      body.appendChild(renderNestedStructuredAttributes(value, depth + 1));
+    }
+    group.appendChild(body);
+    fields.appendChild(group);
+  });
+
+  if (!fields.childNodes.length) {
+    const empty = document.createElement("div");
+    empty.className = "details-field-value";
+    empty.textContent = "No fields";
+    fields.appendChild(empty);
+  }
+
+  return fields;
+}
+
+function renderObjectExplorerItem(item, depth = 0) {
   const card = document.createElement("div");
   card.className = "details-item details-item-object";
+  card.dataset.depth = String(depth);
 
   const header = document.createElement("div");
-  header.className = "details-item-header";
+  header.className = "details-item-header details-item-header-object";
 
-  const left = document.createElement("div");
-  left.className = "details-item-label";
-  left.textContent = objectExplorerTitle(item);
-  header.appendChild(left);
+  const kind = document.createElement("div");
+  kind.className = "details-item-kind";
+  kind.textContent = displayKindLabel(item.kind || "");
+  header.appendChild(kind);
 
-  const right = document.createElement("div");
-  right.className = "details-item-kind";
-  right.textContent = displayKindLabel(item.kind || "");
-  header.appendChild(right);
+  const title = document.createElement("div");
+  title.className = "details-item-title";
+  title.textContent = objectExplorerTitle(item);
+  header.appendChild(title);
 
   card.appendChild(header);
 
@@ -431,9 +551,38 @@ function renderObjectExplorerItem(item) {
     card.appendChild(renderDescriptionBlock(descriptionText));
   }
 
-  card.appendChild(renderStructuredAttributes(attributes));
+  card.appendChild(renderNestedStructuredAttributes(attributes, depth));
   renderSourceLocation(card, item.source_location);
+
+  const children = Array.isArray(item.children) ? item.children : [];
+  if (children.length > 0) {
+    const childContainer = document.createElement("div");
+    childContainer.className = "details-item-children";
+    children.forEach((child) => {
+      childContainer.appendChild(renderObjectExplorerItem(child, depth + 1));
+    });
+    card.appendChild(childContainer);
+  }
   return card;
+}
+
+function formatSectionStatus(status) {
+  const text = String(status || "ok");
+  if (text === "ok") {
+    return "";
+  }
+  return text.replace(/_/g, " ");
+}
+
+function formatQueryStatus(status, modeUsed) {
+  const statusText = String(status || "");
+  if (!statusText || statusText === "ok") {
+    return "";
+  }
+  if (modeUsed) {
+    return `${statusText} (${modeUsed})`;
+  }
+  return statusText;
 }
 
 function renderRawDetails(details) {
@@ -798,10 +947,13 @@ function renderInspector(inspector) {
       const body = document.createElement("div");
       body.className = "details-section-body";
 
-      const status = document.createElement("div");
-      status.className = "details-section-status";
-      status.textContent = `Status: ${section.status || "ok"}`;
-      body.appendChild(status);
+      const sectionStatus = formatSectionStatus(section.status);
+      if (sectionStatus) {
+        const status = document.createElement("div");
+        status.className = "details-section-status";
+        status.textContent = sectionStatus;
+        body.appendChild(status);
+      }
 
       if (!Array.isArray(section.items) || section.items.length === 0) {
         const empty = document.createElement("div");
@@ -1943,7 +2095,7 @@ async function runQuery() {
     const data = await response.json();
     renderGraph(data);
     updateFacetControls(data);
-    setStatus(`${data.status} (${data.mode_used})`);
+    setStatus(formatQueryStatus(data.status, data.mode_used));
   } catch (error) {
     setStatus("Query failed");
     renderDiagnostics([{ severity: "error", message: String(error) }]);

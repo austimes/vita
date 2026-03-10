@@ -14,6 +14,14 @@ def _section_by_key(inspector: dict, key: str) -> dict:
     return next(section for section in inspector["sections"] if section["key"] == key)
 
 
+def _flatten_dsl_items(items: list[dict]) -> list[dict]:
+    flattened: list[dict] = []
+    for item in items:
+        flattened.append(item)
+        flattened.extend(_flatten_dsl_items(item.get("children", [])))
+    return flattened
+
+
 def _assert_table_row_ref_contract(row_ref: dict) -> None:
     assert "table_index" in row_ref
     assert isinstance(row_ref["table_index"], int)
@@ -436,7 +444,14 @@ def test_role_query_inspector_aggregates_member_processes():
     dsl = _section_by_key(inspector, "dsl")
     assert dsl["label"] == "Object explorer"
     assert len(lowered["items"]) > 1
-    assert sum(1 for item in dsl["items"] if item["kind"] == "technology") > 1
+    assert (
+        sum(
+            1
+            for item in _flatten_dsl_items(dsl["items"])
+            if item["kind"] == "technology"
+        )
+        > 1
+    )
 
 
 def test_commodity_inspector_reports_usage_lists():
@@ -685,7 +700,7 @@ def test_instance_granularity_uses_stacked_technology_role_and_provenance_labels
     )
 
 
-def test_asset_backed_role_object_explorer_orders_facility_role_then_technology():
+def test_asset_backed_role_object_explorer_nests_facility_role_technology():
     source_file = EXAMPLES_DIR / "toy_sectors/toy_agriculture.veda.yaml"
 
     response = query_res_graph(
@@ -704,16 +719,16 @@ def test_asset_backed_role_object_explorer_orders_facility_role_then_technology(
     inspector = response["details"]["nodes"][node_id]["inspector"]
     dsl = _section_by_key(inspector, "dsl")
     assert dsl["label"] == "Object explorer"
-    assert [item["kind"] for item in dsl["items"]] == [
-        "facility",
-        "technology_role",
-        "technology",
-    ]
-    assert [item["id"] for item in dsl["items"]] == [
-        "farm_input_supply_asset",
-        "farm_input_supply",
-        "farm_input_import",
-    ]
+    assert dsl["status"] == "ok"
+    assert len(dsl["items"]) == 1
+    facility = dsl["items"][0]
+    assert facility["kind"] == "facility"
+    assert facility["id"] == "farm_input_supply_asset"
+    assert [child["kind"] for child in facility["children"]] == ["technology_role"]
+    role = facility["children"][0]
+    assert role["id"] == "farm_input_supply"
+    assert [child["kind"] for child in role["children"]] == ["technology"]
+    assert [child["id"] for child in role["children"]] == ["farm_input_import"]
 
 
 def test_object_explorer_source_blocks_use_exact_yaml_item_lines():
@@ -733,7 +748,7 @@ def test_object_explorer_source_blocks_use_exact_yaml_item_lines():
 
     node_id = "role:asset:facilities.farm_input_supply_asset"
     inspector = response["details"]["nodes"][node_id]["inspector"]
-    dsl_items = _section_by_key(inspector, "dsl")["items"]
+    dsl_items = _flatten_dsl_items(_section_by_key(inspector, "dsl")["items"])
     role_item = next(item for item in dsl_items if item["kind"] == "technology_role")
     tech_item = next(item for item in dsl_items if item["kind"] == "technology")
 
@@ -758,6 +773,83 @@ def test_object_explorer_source_blocks_use_exact_yaml_item_lines():
         line["text"] != "technologies:"
         for line in tech_item["source_location"]["lines"]
     )
+
+
+def test_object_explorer_includes_role_transitions_as_nested_items():
+    source_file = EXAMPLES_DIR / "toy_sectors/toy_agriculture.veda.yaml"
+
+    response = query_res_graph(
+        {
+            "version": "1",
+            "file": str(source_file),
+            "mode": "compiled",
+            "granularity": "instance",
+            "lens": "system",
+            "filters": {
+                "regions": ["SINGLE"],
+                "case": None,
+                "sectors": [],
+                "scopes": [],
+            },
+            "compiled": {"truth": "auto", "cache": True, "allow_partial": True},
+        }
+    )
+
+    node_id = next(
+        node["id"]
+        for node in response["graph"]["nodes"]
+        if node["type"] == "instance" and node["label"] == INSTANCE_BASELINE_LABEL
+    )
+    inspector = response["details"]["nodes"][node_id]["inspector"]
+    facility = _section_by_key(inspector, "dsl")["items"][0]
+    role = facility["children"][0]
+
+    assert [child["kind"] for child in role["children"]] == [
+        "technology",
+        "transition",
+        "transition",
+    ]
+    assert role["children"][1]["attributes"]["kind"] == "retrofit"
+    assert role["children"][2]["attributes"]["kind"] == "retrofit"
+
+
+def test_object_explorer_opportunity_nests_role_then_technology():
+    source_file = EXAMPLES_DIR / "toy_sectors/toy_agriculture.veda.yaml"
+
+    response = query_res_graph(
+        {
+            "version": "1",
+            "file": str(source_file),
+            "mode": "compiled",
+            "granularity": "instance",
+            "lens": "system",
+            "filters": {
+                "regions": ["SINGLE"],
+                "case": None,
+                "sectors": [],
+                "scopes": [],
+            },
+            "compiled": {"truth": "auto", "cache": True, "allow_partial": True},
+        }
+    )
+
+    node_id = next(
+        node["id"]
+        for node in response["graph"]["nodes"]
+        if node["type"] == "instance" and node["label"] == INSTANCE_SOIL_LABEL
+    )
+    inspector = response["details"]["nodes"][node_id]["inspector"]
+    dsl = _section_by_key(inspector, "dsl")
+    assert dsl["status"] == "ok"
+    assert len(dsl["items"]) == 1
+    opportunity = dsl["items"][0]
+    assert opportunity["kind"] == "opportunity"
+    assert opportunity["id"] == "soil_carbon_rollout"
+    assert [child["kind"] for child in opportunity["children"]] == ["technology_role"]
+    role = opportunity["children"][0]
+    assert role["id"] == "farm_carbon_management"
+    assert [child["kind"] for child in role["children"]] == ["technology"]
+    assert role["children"][0]["id"] == "soil_carbon"
 
 
 def test_multi_run_v0_2_query_requires_explicit_run_and_exposes_facets(tmp_path):

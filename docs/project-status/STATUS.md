@@ -25,6 +25,10 @@ remains open.
 
 ## Recently Completed
 
+- `vedalang-p0w` — reworked the RES viewer inspector `Object explorer` into a
+  nested authored-object tree, removed redundant type wording, hid `ok`
+  section/query status text in the UI, and replaced raw object-explorer JSON
+  blobs with recursive expandable field groups
 - `vedalang-8n3` — restored the historical `llm.units.component_quorum` and
   `llm.structure.res_assessment` prompt bundle texts to the snapshots implied
   by their checked-in manifests, so prompt-registry verification and the LLM
