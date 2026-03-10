@@ -8,8 +8,8 @@ VedaLang now runs as a v0.2-only repository. The package/run/CSIR/CPIR rollout,
 backend parity, diagnostics, tooling, supported example catalog, and strict
 cleanup pass are all landed.
 
-Current `bd` state: rollout and cleanup issues are closed; three follow-up
-issues remain open.
+Current `bd` state: rollout and cleanup issues are closed; one follow-up issue
+remains open.
 
 ## Current Focus
 
@@ -22,14 +22,12 @@ issues remain open.
 - `vedalang-bit` — require authored descriptions for RES object-explorer types
   so facilities, fleets, opportunities, technology roles, and technologies all
   carry user-facing explanatory copy in the viewer
-- `vedalang-4ov` — clean up checked-in example `.veda.yaml` formatting drift so
-  documented `uv run vedalang fmt --check ...` examples on repo paths pass
-  cleanly
-- `vedalang-8n3` — restore prompt manifest hash parity for historical LLM
-  prompt bundles so prompt-registry and llm-unit-check tests pass again
 
 ## Recently Completed
 
+- `vedalang-8j7` — replaced stale deprecated beads guidance in `AGENTS.md`
+  and the checked-in `.beads` docs with the current `bd onboard` / `bd prime`
+  / `bd dolt push` workflow
 - `vedalang-6y5` — replaced the RES viewer's `DSL attributes` pane with an
   `Object explorer`, fixed missing asset-backed facility cards in process-node
   inspectors, added built-in kind explainer text and per-item YAML source

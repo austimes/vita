@@ -8,9 +8,8 @@
 # Example: issue-prefix: "myproject" creates issues like "myproject-1", "myproject-2", etc.
 # issue-prefix: ""
 
-# Use no-db mode: load from JSONL, no SQLite, write back after each command
-# When true, bd will use .beads/issues.jsonl as the source of truth
-# instead of SQLite database
+# Legacy compatibility flag from older pre-Dolt beads setups.
+# Current repo workflows use the Dolt backend under .beads/dolt.
 no-db: true
 
 # Disable daemon for RPC communication (forces direct database access)
@@ -37,11 +36,8 @@ no-db: true
 # Debounce interval for auto-flush (can also use BEADS_FLUSH_DEBOUNCE)
 # flush-debounce: "5s"
 
-# Git branch for beads commits (bd sync will commit to this branch)
-# IMPORTANT: Set this for team projects so all clones use the same sync branch.
-# This setting persists across clones (unlike database config which is gitignored).
-# Can also use BEADS_SYNC_BRANCH env var for local override.
-# If not set, bd sync will require you to run 'bd config set sync.branch <branch>'.
+# Legacy sync-branch setting from pre-Dolt beads workflows.
+# Current collaboration uses `bd dolt push` / `bd dolt pull`.
 sync-branch: "beads-sync"
 
 # Multi-repo configuration (experimental - bd-307)
