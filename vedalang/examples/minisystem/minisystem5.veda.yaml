@@ -1,3 +1,5 @@
+dsl_version: "0.2"
+
 commodities:
   - id: emission:co2
     kind: emission
@@ -22,102 +24,6 @@ commodities:
 
   - id: service:wind_supply
     kind: service
-
-dsl_version: "0.2"
-
-facilities:
-  - id: gas_supply_facility
-    site: single_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 100 MW
-            year: 2025
-          technology: lng_terminal
-    technology_role: gas_supply
-
-  - id: generation_facility
-    available_technologies:
-      - ccgt
-      - wind
-    site: single_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 2 MW
-            year: 2025
-          technology: ccgt
-
-        - metric: installed_capacity
-          observed:
-            value: 1 MW
-            year: 2025
-          technology: wind
-    technology_role: electricity_generation
-
-  - id: residential_service_facility
-    site: single_hub
-    stock:
-      items:
-        - metric: annual_activity
-          observed:
-            value: 60 GWh/year
-            year: 2025
-          technology: electric_enduse
-    technology_role: residential_service
-
-  - id: wind_supply_facility
-    site: single_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 100 MW
-            year: 2025
-          technology: onshore_wind_supply
-    technology_role: wind_supply
-
-opportunities:
-  - id: wind_expansion
-    max_new_capacity: 20 MW
-    siting:
-      region_member:
-        member: SINGLE
-        partition: single_region
-    technology: wind
-
-region_partitions:
-  - id: single_region
-    layer: geo.demo
-    mapping:
-      kind: constant
-      value: SINGLE
-    members:
-      - SINGLE
-
-runs:
-  - id: single_2025
-    base_year: 2025
-    currency_year: 2024
-    region_partition: single_region
-
-sites:
-  - id: single_hub
-    location:
-      point:
-        lat: -33.87
-        lon: 151.21
-    membership_overrides:
-      region_partitions:
-        single_region: SINGLE
-
-spatial_layers:
-  - id: geo.demo
-    geometry_file: data/regions.geojson
-    key: region_id
-    kind: polygon
 
 technologies:
   - id: ccgt
@@ -199,3 +105,97 @@ technology_roles:
     primary_service: service:wind_supply
     technologies:
       - onshore_wind_supply
+
+spatial_layers:
+  - id: geo.demo
+    geometry_file: data/regions.geojson
+    key: region_id
+    kind: polygon
+
+region_partitions:
+  - id: single_region
+    layer: geo.demo
+    mapping:
+      kind: constant
+      value: SINGLE
+    members:
+      - SINGLE
+
+sites:
+  - id: single_hub
+    location:
+      point:
+        lat: -33.87
+        lon: 151.21
+    membership_overrides:
+      region_partitions:
+        single_region: SINGLE
+
+facilities:
+  - id: gas_supply_facility
+    site: single_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 100 MW
+            year: 2025
+          technology: lng_terminal
+    technology_role: gas_supply
+
+  - id: generation_facility
+    available_technologies:
+      - ccgt
+      - wind
+    site: single_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 2 MW
+            year: 2025
+          technology: ccgt
+
+        - metric: installed_capacity
+          observed:
+            value: 1 MW
+            year: 2025
+          technology: wind
+    technology_role: electricity_generation
+
+  - id: residential_service_facility
+    site: single_hub
+    stock:
+      items:
+        - metric: annual_activity
+          observed:
+            value: 60 GWh/year
+            year: 2025
+          technology: electric_enduse
+    technology_role: residential_service
+
+  - id: wind_supply_facility
+    site: single_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 100 MW
+            year: 2025
+          technology: onshore_wind_supply
+    technology_role: wind_supply
+
+opportunities:
+  - id: wind_expansion
+    max_new_capacity: 20 MW
+    siting:
+      region_member:
+        member: SINGLE
+        partition: single_region
+    technology: wind
+
+runs:
+  - id: single_2025
+    base_year: 2025
+    currency_year: 2024
+    region_partition: single_region

@@ -1,3 +1,5 @@
+dsl_version: "0.2"
+
 commodities:
   - id: primary:coal
     kind: primary
@@ -11,7 +13,113 @@ commodities:
   - id: service:coal_supply
     kind: service
 
-dsl_version: "0.2"
+technologies:
+  - id: coal_delivery
+    inputs:
+      - commodity: primary:coal
+        basis: HHV
+    fixed_om: 0.2 MUSD24/GW/year
+    investment_cost: 10 MUSD24/GW
+    lifetime: 20 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:coal_supply
+
+  - id: coal_export_terminal
+    inputs:
+      - commodity: primary:coal
+        basis: HHV
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:coal_exports
+    variable_om: 2.75 MUSD24/PJ
+
+  - id: coal_import
+    outputs:
+      - commodity: primary:coal
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:coal_primary_supply
+    variable_om: 2.75 MUSD24/PJ
+
+  - id: mine_coal_step1
+    outputs:
+      - commodity: primary:coal
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:coal_primary_supply
+    variable_om: 2 MUSD24/PJ
+
+  - id: mine_coal_step2
+    outputs:
+      - commodity: primary:coal
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:coal_primary_supply
+    variable_om: 2.5 MUSD24/PJ
+
+  - id: mine_coal_step3
+    outputs:
+      - commodity: primary:coal
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:coal_primary_supply
+    variable_om: 3 MUSD24/PJ
+
+technology_roles:
+  - id: coal_exports
+    primary_service: service:coal_exports
+    technologies:
+      - coal_export_terminal
+
+  - id: coal_primary_supply
+    primary_service: service:coal_primary_supply
+    technologies:
+      - coal_import
+      - mine_coal_step1
+      - mine_coal_step2
+      - mine_coal_step3
+
+  - id: coal_supply_delivery
+    primary_service: service:coal_supply
+    technologies:
+      - coal_delivery
+
+spatial_layers:
+  - id: geo.demo
+    geometry_file: data/regions.geojson
+    key: region_id
+    kind: polygon
+
+region_partitions:
+  - id: reg1_partition
+    layer: geo.demo
+    mapping:
+      kind: constant
+      value: REG1
+    members:
+      - REG1
+
+sites:
+  - id: reg1_coal_hub
+    location:
+      point:
+        lat: -27.47
+        lon: 153.02
+    membership_overrides:
+      region_partitions:
+        reg1_partition: REG1
 
 facilities:
   - id: reg1_coal_delivery
@@ -103,116 +211,8 @@ opportunities:
         partition: reg1_partition
     technology: mine_coal_step3
 
-region_partitions:
-  - id: reg1_partition
-    layer: geo.demo
-    mapping:
-      kind: constant
-      value: REG1
-    members:
-      - REG1
-
 runs:
   - id: reg1_2005
     base_year: 2005
     currency_year: 2024
     region_partition: reg1_partition
-
-sites:
-  - id: reg1_coal_hub
-    location:
-      point:
-        lat: -27.47
-        lon: 153.02
-    membership_overrides:
-      region_partitions:
-        reg1_partition: REG1
-
-spatial_layers:
-  - id: geo.demo
-    geometry_file: data/regions.geojson
-    key: region_id
-    kind: polygon
-
-technologies:
-  - id: coal_delivery
-    inputs:
-      - commodity: primary:coal
-        basis: HHV
-    fixed_om: 0.2 MUSD24/GW/year
-    investment_cost: 10 MUSD24/GW
-    lifetime: 20 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: service:coal_supply
-
-  - id: coal_export_terminal
-    inputs:
-      - commodity: primary:coal
-        basis: HHV
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: service:coal_exports
-    variable_om: 2.75 MUSD24/PJ
-
-  - id: coal_import
-    outputs:
-      - commodity: primary:coal
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: service:coal_primary_supply
-    variable_om: 2.75 MUSD24/PJ
-
-  - id: mine_coal_step1
-    outputs:
-      - commodity: primary:coal
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: service:coal_primary_supply
-    variable_om: 2 MUSD24/PJ
-
-  - id: mine_coal_step2
-    outputs:
-      - commodity: primary:coal
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: service:coal_primary_supply
-    variable_om: 2.5 MUSD24/PJ
-
-  - id: mine_coal_step3
-    outputs:
-      - commodity: primary:coal
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: service:coal_primary_supply
-    variable_om: 3 MUSD24/PJ
-
-technology_roles:
-  - id: coal_exports
-    primary_service: service:coal_exports
-    technologies:
-      - coal_export_terminal
-
-  - id: coal_primary_supply
-    primary_service: service:coal_primary_supply
-    technologies:
-      - coal_import
-      - mine_coal_step1
-      - mine_coal_step2
-      - mine_coal_step3
-
-  - id: coal_supply_delivery
-    primary_service: service:coal_supply
-    technologies:
-      - coal_delivery

@@ -1,3 +1,5 @@
+dsl_version: "0.2"
+
 commodities:
   - id: secondary:electricity
     kind: secondary
@@ -7,62 +9,6 @@ commodities:
 
   - id: service:residential_electricity
     kind: service
-
-dsl_version: "0.2"
-
-facilities:
-  - id: grid_supply_facility
-    site: single_hub
-    stock:
-      items:
-        - metric: annual_activity
-          observed:
-            value: 50 GWh/year
-            year: 2020
-          technology: grid_supply
-    technology_role: electricity_supply
-
-  - id: residential_service_facility
-    site: single_hub
-    stock:
-      items:
-        - metric: annual_activity
-          observed:
-            value: 50 GWh/year
-            year: 2020
-          technology: residential_device
-    technology_role: residential_service
-
-region_partitions:
-  - id: single_region
-    layer: geo.demo
-    mapping:
-      kind: constant
-      value: SINGLE
-    members:
-      - SINGLE
-
-runs:
-  - id: single_2020
-    base_year: 2020
-    currency_year: 2024
-    region_partition: single_region
-
-sites:
-  - id: single_hub
-    location:
-      point:
-        lat: -33.87
-        lon: 151.21
-    membership_overrides:
-      region_partitions:
-        single_region: SINGLE
-
-spatial_layers:
-  - id: geo.demo
-    geometry_file: data/regions.geojson
-    key: region_id
-    kind: polygon
 
 technologies:
   - id: grid_supply
@@ -94,3 +40,57 @@ technology_roles:
     primary_service: service:residential_electricity
     technologies:
       - residential_device
+
+spatial_layers:
+  - id: geo.demo
+    geometry_file: data/regions.geojson
+    key: region_id
+    kind: polygon
+
+region_partitions:
+  - id: single_region
+    layer: geo.demo
+    mapping:
+      kind: constant
+      value: SINGLE
+    members:
+      - SINGLE
+
+sites:
+  - id: single_hub
+    location:
+      point:
+        lat: -33.87
+        lon: 151.21
+    membership_overrides:
+      region_partitions:
+        single_region: SINGLE
+
+facilities:
+  - id: grid_supply_facility
+    site: single_hub
+    stock:
+      items:
+        - metric: annual_activity
+          observed:
+            value: 50 GWh/year
+            year: 2020
+          technology: grid_supply
+    technology_role: electricity_supply
+
+  - id: residential_service_facility
+    site: single_hub
+    stock:
+      items:
+        - metric: annual_activity
+          observed:
+            value: 50 GWh/year
+            year: 2020
+          technology: residential_device
+    technology_role: residential_service
+
+runs:
+  - id: single_2020
+    base_year: 2020
+    currency_year: 2024
+    region_partition: single_region

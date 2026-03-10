@@ -1,3 +1,5 @@
+dsl_version: "0.2"
+
 commodities:
   - id: emission:co2
     kind: emission
@@ -16,73 +18,6 @@ commodities:
 
   - id: service:gas_supply
     kind: service
-
-dsl_version: "0.2"
-
-facilities:
-  - id: reg1_ccgt
-    site: reg1_energy_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 10 MW
-            year: 2020
-          technology: ccgt
-    technology_role: electricity_generation
-
-  - id: reg1_gas_supply
-    site: reg1_energy_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 1000 MW
-            year: 2020
-          technology: gas_import
-    technology_role: gas_supply
-
-  - id: reg1_grid_connection
-    site: reg1_energy_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 10 MW
-            year: 2020
-          technology: grid_connection
-    technology_role: delivered_electricity
-
-region_partitions:
-  - id: reg1_partition
-    layer: geo.demo
-    mapping:
-      kind: constant
-      value: REG1
-    members:
-      - REG1
-
-runs:
-  - id: reg1_2020
-    base_year: 2020
-    currency_year: 2024
-    region_partition: reg1_partition
-
-sites:
-  - id: reg1_energy_hub
-    location:
-      point:
-        lat: -33.87
-        lon: 151.21
-    membership_overrides:
-      region_partitions:
-        reg1_partition: REG1
-
-spatial_layers:
-  - id: geo.demo
-    geometry_file: data/regions.geojson
-    key: region_id
-    kind: polygon
 
 technologies:
   - id: ccgt
@@ -136,3 +71,68 @@ technology_roles:
     primary_service: service:gas_supply
     technologies:
       - gas_import
+
+spatial_layers:
+  - id: geo.demo
+    geometry_file: data/regions.geojson
+    key: region_id
+    kind: polygon
+
+region_partitions:
+  - id: reg1_partition
+    layer: geo.demo
+    mapping:
+      kind: constant
+      value: REG1
+    members:
+      - REG1
+
+sites:
+  - id: reg1_energy_hub
+    location:
+      point:
+        lat: -33.87
+        lon: 151.21
+    membership_overrides:
+      region_partitions:
+        reg1_partition: REG1
+
+facilities:
+  - id: reg1_ccgt
+    site: reg1_energy_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 10 MW
+            year: 2020
+          technology: ccgt
+    technology_role: electricity_generation
+
+  - id: reg1_gas_supply
+    site: reg1_energy_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 1000 MW
+            year: 2020
+          technology: gas_import
+    technology_role: gas_supply
+
+  - id: reg1_grid_connection
+    site: reg1_energy_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 10 MW
+            year: 2020
+          technology: grid_connection
+    technology_role: delivered_electricity
+
+runs:
+  - id: reg1_2020
+    base_year: 2020
+    currency_year: 2024
+    region_partition: reg1_partition

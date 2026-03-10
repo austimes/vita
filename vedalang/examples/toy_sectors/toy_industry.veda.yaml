@@ -1,3 +1,5 @@
+dsl_version: "0.2"
+
 commodities:
   - id: emission:co2
     kind: emission
@@ -22,99 +24,6 @@ commodities:
 
   - id: service:industrial_heat
     kind: service
-
-dsl_version: "0.2"
-
-fleets:
-  - id: electricity_supply
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 120 MW
-            year: 2025
-          technology: grid_electricity_supply
-    technology_role: electricity_supply
-    distribution:
-      method: direct
-
-  - id: gas_supply
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 120 MW
-            year: 2025
-          technology: pipeline_gas_supply
-    technology_role: gas_supply
-    distribution:
-      method: direct
-
-  - id: hydrogen_supply
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 60 MW
-            year: 2025
-          technology: pipeline_hydrogen_supply
-    technology_role: hydrogen_supply
-    distribution:
-      method: direct
-
-  - id: industrial_heat
-    available_technologies:
-      - gas_boiler
-      - electric_heater
-      - h2_boiler
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 5 MW
-            year: 2025
-          technology: gas_boiler
-
-        - metric: installed_capacity
-          observed:
-            value: 1 MW
-            year: 2025
-          technology: electric_heater
-
-        - metric: installed_capacity
-          observed:
-            value: 0.5 MW
-            year: 2025
-          technology: h2_boiler
-    technology_role: industrial_heat_supply
-    new_build_limits:
-      - technology: electric_heater
-        max_new_capacity: 15 MW
-      - technology: h2_boiler
-        max_new_capacity: 12 MW
-    distribution:
-      method: direct
-
-region_partitions:
-  - id: single_region
-    layer: geo.demo
-    mapping:
-      kind: constant
-      value: SINGLE
-    members:
-      - SINGLE
-
-runs:
-  - id: single_2025
-    base_year: 2025
-    currency_year: 2024
-    region_partition: single_region
-
-spatial_layers:
-  - id: geo.demo
-    geometry_file: data/regions.geojson
-    key: region_id
-    kind: polygon
 
 technologies:
   - id: electric_heater
@@ -214,3 +123,95 @@ technology_roles:
         from: gas_boiler
         kind: retrofit
         to: h2_boiler
+
+spatial_layers:
+  - id: geo.demo
+    geometry_file: data/regions.geojson
+    key: region_id
+    kind: polygon
+
+region_partitions:
+  - id: single_region
+    layer: geo.demo
+    mapping:
+      kind: constant
+      value: SINGLE
+    members:
+      - SINGLE
+
+fleets:
+  - id: electricity_supply
+    distribution:
+      method: direct
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 120 MW
+            year: 2025
+          technology: grid_electricity_supply
+    technology_role: electricity_supply
+
+  - id: gas_supply
+    distribution:
+      method: direct
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 120 MW
+            year: 2025
+          technology: pipeline_gas_supply
+    technology_role: gas_supply
+
+  - id: hydrogen_supply
+    distribution:
+      method: direct
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 60 MW
+            year: 2025
+          technology: pipeline_hydrogen_supply
+    technology_role: hydrogen_supply
+
+  - id: industrial_heat
+    available_technologies:
+      - gas_boiler
+      - electric_heater
+      - h2_boiler
+    distribution:
+      method: direct
+    new_build_limits:
+      - max_new_capacity: 15 MW
+        technology: electric_heater
+
+      - max_new_capacity: 12 MW
+        technology: h2_boiler
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 5 MW
+            year: 2025
+          technology: gas_boiler
+
+        - metric: installed_capacity
+          observed:
+            value: 1 MW
+            year: 2025
+          technology: electric_heater
+
+        - metric: installed_capacity
+          observed:
+            value: 0.5 MW
+            year: 2025
+          technology: h2_boiler
+    technology_role: industrial_heat_supply
+
+runs:
+  - id: single_2025
+    base_year: 2025
+    currency_year: 2024
+    region_partition: single_region

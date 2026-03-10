@@ -1,3 +1,5 @@
+dsl_version: "0.2"
+
 commodities:
   - id: emission:co2
     kind: emission
@@ -28,128 +30,6 @@ commodities:
 
   - id: service:wind_supply
     kind: service
-
-dsl_version: "0.2"
-
-facilities:
-  - id: reg1_fuel_supply
-    site: reg1_energy_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 150 MW
-            year: 2025
-          technology: pipeline_import
-    technology_role: gas_supply
-
-  - id: reg1_generation
-    available_technologies:
-      - ccgt_generation
-      - solar_generation
-      - wind_generation
-    site: reg1_energy_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 10 MW
-            year: 2025
-          technology: ccgt_generation
-
-        - metric: installed_capacity
-          observed:
-            value: 3 MW
-            year: 2025
-          technology: solar_generation
-
-        - metric: installed_capacity
-          observed:
-            value: 3 MW
-            year: 2025
-          technology: wind_generation
-    technology_role: electricity_generation
-
-  - id: reg1_service
-    site: reg1_energy_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 16 MW
-            year: 2025
-          technology: electric_service
-    technology_role: electricity_service
-
-  - id: reg1_solar_supply
-    site: reg1_energy_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 120 MW
-            year: 2025
-          technology: solar_resource_supply
-    technology_role: solar_supply
-
-  - id: reg1_wind_supply
-    site: reg1_energy_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 120 MW
-            year: 2025
-          technology: wind_resource_supply
-    technology_role: wind_supply
-
-opportunities:
-  - id: reg1_solar_build
-    max_new_capacity: 30 MW
-    siting:
-      region_member:
-        member: REG1
-        partition: reg1_partition
-    technology: solar_generation
-
-  - id: reg1_wind_build
-    max_new_capacity: 40 MW
-    siting:
-      region_member:
-        member: REG1
-        partition: reg1_partition
-    technology: wind_generation
-
-region_partitions:
-  - id: reg1_partition
-    layer: geo.demo
-    mapping:
-      kind: constant
-      value: REG1
-    members:
-      - REG1
-
-runs:
-  - id: reg1_2025
-    base_year: 2025
-    currency_year: 2024
-    region_partition: reg1_partition
-
-sites:
-  - id: reg1_energy_hub
-    location:
-      point:
-        lat: -33.87
-        lon: 151.21
-    membership_overrides:
-      region_partitions:
-        reg1_partition: REG1
-
-spatial_layers:
-  - id: geo.demo
-    geometry_file: data/regions.geojson
-    key: region_id
-    kind: polygon
 
 technologies:
   - id: ccgt_generation
@@ -252,3 +132,123 @@ technology_roles:
     primary_service: service:wind_supply
     technologies:
       - wind_resource_supply
+
+spatial_layers:
+  - id: geo.demo
+    geometry_file: data/regions.geojson
+    key: region_id
+    kind: polygon
+
+region_partitions:
+  - id: reg1_partition
+    layer: geo.demo
+    mapping:
+      kind: constant
+      value: REG1
+    members:
+      - REG1
+
+sites:
+  - id: reg1_energy_hub
+    location:
+      point:
+        lat: -33.87
+        lon: 151.21
+    membership_overrides:
+      region_partitions:
+        reg1_partition: REG1
+
+facilities:
+  - id: reg1_fuel_supply
+    site: reg1_energy_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 150 MW
+            year: 2025
+          technology: pipeline_import
+    technology_role: gas_supply
+
+  - id: reg1_generation
+    available_technologies:
+      - ccgt_generation
+      - solar_generation
+      - wind_generation
+    site: reg1_energy_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 10 MW
+            year: 2025
+          technology: ccgt_generation
+
+        - metric: installed_capacity
+          observed:
+            value: 3 MW
+            year: 2025
+          technology: solar_generation
+
+        - metric: installed_capacity
+          observed:
+            value: 3 MW
+            year: 2025
+          technology: wind_generation
+    technology_role: electricity_generation
+
+  - id: reg1_service
+    site: reg1_energy_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 16 MW
+            year: 2025
+          technology: electric_service
+    technology_role: electricity_service
+
+  - id: reg1_solar_supply
+    site: reg1_energy_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 120 MW
+            year: 2025
+          technology: solar_resource_supply
+    technology_role: solar_supply
+
+  - id: reg1_wind_supply
+    site: reg1_energy_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 120 MW
+            year: 2025
+          technology: wind_resource_supply
+    technology_role: wind_supply
+
+opportunities:
+  - id: reg1_solar_build
+    max_new_capacity: 30 MW
+    siting:
+      region_member:
+        member: REG1
+        partition: reg1_partition
+    technology: solar_generation
+
+  - id: reg1_wind_build
+    max_new_capacity: 40 MW
+    siting:
+      region_member:
+        member: REG1
+        partition: reg1_partition
+    technology: wind_generation
+
+runs:
+  - id: reg1_2025
+    base_year: 2025
+    currency_year: 2024
+    region_partition: reg1_partition

@@ -1,3 +1,5 @@
+dsl_version: "0.2"
+
 commodities:
   - id: secondary:electricity
     kind: secondary
@@ -7,66 +9,6 @@ commodities:
 
   - id: service:residential_electric_service
     kind: service
-
-dsl_version: "0.2"
-
-facilities:
-  - id: reg1_residential_service
-    site: reg1_hub
-    stock:
-      items:
-        - adjust_to_base_year:
-            using: residential_service_index
-          metric: annual_activity
-          observed:
-            value: 100 GWh/year
-            year: 2020
-          technology: residential_device
-    technology_role: residential_service
-
-  - id: reg1_supply
-    site: reg1_hub
-    stock:
-      items:
-        - adjust_to_base_year:
-            using: residential_service_index
-          metric: annual_activity
-          observed:
-            value: 100 GWh/year
-            year: 2020
-          technology: generic_supply
-    technology_role: electricity_supply
-
-region_partitions:
-  - id: reg1_partition
-    layer: geo.demo
-    mapping:
-      kind: constant
-      value: REG1
-    members:
-      - REG1
-
-runs:
-  - id: reg1_2020
-    base_year: 2020
-    currency_year: 2024
-    region_partition: reg1_partition
-
-sites:
-  - id: reg1_hub
-    location:
-      point:
-        lat: -33.87
-        lon: 151.21
-    membership_overrides:
-      region_partitions:
-        reg1_partition: REG1
-
-spatial_layers:
-  - id: geo.demo
-    geometry_file: data/regions.geojson
-    key: region_id
-    kind: polygon
 
 technologies:
   - id: generic_supply
@@ -98,6 +40,12 @@ technology_roles:
     technologies:
       - residential_device
 
+spatial_layers:
+  - id: geo.demo
+    geometry_file: data/regions.geojson
+    key: region_id
+    kind: polygon
+
 temporal_index_series:
   - id: residential_service_index
     unit: index
@@ -108,3 +56,55 @@ temporal_index_series:
       "2050": 1.6
       "2060": 1.8
     base_year: 2020
+
+region_partitions:
+  - id: reg1_partition
+    layer: geo.demo
+    mapping:
+      kind: constant
+      value: REG1
+    members:
+      - REG1
+
+sites:
+  - id: reg1_hub
+    location:
+      point:
+        lat: -33.87
+        lon: 151.21
+    membership_overrides:
+      region_partitions:
+        reg1_partition: REG1
+
+facilities:
+  - id: reg1_residential_service
+    site: reg1_hub
+    stock:
+      items:
+        - adjust_to_base_year:
+            using: residential_service_index
+          metric: annual_activity
+          observed:
+            value: 100 GWh/year
+            year: 2020
+          technology: residential_device
+    technology_role: residential_service
+
+  - id: reg1_supply
+    site: reg1_hub
+    stock:
+      items:
+        - adjust_to_base_year:
+            using: residential_service_index
+          metric: annual_activity
+          observed:
+            value: 100 GWh/year
+            year: 2020
+          technology: generic_supply
+    technology_role: electricity_supply
+
+runs:
+  - id: reg1_2020
+    base_year: 2020
+    currency_year: 2024
+    region_partition: reg1_partition

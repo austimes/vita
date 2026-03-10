@@ -25,6 +25,14 @@ remains open.
 
 ## Recently Completed
 
+- `vedalang-8n3` — restored the historical `llm.units.component_quorum` and
+  `llm.structure.res_assessment` prompt bundle texts to the snapshots implied
+  by their checked-in manifests, so prompt-registry verification and the LLM
+  unit-check tests pass again without mutating historical manifest hashes
+- `vedalang-4ov` — reformatted the checked-in example catalog, fixed the
+  `vedalang fmt --check` canonicalization bug so check mode now agrees with
+  write mode after Prettier normalization, and cleaned the remaining repo-wide
+  Prettier drift in the eval fixture corpus
 - `vedalang-8j7` — replaced stale deprecated beads guidance in `AGENTS.md`
   and the checked-in `.beads` docs with the current `bd onboard` / `bd prime`
   / `bd dolt push` workflow

@@ -1,3 +1,5 @@
+dsl_version: "0.2"
+
 commodities:
   - id: emission:co2
     kind: emission
@@ -22,105 +24,6 @@ commodities:
 
   - id: service:wind_resource_supply
     kind: service
-
-dsl_version: "0.2"
-
-facilities:
-  - id: reg1_gas_supply
-    site: reg1_energy_hub
-    stock:
-      items:
-        - adjust_to_base_year:
-            elasticity: -0.2
-            using: co2_policy_index
-          metric: annual_activity
-          observed:
-            value: 300 GWh/year
-            year: 2025
-          technology: pipeline_import
-    technology_role: gas_supply
-
-  - id: reg1_generation
-    available_technologies:
-      - ccgt
-      - wind
-    site: reg1_energy_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 15 MW
-            year: 2025
-          technology: ccgt
-
-        - metric: installed_capacity
-          observed:
-            value: 3 MW
-            year: 2025
-          technology: wind
-    technology_role: electricity_generation
-
-  - id: reg1_service
-    site: reg1_energy_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 18 MW
-            year: 2025
-          technology: electricity_service
-    technology_role: electricity_service
-
-  - id: reg1_wind_supply
-    site: reg1_energy_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 100 MW
-            year: 2025
-          technology: onshore_wind_resource
-    technology_role: wind_resource_supply
-
-opportunities:
-  - id: reg1_wind_expansion
-    max_new_capacity: 40 MW
-    siting:
-      region_member:
-        member: REG1
-        partition: reg1_partition
-    technology: wind
-
-region_partitions:
-  - id: reg1_partition
-    layer: geo.demo
-    mapping:
-      kind: constant
-      value: REG1
-    members:
-      - REG1
-
-runs:
-  - id: reg1_2025
-    base_year: 2025
-    currency_year: 2024
-    region_partition: reg1_partition
-
-sites:
-  - id: reg1_energy_hub
-    location:
-      point:
-        lat: -35.28
-        lon: 149.13
-    membership_overrides:
-      region_partitions:
-        reg1_partition: REG1
-
-spatial_layers:
-  - id: geo.demo
-    geometry_file: data/regions.geojson
-    key: region_id
-    kind: polygon
 
 technologies:
   - id: ccgt
@@ -199,6 +102,12 @@ technology_roles:
     technologies:
       - onshore_wind_resource
 
+spatial_layers:
+  - id: geo.demo
+    geometry_file: data/regions.geojson
+    key: region_id
+    kind: polygon
+
 temporal_index_series:
   - id: co2_policy_index
     unit: index
@@ -208,3 +117,94 @@ temporal_index_series:
       "2040": 2.5
       "2050": 4.0
     base_year: 2025
+
+region_partitions:
+  - id: reg1_partition
+    layer: geo.demo
+    mapping:
+      kind: constant
+      value: REG1
+    members:
+      - REG1
+
+sites:
+  - id: reg1_energy_hub
+    location:
+      point:
+        lat: -35.28
+        lon: 149.13
+    membership_overrides:
+      region_partitions:
+        reg1_partition: REG1
+
+facilities:
+  - id: reg1_gas_supply
+    site: reg1_energy_hub
+    stock:
+      items:
+        - adjust_to_base_year:
+            elasticity: -0.2
+            using: co2_policy_index
+          metric: annual_activity
+          observed:
+            value: 300 GWh/year
+            year: 2025
+          technology: pipeline_import
+    technology_role: gas_supply
+
+  - id: reg1_generation
+    available_technologies:
+      - ccgt
+      - wind
+    site: reg1_energy_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 15 MW
+            year: 2025
+          technology: ccgt
+
+        - metric: installed_capacity
+          observed:
+            value: 3 MW
+            year: 2025
+          technology: wind
+    technology_role: electricity_generation
+
+  - id: reg1_service
+    site: reg1_energy_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 18 MW
+            year: 2025
+          technology: electricity_service
+    technology_role: electricity_service
+
+  - id: reg1_wind_supply
+    site: reg1_energy_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 100 MW
+            year: 2025
+          technology: onshore_wind_resource
+    technology_role: wind_resource_supply
+
+opportunities:
+  - id: reg1_wind_expansion
+    max_new_capacity: 40 MW
+    siting:
+      region_member:
+        member: REG1
+        partition: reg1_partition
+    technology: wind
+
+runs:
+  - id: reg1_2025
+    base_year: 2025
+    currency_year: 2024
+    region_partition: reg1_partition

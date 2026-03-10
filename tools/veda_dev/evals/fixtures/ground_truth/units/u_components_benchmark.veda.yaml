@@ -258,7 +258,7 @@ technology_roles:
         heat_bad_capacity_denom_1,
         heat_clean_2,
         heat_bad_variable_cost_2,
-        heat_missing_basis_2
+        heat_missing_basis_2,
       ]
   - id: mobility_supply
     primary_service: service:mobility
@@ -270,7 +270,7 @@ technology_roles:
         mobility_gas_missing_basis_1,
         mobility_bad_model_expectation_1,
         mobility_clean_2,
-        mobility_bad_variable_cost_2
+        mobility_bad_variable_cost_2,
       ]
   - id: steam_supply
     primary_service: material:steam
@@ -280,7 +280,7 @@ technology_roles:
         steam_gas_missing_basis_1,
         steam_bad_variable_cost_1,
         steam_bad_investment_cost_1,
-        steam_bad_capacity_denom_1
+        steam_bad_capacity_denom_1,
       ]
 
 runs:

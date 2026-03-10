@@ -1,3 +1,5 @@
+dsl_version: "0.2"
+
 commodities:
   - id: primary:natural_gas
     kind: primary
@@ -13,77 +15,6 @@ commodities:
 
   - id: service:gas_supply
     kind: service
-
-dsl_version: "0.2"
-
-facilities:
-  - id: reg1_demand
-    site: reg1_hub
-    stock:
-      items:
-        - adjust_to_base_year:
-            using: day_night_profile_proxy
-          metric: annual_activity
-          observed:
-            value: 20 GWh/year
-            year: 2020
-          technology: electric_device
-    technology_role: electricity_service
-
-  - id: reg1_gas_supply
-    site: reg1_hub
-    stock:
-      items:
-        - adjust_to_base_year:
-            using: day_night_profile_proxy
-          metric: annual_activity
-          observed:
-            value: 200 GWh/year
-            year: 2020
-          technology: gas_import
-    technology_role: gas_supply
-
-  - id: reg1_generation
-    site: reg1_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 10 MW
-            year: 2020
-          technology: ccgt
-    technology_role: electricity_generation
-
-region_partitions:
-  - id: reg1_partition
-    layer: geo.demo
-    mapping:
-      kind: constant
-      value: REG1
-    members:
-      - REG1
-
-runs:
-  - id: reg1_2020
-    base_year: 2020
-    currency_year: 2024
-    region_partition: reg1_partition
-
-sites:
-  - id: reg1_hub
-    location:
-      point:
-        lat: -33.87
-        lon: 151.21
-    membership_overrides:
-      region_partitions:
-        reg1_partition: REG1
-
-spatial_layers:
-  - id: geo.demo
-    geometry_file: data/regions.geojson
-    key: region_id
-    kind: polygon
 
 technologies:
   - id: ccgt
@@ -132,6 +63,12 @@ technology_roles:
     technologies:
       - gas_import
 
+spatial_layers:
+  - id: geo.demo
+    geometry_file: data/regions.geojson
+    key: region_id
+    kind: polygon
+
 temporal_index_series:
   - id: day_night_profile_proxy
     unit: index
@@ -139,3 +76,66 @@ temporal_index_series:
       "2020": 1.0
       "2030": 1.2
     base_year: 2020
+
+region_partitions:
+  - id: reg1_partition
+    layer: geo.demo
+    mapping:
+      kind: constant
+      value: REG1
+    members:
+      - REG1
+
+sites:
+  - id: reg1_hub
+    location:
+      point:
+        lat: -33.87
+        lon: 151.21
+    membership_overrides:
+      region_partitions:
+        reg1_partition: REG1
+
+facilities:
+  - id: reg1_demand
+    site: reg1_hub
+    stock:
+      items:
+        - adjust_to_base_year:
+            using: day_night_profile_proxy
+          metric: annual_activity
+          observed:
+            value: 20 GWh/year
+            year: 2020
+          technology: electric_device
+    technology_role: electricity_service
+
+  - id: reg1_gas_supply
+    site: reg1_hub
+    stock:
+      items:
+        - adjust_to_base_year:
+            using: day_night_profile_proxy
+          metric: annual_activity
+          observed:
+            value: 200 GWh/year
+            year: 2020
+          technology: gas_import
+    technology_role: gas_supply
+
+  - id: reg1_generation
+    site: reg1_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 10 MW
+            year: 2020
+          technology: ccgt
+    technology_role: electricity_generation
+
+runs:
+  - id: reg1_2020
+    base_year: 2020
+    currency_year: 2024
+    region_partition: reg1_partition

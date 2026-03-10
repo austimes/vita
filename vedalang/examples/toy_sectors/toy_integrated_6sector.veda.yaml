@@ -1,3 +1,5 @@
+dsl_version: "0.2"
+
 commodities:
   - id: emission:co2
     kind: emission
@@ -40,137 +42,6 @@ commodities:
 
   - id: service:space_heat
     kind: service
-
-dsl_version: "0.2"
-
-facilities:
-  - id: agriculture_sector
-    site: integrated_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 8 MW
-            year: 2025
-          technology: electric_tractor
-    technology_role: farm_work_supply
-
-  - id: buildings_sector
-    available_technologies:
-      - gas_heater
-      - electric_heater
-    site: integrated_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 20 MW
-            year: 2025
-          technology: gas_heater
-    technology_role: space_heat_supply
-
-  - id: electricity_supply_facility
-    site: integrated_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 150 MW
-            year: 2025
-          technology: electricity_import
-    technology_role: electricity_supply
-
-  - id: gas_supply_facility
-    site: integrated_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 120 MW
-            year: 2025
-          technology: gas_import
-    technology_role: gas_supply
-
-  - id: hydrogen_supply_facility
-    site: integrated_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 60 MW
-            year: 2025
-          technology: hydrogen_import
-    technology_role: hydrogen_supply
-
-  - id: industry_sector
-    available_technologies:
-      - industrial_boiler
-      - hydrogen_furnace
-    site: integrated_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 15 MW
-            year: 2025
-          technology: industrial_boiler
-    technology_role: industrial_heat_supply
-
-  - id: oil_supply_facility
-    site: integrated_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 120 MW
-            year: 2025
-          technology: oil_import
-    technology_role: oil_supply
-
-  - id: transport_sector
-    available_technologies:
-      - ice_vehicle
-      - ev_vehicle
-    site: integrated_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 25 MW
-            year: 2025
-          technology: ice_vehicle
-    technology_role: passenger_mobility
-
-region_partitions:
-  - id: integrated_region
-    layer: geo.demo
-    mapping:
-      kind: constant
-      value: SINGLE
-    members:
-      - SINGLE
-
-runs:
-  - id: integrated_2025
-    base_year: 2025
-    currency_year: 2024
-    region_partition: integrated_region
-
-sites:
-  - id: integrated_hub
-    location:
-      point:
-        lat: -34.93
-        lon: 138.6
-    membership_overrides:
-      region_partitions:
-        integrated_region: SINGLE
-
-spatial_layers:
-  - id: geo.demo
-    geometry_file: data/regions.geojson
-    key: region_id
-    kind: polygon
 
 technologies:
   - id: electric_heater
@@ -328,3 +199,132 @@ technology_roles:
     technologies:
       - gas_heater
       - electric_heater
+
+spatial_layers:
+  - id: geo.demo
+    geometry_file: data/regions.geojson
+    key: region_id
+    kind: polygon
+
+region_partitions:
+  - id: integrated_region
+    layer: geo.demo
+    mapping:
+      kind: constant
+      value: SINGLE
+    members:
+      - SINGLE
+
+sites:
+  - id: integrated_hub
+    location:
+      point:
+        lat: -34.93
+        lon: 138.6
+    membership_overrides:
+      region_partitions:
+        integrated_region: SINGLE
+
+facilities:
+  - id: agriculture_sector
+    site: integrated_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 8 MW
+            year: 2025
+          technology: electric_tractor
+    technology_role: farm_work_supply
+
+  - id: buildings_sector
+    available_technologies:
+      - gas_heater
+      - electric_heater
+    site: integrated_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 20 MW
+            year: 2025
+          technology: gas_heater
+    technology_role: space_heat_supply
+
+  - id: electricity_supply_facility
+    site: integrated_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 150 MW
+            year: 2025
+          technology: electricity_import
+    technology_role: electricity_supply
+
+  - id: gas_supply_facility
+    site: integrated_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 120 MW
+            year: 2025
+          technology: gas_import
+    technology_role: gas_supply
+
+  - id: hydrogen_supply_facility
+    site: integrated_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 60 MW
+            year: 2025
+          technology: hydrogen_import
+    technology_role: hydrogen_supply
+
+  - id: industry_sector
+    available_technologies:
+      - industrial_boiler
+      - hydrogen_furnace
+    site: integrated_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 15 MW
+            year: 2025
+          technology: industrial_boiler
+    technology_role: industrial_heat_supply
+
+  - id: oil_supply_facility
+    site: integrated_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 120 MW
+            year: 2025
+          technology: oil_import
+    technology_role: oil_supply
+
+  - id: transport_sector
+    available_technologies:
+      - ice_vehicle
+      - ev_vehicle
+    site: integrated_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 25 MW
+            year: 2025
+          technology: ice_vehicle
+    technology_role: passenger_mobility
+
+runs:
+  - id: integrated_2025
+    base_year: 2025
+    currency_year: 2024
+    region_partition: integrated_region

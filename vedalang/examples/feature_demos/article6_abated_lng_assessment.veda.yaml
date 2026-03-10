@@ -1,3 +1,5 @@
+dsl_version: "0.2"
+
 commodities:
   - id: emission:co2
     kind: emission
@@ -16,117 +18,6 @@ commodities:
 
   - id: service:storage_integrity
     kind: service
-
-dsl_version: "0.2"
-
-facilities:
-  - id: au_lng_exports
-    site: australia_terminal
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 500 MW
-            year: 2025
-          technology: au_lng_export_terminal
-    technology_role: lng_exports
-
-  - id: au_storage_integrity
-    site: australia_terminal
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 500 MW
-            year: 2025
-          technology: au_storage_integrity_hub
-    technology_role: storage_integrity
-
-  - id: partner_power_supply
-    available_technologies:
-      - partner_lng_power_no_ccs
-      - partner_lng_power_with_ccs
-    site: partner_power_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 150 MW
-            year: 2025
-          technology: partner_lng_power_no_ccs
-
-        - metric: installed_capacity
-          observed:
-            value: 50 MW
-            year: 2025
-          technology: partner_lng_power_with_ccs
-    technology_role: partner_power_supply
-
-networks:
-  - id: integrity_trade
-    kind: transmission
-    links:
-      - id: au_partner_integrity
-        commodity: material:co2_storage_integrity_token
-        existing_transfer_capacity: 200 MW
-        from: AU
-        to: PARTNER
-    node_basis:
-      kind: region_partition
-      ref: article6_regions
-
-  - id: lng_trade
-    kind: pipeline
-    links:
-      - id: au_partner_lng
-        commodity: primary:lng
-        existing_transfer_capacity: 400 MW
-        from: AU
-        to: PARTNER
-    node_basis:
-      kind: region_partition
-      ref: article6_regions
-
-region_partitions:
-  - id: article6_regions
-    layer: geo.demo
-    mapping:
-      kind: constant
-      value: AU
-    members:
-      - AU
-      - PARTNER
-
-runs:
-  - id: article6_2025
-    base_year: 2025
-    currency_year: 2024
-    region_partition: article6_regions
-
-sites:
-  - id: australia_terminal
-    location:
-      point:
-        lat: -32.05
-        lon: 115.75
-    membership_overrides:
-      region_partitions:
-        article6_regions: AU
-
-  - id: partner_power_hub
-    location:
-      point:
-        lat: 1.29
-        lon: 103.85
-    membership_overrides:
-      region_partitions:
-        article6_regions: PARTNER
-
-spatial_layers:
-  - id: geo.demo
-    geometry_file: data/regions.geojson
-    key: region_id
-    kind: polygon
 
 technologies:
   - id: au_lng_export_terminal
@@ -204,3 +95,112 @@ technology_roles:
     primary_service: service:storage_integrity
     technologies:
       - au_storage_integrity_hub
+
+spatial_layers:
+  - id: geo.demo
+    geometry_file: data/regions.geojson
+    key: region_id
+    kind: polygon
+
+region_partitions:
+  - id: article6_regions
+    layer: geo.demo
+    mapping:
+      kind: constant
+      value: AU
+    members:
+      - AU
+      - PARTNER
+
+sites:
+  - id: australia_terminal
+    location:
+      point:
+        lat: -32.05
+        lon: 115.75
+    membership_overrides:
+      region_partitions:
+        article6_regions: AU
+
+  - id: partner_power_hub
+    location:
+      point:
+        lat: 1.29
+        lon: 103.85
+    membership_overrides:
+      region_partitions:
+        article6_regions: PARTNER
+
+facilities:
+  - id: au_lng_exports
+    site: australia_terminal
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 500 MW
+            year: 2025
+          technology: au_lng_export_terminal
+    technology_role: lng_exports
+
+  - id: au_storage_integrity
+    site: australia_terminal
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 500 MW
+            year: 2025
+          technology: au_storage_integrity_hub
+    technology_role: storage_integrity
+
+  - id: partner_power_supply
+    available_technologies:
+      - partner_lng_power_no_ccs
+      - partner_lng_power_with_ccs
+    site: partner_power_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 150 MW
+            year: 2025
+          technology: partner_lng_power_no_ccs
+
+        - metric: installed_capacity
+          observed:
+            value: 50 MW
+            year: 2025
+          technology: partner_lng_power_with_ccs
+    technology_role: partner_power_supply
+
+networks:
+  - id: integrity_trade
+    kind: transmission
+    links:
+      - id: au_partner_integrity
+        commodity: material:co2_storage_integrity_token
+        existing_transfer_capacity: 200 MW
+        from: AU
+        to: PARTNER
+    node_basis:
+      kind: region_partition
+      ref: article6_regions
+
+  - id: lng_trade
+    kind: pipeline
+    links:
+      - id: au_partner_lng
+        commodity: primary:lng
+        existing_transfer_capacity: 400 MW
+        from: AU
+        to: PARTNER
+    node_basis:
+      kind: region_partition
+      ref: article6_regions
+
+runs:
+  - id: article6_2025
+    base_year: 2025
+    currency_year: 2024
+    region_partition: article6_regions

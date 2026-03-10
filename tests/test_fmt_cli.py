@@ -53,6 +53,11 @@ def test_cmd_fmt_check_mode_returns_1_on_drift(tmp_path, monkeypatch, capsys):
     )
 
     monkeypatch.setattr(cli, "_resolve_prettier_command", lambda _: ["prettier"])
+    monkeypatch.setattr(
+        cli,
+        "_prettier_format_text",
+        lambda *_args, source, **_kwargs: source,
+    )
 
     def fake_run(*_args, **_kwargs):
         return subprocess.CompletedProcess(
@@ -83,6 +88,11 @@ def test_cmd_fmt_write_mode_reports_success(tmp_path, monkeypatch, capsys):
     )
 
     monkeypatch.setattr(cli, "_resolve_prettier_command", lambda _: ["prettier"])
+    monkeypatch.setattr(
+        cli,
+        "_prettier_format_text",
+        lambda *_args, source, **_kwargs: source,
+    )
 
     def fake_run(*_args, **_kwargs):
         return subprocess.CompletedProcess(
@@ -185,6 +195,11 @@ def test_cmd_fmt_check_mode_returns_1_on_canonical_drift(tmp_path, monkeypatch, 
     original = src.read_text(encoding="utf-8")
 
     monkeypatch.setattr(cli, "_resolve_prettier_command", lambda _: ["prettier"])
+    monkeypatch.setattr(
+        cli,
+        "_prettier_format_text",
+        lambda *_args, source, **_kwargs: source,
+    )
 
     def fake_run(*_args, **_kwargs):
         return subprocess.CompletedProcess(
@@ -230,6 +245,11 @@ def test_cmd_fmt_write_mode_applies_canonicalization(tmp_path, monkeypatch, caps
     )
 
     monkeypatch.setattr(cli, "_resolve_prettier_command", lambda _: ["prettier"])
+    monkeypatch.setattr(
+        cli,
+        "_prettier_format_text",
+        lambda *_args, source, **_kwargs: source,
+    )
 
     def fake_run(*_args, **_kwargs):
         return subprocess.CompletedProcess(
@@ -257,3 +277,47 @@ def test_cmd_fmt_write_mode_applies_canonicalization(tmp_path, monkeypatch, caps
     assert updated.index("id: service:a") < updated.index("id: service:z")
     assert updated.index("id: role_a") < updated.index("id: role_b")
     assert updated.index("id: run_a") < updated.index("id: run_z")
+
+
+def test_cmd_fmt_check_mode_passes_after_write_mode(tmp_path, monkeypatch, capsys):
+    src = tmp_path / "idempotent.veda.yaml"
+    src.write_text(
+        "technology_roles:\n"
+        "  - role: conversion\n"
+        "    id: role_b\n"
+        "commodities:\n"
+        "  - kind: service\n"
+        "    id: service:heat\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(cli, "_resolve_prettier_command", lambda _: ["prettier"])
+    monkeypatch.setattr(
+        cli,
+        "_prettier_format_text",
+        lambda *_args, source, **_kwargs: source,
+    )
+
+    def fake_run(*_args, **_kwargs):
+        return subprocess.CompletedProcess(
+            args=["prettier"],
+            returncode=0,
+            stdout="",
+            stderr="",
+        )
+
+    monkeypatch.setattr(cli, "_run_prettier", fake_run)
+
+    write_args = argparse.Namespace(paths=[src], check=False, json=True)
+    assert cli.cmd_fmt(write_args) == 0
+    capsys.readouterr()
+
+    check_args = argparse.Namespace(paths=[src], check=True, json=True)
+    exit_code = cli.cmd_fmt(check_args)
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    payload = json.loads(captured.out)
+    assert payload["success"] is True
+    assert payload["needs_formatting"] is False
+    assert payload["canonical_drift_count"] == 0

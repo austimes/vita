@@ -1,3 +1,5 @@
+dsl_version: "0.2"
+
 commodities:
   - id: emission:co2
     kind: emission
@@ -23,7 +25,100 @@ commodities:
   - id: service:gas_supply
     kind: service
 
-dsl_version: "0.2"
+technologies:
+  - id: ccgt
+    inputs:
+      - commodity: primary:natural_gas
+        basis: HHV
+    outputs:
+      - commodity: secondary:electricity
+    emissions:
+      - commodity: emission:co2
+        factor: 0.05 t/GJ
+    lifetime: 40 year
+    performance:
+      kind: efficiency
+      value: 0.55
+    provides: service:electricity_generation
+
+  - id: direct_electric
+    inputs:
+      - commodity: secondary:electricity
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:electricity_service
+
+  - id: gas_import
+    outputs:
+      - commodity: primary:natural_gas
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:gas_supply
+
+  - id: solar_pv
+    outputs:
+      - commodity: secondary:electricity
+    lifetime: 25 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:electricity_generation
+
+technology_roles:
+  - id: electricity_generation
+    primary_service: service:electricity_generation
+    technologies:
+      - ccgt
+      - solar_pv
+
+  - id: electricity_service
+    primary_service: service:electricity_service
+    technologies:
+      - direct_electric
+
+  - id: gas_supply
+    primary_service: service:gas_supply
+    technologies:
+      - gas_import
+
+spatial_layers:
+  - id: geo.demo
+    geometry_file: data/regions.geojson
+    key: region_id
+    kind: polygon
+
+region_partitions:
+  - id: electricity_2node
+    layer: geo.demo
+    mapping:
+      kind: constant
+      value: D
+    members:
+      - D
+      - N
+
+sites:
+  - id: day_hub
+    location:
+      point:
+        lat: -33.87
+        lon: 151.21
+    membership_overrides:
+      region_partitions:
+        electricity_2node: D
+
+  - id: night_hub
+    location:
+      point:
+        lat: -37.81
+        lon: 144.96
+    membership_overrides:
+      region_partitions:
+        electricity_2node: N
 
 facilities:
   - id: day_generation
@@ -111,103 +206,8 @@ networks:
       kind: region_partition
       ref: electricity_2node
 
-region_partitions:
-  - id: electricity_2node
-    layer: geo.demo
-    mapping:
-      kind: constant
-      value: D
-    members:
-      - D
-      - N
-
 runs:
   - id: electricity_2node_2025
     base_year: 2025
     currency_year: 2024
     region_partition: electricity_2node
-
-sites:
-  - id: day_hub
-    location:
-      point:
-        lat: -33.87
-        lon: 151.21
-    membership_overrides:
-      region_partitions:
-        electricity_2node: D
-
-  - id: night_hub
-    location:
-      point:
-        lat: -37.81
-        lon: 144.96
-    membership_overrides:
-      region_partitions:
-        electricity_2node: N
-
-spatial_layers:
-  - id: geo.demo
-    geometry_file: data/regions.geojson
-    key: region_id
-    kind: polygon
-
-technologies:
-  - id: ccgt
-    inputs:
-      - commodity: primary:natural_gas
-        basis: HHV
-    outputs:
-      - commodity: secondary:electricity
-    emissions:
-      - commodity: emission:co2
-        factor: 0.05 t/GJ
-    lifetime: 40 year
-    performance:
-      kind: efficiency
-      value: 0.55
-    provides: service:electricity_generation
-
-  - id: direct_electric
-    inputs:
-      - commodity: secondary:electricity
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: service:electricity_service
-
-  - id: gas_import
-    outputs:
-      - commodity: primary:natural_gas
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: service:gas_supply
-
-  - id: solar_pv
-    outputs:
-      - commodity: secondary:electricity
-    lifetime: 25 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: service:electricity_generation
-
-technology_roles:
-  - id: electricity_generation
-    primary_service: service:electricity_generation
-    technologies:
-      - ccgt
-      - solar_pv
-
-  - id: electricity_service
-    primary_service: service:electricity_service
-    technologies:
-      - direct_electric
-
-  - id: gas_supply
-    primary_service: service:gas_supply
-    technologies:
-      - gas_import

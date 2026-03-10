@@ -1,37 +1,46 @@
 dsl_version: "0.2"
+
 commodities:
   - id: primary:natural_gas
     kind: primary
+
   - id: service:space_heat
     kind: service
+
 technologies:
   - id: gas_heater
-    provides: service:space_heat
     inputs:
       - commodity: primary:natural_gas
         basis: HHV
+    fixed_om: 8 AUD2024/kW/year
+    investment_cost: 220 AUD2024/kW
+    lifetime: 20 year
     performance:
       kind: efficiency
       value: 0.9
-    investment_cost: 220 AUD2024/kW
-    fixed_om: 8 AUD2024/kW/year
-    lifetime: 20 year
+    provides: service:space_heat
+
 technology_roles:
   - id: space_heat_supply
     primary_service: service:space_heat
-    technologies: [gas_heater]
+    technologies:
+      - gas_heater
+
 spatial_layers:
   - id: geo.demo
-    kind: polygon
-    key: region_id
     geometry_file: data/regions.geojson
+    key: region_id
+    kind: polygon
+
 region_partitions:
   - id: toy_region
     layer: geo.demo
-    members: [QLD]
     mapping:
       kind: constant
       value: QLD
+    members:
+      - QLD
+
 sites:
   - id: brisbane_home
     location:
@@ -41,17 +50,19 @@ sites:
     membership_overrides:
       region_partitions:
         toy_region: QLD
+
 facilities:
   - id: brisbane_space_heat
     site: brisbane_home
-    technology_role: space_heat_supply
     stock:
       items:
-        - technology: gas_heater
-          metric: installed_capacity
+        - metric: installed_capacity
           observed:
             value: 12 kW
             year: 2025
+          technology: gas_heater
+    technology_role: space_heat_supply
+
 runs:
   - id: toy_region_2025
     base_year: 2025

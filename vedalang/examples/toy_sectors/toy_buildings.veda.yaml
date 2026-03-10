@@ -1,3 +1,5 @@
+dsl_version: "0.2"
+
 commodities:
   - id: emission:co2
     kind: emission
@@ -16,78 +18,6 @@ commodities:
 
   - id: service:space_heat
     kind: service
-
-dsl_version: "0.2"
-
-fleets:
-  - id: electricity_supply
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 120 MW
-            year: 2025
-          technology: grid_import
-    technology_role: electricity_supply
-    distribution:
-      method: direct
-
-  - id: gas_supply
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 120 MW
-            year: 2025
-          technology: pipeline_import
-    technology_role: gas_supply
-    distribution:
-      method: direct
-
-  - id: residential_heat
-    available_technologies:
-      - gas_heater
-      - heat_pump
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 80 MW
-            year: 2025
-          technology: gas_heater
-
-        - metric: installed_capacity
-          observed:
-            value: 10 MW
-            year: 2025
-          technology: heat_pump
-    technology_role: space_heat_supply
-    new_build_limits:
-      - technology: heat_pump
-        max_new_capacity: 60 MW
-    distribution:
-      method: direct
-
-region_partitions:
-  - id: single_region
-    layer: geo.demo
-    mapping:
-      kind: constant
-      value: SINGLE
-    members:
-      - SINGLE
-
-runs:
-  - id: single_2025
-    base_year: 2025
-    currency_year: 2024
-    region_partition: single_region
-
-spatial_layers:
-  - id: geo.demo
-    geometry_file: data/regions.geojson
-    key: region_id
-    kind: polygon
 
 technologies:
   - id: gas_heater
@@ -155,3 +85,73 @@ technology_roles:
         from: gas_heater
         kind: retrofit
         to: heat_pump
+
+spatial_layers:
+  - id: geo.demo
+    geometry_file: data/regions.geojson
+    key: region_id
+    kind: polygon
+
+region_partitions:
+  - id: single_region
+    layer: geo.demo
+    mapping:
+      kind: constant
+      value: SINGLE
+    members:
+      - SINGLE
+
+fleets:
+  - id: electricity_supply
+    distribution:
+      method: direct
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 120 MW
+            year: 2025
+          technology: grid_import
+    technology_role: electricity_supply
+
+  - id: gas_supply
+    distribution:
+      method: direct
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 120 MW
+            year: 2025
+          technology: pipeline_import
+    technology_role: gas_supply
+
+  - id: residential_heat
+    available_technologies:
+      - gas_heater
+      - heat_pump
+    distribution:
+      method: direct
+    new_build_limits:
+      - max_new_capacity: 60 MW
+        technology: heat_pump
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 80 MW
+            year: 2025
+          technology: gas_heater
+
+        - metric: installed_capacity
+          observed:
+            value: 10 MW
+            year: 2025
+          technology: heat_pump
+    technology_role: space_heat_supply
+
+runs:
+  - id: single_2025
+    base_year: 2025
+    currency_year: 2024
+    region_partition: single_region

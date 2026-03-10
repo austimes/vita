@@ -1,3 +1,5 @@
+dsl_version: "0.2"
+
 commodities:
   - id: emission:co2
     kind: emission
@@ -13,93 +15,6 @@ commodities:
 
   - id: service:alumina_output
     kind: service
-
-dsl_version: "0.2"
-
-facilities:
-  - id: gladstone_alumina
-    available_technologies:
-      - coal_calciner
-      - gas_calciner
-      - hydrogen_calciner
-    site: gladstone_refinery
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 8 MW
-            year: 2025
-          technology: coal_calciner
-    technology_role: alumina_calcination
-
-  - id: newcastle_alumina
-    available_technologies:
-      - coal_calciner
-      - gas_calciner
-      - hydrogen_calciner
-    site: newcastle_refinery
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 3.5 MW
-            year: 2025
-          technology: coal_calciner
-    technology_role: alumina_calcination
-
-opportunities:
-  - id: nsw_gas_retrofit
-    max_new_capacity: 3.5 MW
-    siting:
-      site: newcastle_refinery
-    technology: gas_calciner
-
-  - id: qld_hydrogen_retrofit
-    max_new_capacity: 8 MW
-    siting:
-      site: gladstone_refinery
-    technology: hydrogen_calciner
-
-region_partitions:
-  - id: au_states
-    layer: geo.demo
-    mapping:
-      kind: constant
-      value: QLD
-    members:
-      - NSW
-      - QLD
-
-runs:
-  - id: au_states_2025
-    base_year: 2025
-    currency_year: 2024
-    region_partition: au_states
-
-sites:
-  - id: gladstone_refinery
-    location:
-      point:
-        lat: -23.842
-        lon: 151.248
-    membership_overrides:
-      region_partitions:
-        au_states: QLD
-
-  - id: newcastle_refinery
-    location:
-      point:
-        lat: -32.928
-        lon: 151.781
-    membership_overrides:
-      region_partitions:
-        au_states: NSW
-
-spatial_layers:
-  - id: geo.demo
-    geometry_file: data/regions.geojson
-    key: region_id
-    kind: polygon
 
 technologies:
   - id: coal_calciner
@@ -158,3 +73,88 @@ technology_roles:
         from: gas_calciner
         kind: retrofit
         to: hydrogen_calciner
+
+spatial_layers:
+  - id: geo.demo
+    geometry_file: data/regions.geojson
+    key: region_id
+    kind: polygon
+
+region_partitions:
+  - id: au_states
+    layer: geo.demo
+    mapping:
+      kind: constant
+      value: QLD
+    members:
+      - NSW
+      - QLD
+
+sites:
+  - id: gladstone_refinery
+    location:
+      point:
+        lat: -23.842
+        lon: 151.248
+    membership_overrides:
+      region_partitions:
+        au_states: QLD
+
+  - id: newcastle_refinery
+    location:
+      point:
+        lat: -32.928
+        lon: 151.781
+    membership_overrides:
+      region_partitions:
+        au_states: NSW
+
+facilities:
+  - id: gladstone_alumina
+    available_technologies:
+      - coal_calciner
+      - gas_calciner
+      - hydrogen_calciner
+    site: gladstone_refinery
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 8 MW
+            year: 2025
+          technology: coal_calciner
+    technology_role: alumina_calcination
+
+  - id: newcastle_alumina
+    available_technologies:
+      - coal_calciner
+      - gas_calciner
+      - hydrogen_calciner
+    site: newcastle_refinery
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 3.5 MW
+            year: 2025
+          technology: coal_calciner
+    technology_role: alumina_calcination
+
+opportunities:
+  - id: nsw_gas_retrofit
+    max_new_capacity: 3.5 MW
+    siting:
+      site: newcastle_refinery
+    technology: gas_calciner
+
+  - id: qld_hydrogen_retrofit
+    max_new_capacity: 8 MW
+    siting:
+      site: gladstone_refinery
+    technology: hydrogen_calciner
+
+runs:
+  - id: au_states_2025
+    base_year: 2025
+    currency_year: 2024
+    region_partition: au_states

@@ -1566,7 +1566,11 @@ def _canonicalize_yaml_text(source: str) -> str | None:
 
 
 def _apply_yaml_canonicalization(
-    targets: list[Path], *, check_only: bool
+    targets: list[Path],
+    *,
+    check_only: bool,
+    prettier_command: list[str],
+    repo_root: Path,
 ) -> list[Path]:
     drifted: list[Path] = []
 
@@ -1575,11 +1579,18 @@ def _apply_yaml_canonicalization(
         canonical = _canonicalize_yaml_text(original)
         if canonical is None:
             continue
-        if canonical == original:
+        formatted = _prettier_format_text(
+            prettier_command,
+            source=canonical,
+            repo_root=repo_root,
+            filepath_hint=target,
+        )
+        expected = formatted if formatted is not None else canonical
+        if expected == original:
             continue
         drifted.append(target)
         if not check_only:
-            target.write_text(canonical, encoding="utf-8")
+            target.write_text(expected, encoding="utf-8")
 
     return drifted
 
@@ -1655,6 +1666,29 @@ def _run_prettier(
     )
 
 
+def _prettier_format_text(
+    command: list[str], *, source: str, repo_root: Path, filepath_hint: Path
+) -> str | None:
+    result = subprocess.run(
+        [
+            *command,
+            "--parser",
+            "yaml",
+            "--log-level",
+            "warn",
+            "--stdin-filepath",
+            str(filepath_hint),
+        ],
+        input=source,
+        capture_output=True,
+        text=True,
+        cwd=repo_root,
+    )
+    if result.returncode != 0:
+        return None
+    return result.stdout
+
+
 def cmd_fmt(args) -> int:
     """Run fmt command: canonicalize + format .veda.yaml files."""
     output_json: bool = args.json
@@ -1724,7 +1758,12 @@ def cmd_fmt(args) -> int:
             print(f"Error: {message}", file=sys.stderr)
         return 2
 
-    canonical_drift = _apply_yaml_canonicalization(targets, check_only=check_only)
+    canonical_drift = _apply_yaml_canonicalization(
+        targets,
+        check_only=check_only,
+        prettier_command=prettier_command,
+        repo_root=repo_root,
+    )
 
     result = _run_prettier(
         prettier_command,

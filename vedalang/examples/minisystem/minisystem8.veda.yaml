@@ -1,3 +1,5 @@
+dsl_version: "0.2"
+
 commodities:
   - id: emission:co2
     kind: emission
@@ -38,7 +40,190 @@ commodities:
   - id: service:transport_demand
     kind: service
 
-dsl_version: "0.2"
+technologies:
+  - id: ccgt
+    inputs:
+      - commodity: primary:gas
+        basis: HHV
+    outputs:
+      - commodity: secondary:electricity
+    emissions:
+      - commodity: emission:co2
+        factor: 0.05 t/GJ
+    lifetime: 40 year
+    performance:
+      kind: efficiency
+      value: 0.55
+    provides: service:electricity_generation
+
+  - id: coal_import
+    outputs:
+      - commodity: primary:coal
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:coal_supply
+
+  - id: coal_plant
+    inputs:
+      - commodity: primary:coal
+        basis: HHV
+    outputs:
+      - commodity: secondary:electricity
+    emissions:
+      - commodity: emission:co2
+        factor: 0.09 t/GJ
+    lifetime: 40 year
+    performance:
+      kind: efficiency
+      value: 0.38
+    provides: service:electricity_generation
+
+  - id: commercial_device
+    inputs:
+      - commodity: secondary:electricity
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:commercial_demand
+
+  - id: gas_import
+    outputs:
+      - commodity: primary:gas
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:gas_supply
+
+  - id: industrial_device
+    inputs:
+      - commodity: secondary:hydrogen
+        basis: HHV
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:industrial_demand
+
+  - id: residential_device
+    inputs:
+      - commodity: secondary:electricity
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:residential_demand
+
+  - id: smr
+    inputs:
+      - commodity: primary:gas
+        basis: HHV
+    outputs:
+      - commodity: secondary:hydrogen
+    lifetime: 30 year
+    performance:
+      kind: efficiency
+      value: 0.7
+    provides: service:hydrogen_supply
+
+  - id: transport_device
+    inputs:
+      - commodity: secondary:electricity
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:transport_demand
+
+technology_roles:
+  - id: coal_supply
+    primary_service: service:coal_supply
+    technologies:
+      - coal_import
+
+  - id: commercial_service
+    primary_service: service:commercial_demand
+    technologies:
+      - commercial_device
+
+  - id: electricity_generation
+    primary_service: service:electricity_generation
+    technologies:
+      - coal_plant
+      - ccgt
+
+  - id: gas_supply
+    primary_service: service:gas_supply
+    technologies:
+      - gas_import
+
+  - id: hydrogen_supply
+    primary_service: service:hydrogen_supply
+    technologies:
+      - smr
+
+  - id: industrial_service
+    primary_service: service:industrial_demand
+    technologies:
+      - industrial_device
+
+  - id: residential_service
+    primary_service: service:residential_demand
+    technologies:
+      - residential_device
+
+  - id: transport_service
+    primary_service: service:transport_demand
+    technologies:
+      - transport_device
+
+spatial_layers:
+  - id: geo.demo
+    geometry_file: data/regions.geojson
+    key: region_id
+    kind: polygon
+
+region_partitions:
+  - id: australian_regions
+    layer: geo.demo
+    mapping:
+      kind: constant
+      value: NEM_EAST
+    members:
+      - NEM_EAST
+      - NEM_SOUTH
+      - WA
+
+sites:
+  - id: nem_east_hub
+    location:
+      point:
+        lat: -27.47
+        lon: 153.02
+    membership_overrides:
+      region_partitions:
+        australian_regions: NEM_EAST
+
+  - id: nem_south_hub
+    location:
+      point:
+        lat: -37.81
+        lon: 144.96
+    membership_overrides:
+      region_partitions:
+        australian_regions: NEM_SOUTH
+
+  - id: wa_hub
+    location:
+      point:
+        lat: -31.95
+        lon: 115.86
+    membership_overrides:
+      region_partitions:
+        australian_regions: WA
 
 facilities:
   - id: commercial_sector
@@ -184,193 +369,8 @@ networks:
       kind: region_partition
       ref: australian_regions
 
-region_partitions:
-  - id: australian_regions
-    layer: geo.demo
-    mapping:
-      kind: constant
-      value: NEM_EAST
-    members:
-      - NEM_EAST
-      - NEM_SOUTH
-      - WA
-
 runs:
   - id: australia_2025
     base_year: 2025
     currency_year: 2024
     region_partition: australian_regions
-
-sites:
-  - id: nem_east_hub
-    location:
-      point:
-        lat: -27.47
-        lon: 153.02
-    membership_overrides:
-      region_partitions:
-        australian_regions: NEM_EAST
-
-  - id: nem_south_hub
-    location:
-      point:
-        lat: -37.81
-        lon: 144.96
-    membership_overrides:
-      region_partitions:
-        australian_regions: NEM_SOUTH
-
-  - id: wa_hub
-    location:
-      point:
-        lat: -31.95
-        lon: 115.86
-    membership_overrides:
-      region_partitions:
-        australian_regions: WA
-
-spatial_layers:
-  - id: geo.demo
-    geometry_file: data/regions.geojson
-    key: region_id
-    kind: polygon
-
-technologies:
-  - id: ccgt
-    inputs:
-      - commodity: primary:gas
-        basis: HHV
-    outputs:
-      - commodity: secondary:electricity
-    emissions:
-      - commodity: emission:co2
-        factor: 0.05 t/GJ
-    lifetime: 40 year
-    performance:
-      kind: efficiency
-      value: 0.55
-    provides: service:electricity_generation
-
-  - id: coal_import
-    outputs:
-      - commodity: primary:coal
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: service:coal_supply
-
-  - id: coal_plant
-    inputs:
-      - commodity: primary:coal
-        basis: HHV
-    outputs:
-      - commodity: secondary:electricity
-    emissions:
-      - commodity: emission:co2
-        factor: 0.09 t/GJ
-    lifetime: 40 year
-    performance:
-      kind: efficiency
-      value: 0.38
-    provides: service:electricity_generation
-
-  - id: commercial_device
-    inputs:
-      - commodity: secondary:electricity
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: service:commercial_demand
-
-  - id: gas_import
-    outputs:
-      - commodity: primary:gas
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: service:gas_supply
-
-  - id: industrial_device
-    inputs:
-      - commodity: secondary:hydrogen
-        basis: HHV
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: service:industrial_demand
-
-  - id: residential_device
-    inputs:
-      - commodity: secondary:electricity
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: service:residential_demand
-
-  - id: smr
-    inputs:
-      - commodity: primary:gas
-        basis: HHV
-    outputs:
-      - commodity: secondary:hydrogen
-    lifetime: 30 year
-    performance:
-      kind: efficiency
-      value: 0.7
-    provides: service:hydrogen_supply
-
-  - id: transport_device
-    inputs:
-      - commodity: secondary:electricity
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: service:transport_demand
-
-technology_roles:
-  - id: coal_supply
-    primary_service: service:coal_supply
-    technologies:
-      - coal_import
-
-  - id: commercial_service
-    primary_service: service:commercial_demand
-    technologies:
-      - commercial_device
-
-  - id: electricity_generation
-    primary_service: service:electricity_generation
-    technologies:
-      - coal_plant
-      - ccgt
-
-  - id: gas_supply
-    primary_service: service:gas_supply
-    technologies:
-      - gas_import
-
-  - id: hydrogen_supply
-    primary_service: service:hydrogen_supply
-    technologies:
-      - smr
-
-  - id: industrial_service
-    primary_service: service:industrial_demand
-    technologies:
-      - industrial_device
-
-  - id: residential_service
-    primary_service: service:residential_demand
-    technologies:
-      - residential_device
-
-  - id: transport_service
-    primary_service: service:transport_demand
-    technologies:
-      - transport_device

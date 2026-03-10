@@ -1,3 +1,5 @@
+dsl_version: "0.2"
+
 commodities:
   - id: emission:co2
     kind: emission
@@ -10,80 +12,6 @@ commodities:
 
   - id: service:lng_supply
     kind: service
-
-dsl_version: "0.2"
-
-facilities:
-  - id: industrial_heat_hub
-    available_technologies:
-      - lng_boiler_baseline
-      - lng_boiler_with_ccs
-    site: lng_industrial_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 60 MW
-            year: 2025
-          technology: lng_boiler_baseline
-
-        - metric: installed_capacity
-          observed:
-            value: 5 MW
-            year: 2025
-          technology: lng_boiler_with_ccs
-    technology_role: industrial_heat_supply
-
-  - id: lng_supply_hub
-    site: lng_industrial_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 100 MW
-            year: 2025
-          technology: lng_import_terminal
-    technology_role: lng_supply
-
-opportunities:
-  - id: single_ccs_retrofit
-    max_new_capacity: 40 MW
-    siting:
-      region_member:
-        member: SINGLE
-        partition: single_region
-    technology: lng_boiler_with_ccs
-
-region_partitions:
-  - id: single_region
-    layer: geo.demo
-    mapping:
-      kind: constant
-      value: SINGLE
-    members:
-      - SINGLE
-
-runs:
-  - id: single_2025
-    base_year: 2025
-    currency_year: 2024
-    region_partition: single_region
-
-sites:
-  - id: lng_industrial_hub
-    location:
-      point:
-        lat: -27.47
-        lon: 153.02
-    membership_overrides:
-      region_partitions:
-        single_region: SINGLE
-
-spatial_layers:
-  - id: geo.demo
-    geometry_file: data/regions.geojson
-    key: region_id
-    kind: polygon
 
 technologies:
   - id: lng_boiler_baseline
@@ -143,3 +71,75 @@ technology_roles:
     primary_service: service:lng_supply
     technologies:
       - lng_import_terminal
+
+spatial_layers:
+  - id: geo.demo
+    geometry_file: data/regions.geojson
+    key: region_id
+    kind: polygon
+
+region_partitions:
+  - id: single_region
+    layer: geo.demo
+    mapping:
+      kind: constant
+      value: SINGLE
+    members:
+      - SINGLE
+
+sites:
+  - id: lng_industrial_hub
+    location:
+      point:
+        lat: -27.47
+        lon: 153.02
+    membership_overrides:
+      region_partitions:
+        single_region: SINGLE
+
+facilities:
+  - id: industrial_heat_hub
+    available_technologies:
+      - lng_boiler_baseline
+      - lng_boiler_with_ccs
+    site: lng_industrial_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 60 MW
+            year: 2025
+          technology: lng_boiler_baseline
+
+        - metric: installed_capacity
+          observed:
+            value: 5 MW
+            year: 2025
+          technology: lng_boiler_with_ccs
+    technology_role: industrial_heat_supply
+
+  - id: lng_supply_hub
+    site: lng_industrial_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 100 MW
+            year: 2025
+          technology: lng_import_terminal
+    technology_role: lng_supply
+
+opportunities:
+  - id: single_ccs_retrofit
+    max_new_capacity: 40 MW
+    siting:
+      region_member:
+        member: SINGLE
+        partition: single_region
+    technology: lng_boiler_with_ccs
+
+runs:
+  - id: single_2025
+    base_year: 2025
+    currency_year: 2024
+    region_partition: single_region

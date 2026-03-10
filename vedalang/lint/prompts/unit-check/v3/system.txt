@@ -22,7 +22,7 @@ Important: derive cap-to-activity consistency via
 PRC_CAPACT = convert(1 * capacity_unit * 1 yr -> activity_unit).
 Important: when model.monetary is present, cost fields are explicit literals
 like '<value> MAUD24/PJ' or '<value> MUSD23/Bvkm/yr'. Do not treat
-currency-year tokens (e.g., MAUD24, USD23) as invalid just because older
+currency-year tokens (e.g., MAUD24, USD23) as invalid just because legacy
 currency_unit enums list only USD/kUSD/MUSD/BUSD.
 Important: lhv_mj_per_unit/hhv_mj_per_unit are primarily basis-conversion
 anchors in current VedaLang guidance. Do not raise findings solely because

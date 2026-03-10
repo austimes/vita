@@ -1,3 +1,5 @@
+dsl_version: "0.2"
+
 commodities:
   - id: primary:natural_gas
     kind: primary
@@ -14,7 +16,87 @@ commodities:
   - id: service:residential_electric_service
     kind: service
 
-dsl_version: "0.2"
+technologies:
+  - id: ccgt
+    inputs:
+      - commodity: primary:natural_gas
+        basis: HHV
+    outputs:
+      - commodity: secondary:electricity
+    lifetime: 30 year
+    performance:
+      kind: efficiency
+      value: 0.55
+    provides: service:electricity_generation
+
+  - id: pipeline_import
+    outputs:
+      - commodity: primary:natural_gas
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:gas_supply
+
+  - id: residential_device
+    inputs:
+      - commodity: secondary:electricity
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: service:residential_electric_service
+
+technology_roles:
+  - id: electricity_generation
+    primary_service: service:electricity_generation
+    technologies:
+      - ccgt
+
+  - id: gas_supply
+    primary_service: service:gas_supply
+    technologies:
+      - pipeline_import
+
+  - id: residential_service
+    primary_service: service:residential_electric_service
+    technologies:
+      - residential_device
+
+spatial_layers:
+  - id: geo.demo
+    geometry_file: data/regions.geojson
+    key: region_id
+    kind: polygon
+
+region_partitions:
+  - id: toy_regions
+    layer: geo.demo
+    mapping:
+      kind: constant
+      value: REG1
+    members:
+      - REG1
+      - REG2
+
+sites:
+  - id: reg1_hub
+    location:
+      point:
+        lat: -33.87
+        lon: 151.21
+    membership_overrides:
+      region_partitions:
+        toy_regions: REG1
+
+  - id: reg2_hub
+    location:
+      point:
+        lat: -37.81
+        lon: 144.96
+    membership_overrides:
+      region_partitions:
+        toy_regions: REG2
 
 facilities:
   - id: reg1_gas_supply
@@ -83,90 +165,8 @@ facilities:
           technology: residential_device
     technology_role: residential_service
 
-region_partitions:
-  - id: toy_regions
-    layer: geo.demo
-    mapping:
-      kind: constant
-      value: REG1
-    members:
-      - REG1
-      - REG2
-
 runs:
   - id: two_regions_2020
     base_year: 2020
     currency_year: 2024
     region_partition: toy_regions
-
-sites:
-  - id: reg1_hub
-    location:
-      point:
-        lat: -33.87
-        lon: 151.21
-    membership_overrides:
-      region_partitions:
-        toy_regions: REG1
-
-  - id: reg2_hub
-    location:
-      point:
-        lat: -37.81
-        lon: 144.96
-    membership_overrides:
-      region_partitions:
-        toy_regions: REG2
-
-spatial_layers:
-  - id: geo.demo
-    geometry_file: data/regions.geojson
-    key: region_id
-    kind: polygon
-
-technologies:
-  - id: ccgt
-    inputs:
-      - commodity: primary:natural_gas
-        basis: HHV
-    outputs:
-      - commodity: secondary:electricity
-    lifetime: 30 year
-    performance:
-      kind: efficiency
-      value: 0.55
-    provides: service:electricity_generation
-
-  - id: pipeline_import
-    outputs:
-      - commodity: primary:natural_gas
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: service:gas_supply
-
-  - id: residential_device
-    inputs:
-      - commodity: secondary:electricity
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: service:residential_electric_service
-
-technology_roles:
-  - id: electricity_generation
-    primary_service: service:electricity_generation
-    technologies:
-      - ccgt
-
-  - id: gas_supply
-    primary_service: service:gas_supply
-    technologies:
-      - pipeline_import
-
-  - id: residential_service
-    primary_service: service:residential_electric_service
-    technologies:
-      - residential_device
