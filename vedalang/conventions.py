@@ -23,13 +23,12 @@ _FALLBACK_PROCESS_STAGES = (
     "sink",
 )
 _FALLBACK_COMMODITY_TYPES = (
-    "fuel",
     "energy",
     "service",
     "material",
     "emission",
     "money",
-    "other",
+    "certificate",
 )
 _FALLBACK_COMMODITY_NAMESPACES = (
     "primary",
@@ -39,6 +38,12 @@ _FALLBACK_COMMODITY_NAMESPACES = (
     "material",
     "emission",
     "money",
+    "certificate",
+)
+_FALLBACK_ENERGY_FORMS = (
+    "primary",
+    "secondary",
+    "resource",
 )
 _FALLBACK_SCENARIO_CATEGORIES = (
     "demands",
@@ -50,12 +55,13 @@ _FALLBACK_SCENARIO_CATEGORIES = (
 )
 _FALLBACK_NAMESPACE_TO_TYPES: dict[str, tuple[str, ...]] = {
     "secondary": ("energy",),
-    "primary": ("fuel",),
-    "resource": ("other", "energy"),
+    "primary": ("energy",),
+    "resource": ("energy",),
     "material": ("material",),
     "service": ("service",),
     "emission": ("emission",),
     "money": ("money",),
+    "certificate": ("certificate",),
 }
 @lru_cache(maxsize=1)
 def _load_schema() -> dict:
@@ -93,6 +99,21 @@ def commodity_type_enum() -> tuple[str, ...]:
     return _FALLBACK_COMMODITY_TYPES
 
 
+def commodity_energy_form_enum() -> tuple[str, ...]:
+    """Canonical commodity.energy_form enum from schema."""
+    enum = (
+        _load_schema()
+        .get("$defs", {})
+        .get("commodity", {})
+        .get("properties", {})
+        .get("energy_form", {})
+        .get("enum")
+    )
+    if isinstance(enum, list) and enum and all(isinstance(x, str) for x in enum):
+        return tuple(enum)
+    return _FALLBACK_ENERGY_FORMS
+
+
 def commodity_namespace_enum() -> tuple[str, ...]:
     """Canonical commodity namespace prefixes from schema."""
     enum = _load_schema().get("$defs", {}).get("commodity_namespace", {}).get("enum")
@@ -127,6 +148,30 @@ def split_commodity_namespace(commodity_id: str) -> tuple[str | None, str]:
         return None, commodity_id if isinstance(commodity_id, str) else ""
     namespace, _, base = commodity_id.partition(":")
     return namespace, base
+
+
+def commodity_namespace_for(type_: str, energy_form: str | None = None) -> str:
+    """Return canonical lowered namespace for authored commodity metadata."""
+    if type_ == "energy":
+        if energy_form not in commodity_energy_form_enum():
+            raise ValueError(
+                "Energy commodities must define energy_form in "
+                f"{commodity_energy_form_enum()}, got {energy_form!r}"
+            )
+        return str(energy_form)
+    if type_ in {"service", "material", "emission", "money", "certificate"}:
+        return type_
+    raise ValueError(f"Unsupported commodity type {type_!r}")
+
+
+def canonicalize_commodity_id(
+    authored_id: str,
+    *,
+    type_: str,
+    energy_form: str | None = None,
+) -> str:
+    """Lower an authored commodity id to the canonical namespaced form."""
+    return f"{commodity_namespace_for(type_, energy_form)}:{authored_id}"
 
 
 def scenario_category_enum() -> tuple[str, ...]:

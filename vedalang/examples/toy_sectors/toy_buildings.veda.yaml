@@ -1,82 +1,71 @@
-dsl_version: "0.2"
-
+dsl_version: "0.3"
 commodities:
-  - id: emission:co2
-    kind: emission
-
-  - id: primary:natural_gas
-    kind: primary
-
-  - id: secondary:electricity
-    kind: secondary
-
-  - id: service:electricity_supply
-    kind: service
-
-  - id: service:gas_supply
-    kind: service
-
-  - id: service:space_heat
-    kind: service
-
+  - id: co2
+    type: emission
+  - id: natural_gas
+    type: energy
+    energy_form: primary
+  - id: electricity
+    type: energy
+    energy_form: secondary
+  - id: electricity_supply
+    type: service
+  - id: gas_supply
+    type: service
+  - id: space_heat
+    type: service
 technologies:
   - id: gas_heater
     inputs:
-      - commodity: primary:natural_gas
+      - commodity: natural_gas
         basis: HHV
     emissions:
-      - commodity: emission:co2
+      - commodity: co2
         factor: 0.056 t/GJ
     investment_cost: 30 AUD2024/kW
     lifetime: 20 year
     performance:
       kind: efficiency
       value: 0.9
-    provides: service:space_heat
-
+    provides: space_heat
   - id: grid_import
     outputs:
-      - commodity: secondary:electricity
+      - commodity: electricity
     lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:electricity_supply
+    provides: electricity_supply
     variable_om: 25 AUD2024/MWh
-
   - id: heat_pump
     inputs:
-      - commodity: secondary:electricity
+      - commodity: electricity
     investment_cost: 150 AUD2024/kW
     lifetime: 20 year
     performance:
       kind: cop
       value: 3.0
-    provides: service:space_heat
-
+    provides: space_heat
   - id: pipeline_import
     outputs:
-      - commodity: primary:natural_gas
+      - commodity: natural_gas
     lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:gas_supply
+    provides: gas_supply
     variable_om: 8 AUD2024/MWh
-
 technology_roles:
   - id: electricity_supply
-    primary_service: service:electricity_supply
+    primary_service: electricity_supply
     technologies:
       - grid_import
-
   - id: gas_supply
-    primary_service: service:gas_supply
+    primary_service: gas_supply
     technologies:
       - pipeline_import
-
   - id: space_heat_supply
-    primary_service: service:space_heat
+    primary_service: space_heat
     technologies:
       - gas_heater
       - heat_pump
@@ -85,13 +74,11 @@ technology_roles:
         from: gas_heater
         kind: retrofit
         to: heat_pump
-
 spatial_layers:
   - id: geo.demo
     geometry_file: data/regions.geojson
     key: region_id
     kind: polygon
-
 region_partitions:
   - id: single_region
     layer: geo.demo
@@ -100,7 +87,6 @@ region_partitions:
       value: SINGLE
     members:
       - SINGLE
-
 fleets:
   - id: electricity_supply
     distribution:
@@ -113,7 +99,6 @@ fleets:
             year: 2025
           technology: grid_import
     technology_role: electricity_supply
-
   - id: gas_supply
     distribution:
       method: direct
@@ -125,7 +110,6 @@ fleets:
             year: 2025
           technology: pipeline_import
     technology_role: gas_supply
-
   - id: residential_heat
     available_technologies:
       - gas_heater
@@ -142,14 +126,12 @@ fleets:
             value: 80 MW
             year: 2025
           technology: gas_heater
-
         - metric: installed_capacity
           observed:
             value: 10 MW
             year: 2025
           technology: heat_pump
     technology_role: space_heat_supply
-
 runs:
   - id: single_2025
     base_year: 2025

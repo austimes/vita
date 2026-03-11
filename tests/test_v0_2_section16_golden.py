@@ -8,7 +8,7 @@ from vedalang.compiler.v0_2_resolution import resolve_imports, resolve_run
 def _section16_packages_and_model():
     regions = parse_v0_2_source(
         {
-            "dsl_version": "0.2",
+            "dsl_version": "0.3",
             "spatial_layers": [
                 {
                     "id": "geo_regions.sa2_2021",
@@ -34,7 +34,7 @@ def _section16_packages_and_model():
     )
     demo = parse_v0_2_source(
         {
-            "dsl_version": "0.2",
+            "dsl_version": "0.3",
             "spatial_layers": [
                 {
                     "id": "geo_demo.sa2_2021",
@@ -69,51 +69,51 @@ def _section16_packages_and_model():
     )
     heat = parse_v0_2_source(
         {
-            "dsl_version": "0.2",
+            "dsl_version": "0.3",
             "commodities": [
-                {"id": "primary:natural_gas", "kind": "primary"},
-                {"id": "secondary:electricity", "kind": "secondary"},
-                {"id": "service:space_heat", "kind": "service"},
-                {"id": "service:steam", "kind": "service"},
-                {"id": "emission:co2", "kind": "emission"},
+                {"id": "natural_gas", "type": "energy", "energy_form": "primary"},
+                {"id": "electricity", "type": "energy", "energy_form": "secondary"},
+                {"id": "space_heat", "type": "service"},
+                {"id": "steam", "type": "service"},
+                {"id": "co2", "type": "emission"},
             ],
             "technologies": [
                 {
                     "id": "gas_heater",
-                    "provides": "service:space_heat",
-                    "inputs": [{"commodity": "primary:natural_gas", "basis": "HHV"}],
+                    "provides": "space_heat",
+                    "inputs": [{"commodity": "natural_gas", "basis": "HHV"}],
                     "performance": {"kind": "efficiency", "value": 0.9},
                     "emissions": [
-                        {"commodity": "emission:co2", "factor": "0.056 t/GJ_fuel"}
+                        {"commodity": "co2", "factor": "0.056 t/GJ_fuel"}
                     ],
                     "stock_characterization": "res_gas_heater_default",
                 },
                 {
                     "id": "heat_pump",
-                    "provides": "service:space_heat",
-                    "inputs": [{"commodity": "secondary:electricity"}],
+                    "provides": "space_heat",
+                    "inputs": [{"commodity": "electricity"}],
                     "performance": {"kind": "cop", "value": 3.2},
                 },
                 {
                     "id": "gas_boiler",
-                    "provides": "service:steam",
-                    "inputs": [{"commodity": "primary:natural_gas", "basis": "HHV"}],
+                    "provides": "steam",
+                    "inputs": [{"commodity": "natural_gas", "basis": "HHV"}],
                     "performance": {"kind": "efficiency", "value": 0.85},
                     "emissions": [
-                        {"commodity": "emission:co2", "factor": "0.056 t/GJ_fuel"}
+                        {"commodity": "co2", "factor": "0.056 t/GJ_fuel"}
                     ],
                 },
                 {
                     "id": "electric_boiler",
-                    "provides": "service:steam",
-                    "inputs": [{"commodity": "secondary:electricity"}],
+                    "provides": "steam",
+                    "inputs": [{"commodity": "electricity"}],
                     "performance": {"kind": "efficiency", "value": 0.98},
                 },
             ],
             "technology_roles": [
                 {
                     "id": "residential_space_heat_supply",
-                    "primary_service": "service:space_heat",
+                    "primary_service": "space_heat",
                     "technologies": ["gas_heater", "heat_pump"],
                     "transitions": [
                         {
@@ -126,7 +126,7 @@ def _section16_packages_and_model():
                 },
                 {
                     "id": "industrial_steam_supply",
-                    "primary_service": "service:steam",
+                    "primary_service": "steam",
                     "technologies": ["gas_boiler", "electric_boiler"],
                     "transitions": [
                         {
@@ -161,7 +161,7 @@ def _section16_packages_and_model():
     )
     model = parse_v0_2_source(
         {
-            "dsl_version": "0.2",
+            "dsl_version": "0.3",
             "imports": [
                 {
                     "package": "vedalang.au.regions@1",

@@ -1,14 +1,15 @@
-dsl_version: "0.2"
+dsl_version: "0.3"
 commodities:
-  - id: service:heat
-    kind: service
+  - id: heat
+    type: service
 technologies:
   - id: heat_service_device
-    provides: service:heat
+    provides: heat
     performance:
       kind: efficiency
       value: 1.0
 technology_roles:
   - id: heat_supply
-    primary_service: service:heat
-    technologies: [heat_service_device]
+    primary_service: heat
+    technologies:
+      - heat_service_device

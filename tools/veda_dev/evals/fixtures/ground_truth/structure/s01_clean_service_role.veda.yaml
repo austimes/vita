@@ -1,49 +1,55 @@
-dsl_version: "0.2"
+dsl_version: "0.3"
 commodities:
-  - id: service:heat
-    kind: service
-  - id: secondary:electricity
-    kind: secondary
-  - id: primary:natural_gas
-    kind: primary
+  - id: heat
+    type: service
+  - id: electricity
+    type: energy
+    energy_form: secondary
+  - id: natural_gas
+    type: energy
+    energy_form: primary
 technologies:
   - id: grid_import
-    provides: secondary:electricity
+    provides: electricity
     outputs:
-      - commodity: secondary:electricity
+      - commodity: electricity
     performance:
       kind: efficiency
       value: 1.0
   - id: gas_import
-    provides: primary:natural_gas
+    provides: natural_gas
     outputs:
-      - commodity: primary:natural_gas
+      - commodity: natural_gas
         basis: HHV
     performance:
       kind: efficiency
       value: 1.0
   - id: heat_pump
-    provides: service:heat
+    provides: heat
     inputs:
-      - commodity: secondary:electricity
+      - commodity: electricity
     performance:
       kind: efficiency
       value: 1.0
   - id: gas_boiler
-    provides: service:heat
+    provides: heat
     inputs:
-      - commodity: primary:natural_gas
+      - commodity: natural_gas
         basis: HHV
     performance:
       kind: efficiency
       value: 0.9
 technology_roles:
   - id: electricity_supply
-    primary_service: secondary:electricity
-    technologies: [grid_import]
+    primary_service: electricity
+    technologies:
+      - grid_import
   - id: gas_supply
-    primary_service: primary:natural_gas
-    technologies: [gas_import]
+    primary_service: natural_gas
+    technologies:
+      - gas_import
   - id: heat_supply
-    primary_service: service:heat
-    technologies: [heat_pump, gas_boiler]
+    primary_service: heat
+    technologies:
+      - heat_pump
+      - gas_boiler

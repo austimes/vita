@@ -36,7 +36,7 @@ class TestLint:
         assert result.returncode in (0, 1)
 
         data = json.loads(result.stdout)
-        assert data["dsl_version"] == "0.2"
+        assert data["dsl_version"] == "0.3"
         assert data["artifact_version"] == "1.0.0"
         assert "success" in data
         assert "source" in data
@@ -139,7 +139,7 @@ class TestLint:
         assert any(d.get("code") == "SCHEMA_ERROR" for d in data.get("diagnostics", []))
 
     def test_vedalang_lint_rejects_legacy_role_variant_surface(self, tmp_path):
-        """Deterministic lint rejects the pre-v0.2 model/roles/variants surface."""
+        """Deterministic lint rejects the pre-v0.3 model/roles/variants surface."""
         src = tmp_path / "legacy_roles.veda.yaml"
         src.write_text(
             "\n".join(
@@ -244,7 +244,7 @@ class TestLint:
 
 class TestCompile:
     def test_vedalang_compile_v0_2_run_outputs_multi_artifacts(self, tmp_path):
-        """v0.2 compile emits run-scoped CSIR/CPIR/explain artifacts."""
+        """v0.3 compile emits run-scoped CSIR/CPIR/explain artifacts."""
         src = tmp_path / "toy_v0_2.veda.yaml"
         src.write_text(yaml.safe_dump(_v0_2_backend_source()), encoding="utf-8")
 
@@ -290,7 +290,7 @@ class TestCompile:
         assert result.returncode == 0
 
         data = json.loads(result.stdout)
-        assert data["dsl_version"] == "0.2"
+        assert data["dsl_version"] == "0.3"
         assert data["artifact_version"] == "1.0.0"
         assert "success" in data
         assert "files" in data
@@ -342,7 +342,7 @@ class TestCompile:
         assert result.returncode == 0
         assert tableir_path.exists()
         tableir = yaml.safe_load(tableir_path.read_text(encoding="utf-8"))
-        assert tableir["dsl_version"] == "0.2"
+        assert tableir["dsl_version"] == "0.3"
         assert tableir["artifact_version"] == "1.0.0"
 
     def test_vedalang_compile_no_output_error(self):
@@ -353,7 +353,7 @@ class TestCompile:
 
 class TestValidate:
     def test_vedalang_validate_v0_2_run_json(self, tmp_path):
-        """Validate supports run-scoped v0.2 sources."""
+        """Validate supports run-scoped v0.3 sources."""
         src = tmp_path / "toy_v0_2.veda.yaml"
         src.write_text(yaml.safe_dump(_v0_2_backend_source()), encoding="utf-8")
 
@@ -367,7 +367,7 @@ class TestValidate:
         assert result.returncode in (0, 1, 2)
 
         data = json.loads(result.stdout)
-        assert data["dsl_version"] == "0.2"
+        assert data["dsl_version"] == "0.3"
         assert len(data["tables"]) > 0
         assert data["total_rows"] > 0
 
@@ -382,7 +382,7 @@ class TestValidate:
         result = run_vedalang("validate", "--json", str(MINI_PLANT))
 
         data = json.loads(result.stdout)
-        assert data["dsl_version"] == "0.2"
+        assert data["dsl_version"] == "0.3"
         assert data["artifact_version"] == "1.0.0"
         assert "success" in data
         assert "source" in data

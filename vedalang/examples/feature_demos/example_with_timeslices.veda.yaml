@@ -1,74 +1,63 @@
-dsl_version: "0.2"
-
+dsl_version: "0.3"
 commodities:
-  - id: primary:natural_gas
-    kind: primary
-
-  - id: secondary:electricity
-    kind: secondary
-
-  - id: service:electricity_demand
-    kind: service
-
-  - id: service:electricity_generation
-    kind: service
-
-  - id: service:gas_supply
-    kind: service
-
+  - id: natural_gas
+    type: energy
+    energy_form: primary
+  - id: electricity
+    type: energy
+    energy_form: secondary
+  - id: electricity_demand
+    type: service
+  - id: electricity_generation
+    type: service
+  - id: gas_supply
+    type: service
 technologies:
   - id: ccgt
     inputs:
-      - commodity: primary:natural_gas
+      - commodity: natural_gas
         basis: HHV
     outputs:
-      - commodity: secondary:electricity
+      - commodity: electricity
     lifetime: 30 year
     performance:
       kind: efficiency
       value: 0.55
-    provides: service:electricity_generation
-
+    provides: electricity_generation
   - id: electric_device
     inputs:
-      - commodity: secondary:electricity
+      - commodity: electricity
     lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:electricity_demand
-
+    provides: electricity_demand
   - id: gas_import
     outputs:
-      - commodity: primary:natural_gas
+      - commodity: natural_gas
     lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:gas_supply
-
+    provides: gas_supply
 technology_roles:
   - id: electricity_generation
-    primary_service: service:electricity_generation
+    primary_service: electricity_generation
     technologies:
       - ccgt
-
   - id: electricity_service
-    primary_service: service:electricity_demand
+    primary_service: electricity_demand
     technologies:
       - electric_device
-
   - id: gas_supply
-    primary_service: service:gas_supply
+    primary_service: gas_supply
     technologies:
       - gas_import
-
 spatial_layers:
   - id: geo.demo
     geometry_file: data/regions.geojson
     key: region_id
     kind: polygon
-
 temporal_index_series:
   - id: day_night_profile_proxy
     unit: index
@@ -76,7 +65,6 @@ temporal_index_series:
       "2020": 1.0
       "2030": 1.2
     base_year: 2020
-
 region_partitions:
   - id: reg1_partition
     layer: geo.demo
@@ -85,7 +73,6 @@ region_partitions:
       value: REG1
     members:
       - REG1
-
 sites:
   - id: reg1_hub
     location:
@@ -95,7 +82,6 @@ sites:
     membership_overrides:
       region_partitions:
         reg1_partition: REG1
-
 facilities:
   - id: reg1_demand
     site: reg1_hub
@@ -109,7 +95,6 @@ facilities:
             year: 2020
           technology: electric_device
     technology_role: electricity_service
-
   - id: reg1_gas_supply
     site: reg1_hub
     stock:
@@ -122,7 +107,6 @@ facilities:
             year: 2020
           technology: gas_import
     technology_role: gas_supply
-
   - id: reg1_generation
     site: reg1_hub
     stock:
@@ -133,7 +117,6 @@ facilities:
             year: 2020
           technology: ccgt
     technology_role: electricity_generation
-
 runs:
   - id: reg1_2020
     base_year: 2020

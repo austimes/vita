@@ -1,112 +1,96 @@
-dsl_version: "0.2"
-
+dsl_version: "0.3"
 commodities:
-  - id: emission:co2
-    kind: emission
-
-  - id: primary:natural_gas
-    kind: primary
-
-  - id: resource:wind_resource
-    kind: material
-
-  - id: secondary:electricity
-    kind: secondary
-
-  - id: service:electricity_generation
-    kind: service
-
-  - id: service:electricity_service
-    kind: service
-
-  - id: service:gas_supply
-    kind: service
-
-  - id: service:wind_resource_supply
-    kind: service
-
+  - id: co2
+    type: emission
+  - id: natural_gas
+    type: energy
+    energy_form: primary
+  - id: wind_resource
+    type: energy
+    energy_form: resource
+  - id: electricity
+    type: energy
+    energy_form: secondary
+  - id: electricity_generation
+    type: service
+  - id: electricity_service
+    type: service
+  - id: gas_supply
+    type: service
+  - id: wind_resource_supply
+    type: service
 technologies:
   - id: ccgt
     inputs:
-      - commodity: primary:natural_gas
+      - commodity: natural_gas
         basis: HHV
     outputs:
-      - commodity: secondary:electricity
+      - commodity: electricity
     emissions:
-      - commodity: emission:co2
+      - commodity: co2
         factor: 0.056 t/GJ
     lifetime: 30 year
     performance:
       kind: efficiency
       value: 0.55
-    provides: service:electricity_generation
-
+    provides: electricity_generation
   - id: grid_delivery
     inputs:
-      - commodity: secondary:electricity
+      - commodity: electricity
     lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:electricity_service
-
+    provides: electricity_service
   - id: natural_gas_supply
     outputs:
-      - commodity: primary:natural_gas
+      - commodity: natural_gas
     lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:gas_supply
-
+    provides: gas_supply
   - id: wind_resource_supply
     outputs:
-      - commodity: resource:wind_resource
+      - commodity: wind_resource
     lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:wind_resource_supply
-
+    provides: wind_resource_supply
   - id: wind_turbine
     inputs:
-      - commodity: resource:wind_resource
+      - commodity: wind_resource
     outputs:
-      - commodity: secondary:electricity
+      - commodity: electricity
     lifetime: 25 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:electricity_generation
-
+    provides: electricity_generation
 technology_roles:
   - id: electricity_generation
-    primary_service: service:electricity_generation
+    primary_service: electricity_generation
     technologies:
       - ccgt
       - wind_turbine
-
   - id: electricity_service
-    primary_service: service:electricity_service
+    primary_service: electricity_service
     technologies:
       - grid_delivery
-
   - id: gas_supply
-    primary_service: service:gas_supply
+    primary_service: gas_supply
     technologies:
       - natural_gas_supply
-
   - id: wind_resource_supply
-    primary_service: service:wind_resource_supply
+    primary_service: wind_resource_supply
     technologies:
       - wind_resource_supply
-
 spatial_layers:
   - id: geo.demo
     geometry_file: data/regions.geojson
     key: region_id
     kind: polygon
-
 region_partitions:
   - id: single_region
     layer: geo.demo
@@ -115,7 +99,6 @@ region_partitions:
       value: SINGLE
     members:
       - SINGLE
-
 sites:
   - id: single_energy_hub
     location:
@@ -125,7 +108,6 @@ sites:
     membership_overrides:
       region_partitions:
         single_region: SINGLE
-
 facilities:
   - id: single_gas_supply
     site: single_energy_hub
@@ -137,7 +119,6 @@ facilities:
             year: 2025
           technology: natural_gas_supply
     technology_role: gas_supply
-
   - id: single_generation
     available_technologies:
       - ccgt
@@ -150,14 +131,12 @@ facilities:
             value: 8 MW
             year: 2025
           technology: ccgt
-
         - metric: installed_capacity
           observed:
             value: 4 MW
             year: 2025
           technology: wind_turbine
     technology_role: electricity_generation
-
   - id: single_service_delivery
     site: single_energy_hub
     stock:
@@ -168,7 +147,6 @@ facilities:
             year: 2025
           technology: grid_delivery
     technology_role: electricity_service
-
   - id: single_wind_resource
     site: single_energy_hub
     stock:
@@ -179,7 +157,6 @@ facilities:
             year: 2025
           technology: wind_resource_supply
     technology_role: wind_resource_supply
-
 opportunities:
   - id: single_more_wind
     max_new_capacity: 25 MW
@@ -188,7 +165,6 @@ opportunities:
         member: SINGLE
         partition: single_region
     technology: wind_turbine
-
 runs:
   - id: single_2025
     base_year: 2025

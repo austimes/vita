@@ -1,39 +1,32 @@
-dsl_version: "0.2"
-
+dsl_version: "0.3"
 commodities:
-  - id: emission:co2
-    kind: emission
-
-  - id: material:wind_resource
-    kind: material
-
-  - id: primary:natural_gas
-    kind: primary
-
-  - id: secondary:electricity
-    kind: secondary
-
-  - id: service:electricity_generation
-    kind: service
-
-  - id: service:gas_supply
-    kind: service
-
-  - id: service:residential_demand
-    kind: service
-
-  - id: service:wind_supply
-    kind: service
-
+  - id: co2
+    type: emission
+  - id: wind_resource
+    type: material
+  - id: natural_gas
+    type: energy
+    energy_form: primary
+  - id: electricity
+    type: energy
+    energy_form: secondary
+  - id: electricity_generation
+    type: service
+  - id: gas_supply
+    type: service
+  - id: residential_demand
+    type: service
+  - id: wind_supply
+    type: service
 technologies:
   - id: ccgt
     inputs:
-      - commodity: primary:natural_gas
+      - commodity: natural_gas
         basis: HHV
     outputs:
-      - commodity: secondary:electricity
+      - commodity: electricity
     emissions:
-      - commodity: emission:co2
+      - commodity: co2
         factor: 0.05 t/GJ
     fixed_om: 20 AUD2024/kW/year
     investment_cost: 800 AUD2024/kW
@@ -41,77 +34,67 @@ technologies:
     performance:
       kind: efficiency
       value: 0.55
-    provides: service:electricity_generation
+    provides: electricity_generation
     variable_om: 2 AUD2024/MWh
-
   - id: electric_enduse
     inputs:
-      - commodity: secondary:electricity
+      - commodity: electricity
     lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:residential_demand
-
+    provides: residential_demand
   - id: lng_terminal
     outputs:
-      - commodity: primary:natural_gas
+      - commodity: natural_gas
     lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:gas_supply
-
+    provides: gas_supply
   - id: onshore_wind_supply
     outputs:
-      - commodity: material:wind_resource
+      - commodity: wind_resource
     lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:wind_supply
-
+    provides: wind_supply
   - id: wind
     inputs:
-      - commodity: material:wind_resource
+      - commodity: wind_resource
     outputs:
-      - commodity: secondary:electricity
+      - commodity: electricity
     fixed_om: 25 AUD2024/kW/year
     investment_cost: 1200 AUD2024/kW
     lifetime: 25 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:electricity_generation
-
+    provides: electricity_generation
 technology_roles:
   - id: electricity_generation
-    primary_service: service:electricity_generation
+    primary_service: electricity_generation
     technologies:
       - ccgt
       - wind
-
   - id: gas_supply
-    primary_service: service:gas_supply
+    primary_service: gas_supply
     technologies:
       - lng_terminal
-
   - id: residential_service
-    primary_service: service:residential_demand
+    primary_service: residential_demand
     technologies:
       - electric_enduse
-
   - id: wind_supply
-    primary_service: service:wind_supply
+    primary_service: wind_supply
     technologies:
       - onshore_wind_supply
-
 spatial_layers:
   - id: geo.demo
     geometry_file: data/regions.geojson
     key: region_id
     kind: polygon
-
 region_partitions:
   - id: single_region
     layer: geo.demo
@@ -120,7 +103,6 @@ region_partitions:
       value: SINGLE
     members:
       - SINGLE
-
 sites:
   - id: single_hub
     location:
@@ -130,7 +112,6 @@ sites:
     membership_overrides:
       region_partitions:
         single_region: SINGLE
-
 facilities:
   - id: gas_supply_facility
     site: single_hub
@@ -142,7 +123,6 @@ facilities:
             year: 2025
           technology: lng_terminal
     technology_role: gas_supply
-
   - id: generation_facility
     available_technologies:
       - ccgt
@@ -155,14 +135,12 @@ facilities:
             value: 2 MW
             year: 2025
           technology: ccgt
-
         - metric: installed_capacity
           observed:
             value: 1 MW
             year: 2025
           technology: wind
     technology_role: electricity_generation
-
   - id: residential_service_facility
     site: single_hub
     stock:
@@ -173,7 +151,6 @@ facilities:
             year: 2025
           technology: electric_enduse
     technology_role: residential_service
-
   - id: wind_supply_facility
     site: single_hub
     stock:
@@ -184,7 +161,6 @@ facilities:
             year: 2025
           technology: onshore_wind_supply
     technology_role: wind_supply
-
 opportunities:
   - id: wind_expansion
     max_new_capacity: 20 MW
@@ -193,7 +169,6 @@ opportunities:
         member: SINGLE
         partition: single_region
     technology: wind
-
 runs:
   - id: single_2025
     base_year: 2025

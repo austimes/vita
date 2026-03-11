@@ -1,22 +1,18 @@
-dsl_version: "0.2"
-
+dsl_version: "0.3"
 commodities:
-  - id: primary:coal
-    kind: primary
-
-  - id: service:coal_exports
-    kind: service
-
-  - id: service:coal_primary_supply
-    kind: service
-
-  - id: service:coal_supply
-    kind: service
-
+  - id: coal
+    type: energy
+    energy_form: primary
+  - id: coal_exports
+    type: service
+  - id: coal_primary_supply
+    type: service
+  - id: coal_supply
+    type: service
 technologies:
   - id: coal_delivery
     inputs:
-      - commodity: primary:coal
+      - commodity: coal
         basis: HHV
     fixed_om: 0.2 MUSD24/GW/year
     investment_cost: 10 MUSD24/GW
@@ -24,84 +20,74 @@ technologies:
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:coal_supply
-
+    provides: coal_supply
   - id: coal_export_terminal
     inputs:
-      - commodity: primary:coal
+      - commodity: coal
         basis: HHV
     lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:coal_exports
+    provides: coal_exports
     variable_om: 2.75 MUSD24/PJ
-
   - id: coal_import
     outputs:
-      - commodity: primary:coal
+      - commodity: coal
     lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:coal_primary_supply
+    provides: coal_primary_supply
     variable_om: 2.75 MUSD24/PJ
-
   - id: mine_coal_step1
     outputs:
-      - commodity: primary:coal
+      - commodity: coal
     lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:coal_primary_supply
+    provides: coal_primary_supply
     variable_om: 2 MUSD24/PJ
-
   - id: mine_coal_step2
     outputs:
-      - commodity: primary:coal
+      - commodity: coal
     lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:coal_primary_supply
+    provides: coal_primary_supply
     variable_om: 2.5 MUSD24/PJ
-
   - id: mine_coal_step3
     outputs:
-      - commodity: primary:coal
+      - commodity: coal
     lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:coal_primary_supply
+    provides: coal_primary_supply
     variable_om: 3 MUSD24/PJ
-
 technology_roles:
   - id: coal_exports
-    primary_service: service:coal_exports
+    primary_service: coal_exports
     technologies:
       - coal_export_terminal
-
   - id: coal_primary_supply
-    primary_service: service:coal_primary_supply
+    primary_service: coal_primary_supply
     technologies:
       - coal_import
       - mine_coal_step1
       - mine_coal_step2
       - mine_coal_step3
-
   - id: coal_supply_delivery
-    primary_service: service:coal_supply
+    primary_service: coal_supply
     technologies:
       - coal_delivery
-
 spatial_layers:
   - id: geo.demo
     geometry_file: data/regions.geojson
     key: region_id
     kind: polygon
-
 region_partitions:
   - id: reg1_partition
     layer: geo.demo
@@ -110,7 +96,6 @@ region_partitions:
       value: REG1
     members:
       - REG1
-
 sites:
   - id: reg1_coal_hub
     location:
@@ -120,7 +105,6 @@ sites:
     membership_overrides:
       region_partitions:
         reg1_partition: REG1
-
 facilities:
   - id: reg1_coal_delivery
     site: reg1_coal_hub
@@ -132,7 +116,6 @@ facilities:
             year: 2005
           technology: coal_delivery
     technology_role: coal_supply_delivery
-
   - id: reg1_export_terminal
     site: reg1_coal_hub
     stock:
@@ -143,7 +126,6 @@ facilities:
             year: 2005
           technology: coal_export_terminal
     technology_role: coal_exports
-
   - id: reg1_primary_supply
     available_technologies:
       - coal_import
@@ -158,26 +140,22 @@ facilities:
             value: 1000 MW
             year: 2005
           technology: coal_import
-
         - metric: installed_capacity
           observed:
             value: 600 MW
             year: 2005
           technology: mine_coal_step1
-
         - metric: installed_capacity
           observed:
             value: 300 MW
             year: 2005
           technology: mine_coal_step2
-
         - metric: installed_capacity
           observed:
             value: 150 MW
             year: 2005
           technology: mine_coal_step3
     technology_role: coal_primary_supply
-
 opportunities:
   - id: coal_import_window
     max_new_capacity: 1000 MW
@@ -186,7 +164,6 @@ opportunities:
         member: REG1
         partition: reg1_partition
     technology: coal_import
-
   - id: mine_step1_expansion
     max_new_capacity: 600 MW
     siting:
@@ -194,7 +171,6 @@ opportunities:
         member: REG1
         partition: reg1_partition
     technology: mine_coal_step1
-
   - id: mine_step2_expansion
     max_new_capacity: 300 MW
     siting:
@@ -202,7 +178,6 @@ opportunities:
         member: REG1
         partition: reg1_partition
     technology: mine_coal_step2
-
   - id: mine_step3_expansion
     max_new_capacity: 150 MW
     siting:
@@ -210,7 +185,6 @@ opportunities:
         member: REG1
         partition: reg1_partition
     technology: mine_coal_step3
-
 runs:
   - id: reg1_2005
     base_year: 2005

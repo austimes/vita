@@ -16,6 +16,7 @@ from vedalang.compiler.source_maps import (
 from vedalang.compiler.v0_2_ast import V0_2Source
 from vedalang.compiler.v0_2_backend import _commodity_symbol, _process_symbol
 from vedalang.compiler.v0_2_resolution import ResolvedDefinitionGraph, RunContext
+from vedalang.conventions import canonicalize_commodity_id
 
 
 @dataclass(frozen=True)
@@ -681,13 +682,22 @@ def _process_veda_items(
 def _commodity_veda_items(
     commodity_ids: list[str],
     *,
+    graph: ResolvedDefinitionGraph,
     manifest_commodities: dict[str, dict[str, Any]],
     table_indexes: TableIndexes,
 ) -> tuple[list[dict[str, Any]], bool]:
     items: list[dict[str, Any]] = []
     partial = False
     for commodity_id in _sorted_unique(commodity_ids):
-        commodity_symbol = _commodity_symbol(commodity_id)
+        resolved_commodity = graph.commodities.get(commodity_id)
+        symbol_id = commodity_id
+        if resolved_commodity is not None:
+            symbol_id = canonicalize_commodity_id(
+                commodity_id,
+                type_=resolved_commodity.type,
+                energy_form=resolved_commodity.energy_form,
+            )
+        commodity_symbol = _commodity_symbol(symbol_id)
         manifest_entry = manifest_commodities.get(commodity_symbol)
         if manifest_entry is None:
             partial = True
@@ -999,6 +1009,7 @@ def build_system_node_inspectors(
 
         veda_items, veda_partial = _commodity_veda_items(
             commodity_ids,
+            graph=context.graph,
             manifest_commodities=manifest_commodities,
             table_indexes=table_indexes,
         )

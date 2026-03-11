@@ -1,27 +1,30 @@
-dsl_version: "0.2"
+dsl_version: "0.3"
 commodities:
-  - id: service:ag_output
-    kind: service
-  - id: primary:biomass
-    kind: primary
+  - id: ag_output
+    type: service
+  - id: biomass
+    type: energy
+    energy_form: primary
 technologies:
   - id: traditional_baseline
-    provides: service:ag_output
+    provides: ag_output
     inputs:
-      - commodity: primary:biomass
+      - commodity: biomass
         basis: HHV
     performance:
       kind: efficiency
       value: 0.5
   - id: feed_additives
-    provides: service:ag_output
+    provides: ag_output
     inputs:
-      - commodity: primary:biomass
+      - commodity: biomass
         basis: HHV
     performance:
       kind: efficiency
       value: 0.6
 technology_roles:
   - id: ag_output_supply
-    primary_service: service:ag_output
-    technologies: [traditional_baseline, feed_additives]
+    primary_service: ag_output
+    technologies:
+      - traditional_baseline
+      - feed_additives

@@ -15,7 +15,7 @@
   "properties": {
     "artifact_kind": {"const": "explain"},
     "artifact_version": {"type": "string"},
-    "dsl_version": {"const": "0.2"},
+    "dsl_version": {"const": "0.3"},
     "run_id": {"type": "string"},
     "objects": {
       "type": "object",

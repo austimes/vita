@@ -163,10 +163,10 @@ def test_canonicalize_yaml_text_sorts_and_adds_blank_lines():
           - id: role_a
             role: conversion
         commodities:
-          - kind: service
-            id: service:z
-          - id: service:a
-            kind: service
+          - id: z
+            type: service
+          - id: a
+            type: service
         """
     )
 
@@ -175,10 +175,10 @@ def test_canonicalize_yaml_text_sorts_and_adds_blank_lines():
     assert formatted.startswith("commodities:\n")
     assert "\n\ntechnology_roles:\n" in formatted
     assert "\n\nruns:\n" in formatted
-    assert formatted.index("id: service:a") < formatted.index("id: service:z")
+    assert formatted.index("id: a") < formatted.index("id: z")
     assert formatted.index("id: role_a") < formatted.index("id: role_b")
     assert formatted.index("id: run_a") < formatted.index("id: run_z")
-    assert "\n\n- id: service:z\n" in formatted
+    assert "\n\n- id: z\n" in formatted
 
 
 def test_cmd_fmt_check_mode_returns_1_on_canonical_drift(tmp_path, monkeypatch, capsys):

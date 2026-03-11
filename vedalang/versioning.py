@@ -5,7 +5,7 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any
 
-DSL_VERSION = "0.2"
+DSL_VERSION = "0.3"
 TABLEIR_ARTIFACT_VERSION = "1.0.0"
 CHECK_OUTPUT_VERSION = "1.0.0"
 PIPELINE_OUTPUT_VERSION = "1.0.0"
@@ -33,7 +33,7 @@ V0_2_TOP_LEVEL_KEYS = frozenset(
 
 
 def looks_like_v0_2_source(source: dict[str, Any] | None) -> bool:
-    """Return True when a source payload uses the v0.2 public object model."""
+    """Return True when a source payload uses the active public object model."""
     if not isinstance(source, dict):
         return False
     declared_version = source.get("dsl_version")

@@ -1,74 +1,63 @@
-dsl_version: "0.2"
-
+dsl_version: "0.3"
 commodities:
-  - id: primary:natural_gas
-    kind: primary
-
-  - id: secondary:electricity
-    kind: secondary
-
-  - id: service:electricity_generation
-    kind: service
-
-  - id: service:electricity_service
-    kind: service
-
-  - id: service:gas_supply
-    kind: service
-
+  - id: natural_gas
+    type: energy
+    energy_form: primary
+  - id: electricity
+    type: energy
+    energy_form: secondary
+  - id: electricity_generation
+    type: service
+  - id: electricity_service
+    type: service
+  - id: gas_supply
+    type: service
 technologies:
   - id: ccgt
     inputs:
-      - commodity: primary:natural_gas
+      - commodity: natural_gas
         basis: HHV
     outputs:
-      - commodity: secondary:electricity
+      - commodity: electricity
     lifetime: 30 year
     performance:
       kind: efficiency
       value: 0.55
-    provides: service:electricity_generation
-
+    provides: electricity_generation
   - id: direct_electric_service
     inputs:
-      - commodity: secondary:electricity
+      - commodity: electricity
     lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:electricity_service
-
+    provides: electricity_service
   - id: natural_gas_import
     outputs:
-      - commodity: primary:natural_gas
+      - commodity: natural_gas
     lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:gas_supply
-
+    provides: gas_supply
 technology_roles:
   - id: electricity_generation
-    primary_service: service:electricity_generation
+    primary_service: electricity_generation
     technologies:
       - ccgt
-
   - id: gas_supply
-    primary_service: service:gas_supply
+    primary_service: gas_supply
     technologies:
       - natural_gas_import
-
   - id: useful_electricity
-    primary_service: service:electricity_service
+    primary_service: electricity_service
     technologies:
       - direct_electric_service
-
 spatial_layers:
   - id: geo.demo
     geometry_file: data/regions.geojson
     key: region_id
     kind: polygon
-
 region_partitions:
   - id: reg1_partition
     layer: geo.demo
@@ -77,7 +66,6 @@ region_partitions:
       value: REG1
     members:
       - REG1
-
 sites:
   - id: reg1_energy_hub
     location:
@@ -87,7 +75,6 @@ sites:
     membership_overrides:
       region_partitions:
         reg1_partition: REG1
-
 facilities:
   - id: reg1_ccgt
     site: reg1_energy_hub
@@ -99,7 +86,6 @@ facilities:
             year: 2020
           technology: ccgt
     technology_role: electricity_generation
-
   - id: reg1_gas_supply
     site: reg1_energy_hub
     stock:
@@ -110,7 +96,6 @@ facilities:
             year: 2020
           technology: natural_gas_import
     technology_role: gas_supply
-
   - id: reg1_useful_electricity
     site: reg1_energy_hub
     stock:
@@ -121,7 +106,6 @@ facilities:
             year: 2020
           technology: direct_electric_service
     technology_role: useful_electricity
-
 runs:
   - id: reg1_2020
     base_year: 2020

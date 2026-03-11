@@ -21,7 +21,7 @@ def test_check_vedalang_compiles():
     # but the compile+emit pipeline should work
     assert len(result.tables) > 0
     assert result.total_rows > 0
-    assert result.dsl_version == "0.2"
+    assert result.dsl_version == "0.3"
     assert result.artifact_version == "1.0.0"
 
 
@@ -101,7 +101,7 @@ def test_result_has_table_info():
 
 
 def test_check_v0_2_run_scoped_source(tmp_path):
-    """Run-scoped v0.2 sources compile through veda_check."""
+    """Run-scoped v0.3 sources compile through veda_check."""
     src = tmp_path / "toy_v0_2.veda.yaml"
     src.write_text(yaml.safe_dump(_v0_2_backend_source()), encoding="utf-8")
 
@@ -111,6 +111,6 @@ def test_check_v0_2_run_scoped_source(tmp_path):
         selected_run="toy_states_2025",
     )
 
-    assert result.dsl_version == "0.2"
+    assert result.dsl_version == "0.3"
     assert len(result.tables) > 0
     assert result.total_rows > 0

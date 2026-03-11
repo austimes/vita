@@ -1,19 +1,21 @@
-dsl_version: "0.2"
+dsl_version: "0.3"
 commodities:
-  - id: service:heat
-    kind: service
-  - id: primary:natural_gas
-    kind: primary
+  - id: heat
+    type: service
+  - id: natural_gas
+    type: energy
+    energy_form: primary
 technologies:
   - id: gas_boiler
-    provides: service:heat
+    provides: heat
     inputs:
-      - commodity: primary:natural_gas
+      - commodity: natural_gas
         basis: HHV
     performance:
       kind: efficiency
       value: 0.9
 technology_roles:
   - id: provide_heat_from_gas
-    primary_service: service:heat
-    technologies: [gas_boiler]
+    primary_service: heat
+    technologies:
+      - gas_boiler

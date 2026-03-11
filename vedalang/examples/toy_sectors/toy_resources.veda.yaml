@@ -1,112 +1,97 @@
-dsl_version: "0.2"
-
+dsl_version: "0.3"
 commodities:
-  - id: emission:co2
-    kind: emission
-
-  - id: primary:biodiesel
-    kind: primary
-
-  - id: primary:diesel
-    kind: primary
-
-  - id: secondary:electricity
-    kind: secondary
-
-  - id: service:biodiesel_supply
-    kind: service
-
-  - id: service:diesel_supply
-    kind: service
-
-  - id: service:electricity_supply
-    kind: service
-
-  - id: service:haul_work
-    kind: service
-
+  - id: co2
+    type: emission
+  - id: biodiesel
+    type: energy
+    energy_form: primary
+  - id: diesel
+    type: energy
+    energy_form: primary
+  - id: electricity
+    type: energy
+    energy_form: secondary
+  - id: biodiesel_supply
+    type: service
+  - id: diesel_supply
+    type: service
+  - id: electricity_supply
+    type: service
+  - id: haul_work
+    type: service
 technologies:
   - id: biodiesel_haul
     inputs:
-      - commodity: primary:biodiesel
+      - commodity: biodiesel
         basis: HHV
     lifetime: 15 year
     performance:
       kind: efficiency
       value: 0.35
-    provides: service:haul_work
-
+    provides: haul_work
   - id: biodiesel_import
     outputs:
-      - commodity: primary:biodiesel
+      - commodity: biodiesel
     lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:biodiesel_supply
+    provides: biodiesel_supply
     variable_om: 20 AUD2024/MWh
-
   - id: diesel_haul
     inputs:
-      - commodity: primary:diesel
+      - commodity: diesel
         basis: HHV
     emissions:
-      - commodity: emission:co2
+      - commodity: co2
         factor: 0.074 t/GJ
     lifetime: 15 year
     performance:
       kind: efficiency
       value: 0.35
-    provides: service:haul_work
-
+    provides: haul_work
   - id: diesel_import
     outputs:
-      - commodity: primary:diesel
+      - commodity: diesel
     lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:diesel_supply
+    provides: diesel_supply
     variable_om: 12 AUD2024/MWh
-
   - id: electric_haul
     inputs:
-      - commodity: secondary:electricity
+      - commodity: electricity
     investment_cost: 200 AUD2024/kW
     lifetime: 15 year
     performance:
       kind: efficiency
       value: 0.85
-    provides: service:haul_work
-
+    provides: haul_work
   - id: electricity_import
     outputs:
-      - commodity: secondary:electricity
+      - commodity: electricity
     lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:electricity_supply
+    provides: electricity_supply
     variable_om: 25 AUD2024/MWh
-
 technology_roles:
   - id: biodiesel_supply
-    primary_service: service:biodiesel_supply
+    primary_service: biodiesel_supply
     technologies:
       - biodiesel_import
-
   - id: diesel_supply
-    primary_service: service:diesel_supply
+    primary_service: diesel_supply
     technologies:
       - diesel_import
-
   - id: electricity_supply
-    primary_service: service:electricity_supply
+    primary_service: electricity_supply
     technologies:
       - electricity_import
-
   - id: haul_service
-    primary_service: service:haul_work
+    primary_service: haul_work
     technologies:
       - diesel_haul
       - biodiesel_haul
@@ -116,13 +101,11 @@ technology_roles:
         from: diesel_haul
         kind: retrofit
         to: electric_haul
-
 spatial_layers:
   - id: geo.demo
     geometry_file: data/regions.geojson
     key: region_id
     kind: polygon
-
 region_partitions:
   - id: single_region
     layer: geo.demo
@@ -131,7 +114,6 @@ region_partitions:
       value: SINGLE
     members:
       - SINGLE
-
 fleets:
   - id: biodiesel_supply
     distribution:
@@ -144,7 +126,6 @@ fleets:
             year: 2025
           technology: biodiesel_import
     technology_role: biodiesel_supply
-
   - id: diesel_supply
     distribution:
       method: direct
@@ -156,7 +137,6 @@ fleets:
             year: 2025
           technology: diesel_import
     technology_role: diesel_supply
-
   - id: electricity_supply
     distribution:
       method: direct
@@ -168,7 +148,6 @@ fleets:
             year: 2025
           technology: electricity_import
     technology_role: electricity_supply
-
   - id: haul_service
     available_technologies:
       - diesel_haul
@@ -186,20 +165,17 @@ fleets:
             value: 6 MW
             year: 2025
           technology: diesel_haul
-
         - metric: installed_capacity
           observed:
             value: 1 MW
             year: 2025
           technology: biodiesel_haul
-
         - metric: installed_capacity
           observed:
             value: 1 MW
             year: 2025
           technology: electric_haul
     technology_role: haul_service
-
 runs:
   - id: single_2025
     base_year: 2025

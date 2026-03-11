@@ -2,7 +2,7 @@
   "check_id": "llm.units.component_quorum",
   "version": "v4",
   "created_at": "2026-03-07",
-  "content_sha256": "79cbb62dd24c4cc45a3a7173f55b55b314a81af946df402400f290f0c56aed1f",
+  "content_sha256": "821375a2da8f6df07bf69d021569725dcc297188243a3899abb809e9727c7a19",
   "files": [
     "CHANGELOG.md",
     "response_schema.json",

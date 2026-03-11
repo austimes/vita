@@ -1,19 +1,20 @@
 # VedaLang Project Status
 
-**Last updated:** 2026-03-10
+**Last updated:** 2026-03-11
 
 ## Summary
 
-VedaLang now runs as a v0.2-only repository. The package/run/CSIR/CPIR rollout,
-backend parity, diagnostics, tooling, supported example catalog, and strict
-cleanup pass are all landed.
+VedaLang now runs as a v0.3 repository. The package/run/CSIR/CPIR rollout,
+backend parity, diagnostics, tooling, and supported example catalog remain
+landed, and the commodity identity reset has now removed authored namespace
+prefixes in favor of bare IDs plus explicit commodity typing.
 
-Current `bd` state: rollout and cleanup issues are closed; one follow-up issue
-remains open.
+Current `bd` state: the commodity identity reset is closed and one follow-up
+issue remains open.
 
 ## Current Focus
 
-- Maintain the v0.2 package/run/CSIR/CPIR surface and backend parity through
+- Maintain the v0.3 package/run/CSIR/CPIR surface and backend parity through
   Excel, xl2times, and TIMES.
 - Keep examples, docs, prompts, and tooling aligned with the active schema.
 
@@ -25,6 +26,11 @@ remains open.
 
 ## Recently Completed
 
+- `vedalang-6ov` — hard-cut the public DSL to v0.3 commodity identity: removed
+  authored commodity prefixes, split commodity semantics into explicit
+  `type`/`energy_form`, lowered commodities to canonical backend namespaces,
+  updated diagnostics and the LSP to type-based messaging, and migrated the
+  example/test corpus to bare commodity references
 - `vedalang-p0w` — reworked the RES viewer inspector `Object explorer` into a
   nested authored-object tree, removed redundant type wording, hid `ok`
   section/query status text in the UI, and replaced raw object-explorer JSON

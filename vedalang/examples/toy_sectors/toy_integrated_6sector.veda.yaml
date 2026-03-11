@@ -1,211 +1,181 @@
-dsl_version: "0.2"
-
+dsl_version: "0.3"
 commodities:
-  - id: emission:co2
-    kind: emission
-
-  - id: primary:crude_oil
-    kind: primary
-
-  - id: primary:natural_gas
-    kind: primary
-
-  - id: primary:petrol
-    kind: primary
-
-  - id: secondary:electricity
-    kind: secondary
-
-  - id: secondary:hydrogen
-    kind: secondary
-
-  - id: service:electricity_supply
-    kind: service
-
-  - id: service:farm_work
-    kind: service
-
-  - id: service:gas_supply
-    kind: service
-
-  - id: service:hydrogen_supply
-    kind: service
-
-  - id: service:industrial_heat
-    kind: service
-
-  - id: service:oil_supply
-    kind: service
-
-  - id: service:passenger_km
-    kind: service
-
-  - id: service:space_heat
-    kind: service
-
+  - id: co2
+    type: emission
+  - id: crude_oil
+    type: energy
+    energy_form: primary
+  - id: natural_gas
+    type: energy
+    energy_form: primary
+  - id: petrol
+    type: energy
+    energy_form: primary
+  - id: electricity
+    type: energy
+    energy_form: secondary
+  - id: hydrogen
+    type: energy
+    energy_form: secondary
+  - id: electricity_supply
+    type: service
+  - id: farm_work
+    type: service
+  - id: gas_supply
+    type: service
+  - id: hydrogen_supply
+    type: service
+  - id: industrial_heat
+    type: service
+  - id: oil_supply
+    type: service
+  - id: passenger_km
+    type: service
+  - id: space_heat
+    type: service
 technologies:
   - id: electric_heater
     inputs:
-      - commodity: secondary:electricity
+      - commodity: electricity
     lifetime: 20 year
     performance:
       kind: cop
       value: 3.0
-    provides: service:space_heat
-
+    provides: space_heat
   - id: electric_tractor
     inputs:
-      - commodity: secondary:electricity
+      - commodity: electricity
     lifetime: 20 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:farm_work
-
+    provides: farm_work
   - id: electricity_import
     outputs:
-      - commodity: secondary:electricity
+      - commodity: electricity
     lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:electricity_supply
-
+    provides: electricity_supply
   - id: ev_vehicle
     inputs:
-      - commodity: secondary:electricity
+      - commodity: electricity
     lifetime: 15 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:passenger_km
-
+    provides: passenger_km
   - id: gas_heater
     inputs:
-      - commodity: primary:natural_gas
+      - commodity: natural_gas
         basis: HHV
     emissions:
-      - commodity: emission:co2
+      - commodity: co2
         factor: 0.056 t/GJ
     lifetime: 20 year
     performance:
       kind: efficiency
       value: 0.9
-    provides: service:space_heat
-
+    provides: space_heat
   - id: gas_import
     outputs:
-      - commodity: primary:natural_gas
+      - commodity: natural_gas
     lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:gas_supply
-
+    provides: gas_supply
   - id: hydrogen_furnace
     inputs:
-      - commodity: secondary:hydrogen
+      - commodity: hydrogen
         basis: HHV
     lifetime: 30 year
     performance:
       kind: efficiency
       value: 0.85
-    provides: service:industrial_heat
-
+    provides: industrial_heat
   - id: hydrogen_import
     outputs:
-      - commodity: secondary:hydrogen
+      - commodity: hydrogen
     lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:hydrogen_supply
-
+    provides: hydrogen_supply
   - id: ice_vehicle
     inputs:
-      - commodity: primary:petrol
+      - commodity: petrol
         basis: HHV
     emissions:
-      - commodity: emission:co2
+      - commodity: co2
         factor: 0.067 t/GJ
     lifetime: 15 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:passenger_km
-
+    provides: passenger_km
   - id: industrial_boiler
     inputs:
-      - commodity: primary:natural_gas
+      - commodity: natural_gas
         basis: HHV
     emissions:
-      - commodity: emission:co2
+      - commodity: co2
         factor: 0.056 t/GJ
     lifetime: 30 year
     performance:
       kind: efficiency
       value: 0.9
-    provides: service:industrial_heat
-
+    provides: industrial_heat
   - id: oil_import
     outputs:
-      - commodity: primary:crude_oil
+      - commodity: crude_oil
     lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:oil_supply
-
+    provides: oil_supply
 technology_roles:
   - id: electricity_supply
-    primary_service: service:electricity_supply
+    primary_service: electricity_supply
     technologies:
       - electricity_import
-
   - id: farm_work_supply
-    primary_service: service:farm_work
+    primary_service: farm_work
     technologies:
       - electric_tractor
-
   - id: gas_supply
-    primary_service: service:gas_supply
+    primary_service: gas_supply
     technologies:
       - gas_import
-
   - id: hydrogen_supply
-    primary_service: service:hydrogen_supply
+    primary_service: hydrogen_supply
     technologies:
       - hydrogen_import
-
   - id: industrial_heat_supply
-    primary_service: service:industrial_heat
+    primary_service: industrial_heat
     technologies:
       - industrial_boiler
       - hydrogen_furnace
-
   - id: oil_supply
-    primary_service: service:oil_supply
+    primary_service: oil_supply
     technologies:
       - oil_import
-
   - id: passenger_mobility
-    primary_service: service:passenger_km
+    primary_service: passenger_km
     technologies:
       - ice_vehicle
       - ev_vehicle
-
   - id: space_heat_supply
-    primary_service: service:space_heat
+    primary_service: space_heat
     technologies:
       - gas_heater
       - electric_heater
-
 spatial_layers:
   - id: geo.demo
     geometry_file: data/regions.geojson
     key: region_id
     kind: polygon
-
 region_partitions:
   - id: integrated_region
     layer: geo.demo
@@ -214,7 +184,6 @@ region_partitions:
       value: SINGLE
     members:
       - SINGLE
-
 sites:
   - id: integrated_hub
     location:
@@ -224,7 +193,6 @@ sites:
     membership_overrides:
       region_partitions:
         integrated_region: SINGLE
-
 facilities:
   - id: agriculture_sector
     site: integrated_hub
@@ -236,7 +204,6 @@ facilities:
             year: 2025
           technology: electric_tractor
     technology_role: farm_work_supply
-
   - id: buildings_sector
     available_technologies:
       - gas_heater
@@ -250,7 +217,6 @@ facilities:
             year: 2025
           technology: gas_heater
     technology_role: space_heat_supply
-
   - id: electricity_supply_facility
     site: integrated_hub
     stock:
@@ -261,7 +227,6 @@ facilities:
             year: 2025
           technology: electricity_import
     technology_role: electricity_supply
-
   - id: gas_supply_facility
     site: integrated_hub
     stock:
@@ -272,7 +237,6 @@ facilities:
             year: 2025
           technology: gas_import
     technology_role: gas_supply
-
   - id: hydrogen_supply_facility
     site: integrated_hub
     stock:
@@ -283,7 +247,6 @@ facilities:
             year: 2025
           technology: hydrogen_import
     technology_role: hydrogen_supply
-
   - id: industry_sector
     available_technologies:
       - industrial_boiler
@@ -297,7 +260,6 @@ facilities:
             year: 2025
           technology: industrial_boiler
     technology_role: industrial_heat_supply
-
   - id: oil_supply_facility
     site: integrated_hub
     stock:
@@ -308,7 +270,6 @@ facilities:
             year: 2025
           technology: oil_import
     technology_role: oil_supply
-
   - id: transport_sector
     available_technologies:
       - ice_vehicle
@@ -322,7 +283,6 @@ facilities:
             year: 2025
           technology: ice_vehicle
     technology_role: passenger_mobility
-
 runs:
   - id: integrated_2025
     base_year: 2025

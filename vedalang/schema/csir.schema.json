@@ -13,6 +13,7 @@
     "currency_year",
     "region_partition",
     "model_regions",
+    "commodities",
     "technology_roles",
     "sites",
     "technology_role_instances",
@@ -22,12 +23,26 @@
   "properties": {
     "artifact_kind": {"const": "csir"},
     "artifact_version": {"type": "string"},
-    "dsl_version": {"const": "0.2"},
+    "dsl_version": {"const": "0.3"},
     "run_id": {"type": "string"},
     "base_year": {"type": "integer"},
     "currency_year": {"type": "integer"},
     "region_partition": {"type": "string"},
     "model_regions": {"type": "array", "items": {"type": "string"}},
+    "commodities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "canonical_id", "type"],
+        "properties": {
+          "id": {"type": "string"},
+          "canonical_id": {"type": "string"},
+          "type": {"type": "string"},
+          "energy_form": {"type": ["string", "null"]}
+        }
+      }
+    },
     "technology_roles": {
       "type": "array",
       "items": {

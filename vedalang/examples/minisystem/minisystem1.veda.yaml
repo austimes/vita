@@ -1,52 +1,44 @@
-dsl_version: "0.2"
-
+dsl_version: "0.3"
 commodities:
-  - id: secondary:electricity
-    kind: secondary
-
-  - id: service:electricity_supply
-    kind: service
-
-  - id: service:residential_electricity
-    kind: service
-
+  - id: electricity
+    type: energy
+    energy_form: secondary
+  - id: electricity_supply
+    type: service
+  - id: residential_electricity
+    type: service
 technologies:
   - id: grid_supply
     outputs:
-      - commodity: secondary:electricity
+      - commodity: electricity
     lifetime: 40 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:electricity_supply
+    provides: electricity_supply
     variable_om: 10 AUD2024/MWh
-
   - id: residential_device
     inputs:
-      - commodity: secondary:electricity
+      - commodity: electricity
     lifetime: 40 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:residential_electricity
-
+    provides: residential_electricity
 technology_roles:
   - id: electricity_supply
-    primary_service: service:electricity_supply
+    primary_service: electricity_supply
     technologies:
       - grid_supply
-
   - id: residential_service
-    primary_service: service:residential_electricity
+    primary_service: residential_electricity
     technologies:
       - residential_device
-
 spatial_layers:
   - id: geo.demo
     geometry_file: data/regions.geojson
     key: region_id
     kind: polygon
-
 region_partitions:
   - id: single_region
     layer: geo.demo
@@ -55,7 +47,6 @@ region_partitions:
       value: SINGLE
     members:
       - SINGLE
-
 sites:
   - id: single_hub
     location:
@@ -65,7 +56,6 @@ sites:
     membership_overrides:
       region_partitions:
         single_region: SINGLE
-
 facilities:
   - id: grid_supply_facility
     site: single_hub
@@ -77,7 +67,6 @@ facilities:
             year: 2020
           technology: grid_supply
     technology_role: electricity_supply
-
   - id: residential_service_facility
     site: single_hub
     stock:
@@ -88,7 +77,6 @@ facilities:
             year: 2020
           technology: residential_device
     technology_role: residential_service
-
 runs:
   - id: single_2020
     base_year: 2020

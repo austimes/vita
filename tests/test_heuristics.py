@@ -1,4 +1,4 @@
-"""Tests for the v0.2 heuristics linter."""
+"""Tests for the v0.3 heuristics linter."""
 
 from vedalang.heuristics.linter import (
     H001_ServiceAssetWithoutStock,
@@ -11,16 +11,16 @@ from vedalang.heuristics.linter import (
 
 def make_source(**overrides) -> dict:
     source = {
-        "dsl_version": "0.2",
+        "dsl_version": "0.3",
         "commodities": [
-            {"id": "secondary:electricity", "kind": "secondary"},
-            {"id": "service:space_heat", "kind": "service"},
+            {"id": "electricity", "type": "energy", "energy_form": "secondary"},
+            {"id": "space_heat", "type": "service"},
         ],
         "technologies": [
             {
                 "id": "heat_pump",
-                "provides": "service:space_heat",
-                "inputs": [{"commodity": "secondary:electricity"}],
+                "provides": "space_heat",
+                "inputs": [{"commodity": "electricity"}],
                 "performance": {"kind": "cop", "value": 3.0},
                 "lifetime": "18 year",
             }
@@ -28,7 +28,7 @@ def make_source(**overrides) -> dict:
         "technology_roles": [
             {
                 "id": "space_heat_supply",
-                "primary_service": "service:space_heat",
+                "primary_service": "space_heat",
                 "technologies": ["heat_pump"],
             }
         ],

@@ -1,96 +1,81 @@
-dsl_version: "0.2"
-
+dsl_version: "0.3"
 commodities:
-  - id: emission:co2
-    kind: emission
-
-  - id: material:solar_irradiance
-    kind: material
-
-  - id: material:wind_resource
-    kind: material
-
-  - id: primary:natural_gas
-    kind: primary
-
-  - id: secondary:electricity
-    kind: secondary
-
-  - id: service:electricity_generation
-    kind: service
-
-  - id: service:electricity_service
-    kind: service
-
-  - id: service:gas_supply
-    kind: service
-
+  - id: co2
+    type: emission
+  - id: solar_irradiance
+    type: material
+  - id: wind_resource
+    type: material
+  - id: natural_gas
+    type: energy
+    energy_form: primary
+  - id: electricity
+    type: energy
+    energy_form: secondary
+  - id: electricity_generation
+    type: service
+  - id: electricity_service
+    type: service
+  - id: gas_supply
+    type: service
 technologies:
   - id: ccgt
     inputs:
-      - commodity: primary:natural_gas
+      - commodity: natural_gas
         basis: HHV
     outputs:
-      - commodity: secondary:electricity
+      - commodity: electricity
     emissions:
-      - commodity: emission:co2
+      - commodity: co2
         factor: 0.05 t/GJ
     lifetime: 40 year
     performance:
       kind: efficiency
       value: 0.55
-    provides: service:electricity_generation
-
+    provides: electricity_generation
   - id: direct_electric
     inputs:
-      - commodity: secondary:electricity
+      - commodity: electricity
     lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:electricity_service
-
+    provides: electricity_service
   - id: gas_import
     outputs:
-      - commodity: primary:natural_gas
+      - commodity: natural_gas
     lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:gas_supply
-
+    provides: gas_supply
   - id: solar_pv
     outputs:
-      - commodity: secondary:electricity
+      - commodity: electricity
     lifetime: 25 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:electricity_generation
-
+    provides: electricity_generation
 technology_roles:
   - id: electricity_generation
-    primary_service: service:electricity_generation
+    primary_service: electricity_generation
     technologies:
       - ccgt
       - solar_pv
-
   - id: electricity_service
-    primary_service: service:electricity_service
+    primary_service: electricity_service
     technologies:
       - direct_electric
-
   - id: gas_supply
-    primary_service: service:gas_supply
+    primary_service: gas_supply
     technologies:
       - gas_import
-
 spatial_layers:
   - id: geo.demo
     geometry_file: data/regions.geojson
     key: region_id
     kind: polygon
-
 region_partitions:
   - id: electricity_2node
     layer: geo.demo
@@ -100,7 +85,6 @@ region_partitions:
     members:
       - D
       - N
-
 sites:
   - id: day_hub
     location:
@@ -110,7 +94,6 @@ sites:
     membership_overrides:
       region_partitions:
         electricity_2node: D
-
   - id: night_hub
     location:
       point:
@@ -119,7 +102,6 @@ sites:
     membership_overrides:
       region_partitions:
         electricity_2node: N
-
 facilities:
   - id: day_generation
     available_technologies:
@@ -134,7 +116,6 @@ facilities:
             year: 2025
           technology: ccgt
     technology_role: electricity_generation
-
   - id: day_service
     site: day_hub
     stock:
@@ -145,7 +126,6 @@ facilities:
             year: 2025
           technology: direct_electric
     technology_role: electricity_service
-
   - id: day_supply
     site: day_hub
     stock:
@@ -156,7 +136,6 @@ facilities:
             year: 2025
           technology: gas_import
     technology_role: gas_supply
-
   - id: night_generation
     available_technologies:
       - ccgt
@@ -170,7 +149,6 @@ facilities:
             year: 2025
           technology: solar_pv
     technology_role: electricity_generation
-
   - id: night_service
     site: night_hub
     stock:
@@ -181,7 +159,6 @@ facilities:
             year: 2025
           technology: direct_electric
     technology_role: electricity_service
-
   - id: night_supply
     site: night_hub
     stock:
@@ -192,20 +169,18 @@ facilities:
             year: 2025
           technology: gas_import
     technology_role: gas_supply
-
 networks:
   - id: day_night_link
     kind: transmission
     links:
       - id: day_to_night_power
-        commodity: secondary:electricity
+        commodity: electricity
         existing_transfer_capacity: 50 MW
         from: D
         to: N
     node_basis:
       kind: region_partition
       ref: electricity_2node
-
 runs:
   - id: electricity_2node_2025
     base_year: 2025

@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from vedalang.conventions import canonicalize_commodity_id
 from vedalang.versioning import DSL_VERSION
 
 from .v0_2_resolution import (
@@ -319,6 +320,22 @@ def emit_csir(
         "currency_year": run.currency_year,
         "region_partition": run.region_partition,
         "model_regions": list(run.model_regions),
+        "commodities": [
+            {
+                "id": commodity.id,
+                "canonical_id": canonicalize_commodity_id(
+                    commodity.id,
+                    type_=commodity.type,
+                    energy_form=commodity.energy_form,
+                ),
+                "type": commodity.type,
+                "energy_form": commodity.energy_form,
+            }
+            for commodity in sorted(
+                graph.commodities.values(),
+                key=lambda item: item.id,
+            )
+        ],
         "technology_roles": [
             {
                 "id": role.id,

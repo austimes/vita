@@ -17,7 +17,7 @@
   "properties": {
     "artifact_kind": {"const": "cpir"},
     "artifact_version": {"type": "string"},
-    "dsl_version": {"const": "0.2"},
+    "dsl_version": {"const": "0.3"},
     "run_id": {"type": "string"},
     "model_regions": {"type": "array", "items": {"type": "string"}},
     "processes": {

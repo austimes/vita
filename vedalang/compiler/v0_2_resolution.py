@@ -241,7 +241,8 @@ def _qualify_imported_object(
     if kind == "commodities":
         return CommodityDecl(
             id=_qualify_id(alias, item.id),
-            kind=item.kind,
+            type=item.type,
+            energy_form=item.energy_form,
             description=item.description,
             source_ref=item.source_ref,
         )

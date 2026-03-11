@@ -15,8 +15,8 @@ def _legacy_facility_source() -> dict:
             "regions": ["AUS"],
             "milestone_years": [2025, 2030],
             "commodities": [
-                {"id": "primary:natural_gas", "type": "fuel", "combustible": True},
-                {"id": "service:space_heat", "type": "service", "unit": "PJ"},
+                {"id": "natural_gas", "type": "fuel", "combustible": True},
+                {"id": "space_heat", "type": "service", "unit": "PJ"},
             ],
             "constraints": [],
         },
@@ -26,8 +26,8 @@ def _legacy_facility_source() -> dict:
                 "activity_unit": "PJ",
                 "capacity_unit": "GW",
                 "stage": "end_use",
-                "required_inputs": [{"commodity": "primary:natural_gas"}],
-                "required_outputs": [{"commodity": "service:space_heat"}],
+                "required_inputs": [{"commodity": "natural_gas"}],
+                "required_outputs": [{"commodity": "space_heat"}],
             }
         ],
         "facility_templates": [
@@ -36,7 +36,7 @@ def _legacy_facility_source() -> dict:
                 "class": "generic",
                 "role": "provide_space_heat",
                 "sector": "RES",
-                "primary_output_commodity": "service:space_heat",
+                "primary_output_commodity": "space_heat",
                 "variants": [
                     {
                         "id": "gas_boiler",
@@ -45,7 +45,7 @@ def _legacy_facility_source() -> dict:
                         "modes": [
                             {
                                 "id": "ng",
-                                "fuel_in": "primary:natural_gas",
+                                "fuel_in": "natural_gas",
                                 "capex": 0,
                                 "existing": True,
                             }

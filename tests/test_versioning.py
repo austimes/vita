@@ -16,8 +16,8 @@ def test_source_shape_helper_detects_only_v0_2_sources() -> None:
         "roles": [],
     }
     v0_2 = {
-        "dsl_version": "0.2",
-        "commodities": [{"id": "service:heat", "kind": "service"}],
+        "dsl_version": "0.3",
+        "commodities": [{"id": "heat", "type": "service"}],
     }
 
     assert not looks_like_v0_2_source(legacy)
@@ -40,7 +40,7 @@ def test_load_vedalang_only_injects_dsl_version_for_v0_2_files(tmp_path: Path) -
     v0_2 = load_vedalang(v0_2_path)
 
     assert "dsl_version" not in legacy
-    assert v0_2["dsl_version"] == "0.2"
+    assert v0_2["dsl_version"] == "0.3"
 
 
 def test_validate_vedalang_rejects_legacy_sources_by_default() -> None:
@@ -50,7 +50,7 @@ def test_validate_vedalang_rejects_legacy_sources_by_default() -> None:
             "regions": ["R1"],
             "commodities": [
                 {
-                    "id": "secondary:electricity",
+                    "id": "electricity",
                     "type": "energy",
                     "unit": "PJ",
                 }

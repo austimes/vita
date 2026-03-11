@@ -14,23 +14,23 @@ from vedalang.conventions import (
 from vedalang.lint.llm_assessment import assemble_prompt
 
 MINIMAL_SOURCE = {
-    "dsl_version": "0.2",
+    "dsl_version": "0.3",
     "commodities": [
-        {"id": "secondary:electricity", "kind": "secondary"},
-        {"id": "service:space_heat", "kind": "service"},
+        {"id": "electricity", "type": "energy", "energy_form": "secondary"},
+        {"id": "space_heat", "type": "service"},
     ],
     "technologies": [
         {
             "id": "heat_pump",
-            "provides": "service:space_heat",
-            "inputs": [{"commodity": "secondary:electricity"}],
-            "outputs": [{"commodity": "service:space_heat"}],
+            "provides": "space_heat",
+            "inputs": [{"commodity": "electricity"}],
+            "outputs": [{"commodity": "space_heat"}],
         }
     ],
     "technology_roles": [
         {
             "id": "space_heat_supply",
-            "primary_service": "service:space_heat",
+            "primary_service": "space_heat",
             "technologies": ["heat_pump"],
         }
     ],
@@ -65,12 +65,16 @@ def test_namespace_type_mapping_covers_all_schema_namespaces():
     mapping = commodity_namespace_type_map()
     assert set(mapping.keys()) == set(commodity_namespace_enum())
 
-    assert mapping["primary"] == frozenset({"fuel"})
+    assert mapping["primary"] == frozenset({"energy"})
     assert mapping["secondary"] == frozenset({"energy"})
     assert mapping["service"] == frozenset({"service"})
     assert mapping["emission"] == frozenset({"emission"})
 
 
 def test_reverse_namespace_lookup_for_type():
-    assert namespaces_for_commodity_type("energy") == ("resource", "secondary")
+    assert namespaces_for_commodity_type("energy") == (
+        "primary",
+        "secondary",
+        "resource",
+    )
     assert namespaces_for_commodity_type("service") == ("service",)

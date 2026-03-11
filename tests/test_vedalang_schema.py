@@ -16,7 +16,7 @@ def load_schema() -> dict:
 
 def valid_v0_2_source() -> dict:
     return {
-        "dsl_version": "0.2",
+        "dsl_version": "0.3",
         "imports": [
             {
                 "package": "vedalang.std.heat@1",
@@ -29,25 +29,25 @@ def valid_v0_2_source() -> dict:
             }
         ],
         "commodities": [
-            {"id": "primary:natural_gas", "kind": "primary"},
-            {"id": "secondary:electricity", "kind": "secondary"},
-            {"id": "service:space_heat", "kind": "service"},
-            {"id": "emission:co2", "kind": "emission"},
+            {"id": "natural_gas", "type": "energy", "energy_form": "primary"},
+            {"id": "electricity", "type": "energy", "energy_form": "secondary"},
+            {"id": "space_heat", "type": "service"},
+            {"id": "co2", "type": "emission"},
         ],
         "technologies": [
             {
                 "id": "heat.gas_heater",
-                "provides": "service:space_heat",
+                "provides": "space_heat",
                 "inputs": [
                     {
-                        "commodity": "primary:natural_gas",
+                        "commodity": "natural_gas",
                         "basis": "HHV",
                     }
                 ],
                 "performance": {"kind": "efficiency", "value": 0.9},
                 "emissions": [
                     {
-                        "commodity": "emission:co2",
+                        "commodity": "co2",
                         "factor": "0.056 t/GJ",
                     }
                 ],
@@ -56,8 +56,8 @@ def valid_v0_2_source() -> dict:
             },
             {
                 "id": "heat.heat_pump",
-                "provides": "service:space_heat",
-                "inputs": [{"commodity": "secondary:electricity"}],
+                "provides": "space_heat",
+                "inputs": [{"commodity": "electricity"}],
                 "performance": {"kind": "cop", "value": 3.2},
                 "investment_cost": "400 AUD2024/kW",
                 "lifetime": "15 year",
@@ -66,7 +66,7 @@ def valid_v0_2_source() -> dict:
         "technology_roles": [
             {
                 "id": "heat.residential_space_heat_supply",
-                "primary_service": "service:space_heat",
+                "primary_service": "space_heat",
                 "technologies": ["heat.gas_heater", "heat.heat_pump"],
                 "transitions": [
                     {
@@ -227,7 +227,7 @@ def valid_v0_2_source() -> dict:
                         "id": "qld_nsw",
                         "from": "QLD",
                         "to": "NSW",
-                        "commodity": "secondary:electricity",
+                        "commodity": "electricity",
                         "existing_transfer_capacity": "1200 MW",
                     }
                 ],
@@ -250,7 +250,7 @@ def test_v0_2_source_validates() -> None:
 
 def test_missing_all_object_families_rejected() -> None:
     with pytest.raises(jsonschema.ValidationError):
-        jsonschema.validate({"dsl_version": "0.2"}, load_schema())
+        jsonschema.validate({"dsl_version": "0.3"}, load_schema())
 
 
 def test_invalid_commodity_kind_rejected() -> None:
@@ -337,7 +337,7 @@ def test_asset_new_build_limits_require_technology_and_capacity() -> None:
 
 def test_minimal_reference_package_validates() -> None:
     data = {
-        "dsl_version": "0.2",
+        "dsl_version": "0.3",
         "spatial_layers": deepcopy(valid_v0_2_source()["spatial_layers"]),
         "region_partitions": deepcopy(valid_v0_2_source()["region_partitions"]),
     }

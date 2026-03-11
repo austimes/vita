@@ -929,8 +929,10 @@ def format_commodity_hover(sym: SymbolDef) -> str:
     if desc := c.get("description"):
         lines.append(desc)
         lines.append("")
-    if kind := c.get("kind"):
-        lines.append(f"- **Kind**: `{kind}`")
+    if commodity_type := c.get("type"):
+        lines.append(f"- **Type**: `{commodity_type}`")
+    if energy_form := c.get("energy_form"):
+        lines.append(f"- **Energy Form**: `{energy_form}`")
     if u := c.get("unit"):
         lines.append(f"- **Unit**: `{u}`")
     return "\n".join(lines)
@@ -1085,12 +1087,16 @@ def completions(params: types.CompletionParams) -> types.CompletionList:
         commodities = (symtab.get("commodity") or {}).values()
         for c in commodities:
             desc = (c.data or {}).get("description", "")
-            ctype = (c.data or {}).get("kind", "")
+            ctype = (c.data or {}).get("type", "")
+            energy_form = (c.data or {}).get("energy_form", "")
+            detail = f"Commodity ({ctype})" if ctype else "Commodity"
+            if energy_form:
+                detail = f"{detail} [{energy_form}]"
             items.append(
                 types.CompletionItem(
                     label=c.name,
                     kind=types.CompletionItemKind.Variable,
-                    detail=f"Commodity ({ctype})" if ctype else "Commodity",
+                    detail=detail,
                     documentation=desc,
                 )
             )

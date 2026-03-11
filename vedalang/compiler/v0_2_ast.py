@@ -24,7 +24,8 @@ class ImportDecl:
 @dataclass(frozen=True)
 class CommodityDecl:
     id: str
-    kind: str
+    type: str
+    energy_form: str | None
     description: str | None
     source_ref: SourceRef
 
@@ -489,7 +490,12 @@ def parse_v0_2_source(source: dict[str, Any]) -> V0_2Source:
         commodities=tuple(
             CommodityDecl(
                 id=str(item["id"]),
-                kind=str(item["kind"]),
+                type=str(item["type"]),
+                energy_form=(
+                    str(item["energy_form"])
+                    if item.get("energy_form") is not None
+                    else None
+                ),
                 description=(
                     str(item["description"]) if item.get("description") else None
                 ),

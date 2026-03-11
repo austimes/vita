@@ -1,4 +1,4 @@
-"""Tests for the v0.2-only VedaLang Language Server."""
+"""Tests for the v0.3-only VedaLang Language Server."""
 
 from lsprotocol import types
 
@@ -33,27 +33,28 @@ class MockTextDocument:
             self.lines[-1] = self.lines[-1] if self.lines else ""
 
 
-SAMPLE_MODEL = """dsl_version: "0.2"
+SAMPLE_MODEL = """dsl_version: "0.3"
 commodities:
-  - id: secondary:electricity
-    kind: secondary
+  - id: electricity
+    type: energy
+    energy_form: secondary
     description: Electricity
-  - id: service:space_heat
-    kind: service
+  - id: space_heat
+    type: service
     description: Useful heat
 technologies:
   - id: heat_pump
     description: Electric heat pump
-    provides: service:space_heat
+    provides: space_heat
     inputs:
-      - commodity: secondary:electricity
+      - commodity: electricity
     performance:
       kind: cop
       value: 3.2
     lifetime: 18 year
 technology_roles:
   - id: space_heat_supply
-    primary_service: service:space_heat
+    primary_service: space_heat
     technologies: [heat_pump]
 sites:
   - id: reg1_home
@@ -125,21 +126,23 @@ class TestHoverFormatting:
     def test_format_commodity_hover(self):
         sym = SymbolDef(
             kind="commodity",
-            name="secondary:electricity",
+            name="electricity",
             uri="file:///test.yaml",
             range=types.Range(
                 start=types.Position(line=0, character=0),
                 end=types.Position(line=0, character=21),
             ),
             data={
-                "id": "secondary:electricity",
-                "kind": "secondary",
+                "id": "electricity",
+                "type": "energy",
+                "energy_form": "secondary",
                 "unit": "PJ",
                 "description": "Electricity",
             },
         )
         content = format_commodity_hover(sym)
-        assert "secondary:electricity" in content
+        assert "electricity" in content
+        assert "energy" in content
         assert "secondary" in content
         assert "PJ" in content
         assert "Electricity" in content
@@ -156,8 +159,8 @@ class TestHoverFormatting:
             data={
                 "id": "heat_pump",
                 "description": "Electric heat pump",
-                "provides": "service:space_heat",
-                "inputs": [{"commodity": "secondary:electricity"}],
+                "provides": "space_heat",
+                "inputs": [{"commodity": "electricity"}],
                 "performance": {"kind": "cop", "value": 3.2},
                 "lifetime": "18 year",
             },
@@ -165,7 +168,7 @@ class TestHoverFormatting:
         content = format_process_hover(sym)
         assert "Technology `heat_pump`" in content
         assert "Electric heat pump" in content
-        assert "service:space_heat" in content
+        assert "space_heat" in content
 
 
 class TestWordExtraction:
@@ -201,7 +204,7 @@ class TestIndexingAndDiagnostics:
         assert parsed is not None
 
         symtab = server.symbols[doc.uri]
-        assert "secondary:electricity" in symtab["commodity"]
+        assert "electricity" in symtab["commodity"]
         assert "heat_pump" in symtab["technology"]
         assert "space_heat_supply" in symtab["technology_role"]
         assert "reg1_home" in symtab["site"]
@@ -209,7 +212,7 @@ class TestIndexingAndDiagnostics:
 
         refs = server.references[doc.uri]
         assert any(
-            ref.kind == "commodity" and ref.name == "secondary:electricity"
+            ref.kind == "commodity" and ref.name == "electricity"
             for ref in refs
         )
         assert any(ref.kind == "technology" and ref.name == "heat_pump" for ref in refs)
@@ -239,16 +242,17 @@ class TestIndexingAndDiagnostics:
 
     def test_validate_document_surfaces_v0_2_semantic_errors(self):
         invalid = MockTextDocument(
-            """dsl_version: "0.2"
+            """dsl_version: "0.3"
 commodities:
-  - id: secondary:electricity
-    kind: secondary
+  - id: electricity
+    type: energy
+    energy_form: secondary
 technologies:
   - id: bad_tech
-    provides: secondary:electricity
+    provides: electricity
 technology_roles:
   - id: bad_role
-    primary_service: secondary:electricity
+    primary_service: electricity
     technologies: [bad_tech]
 runs:
   - id: reg1

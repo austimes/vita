@@ -9,19 +9,19 @@ def _v0_2_backend_source(
     include_emissions: bool = True,
 ) -> dict:
     source = {
-        "dsl_version": "0.2",
+        "dsl_version": "0.3",
         "commodities": [
-            {"id": "primary:natural_gas", "kind": "primary"},
-            {"id": "secondary:electricity", "kind": "secondary"},
-            {"id": "service:space_heat", "kind": "service"},
+            {"id": "natural_gas", "type": "energy", "energy_form": "primary"},
+            {"id": "electricity", "type": "energy", "energy_form": "secondary"},
+            {"id": "space_heat", "type": "service"},
         ],
         "technologies": [
             {
                 "id": "gas_heater",
-                "provides": "service:space_heat",
+                "provides": "space_heat",
                 "inputs": [
                     {
-                        "commodity": "primary:natural_gas",
+                        "commodity": "natural_gas",
                         "basis": "HHV",
                     }
                 ],
@@ -34,8 +34,8 @@ def _v0_2_backend_source(
             },
             {
                 "id": "heat_pump",
-                "provides": "service:space_heat",
-                "inputs": [{"commodity": "secondary:electricity"}],
+                "provides": "space_heat",
+                "inputs": [{"commodity": "electricity"}],
                 "performance": {"kind": "cop", "value": 3.2},
                 "investment_cost": "400 AUD2024/kW",
                 "fixed_om": "12 AUD2024/kW/year",
@@ -45,7 +45,7 @@ def _v0_2_backend_source(
         "technology_roles": [
             {
                 "id": "space_heat_supply",
-                "primary_service": "service:space_heat",
+                "primary_service": "space_heat",
                 "technologies": ["gas_heater", "heat_pump"],
                 "transitions": [
                     {
@@ -141,7 +141,7 @@ def _v0_2_backend_source(
                         "id": "qld_nsw_power",
                         "from": "QLD",
                         "to": "NSW",
-                        "commodity": "secondary:electricity",
+                        "commodity": "electricity",
                         "existing_transfer_capacity": "1200 MW",
                     }
                 ],
@@ -157,9 +157,9 @@ def _v0_2_backend_source(
         ],
     }
     if include_emissions:
-        source["commodities"].append({"id": "emission:co2", "kind": "emission"})
+        source["commodities"].append({"id": "co2", "type": "emission"})
         source["technologies"][0]["emissions"] = [
-            {"commodity": "emission:co2", "factor": "0.056 t/GJ"}
+            {"commodity": "co2", "factor": "0.056 t/GJ"}
         ]
     if include_fleet:
         source["fleets"] = [

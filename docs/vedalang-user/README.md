@@ -78,7 +78,7 @@ Command responsibilities:
 
 - `fmt`: formatting only (style/layout)
 - `lint`: semantic/modeling checks
-- `compile`: v0.2 run-scoped artifact, TableIR, and Excel emission
+- `compile`: v0.3 run-scoped artifact, TableIR, and Excel emission
 - `validate`: full pipeline validation through xl2times for the selected run
 
 ## Lint Taxonomy

@@ -1,191 +1,163 @@
-dsl_version: "0.2"
-
+dsl_version: "0.3"
 commodities:
-  - id: emission:co2
-    kind: emission
-
-  - id: primary:coal
-    kind: primary
-
-  - id: primary:gas
-    kind: primary
-
-  - id: secondary:electricity
-    kind: secondary
-
-  - id: secondary:hydrogen
-    kind: secondary
-
-  - id: service:coal_supply
-    kind: service
-
-  - id: service:commercial_demand
-    kind: service
-
-  - id: service:electricity_generation
-    kind: service
-
-  - id: service:gas_supply
-    kind: service
-
-  - id: service:hydrogen_supply
-    kind: service
-
-  - id: service:industrial_demand
-    kind: service
-
-  - id: service:residential_demand
-    kind: service
-
-  - id: service:transport_demand
-    kind: service
-
+  - id: co2
+    type: emission
+  - id: coal
+    type: energy
+    energy_form: primary
+  - id: gas
+    type: energy
+    energy_form: primary
+  - id: electricity
+    type: energy
+    energy_form: secondary
+  - id: hydrogen
+    type: energy
+    energy_form: secondary
+  - id: coal_supply
+    type: service
+  - id: commercial_demand
+    type: service
+  - id: electricity_generation
+    type: service
+  - id: gas_supply
+    type: service
+  - id: hydrogen_supply
+    type: service
+  - id: industrial_demand
+    type: service
+  - id: residential_demand
+    type: service
+  - id: transport_demand
+    type: service
 technologies:
   - id: ccgt
     inputs:
-      - commodity: primary:gas
+      - commodity: gas
         basis: HHV
     outputs:
-      - commodity: secondary:electricity
+      - commodity: electricity
     emissions:
-      - commodity: emission:co2
+      - commodity: co2
         factor: 0.05 t/GJ
     lifetime: 40 year
     performance:
       kind: efficiency
       value: 0.55
-    provides: service:electricity_generation
-
+    provides: electricity_generation
   - id: coal_import
     outputs:
-      - commodity: primary:coal
+      - commodity: coal
     lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:coal_supply
-
+    provides: coal_supply
   - id: coal_plant
     inputs:
-      - commodity: primary:coal
+      - commodity: coal
         basis: HHV
     outputs:
-      - commodity: secondary:electricity
+      - commodity: electricity
     emissions:
-      - commodity: emission:co2
+      - commodity: co2
         factor: 0.09 t/GJ
     lifetime: 40 year
     performance:
       kind: efficiency
       value: 0.38
-    provides: service:electricity_generation
-
+    provides: electricity_generation
   - id: commercial_device
     inputs:
-      - commodity: secondary:electricity
+      - commodity: electricity
     lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:commercial_demand
-
+    provides: commercial_demand
   - id: gas_import
     outputs:
-      - commodity: primary:gas
+      - commodity: gas
     lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:gas_supply
-
+    provides: gas_supply
   - id: industrial_device
     inputs:
-      - commodity: secondary:hydrogen
+      - commodity: hydrogen
         basis: HHV
     lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:industrial_demand
-
+    provides: industrial_demand
   - id: residential_device
     inputs:
-      - commodity: secondary:electricity
+      - commodity: electricity
     lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:residential_demand
-
+    provides: residential_demand
   - id: smr
     inputs:
-      - commodity: primary:gas
+      - commodity: gas
         basis: HHV
     outputs:
-      - commodity: secondary:hydrogen
+      - commodity: hydrogen
     lifetime: 30 year
     performance:
       kind: efficiency
       value: 0.7
-    provides: service:hydrogen_supply
-
+    provides: hydrogen_supply
   - id: transport_device
     inputs:
-      - commodity: secondary:electricity
+      - commodity: electricity
     lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:transport_demand
-
+    provides: transport_demand
 technology_roles:
   - id: coal_supply
-    primary_service: service:coal_supply
+    primary_service: coal_supply
     technologies:
       - coal_import
-
   - id: commercial_service
-    primary_service: service:commercial_demand
+    primary_service: commercial_demand
     technologies:
       - commercial_device
-
   - id: electricity_generation
-    primary_service: service:electricity_generation
+    primary_service: electricity_generation
     technologies:
       - coal_plant
       - ccgt
-
   - id: gas_supply
-    primary_service: service:gas_supply
+    primary_service: gas_supply
     technologies:
       - gas_import
-
   - id: hydrogen_supply
-    primary_service: service:hydrogen_supply
+    primary_service: hydrogen_supply
     technologies:
       - smr
-
   - id: industrial_service
-    primary_service: service:industrial_demand
+    primary_service: industrial_demand
     technologies:
       - industrial_device
-
   - id: residential_service
-    primary_service: service:residential_demand
+    primary_service: residential_demand
     technologies:
       - residential_device
-
   - id: transport_service
-    primary_service: service:transport_demand
+    primary_service: transport_demand
     technologies:
       - transport_device
-
 spatial_layers:
   - id: geo.demo
     geometry_file: data/regions.geojson
     key: region_id
     kind: polygon
-
 region_partitions:
   - id: australian_regions
     layer: geo.demo
@@ -196,7 +168,6 @@ region_partitions:
       - NEM_EAST
       - NEM_SOUTH
       - WA
-
 sites:
   - id: nem_east_hub
     location:
@@ -206,7 +177,6 @@ sites:
     membership_overrides:
       region_partitions:
         australian_regions: NEM_EAST
-
   - id: nem_south_hub
     location:
       point:
@@ -215,7 +185,6 @@ sites:
     membership_overrides:
       region_partitions:
         australian_regions: NEM_SOUTH
-
   - id: wa_hub
     location:
       point:
@@ -224,7 +193,6 @@ sites:
     membership_overrides:
       region_partitions:
         australian_regions: WA
-
 facilities:
   - id: commercial_sector
     site: nem_south_hub
@@ -236,7 +204,6 @@ facilities:
             year: 2025
           technology: commercial_device
     technology_role: commercial_service
-
   - id: industrial_sector
     site: nem_east_hub
     stock:
@@ -247,7 +214,6 @@ facilities:
             year: 2025
           technology: industrial_device
     technology_role: industrial_service
-
   - id: nem_east_generation
     available_technologies:
       - coal_plant
@@ -261,7 +227,6 @@ facilities:
             year: 2025
           technology: ccgt
     technology_role: electricity_generation
-
   - id: nem_east_hydrogen
     site: nem_east_hub
     stock:
@@ -272,7 +237,6 @@ facilities:
             year: 2025
           technology: smr
     technology_role: hydrogen_supply
-
   - id: nem_east_supply
     site: nem_east_hub
     stock:
@@ -283,7 +247,6 @@ facilities:
             year: 2025
           technology: gas_import
     technology_role: gas_supply
-
   - id: nem_south_generation
     available_technologies:
       - coal_plant
@@ -297,7 +260,6 @@ facilities:
             year: 2025
           technology: coal_plant
     technology_role: electricity_generation
-
   - id: nem_south_supply
     site: nem_south_hub
     stock:
@@ -308,7 +270,6 @@ facilities:
             year: 2025
           technology: coal_import
     technology_role: coal_supply
-
   - id: residential_sector
     site: nem_east_hub
     stock:
@@ -319,7 +280,6 @@ facilities:
             year: 2025
           technology: residential_device
     technology_role: residential_service
-
   - id: transport_sector
     site: wa_hub
     stock:
@@ -330,7 +290,6 @@ facilities:
             year: 2025
           technology: transport_device
     technology_role: transport_service
-
   - id: wa_generation
     available_technologies:
       - coal_plant
@@ -344,7 +303,6 @@ facilities:
             year: 2025
           technology: ccgt
     technology_role: electricity_generation
-
   - id: wa_supply
     site: wa_hub
     stock:
@@ -355,20 +313,18 @@ facilities:
             year: 2025
           technology: gas_import
     technology_role: gas_supply
-
 networks:
   - id: east_south_interconnector
     kind: transmission
     links:
       - id: east_to_south
-        commodity: secondary:electricity
+        commodity: electricity
         existing_transfer_capacity: 80 MW
         from: NEM_EAST
         to: NEM_SOUTH
     node_basis:
       kind: region_partition
       ref: australian_regions
-
 runs:
   - id: australia_2025
     base_year: 2025

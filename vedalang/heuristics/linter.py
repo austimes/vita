@@ -44,9 +44,9 @@ class HeuristicRule(ABC):
 
 def _commodity_kind_map(source: dict[str, Any]) -> dict[str, str]:
     return {
-        str(commodity.get("id")): str(commodity.get("kind"))
+        str(commodity.get("id")): str(commodity.get("type"))
         for commodity in source.get("commodities", []) or []
-        if commodity.get("id") and commodity.get("kind")
+        if commodity.get("id") and commodity.get("type")
     }
 
 

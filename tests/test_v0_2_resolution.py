@@ -15,7 +15,7 @@ from vedalang.compiler.v0_2_resolution import (
 def _packages_and_model():
     regions = parse_v0_2_source(
         {
-            "dsl_version": "0.2",
+            "dsl_version": "0.3",
             "spatial_layers": [
                 {
                     "id": "geo_regions.sa2_2021",
@@ -49,7 +49,7 @@ def _packages_and_model():
     )
     demo = parse_v0_2_source(
         {
-            "dsl_version": "0.2",
+            "dsl_version": "0.3",
             "spatial_layers": [
                 {
                     "id": "geo_demo.sa2_2021",
@@ -84,31 +84,31 @@ def _packages_and_model():
     )
     heat = parse_v0_2_source(
         {
-            "dsl_version": "0.2",
+            "dsl_version": "0.3",
             "commodities": [
-                {"id": "primary:natural_gas", "kind": "primary"},
-                {"id": "secondary:electricity", "kind": "secondary"},
-                {"id": "service:space_heat", "kind": "service"},
+                {"id": "natural_gas", "type": "energy", "energy_form": "primary"},
+                {"id": "electricity", "type": "energy", "energy_form": "secondary"},
+                {"id": "space_heat", "type": "service"},
             ],
             "technologies": [
                 {
                     "id": "gas_heater",
-                    "provides": "service:space_heat",
-                    "inputs": [{"commodity": "primary:natural_gas", "basis": "HHV"}],
+                    "provides": "space_heat",
+                    "inputs": [{"commodity": "natural_gas", "basis": "HHV"}],
                     "performance": {"kind": "efficiency", "value": 0.9},
                     "stock_characterization": "res_gas_heater_default",
                 },
                 {
                     "id": "heat_pump",
-                    "provides": "service:space_heat",
-                    "inputs": [{"commodity": "secondary:electricity"}],
+                    "provides": "space_heat",
+                    "inputs": [{"commodity": "electricity"}],
                     "performance": {"kind": "cop", "value": 3.2},
                 },
             ],
             "technology_roles": [
                 {
                     "id": "residential_space_heat_supply",
-                    "primary_service": "service:space_heat",
+                    "primary_service": "space_heat",
                     "technologies": ["gas_heater", "heat_pump"],
                     "transitions": [
                         {
@@ -142,7 +142,7 @@ def _packages_and_model():
     )
     model = parse_v0_2_source(
         {
-            "dsl_version": "0.2",
+            "dsl_version": "0.3",
             "imports": [
                 {
                     "package": "vedalang.au.regions@1",
@@ -243,7 +243,7 @@ def _packages_and_model():
                             "id": "qld_nsw",
                             "from": "QLD",
                             "to": "NSW",
-                            "commodity": "heat.secondary:electricity",
+                            "commodity": "heat.electricity",
                         }
                     ],
                 }
@@ -274,7 +274,7 @@ def test_resolve_imports_qualifies_aliases_and_dependency_closure():
     assert "heat.residential_space_heat_supply" in graph.technology_roles
     assert "heat.gas_heater" in graph.technologies
     assert "heat.heat_pump" in graph.technologies
-    assert "heat.service:space_heat" in graph.commodities
+    assert "heat.space_heat" in graph.commodities
     assert "heat.res_gas_heater_default" in graph.stock_characterizations
     assert "demo.abs_demography" in graph.spatial_measure_sets
     assert "demo.geo_demo.sa2_2021" in graph.spatial_layers
@@ -285,7 +285,7 @@ def test_resolve_imports_detects_missing_object_and_cycle():
     packages, model = _packages_and_model()
     broken = parse_v0_2_source(
         {
-            "dsl_version": "0.2",
+            "dsl_version": "0.3",
             "imports": [
                 {
                     "package": "vedalang.std.heat@1",
@@ -300,25 +300,25 @@ def test_resolve_imports_detects_missing_object_and_cycle():
 
     packages["cycle.a@1"] = parse_v0_2_source(
         {
-            "dsl_version": "0.2",
+            "dsl_version": "0.3",
             "imports": [
                 {"package": "cycle.b@1", "as": "b", "only": {"commodities": ["x"]}}
             ],
-            "commodities": [{"id": "x", "kind": "service"}],
+            "commodities": [{"id": "x", "type": "service"}],
         }
     )
     packages["cycle.b@1"] = parse_v0_2_source(
         {
-            "dsl_version": "0.2",
+            "dsl_version": "0.3",
             "imports": [
                 {"package": "cycle.a@1", "as": "a", "only": {"commodities": ["x"]}}
             ],
-            "commodities": [{"id": "x", "kind": "service"}],
+            "commodities": [{"id": "x", "type": "service"}],
         }
     )
     cyclical = parse_v0_2_source(
         {
-            "dsl_version": "0.2",
+            "dsl_version": "0.3",
             "imports": [
                 {"package": "cycle.a@1", "as": "a", "only": {"commodities": ["x"]}}
             ],
@@ -329,7 +329,7 @@ def test_resolve_imports_detects_missing_object_and_cycle():
 
     conflicting = parse_v0_2_source(
         {
-            "dsl_version": "0.2",
+            "dsl_version": "0.3",
             "imports": [
                 {
                     "package": "vedalang.std.heat@1",
@@ -347,7 +347,7 @@ def test_resolve_imports_detects_missing_object_and_cycle():
             "technology_roles": [
                 {
                     "id": "heat.residential_space_heat_supply",
-                    "primary_service": "service:space_heat",
+                    "primary_service": "space_heat",
                     "technologies": [],
                 }
             ],
@@ -423,7 +423,7 @@ def test_adjust_stock_requires_rule_when_year_differs():
     run = resolve_run(graph, "toy_states_2025")
     broken_fleet = parse_v0_2_source(
         {
-            "dsl_version": "0.2",
+            "dsl_version": "0.3",
             "imports": [
                 {
                     "package": "vedalang.std.heat@1",
@@ -464,7 +464,7 @@ def test_item_level_adjustment_overrides_stock_block_rule():
     run = resolve_run(graph, "toy_states_2025")
     facility = parse_v0_2_source(
         {
-            "dsl_version": "0.2",
+            "dsl_version": "0.3",
             "imports": [
                 {
                     "package": "vedalang.std.heat@1",
@@ -561,23 +561,23 @@ def test_allocate_fleet_requires_weights_and_stock_characterization():
 def test_allocate_direct_fleet_defaults_to_single_region_and_copies_stock():
     source = parse_v0_2_source(
         {
-            "dsl_version": "0.2",
+            "dsl_version": "0.3",
             "commodities": [
-                {"id": "secondary:electricity", "kind": "secondary"},
-                {"id": "service:space_heat", "kind": "service"},
+                {"id": "electricity", "type": "energy", "energy_form": "secondary"},
+                {"id": "space_heat", "type": "service"},
             ],
             "technologies": [
                 {
                     "id": "heat_pump",
-                    "provides": "service:space_heat",
-                    "inputs": [{"commodity": "secondary:electricity"}],
+                    "provides": "space_heat",
+                    "inputs": [{"commodity": "electricity"}],
                     "performance": {"kind": "cop", "value": 3.0},
                 }
             ],
             "technology_roles": [
                 {
                     "id": "space_heat_supply",
-                    "primary_service": "service:space_heat",
+                    "primary_service": "space_heat",
                     "technologies": ["heat_pump"],
                 }
             ],
@@ -641,7 +641,7 @@ def test_allocate_direct_fleet_requires_targets_for_multi_region_run():
     run = resolve_run(graph, "toy_states_2025")
     direct_fleet = parse_v0_2_source(
         {
-            "dsl_version": "0.2",
+            "dsl_version": "0.3",
             "imports": [
                 {
                     "package": "vedalang.std.heat@1",

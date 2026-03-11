@@ -1,51 +1,43 @@
-dsl_version: "0.2"
-
+dsl_version: "0.3"
 commodities:
-  - id: emission:co2
-    kind: emission
-
-  - id: material:co2_storage_integrity_token
-    kind: material
-
-  - id: primary:lng
-    kind: primary
-
-  - id: service:lng_exports
-    kind: service
-
-  - id: service:partner_power
-    kind: service
-
-  - id: service:storage_integrity
-    kind: service
-
+  - id: co2
+    type: emission
+  - id: co2_storage_integrity_token
+    type: material
+  - id: lng
+    type: energy
+    energy_form: primary
+  - id: lng_exports
+    type: service
+  - id: partner_power
+    type: service
+  - id: storage_integrity
+    type: service
 technologies:
   - id: au_lng_export_terminal
     outputs:
-      - commodity: primary:lng
+      - commodity: lng
     lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:lng_exports
+    provides: lng_exports
     variable_om: 8 AUD2024/MWh
-
   - id: au_storage_integrity_hub
     outputs:
-      - commodity: material:co2_storage_integrity_token
+      - commodity: co2_storage_integrity_token
     lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:storage_integrity
+    provides: storage_integrity
     variable_om: 3 AUD2024/MWh
-
   - id: partner_lng_power_no_ccs
     inputs:
-      - commodity: primary:lng
+      - commodity: lng
         basis: HHV
     emissions:
-      - commodity: emission:co2
+      - commodity: co2
         factor: 1 t/GJ
     fixed_om: 1 AUD2024/kW/year
     investment_cost: 25 AUD2024/kW
@@ -53,17 +45,15 @@ technologies:
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:partner_power
+    provides: partner_power
     variable_om: 15 AUD2024/MWh
-
   - id: partner_lng_power_with_ccs
     inputs:
-      - commodity: material:co2_storage_integrity_token
-
-      - commodity: primary:lng
+      - commodity: co2_storage_integrity_token
+      - commodity: lng
         basis: HHV
     emissions:
-      - commodity: emission:co2
+      - commodity: co2
         factor: 0.15 t/GJ
     fixed_om: 2 AUD2024/kW/year
     investment_cost: 40 AUD2024/kW
@@ -71,17 +61,15 @@ technologies:
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:partner_power
+    provides: partner_power
     variable_om: 22 AUD2024/MWh
-
 technology_roles:
   - id: lng_exports
-    primary_service: service:lng_exports
+    primary_service: lng_exports
     technologies:
       - au_lng_export_terminal
-
   - id: partner_power_supply
-    primary_service: service:partner_power
+    primary_service: partner_power
     technologies:
       - partner_lng_power_no_ccs
       - partner_lng_power_with_ccs
@@ -90,18 +78,15 @@ technology_roles:
         from: partner_lng_power_no_ccs
         kind: retrofit
         to: partner_lng_power_with_ccs
-
   - id: storage_integrity
-    primary_service: service:storage_integrity
+    primary_service: storage_integrity
     technologies:
       - au_storage_integrity_hub
-
 spatial_layers:
   - id: geo.demo
     geometry_file: data/regions.geojson
     key: region_id
     kind: polygon
-
 region_partitions:
   - id: article6_regions
     layer: geo.demo
@@ -111,7 +96,6 @@ region_partitions:
     members:
       - AU
       - PARTNER
-
 sites:
   - id: australia_terminal
     location:
@@ -121,7 +105,6 @@ sites:
     membership_overrides:
       region_partitions:
         article6_regions: AU
-
   - id: partner_power_hub
     location:
       point:
@@ -130,7 +113,6 @@ sites:
     membership_overrides:
       region_partitions:
         article6_regions: PARTNER
-
 facilities:
   - id: au_lng_exports
     site: australia_terminal
@@ -142,7 +124,6 @@ facilities:
             year: 2025
           technology: au_lng_export_terminal
     technology_role: lng_exports
-
   - id: au_storage_integrity
     site: australia_terminal
     stock:
@@ -153,7 +134,6 @@ facilities:
             year: 2025
           technology: au_storage_integrity_hub
     technology_role: storage_integrity
-
   - id: partner_power_supply
     available_technologies:
       - partner_lng_power_no_ccs
@@ -166,39 +146,35 @@ facilities:
             value: 150 MW
             year: 2025
           technology: partner_lng_power_no_ccs
-
         - metric: installed_capacity
           observed:
             value: 50 MW
             year: 2025
           technology: partner_lng_power_with_ccs
     technology_role: partner_power_supply
-
 networks:
   - id: integrity_trade
     kind: transmission
     links:
       - id: au_partner_integrity
-        commodity: material:co2_storage_integrity_token
+        commodity: co2_storage_integrity_token
         existing_transfer_capacity: 200 MW
         from: AU
         to: PARTNER
     node_basis:
       kind: region_partition
       ref: article6_regions
-
   - id: lng_trade
     kind: pipeline
     links:
       - id: au_partner_lng
-        commodity: primary:lng
+        commodity: lng
         existing_transfer_capacity: 400 MW
         from: AU
         to: PARTNER
     node_basis:
       kind: region_partition
       ref: article6_regions
-
 runs:
   - id: article6_2025
     base_year: 2025

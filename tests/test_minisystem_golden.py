@@ -1,4 +1,4 @@
-"""Golden checks for the v0.2 MiniSystem ladder."""
+"""Golden checks for the v0.3 MiniSystem ladder."""
 
 from pathlib import Path
 

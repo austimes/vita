@@ -52,10 +52,10 @@ def test_toy_buildings_graph_exposes_v0_2_roles_and_emissions(toy_buildings_grap
     assert role_ids == {"electricity_supply", "gas_supply", "space_heat_supply"}
 
     variants = {variant["id"]: variant for variant in toy_buildings_graph["variants"]}
-    assert variants["gas_heater"]["inputs"] == ["primary:natural_gas"]
-    assert variants["gas_heater"]["outputs"] == ["service:space_heat"]
-    assert "emission:co2" in variants["gas_heater"]["emission_factors"]
-    assert variants["heat_pump"]["inputs"] == ["secondary:electricity"]
+    assert variants["gas_heater"]["inputs"] == ["natural_gas"]
+    assert variants["gas_heater"]["outputs"] == ["space_heat"]
+    assert "co2" in variants["gas_heater"]["emission_factors"]
+    assert variants["heat_pump"]["inputs"] == ["electricity"]
 
     emission_edges = [
         edge for edge in toy_buildings_graph["edges"] if edge["direction"] == "emission"
@@ -78,7 +78,7 @@ def test_mermaid_output_contains_stage_and_commodity_nodes(toy_buildings_graph):
     mermaid = res_graph_to_mermaid(toy_buildings_graph)
     assert mermaid.startswith("flowchart LR")
     assert 'subgraph stage_supply["Supply"]' in mermaid
-    assert "C_service_space_heat" in mermaid
+    assert "C_space_heat" in mermaid
     assert "classDef role" in mermaid
 
 

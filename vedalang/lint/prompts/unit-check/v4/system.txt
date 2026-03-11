@@ -12,7 +12,7 @@ For findings that are not suggestion-only, include concrete remediation in
 'expected_commodity_units' (commodity->unit),
 'observed_units', and 'model_expectation'.
 Be explicit and actionable; do not be vague.
-Important: unit checks apply to v0.2 `technologies`.
+Important: unit checks apply to v0.3 `technologies`.
 Technology roles define the service contract, while deployed stock metrics and
 cost denominators appear through facilities, fleets, opportunities, and
 technology cost literals.

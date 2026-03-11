@@ -1,4 +1,4 @@
-"""Tests for v0.2 naming convention lint rules."""
+"""Tests for v0.3 naming convention lint rules."""
 
 from vedalang.identity.lint_rules import (
     N001_CommodityIDGrammar,
@@ -9,7 +9,7 @@ from vedalang.identity.lint_rules import (
 
 def make_source(**overrides) -> dict:
     source = {
-        "dsl_version": "0.2",
+        "dsl_version": "0.3",
         "commodities": [],
         "technologies": [],
         "technology_roles": [],
@@ -24,37 +24,41 @@ def make_source(**overrides) -> dict:
 class TestN001CommodityIDGrammar:
     def test_valid_commodity_passes(self):
         source = make_source(
-            commodities=[{"id": "secondary:electricity", "kind": "secondary"}]
+            commodities=[
+                {
+                    "id": "electricity",
+                    "type": "energy",
+                    "energy_form": "secondary",
+                }
+            ]
         )
         diagnostics = N001_CommodityIDGrammar().check(source)
         assert diagnostics == []
 
     def test_unsupported_prefix_triggers(self):
         source = make_source(
-            commodities=[{"id": "fuel:natural_gas", "kind": "primary"}]
+            commodities=[
+                {
+                    "id": "fuel:natural_gas",
+                    "type": "energy",
+                    "energy_form": "primary",
+                }
+            ]
         )
         diagnostics = N001_CommodityIDGrammar().check(source)
         assert len(diagnostics) == 1
         assert diagnostics[0].code == "N001"
-        assert "Unknown commodity namespace" in diagnostics[0].message
-
-    def test_namespace_kind_mismatch_triggers(self):
-        source = make_source(
-            commodities=[{"id": "service:space_heat", "kind": "secondary"}]
-        )
-        diagnostics = N001_CommodityIDGrammar().check(source)
-        assert len(diagnostics) == 1
-        assert diagnostics[0].code == "N001"
+        assert "lowered namespace prefix" in diagnostics[0].message
 
 
 class TestN011SnakeCasePreferred:
     def test_warns_on_dashed_top_level_ids(self):
         source = make_source(
-            technologies=[{"id": "heat-pump", "provides": "service:space_heat"}],
+            technologies=[{"id": "heat-pump", "provides": "space_heat"}],
             technology_roles=[
                 {
                     "id": "space-heat-supply",
-                    "primary_service": "service:space_heat",
+                    "primary_service": "space_heat",
                     "technologies": ["heat-pump"],
                 }
             ],
@@ -65,11 +69,11 @@ class TestN011SnakeCasePreferred:
 
     def test_ignores_snake_case_ids(self):
         source = make_source(
-            technologies=[{"id": "heat_pump", "provides": "service:space_heat"}],
+            technologies=[{"id": "heat_pump", "provides": "space_heat"}],
             technology_roles=[
                 {
                     "id": "space_heat_supply",
-                    "primary_service": "service:space_heat",
+                    "primary_service": "space_heat",
                     "technologies": ["heat_pump"],
                 }
             ],
@@ -82,7 +86,7 @@ class TestLintNamingConventions:
     def test_lints_v0_2_source(self):
         source = make_source(
             commodities=[{"id": "fuel:natural_gas", "kind": "primary"}],
-            technologies=[{"id": "heat-pump", "provides": "service:space_heat"}],
+            technologies=[{"id": "heat-pump", "provides": "space_heat"}],
         )
         diagnostics = lint_naming_conventions(source)
         assert len(diagnostics) == 2

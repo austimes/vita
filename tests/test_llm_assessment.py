@@ -23,23 +23,23 @@ from vedalang.lint.llm_assessment import (
 # ---------------------------------------------------------------------------
 
 MINIMAL_SOURCE = {
-    "dsl_version": "0.2",
+    "dsl_version": "0.3",
     "commodities": [
-        {"id": "primary:natural_gas", "kind": "primary"},
-        {"id": "secondary:electricity", "kind": "secondary"},
-        {"id": "service:space_heat", "kind": "service"},
+        {"id": "natural_gas", "type": "energy", "energy_form": "primary"},
+        {"id": "electricity", "type": "energy", "energy_form": "secondary"},
+        {"id": "space_heat", "type": "service"},
     ],
     "technologies": [
         {
             "id": "heat_pump",
-            "provides": "service:space_heat",
-            "inputs": [{"commodity": "secondary:electricity"}],
+            "provides": "space_heat",
+            "inputs": [{"commodity": "electricity"}],
         },
     ],
     "technology_roles": [
         {
             "id": "space_heat_supply",
-            "primary_service": "service:space_heat",
+            "primary_service": "space_heat",
             "technologies": ["heat_pump"],
         },
     ],

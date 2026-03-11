@@ -1,14 +1,14 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://veda-devtools/vedalang.schema.json",
-  "title": "VedaLang v0.2 Model",
-  "description": "Schema for the v0.2 public VedaLang authoring surface.",
+  "title": "VedaLang v0.3 Model",
+  "description": "Schema for the v0.3 public VedaLang authoring surface.",
   "type": "object",
   "additionalProperties": false,
   "properties": {
     "dsl_version": {
       "type": "string",
-      "const": "0.2",
+      "const": "0.3",
       "description": "Declared public DSL version for this source file."
     },
     "imports": {
@@ -195,6 +195,23 @@
       "type": "string",
       "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]*$"
     },
+    "commodity_identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.@/-]*$"
+    },
+    "commodity_namespace": {
+      "type": "string",
+      "enum": [
+        "primary",
+        "secondary",
+        "resource",
+        "service",
+        "material",
+        "emission",
+        "money",
+        "certificate"
+      ]
+    },
     "quantity": {
       "oneOf": [
         {
@@ -232,7 +249,12 @@
       "minProperties": 1,
       "properties": {
         "commodities": {
-          "$ref": "#/$defs/ref_array"
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/commodity_identifier"
+          },
+          "minItems": 1,
+          "uniqueItems": true
         },
         "technologies": {
           "$ref": "#/$defs/ref_array"
@@ -286,27 +308,58 @@
       "additionalProperties": false,
       "required": [
         "id",
-        "kind"
+        "type"
       ],
       "properties": {
         "id": {
-          "$ref": "#/$defs/identifier"
+          "$ref": "#/$defs/commodity_identifier"
         },
-        "kind": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "energy",
+            "service",
+            "material",
+            "emission",
+            "money",
+            "certificate"
+          ]
+        },
+        "energy_form": {
           "type": "string",
           "enum": [
             "primary",
             "secondary",
-            "service",
-            "emission",
-            "material",
-            "certificate"
+            "resource"
           ]
         },
         "description": {
           "$ref": "#/$defs/description_field"
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "energy"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "energy_form"
+            ]
+          },
+          "else": {
+            "not": {
+              "required": [
+                "energy_form"
+              ]
+            }
+          }
+        }
+      ]
     },
     "flow_spec": {
       "type": "object",
@@ -316,7 +369,7 @@
       ],
       "properties": {
         "commodity": {
-          "$ref": "#/$defs/identifier"
+          "$ref": "#/$defs/commodity_identifier"
         },
         "basis": {
           "type": "string",
@@ -360,7 +413,7 @@
       ],
       "properties": {
         "commodity": {
-          "$ref": "#/$defs/identifier"
+          "$ref": "#/$defs/commodity_identifier"
         },
         "factor": {
           "$ref": "#/$defs/quantity"
@@ -379,7 +432,7 @@
           "$ref": "#/$defs/identifier"
         },
         "provides": {
-          "$ref": "#/$defs/identifier"
+          "$ref": "#/$defs/commodity_identifier"
         },
         "inputs": {
           "type": "array",
@@ -465,7 +518,7 @@
           "$ref": "#/$defs/identifier"
         },
         "primary_service": {
-          "$ref": "#/$defs/identifier"
+          "$ref": "#/$defs/commodity_identifier"
         },
         "technologies": {
           "$ref": "#/$defs/ref_array"
@@ -1278,7 +1331,7 @@
           "minLength": 1
         },
         "commodity": {
-          "$ref": "#/$defs/identifier"
+          "$ref": "#/$defs/commodity_identifier"
         },
         "existing_transfer_capacity": {
           "$ref": "#/$defs/quantity"

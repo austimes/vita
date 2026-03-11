@@ -102,9 +102,11 @@ def _specs(repo_root: Path) -> list[BlockSpec]:
     schema = _load_schema(repo_root)
     stages = process_stage_enum()
     commodity_types = commodity_type_enum()
+    commodity_energy_forms = _schema_property_choices(
+        schema, "commodity", "energy_form"
+    )
     commodity_namespaces = commodity_namespace_enum()
     scenario_categories = scenario_category_enum()
-    commodity_kinds = _schema_property_choices(schema, "commodity", "kind")
     flow_bases = _schema_property_choices(schema, "flow_spec", "basis")
     performance_kinds = _schema_property_choices(schema, "performance_spec", "kind")
     spatial_layer_kinds = _schema_property_choices(schema, "spatial_layer", "kind")
@@ -125,7 +127,9 @@ def _specs(repo_root: Path) -> list[BlockSpec]:
     minimal_example_enums_md = (
         "### Enum-backed Fields In This Example\n\n"
         f"- `dsl_version`: `{format_enum_pipe(dsl_versions)}`\n"
-        f"- `commodities[*].kind`: `{format_enum_pipe(commodity_kinds)}`\n"
+        f"- `commodities[*].type`: `{format_enum_pipe(commodity_types)}`\n"
+        "- `commodities[*].energy_form`: "
+        f"`{format_enum_pipe(commodity_energy_forms)}`\n"
         f"- `technologies[*].inputs[*].basis`: `{format_enum_pipe(flow_bases)}`\n"
         "- `technologies[*].performance.kind`: "
         f"`{format_enum_pipe(performance_kinds)}`\n"

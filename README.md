@@ -33,7 +33,7 @@ VedaLang uses precise terminology to avoid ambiguity:
 These category names are currently a compiler/runtime convention for
 `scen_{case}_{category}.xlsx` naming. They are not yet declared as a
 `vedalang.schema.json` enum because scenario workbooks are outside the authored
-v0.2 DSL surface.
+v0.3 DSL surface.
 
 **Current compiler output:** `syssettings.xlsx` and `vt_{book}_{run}.xlsx` (lowercase)
 
@@ -116,7 +116,7 @@ uv run vedalang-dev pipeline model.veda.yaml --no-solver
 
 ### Explicit Quantities and Basis
 
-VedaLang v0.2 uses explicit quantity strings and no implicit basis/defaulting:
+VedaLang v0.3 uses explicit quantity strings and no implicit basis/defaulting:
 
 - stock, costs, transfer capacities, and opportunity bounds carry explicit unit
   strings at the point where the value is authored
@@ -141,8 +141,9 @@ for supported quantity strings and backend attribute mapping details.
 <!-- GENERATED:minimal-example-enums:start -->
 ### Enum-backed Fields In This Example
 
-- `dsl_version`: `0.2`
-- `commodities[*].kind`: `primary | secondary | service | emission | material | certificate`
+- `dsl_version`: `0.3`
+- `commodities[*].type`: `energy | service | material | emission | money | certificate`
+- `commodities[*].energy_form`: `primary | secondary | resource`
 - `technologies[*].inputs[*].basis`: `HHV | LHV`
 - `technologies[*].performance.kind`: `efficiency | cop | custom`
 - `spatial_layers[*].kind`: `polygon | point | grid`
@@ -152,19 +153,20 @@ for supported quantity strings and backend attribute mapping details.
 
 ```yaml
 # Schema version for this model file.
-dsl_version: "0.2"
+dsl_version: "0.3"
 
 # Commodities declare the fuel and service namespaces used elsewhere.
 commodities:
-  - id: primary:natural_gas
-    kind: primary
-  - id: service:space_heat
-    kind: service
+  - id: natural_gas
+    type: energy
+    energy_form: primary
+  - id: space_heat
+    type: service
 
 # Technologies define the concrete conversion behavior and coefficients.
 technologies:
   - id: gas_heater
-    provides: service:space_heat
+    provides: space_heat
     inputs:
       - commodity: primary:natural_gas
         basis: HHV
@@ -175,7 +177,7 @@ technologies:
 # Technology roles group the technologies that may provide a service.
 technology_roles:
   - id: space_heat_supply
-    primary_service: service:space_heat
+    primary_service: space_heat
     technologies: [gas_heater]
 
 # Spatial layers point to the underlying geographic data source.
@@ -265,7 +267,7 @@ uv run vedalang fmt --check <path>
 # Run linter
 uv run ruff check .
 
-# Validate a v0.2 example
+# Validate a v0.3 example
 uv run vedalang validate vedalang/examples/v0_2/mini_space_heat.veda.yaml --run toy_region_2025
 ```
 

@@ -1,11 +1,11 @@
 # VedaLang Modeling Conventions
 
-This guide describes the active **v0.2** modeling contract.
+This guide describes the active **v0.3** modeling contract.
 
 <!-- GENERATED:canonical-enums:start -->
 - `stage` = one of `supply | conversion | distribution | storage | end_use | sink`
-- `commodity.type` = one of `fuel | energy | service | material | emission | money | other`
-- `commodity namespace prefix` = one of `primary | resource | secondary | service | material | emission | money`
+- `commodity.type` = one of `energy | service | material | emission | money | certificate`
+- `commodity namespace prefix` = one of `primary | secondary | resource | service | material | emission | money | certificate`
 <!-- GENERATED:canonical-enums:end -->
 
 ## Core Objects
@@ -52,16 +52,18 @@ Example:
 
 ```yaml
 commodities:
-  - id: primary:natural_gas
-    kind: primary
-  - id: secondary:electricity
-    kind: secondary
-  - id: service:space_heat
-    kind: service
+  - id: natural_gas
+    type: energy
+    energy_form: primary
+  - id: electricity
+    type: energy
+    energy_form: secondary
+  - id: space_heat
+    type: service
 
 technologies:
   - id: gas_boiler
-    provides: service:space_heat
+    provides: space_heat
     inputs:
       - commodity: primary:natural_gas
         basis: HHV
@@ -69,7 +71,7 @@ technologies:
       kind: efficiency
       value: 0.9
   - id: heat_pump
-    provides: service:space_heat
+    provides: space_heat
     inputs:
       - commodity: secondary:electricity
     performance:
@@ -78,7 +80,7 @@ technologies:
 
 technology_roles:
   - id: space_heat_supply
-    primary_service: service:space_heat
+    primary_service: space_heat
     technologies: [gas_boiler, heat_pump]
 ```
 
@@ -142,7 +144,7 @@ Non-`opportunity` examples:
 
 ## Checklist
 
-- [ ] `dsl_version: "0.2"` is present.
+- [ ] `dsl_version: "0.3"` is present.
 - [ ] Technology roles are service-oriented, not fuel-pathway-oriented.
 - [ ] Technology names describe whole pathways.
 - [ ] Combustible flows carry explicit `basis`.

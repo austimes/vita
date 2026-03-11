@@ -1,94 +1,82 @@
-dsl_version: "0.2"
-
+dsl_version: "0.3"
 commodities:
-  - id: primary:natural_gas
-    kind: primary
-
-  - id: secondary:electricity
-    kind: secondary
-
-  - id: service:electricity_generation
-    kind: service
-
-  - id: service:gas_supply
-    kind: service
-
-  - id: service:residential_electricity
-    kind: service
-
+  - id: natural_gas
+    type: energy
+    energy_form: primary
+  - id: electricity
+    type: energy
+    energy_form: secondary
+  - id: electricity_generation
+    type: service
+  - id: gas_supply
+    type: service
+  - id: residential_electricity
+    type: service
 technologies:
   - id: ccgt
     inputs:
-      - commodity: primary:natural_gas
+      - commodity: natural_gas
         basis: HHV
     outputs:
-      - commodity: secondary:electricity
+      - commodity: electricity
     fixed_om: 20 MUSD24/GW/year
     investment_cost: 800 MUSD24/GW
     lifetime: 30 year
     performance:
       kind: efficiency
       value: 0.55
-    provides: service:electricity_generation
+    provides: electricity_generation
     variable_om: 2 MUSD24/PJ
-
   - id: gas_import
     outputs:
-      - commodity: primary:natural_gas
+      - commodity: natural_gas
     lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:gas_supply
+    provides: gas_supply
     variable_om: 5 MUSD24/PJ
-
   - id: ocgt
     inputs:
-      - commodity: primary:natural_gas
+      - commodity: natural_gas
         basis: HHV
     outputs:
-      - commodity: secondary:electricity
+      - commodity: electricity
     fixed_om: 12 MUSD24/GW/year
     investment_cost: 500 MUSD24/GW
     lifetime: 25 year
     performance:
       kind: efficiency
       value: 0.38
-    provides: service:electricity_generation
+    provides: electricity_generation
     variable_om: 4 MUSD24/PJ
-
   - id: residential_device
     inputs:
-      - commodity: secondary:electricity
+      - commodity: electricity
     lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:residential_electricity
-
+    provides: residential_electricity
 technology_roles:
   - id: electricity_generation
-    primary_service: service:electricity_generation
+    primary_service: electricity_generation
     technologies:
       - ccgt
       - ocgt
-
   - id: gas_supply
-    primary_service: service:gas_supply
+    primary_service: gas_supply
     technologies:
       - gas_import
-
   - id: residential_delivery
-    primary_service: service:residential_electricity
+    primary_service: residential_electricity
     technologies:
       - residential_device
-
 spatial_layers:
   - id: geo.demo
     geometry_file: data/regions.geojson
     key: region_id
     kind: polygon
-
 region_partitions:
   - id: reg1_partition
     layer: geo.demo
@@ -97,7 +85,6 @@ region_partitions:
       value: REG1
     members:
       - REG1
-
 sites:
   - id: reg1_energy_hub
     location:
@@ -107,7 +94,6 @@ sites:
     membership_overrides:
       region_partitions:
         reg1_partition: REG1
-
 facilities:
   - id: reg1_gas_supply
     site: reg1_energy_hub
@@ -119,7 +105,6 @@ facilities:
             year: 2020
           technology: gas_import
     technology_role: gas_supply
-
   - id: reg1_generation
     available_technologies:
       - ccgt
@@ -133,7 +118,6 @@ facilities:
             year: 2020
           technology: ccgt
     technology_role: electricity_generation
-
   - id: reg1_residential_delivery
     site: reg1_energy_hub
     stock:
@@ -144,7 +128,6 @@ facilities:
             year: 2020
           technology: residential_device
     technology_role: residential_delivery
-
 opportunities:
   - id: reg1_ccgt_expansion
     max_new_capacity: 500 MW
@@ -153,7 +136,6 @@ opportunities:
         member: REG1
         partition: reg1_partition
     technology: ccgt
-
   - id: reg1_ocgt_expansion
     max_new_capacity: 300 MW
     siting:
@@ -161,7 +143,6 @@ opportunities:
         member: REG1
         partition: reg1_partition
     technology: ocgt
-
 runs:
   - id: reg1_2020
     base_year: 2020

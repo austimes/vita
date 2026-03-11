@@ -9,30 +9,30 @@ from vedalang import cli
 from vedalang.lint import llm_unit_check
 
 SOURCE = {
-    "dsl_version": "0.2",
+    "dsl_version": "0.3",
     "commodities": [
-        {"id": "primary:natural_gas", "kind": "primary"},
-        {"id": "secondary:electricity", "kind": "secondary"},
+        {"id": "natural_gas", "type": "energy", "energy_form": "primary"},
+        {"id": "electricity", "type": "energy", "energy_form": "secondary"},
     ],
     "technologies": [
         {
             "id": "ccgt",
-            "provides": "secondary:electricity",
+            "provides": "electricity",
             "inputs": [
                 {
-                    "commodity": "primary:natural_gas",
+                    "commodity": "natural_gas",
                     "coefficient": 6.4,
                     "basis": "HHV",
                 }
             ],
-            "outputs": [{"commodity": "secondary:electricity", "coefficient": 1.0}],
+            "outputs": [{"commodity": "electricity", "coefficient": 1.0}],
             "performance": {"kind": "efficiency", "value": 0.55},
         }
     ],
     "technology_roles": [
         {
             "id": "electricity_supply",
-            "primary_service": "secondary:electricity",
+            "primary_service": "electricity",
             "technologies": ["ccgt"],
         }
     ],
@@ -86,20 +86,22 @@ SOURCE = {
 }
 
 SOURCE_WITH_MONETARY = {
-    "dsl_version": "0.2",
-    "commodities": [{"id": "secondary:electricity", "kind": "secondary"}],
+    "dsl_version": "0.3",
+    "commodities": [
+        {"id": "electricity", "type": "energy", "energy_form": "secondary"}
+    ],
     "technologies": [
         {
             "id": "grid_import",
-            "provides": "secondary:electricity",
-            "outputs": [{"commodity": "secondary:electricity"}],
+            "provides": "electricity",
+            "outputs": [{"commodity": "electricity"}],
             "variable_om": "6.944444 MAUD24/MWh",
         }
     ],
     "technology_roles": [
         {
             "id": "power_supply",
-            "primary_service": "secondary:electricity",
+            "primary_service": "electricity",
             "technologies": ["grid_import"],
         }
     ],
@@ -209,8 +211,8 @@ def test_parse_unit_check_response_preserves_fix_guidance_fields():
                         "capacity_unit": "GW",
                     },
                     "expected_commodity_units": {
-                        "primary:natural_gas": "PJ",
-                        "secondary:electricity": "TWh",
+                        "natural_gas": "PJ",
+                        "electricity": "TWh",
                     },
                     "observed_units": {
                         "activity_unit": "TWh",
@@ -226,7 +228,7 @@ def test_parse_unit_check_response_preserves_fix_guidance_fields():
     assert len(findings) == 1
     assert findings[0]["suggestion"]
     assert findings[0]["expected_process_units"]["activity_unit"] == "PJ"
-    assert findings[0]["expected_commodity_units"]["secondary:electricity"] == "TWh"
+    assert findings[0]["expected_commodity_units"]["electricity"] == "TWh"
 
 
 def test_parse_unit_check_response_reads_classification_fields():
@@ -299,7 +301,7 @@ def test_parse_unit_check_response_keeps_concrete_unit_other():
 def test_assemble_unit_prompt_includes_unit_enums_and_policy():
     system_prompt, user_prompt = llm_unit_check.assemble_unit_prompt(SOURCE, "ccgt")
     assert "status" in system_prompt
-    assert "unit checks apply to v0.2 `technologies`" in system_prompt
+    assert "unit checks apply to v0.3 `technologies`" in system_prompt
     assert "Allowed unit enums from schema" in user_prompt
     assert "investment_cost -> stock or capacity denominator" in user_prompt
     assert "Model unit policy" in user_prompt

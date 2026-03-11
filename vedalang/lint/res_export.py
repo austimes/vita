@@ -1,4 +1,4 @@
-"""Export a normalized RES graph from v0.2 VedaLang source."""
+"""Export a normalized RES graph from the active VedaLang source model."""
 
 from __future__ import annotations
 
@@ -8,12 +8,12 @@ from vedalang.versioning import looks_like_v0_2_source
 DEFAULT_ACTIVITY_UNIT = "PJ"
 DEFAULT_CAPACITY_UNIT = "GW"
 DEFAULT_COMMODITY_UNITS = {
-    "fuel": "PJ",
     "energy": "PJ",
     "service": "PJ",
     "material": "Mt",
     "emission": "Mt",
-    "other": "PJ",
+    "money": "MUSD",
+    "certificate": "PJ",
 }
 
 
@@ -33,8 +33,8 @@ def export_res_graph(source: dict) -> dict:
             continue
         entry = {
             "id": commodity_id,
-            "type": _commodity_type_from_kind(raw.get("kind")),
-            "kind": raw.get("kind") or _commodity_type_from_kind(raw.get("kind")),
+            "type": str(raw.get("type") or ""),
+            "energy_form": raw.get("energy_form"),
         }
         commodities_by_id[str(commodity_id)] = entry
         commodity_nodes.append(entry)
@@ -59,8 +59,18 @@ def export_res_graph(source: dict) -> dict:
         if not role_id or not primary_service:
             continue
 
-        stage = _infer_stage(str(role_id), primary_service, role_techs)
-        derived_kind = _derive_kind(stage, primary_service, role_techs)
+        stage = _infer_stage(
+            str(role_id),
+            primary_service,
+            role_techs,
+            commodities_by_id,
+        )
+        derived_kind = _derive_kind(
+            stage,
+            primary_service,
+            role_techs,
+            commodities_by_id,
+        )
         role_inputs = sorted(
             {
                 str(flow["commodity"])
@@ -230,28 +240,17 @@ def _append_source_variant(
         return
 
 
-def _commodity_type_from_kind(kind: str | None) -> str:
-    mapping = {
-        "primary": "fuel",
-        "secondary": "energy",
-        "service": "service",
-        "emission": "emission",
-        "material": "material",
-        "certificate": "other",
-    }
-    return mapping.get(str(kind or ""), "other")
-
-
 def _infer_stage(
     role_id: str,
     primary_service: str,
     technologies: list[dict],
+    commodities_by_id: dict[str, dict],
 ) -> str:
     if role_id.endswith("_supply"):
         return "supply"
     if all(not tech.get("inputs") for tech in technologies):
         return "supply"
-    if primary_service.startswith("service:"):
+    if commodities_by_id.get(primary_service, {}).get("type") == "service":
         explicit_outputs = any(tech.get("outputs") for tech in technologies)
         if explicit_outputs:
             return "conversion"
@@ -263,6 +262,7 @@ def _derive_kind(
     stage: str,
     primary_service: str,
     technologies: list[dict],
+    commodities_by_id: dict[str, dict],
 ) -> str:
     if stage == "supply":
         return "source"
@@ -273,9 +273,12 @@ def _derive_kind(
         for flow in tech.get("outputs") or []:
             if isinstance(flow, dict) and flow.get("commodity"):
                 output_ids.add(str(flow["commodity"]))
-    if primary_service.startswith("service:"):
+    if commodities_by_id.get(primary_service, {}).get("type") == "service":
         output_ids.add(primary_service)
-    if any(output.startswith("secondary:") for output in output_ids):
+    if any(
+        commodities_by_id.get(output, {}).get("energy_form") == "secondary"
+        for output in output_ids
+    ):
         return "generator"
     return "process"
 
@@ -286,7 +289,7 @@ def _variant_outputs(tech: dict, primary_service: str) -> list[str]:
         for flow in tech.get("outputs") or []
         if isinstance(flow, dict) and flow.get("commodity")
     ]
-    if primary_service.startswith("service:") and primary_service not in outputs:
+    if primary_service not in outputs:
         outputs.append(primary_service)
     return sorted(set(outputs))
 

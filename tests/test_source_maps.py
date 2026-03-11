@@ -28,16 +28,13 @@ def test_build_source_block_returns_exact_yaml_list_item():
     )
 
     assert block == {
-        "start_line": 138,
-        "end_line": 141,
+        "start_line": 117,
+        "end_line": 120,
         "lines": [
-            {"line": 138, "text": "  - id: farm_input_supply"},
-            {
-                "line": 139,
-                "text": "    primary_service: service:farm_input_supply",
-            },
-            {"line": 140, "text": "    technologies:"},
-            {"line": 141, "text": "      - farm_input_import"},
+            {"line": 117, "text": "  - id: farm_input_supply"},
+            {"line": 118, "text": "    primary_service: farm_input_supply"},
+            {"line": 119, "text": "    technologies:"},
+            {"line": 120, "text": "      - farm_input_import"},
         ],
     }
 
@@ -60,6 +57,8 @@ def test_build_source_block_trims_trailing_blank_and_excludes_next_sibling():
 
     assert block is not None
     assert block["lines"][0]["text"] == "  - id: farm_input_import"
-    assert block["lines"][-1]["text"] == "    provides: service:farm_input_supply"
-    assert all(line["text"] != "  - id: land_endowment" for line in block["lines"])
+    assert block["lines"][-1]["text"] == "    provides: farm_input_supply"
+    assert all(
+        line["text"] != "  - id: land_endowment" for line in block["lines"]
+    )
     assert all(line["text"] != "" for line in block["lines"])

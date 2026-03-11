@@ -449,6 +449,11 @@ def build_v0_2_system_graph(
         for role in technology_roles.values()
         for technology in role.get("technologies", [])
     }
+    commodity_metadata = {
+        str(item["id"]): item
+        for item in csir.get("commodities", [])
+        if isinstance(item, dict) and item.get("id")
+    }
 
     filtered_processes = [
         process
@@ -561,9 +566,9 @@ def build_v0_2_system_graph(
             commodity = str(flow.get("commodity", ""))
             commodity_label = _display_commodity(commodity, commodity_view)
             commodity_node_id = _commodity_node_id(commodity_label)
-            commodity_kind = (
-                commodity.split(":", 1)[0] if ":" in commodity else "commodity"
-            )
+            commodity_info = commodity_metadata.get(commodity, {})
+            commodity_kind = str(commodity_info.get("type") or "commodity")
+            commodity_energy_form = commodity_info.get("energy_form")
             if commodity_node_id not in node_map:
                 node = {
                     "id": commodity_node_id,
@@ -590,10 +595,12 @@ def build_v0_2_system_graph(
                     {
                         "commodity": commodity,
                         "kind": commodity_kind,
+                        "energy_form": commodity_energy_form,
                         "model_region": None,
                         "model_regions": [],
                         "commodity_ids": [],
                         "kinds": [],
+                        "energy_forms": [],
                         "member_process_ids": [],
                     }
                 )
@@ -601,6 +608,7 @@ def build_v0_2_system_graph(
             commodity_details = details_nodes[commodity_node_id]
             _append_unique(commodity_details["commodity_ids"], commodity)
             _append_unique(commodity_details["kinds"], commodity_kind)
+            _append_unique(commodity_details["energy_forms"], commodity_energy_form)
             _append_unique(commodity_details["model_regions"], region)
             _append_unique(commodity_details["member_process_ids"], process.get("id"))
 

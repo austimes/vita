@@ -1,76 +1,65 @@
-dsl_version: "0.2"
-
+dsl_version: "0.3"
 commodities:
-  - id: primary:natural_gas
-    kind: primary
-
-  - id: secondary:electricity
-    kind: secondary
-
-  - id: service:electricity_generation
-    kind: service
-
-  - id: service:gas_supply
-    kind: service
-
-  - id: service:residential_demand
-    kind: service
-
+  - id: natural_gas
+    type: energy
+    energy_form: primary
+  - id: electricity
+    type: energy
+    energy_form: secondary
+  - id: electricity_generation
+    type: service
+  - id: gas_supply
+    type: service
+  - id: residential_demand
+    type: service
 technologies:
   - id: ccgt
     inputs:
-      - commodity: primary:natural_gas
+      - commodity: natural_gas
         basis: HHV
     outputs:
-      - commodity: secondary:electricity
+      - commodity: electricity
     fixed_om: 20 AUD2024/kW/year
     investment_cost: 800 AUD2024/kW
     lifetime: 30 year
     performance:
       kind: efficiency
       value: 0.55
-    provides: service:electricity_generation
-
+    provides: electricity_generation
   - id: pipeline_import
     outputs:
-      - commodity: primary:natural_gas
+      - commodity: natural_gas
     lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:gas_supply
-
+    provides: gas_supply
   - id: residential_device
     inputs:
-      - commodity: secondary:electricity
+      - commodity: electricity
     lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:residential_demand
-
+    provides: residential_demand
 technology_roles:
   - id: electricity_generation
-    primary_service: service:electricity_generation
+    primary_service: electricity_generation
     technologies:
       - ccgt
-
   - id: gas_supply
-    primary_service: service:gas_supply
+    primary_service: gas_supply
     technologies:
       - pipeline_import
-
   - id: residential_service
-    primary_service: service:residential_demand
+    primary_service: residential_demand
     technologies:
       - residential_device
-
 spatial_layers:
   - id: geo.demo
     geometry_file: data/regions.geojson
     key: region_id
     kind: polygon
-
 region_partitions:
   - id: trade_regions
     layer: geo.demo
@@ -80,7 +69,6 @@ region_partitions:
     members:
       - REG1
       - REG2
-
 sites:
   - id: reg1_hub
     location:
@@ -90,7 +78,6 @@ sites:
     membership_overrides:
       region_partitions:
         trade_regions: REG1
-
   - id: reg2_hub
     location:
       point:
@@ -99,7 +86,6 @@ sites:
     membership_overrides:
       region_partitions:
         trade_regions: REG2
-
 facilities:
   - id: reg1_gas_supply
     site: reg1_hub
@@ -111,7 +97,6 @@ facilities:
             year: 2025
           technology: pipeline_import
     technology_role: gas_supply
-
   - id: reg1_generation
     site: reg1_hub
     stock:
@@ -122,7 +107,6 @@ facilities:
             year: 2025
           technology: ccgt
     technology_role: electricity_generation
-
   - id: reg1_residential_service
     site: reg1_hub
     stock:
@@ -133,7 +117,6 @@ facilities:
             year: 2025
           technology: residential_device
     technology_role: residential_service
-
   - id: reg2_gas_supply
     site: reg2_hub
     stock:
@@ -144,7 +127,6 @@ facilities:
             year: 2025
           technology: pipeline_import
     technology_role: gas_supply
-
   - id: reg2_generation
     site: reg2_hub
     stock:
@@ -155,7 +137,6 @@ facilities:
             year: 2025
           technology: ccgt
     technology_role: electricity_generation
-
   - id: reg2_residential_service
     site: reg2_hub
     stock:
@@ -166,13 +147,12 @@ facilities:
             year: 2025
           technology: residential_device
     technology_role: residential_service
-
 networks:
   - id: gas_pipeline
     kind: pipeline
     links:
       - id: reg1_reg2_gas
-        commodity: primary:natural_gas
+        commodity: natural_gas
         existing_transfer_capacity: 100 MW
         from: REG1
         max_new_capacity: 80 MW
@@ -180,12 +160,11 @@ networks:
     node_basis:
       kind: region_partition
       ref: trade_regions
-
   - id: interconnector
     kind: transmission
     links:
       - id: reg1_reg2_power
-        commodity: secondary:electricity
+        commodity: electricity
         existing_transfer_capacity: 120 MW
         from: REG1
         max_new_capacity: 90 MW
@@ -193,7 +172,6 @@ networks:
     node_basis:
       kind: region_partition
       ref: trade_regions
-
 runs:
   - id: trade_regions_2025
     base_year: 2025

@@ -1,9 +1,9 @@
 # VedaLang Attribute Mapping
 
-This document maps the active **v0.2** source attributes to the compiled
+This document maps the active **v0.3** source attributes to the compiled
 TIMES/VEDA concepts.
 
-## Where Attributes Live in v0.2
+## Where Attributes Live in v0.3
 
 - `technologies` carry physical inputs, outputs, performance, emissions, and
   technology-level costs.
@@ -16,7 +16,7 @@ TIMES/VEDA concepts.
 
 ## Technology Attributes
 
-| VedaLang v0.2 attribute | TIMES concept | Notes |
+| VedaLang v0.3 attribute | TIMES concept | Notes |
 |---|---|---|
 | `performance.kind: efficiency` | `ACT_EFF` | Technology conversion efficiency |
 | `performance.kind: cop` | `ACT_EFF`-like derived performance | Used for heat pumps and similar devices |
@@ -31,7 +31,7 @@ Example:
 ```yaml
 technologies:
   - id: gas_heater
-    provides: service:space_heat
+    provides: space_heat
     inputs:
       - commodity: primary:natural_gas
         basis: HHV
@@ -49,7 +49,7 @@ technologies:
 
 ## Stock Placement
 
-| VedaLang v0.2 attribute | TIMES concept | Notes |
+| VedaLang v0.3 attribute | TIMES concept | Notes |
 |---|---|---|
 | `facilities[*].stock.items[*]` | `PRC_RESID` / stock initialization | Site-bound existing stock |
 | `fleets[*].stock.items[*]` | regional stock initialization | Distributed stock or direct-bound toy stock |
@@ -79,7 +79,7 @@ fleets:
 
 ## Run Context
 
-| VedaLang v0.2 attribute | TIMES concept | Notes |
+| VedaLang v0.3 attribute | TIMES concept | Notes |
 |---|---|---|
 | `runs[*].base_year` | model base year | Used for stock adjustment and compilation context |
 | `runs[*].currency_year` | reporting currency year | Normalizes compiled cost literals |

@@ -13,18 +13,18 @@ SCHEMA_FIELD_DOCS: dict[str, str] = {
 ## VedaLang: `name`
 
 **Type**: string
-**Used in**: active v0.2 objects such as `commodity`, `technology`, `technology_role`, `site`, `facility`, `fleet`, `opportunity`, `network`, and `run`
+**Used in**: active v0.3 objects such as `commodity`, `technology`, `technology_role`, `site`, `facility`, `fleet`, `opportunity`, `network`, and `run`
 
 Identifier or human-readable label, depending on context.
 
-For the active v0.2 DSL, prefer `id` for stable references and use `name` only
+For the active v0.3 DSL, prefer `id` for stable references and use `name` only
 where an object supports a human-readable label.
 """,
     "description": """\
 ## VedaLang: `description`
 
 **Type**: string
-**Used in**: v0.2 objects that support human-readable documentation
+**Used in**: v0.3 objects that support human-readable documentation
 
 Optional human-readable description to document the purpose of the object.
 
@@ -39,25 +39,26 @@ technologies:
 ## VedaLang: `commodities`
 
 **Type**: array of `commodity` objects
-**Used in**: v0.2 root
+**Used in**: v0.3 root
 
-List of v0.2 commodity definitions.
+List of v0.3 commodity definitions.
 Each entry defines an `id` and `kind`.
 
 **Example**:
 ```yaml
 commodities:
-  - id: secondary:electricity
-    kind: secondary
-  - id: service:space_heat
-    kind: service
+  - id: electricity
+    type: energy
+    energy_form: secondary
+  - id: space_heat
+    type: service
 ```
 """,
     "technologies": """\
 ## VedaLang: `technologies`
 
 **Type**: array of `technology` objects
-**Used in**: v0.2 root
+**Used in**: v0.3 root
 
 Concrete implementation pathways.
 Technologies declare physical inputs/outputs, performance, costs, lifetime,
@@ -67,7 +68,7 @@ and emissions.
 ```yaml
 technologies:
   - id: heat_pump
-    provides: service:space_heat
+    provides: space_heat
     inputs:
       - commodity: secondary:electricity
     performance:
@@ -79,7 +80,7 @@ technologies:
 ## VedaLang: `technology_roles`
 
 **Type**: array of `technology_role` objects
-**Used in**: v0.2 root
+**Used in**: v0.3 root
 
 Service-oriented role contracts that group substitutable technologies around
 one `primary_service`.
@@ -88,7 +89,7 @@ one `primary_service`.
 ```yaml
 technology_roles:
   - id: space_heat_supply
-    primary_service: service:space_heat
+    primary_service: space_heat
     technologies: [gas_heater, heat_pump]
 ```
 """,
@@ -96,7 +97,7 @@ technology_roles:
 ## VedaLang: `runs`
 
 **Type**: array of `run` objects
-**Used in**: v0.2 root
+**Used in**: v0.3 root
 
 Defines the compiled model context: base year, currency year, and region
 partition.
@@ -114,7 +115,7 @@ runs:
 ## VedaLang: `commodity`
 
 **Type**: string (reference to `commodity.name`)
-**Used in**: v0.2 flow specs, emission factors, and network definitions
+**Used in**: v0.3 flow specs, emission factors, and network definitions
 
 Selects a defined commodity as the target of a flow, network, or technology-level
 emission factor.
@@ -128,14 +129,14 @@ technologies:
 
 networks:
   - id: transmission
-    commodity: secondary:electricity
+    commodity: electricity
 ```
 """,
     "interpolation": """\
 ## VedaLang: `interpolation`
 
 **Type**: string enum
-**Used in**: v0.2 time-varying values and temporal reference data
+**Used in**: v0.3 time-varying values and temporal reference data
 
 VEDA interpolation/extrapolation mode for year→value data.
 Allowed values:
@@ -161,7 +162,7 @@ temporal_index_series:
 ## VedaLang: `efficiency`
 
 **Type**: number (0-1) or `time_varying_value`
-**Used in**: v0.2 `technology.performance` objects where `kind: efficiency`
+**Used in**: v0.3 `technology.performance` objects where `kind: efficiency`
 
 Energy or service conversion efficiency for a technology after lowering to
 TIMES `ACT_EFF`.
@@ -182,7 +183,7 @@ technologies:
 ## VedaLang: `kind`
 
 **Type**: string enum (context-dependent)
-**Used in**: multiple v0.2 sections (for example `commodities.kind`, `networks.kind`, `performance.kind`)
+**Used in**: multiple v0.3 sections (for example `commodities.kind`, `networks.kind`, `performance.kind`)
 
 `kind` does not have one global enum. The valid values depend on where the field appears.
 Use schema-aware hover/completion in the LSP for the current location's allowed values.
@@ -191,7 +192,7 @@ Use schema-aware hover/completion in the LSP for the current location's allowed 
 ## VedaLang: `unit`
 
 **Type**: string
-**Used in**: v0.2 commodities, temporal reference data, and stock metrics
+**Used in**: v0.3 commodities, temporal reference data, and stock metrics
 
 Unit of measurement for the surrounding value. For commodities, this anchors
 physical interpretation of flows and coefficients. For reference data, it
@@ -212,7 +213,7 @@ commodities:
 
 **Type**: string
 **Default**: `PJ`
-**Used in**: v0.2 technology and deployment objects that define process activity
+**Used in**: v0.3 technology and deployment objects that define process activity
 
 Unit for modeled activity, i.e., the denominator for efficiency, variable cost,
 and emission-factor terms after lowering to TIMES.
@@ -236,7 +237,7 @@ technologies:
 
 **Type**: string
 **Default**: `GW`
-**Used in**: v0.2 technology and deployment objects that define buildable stock
+**Used in**: v0.3 technology and deployment objects that define buildable stock
 
 Unit for modeled capacity, used in capacity-related TIMES attributes such as
 capital cost, fixed O&M, and technical lifetime.
@@ -263,7 +264,7 @@ technologies:
 ## VedaLang: `inputs`
 
 **Type**: array of `flow` objects
-**Used in**: v0.2 `technology` objects
+**Used in**: v0.3 `technology` objects
 
 Detailed specification of physical input commodities consumed by a technology.
 Each flow names a commodity and may add metadata such as `share`.
@@ -282,7 +283,7 @@ technologies:
 ## VedaLang: `outputs`
 
 **Type**: array of `flow` objects
-**Used in**: v0.2 `technology` objects
+**Used in**: v0.3 `technology` objects
 
 Detailed specification of physical output commodities produced by a technology.
 
@@ -298,7 +299,7 @@ technologies:
 ## VedaLang: `investment_cost`
 
 **Type**: number (≥0) or `time_varying_value`
-**Used in**: v0.2 technologies and deployment/stock objects that carry new-build cost data
+**Used in**: v0.3 technologies and deployment/stock objects that carry new-build cost data
 
 Investment cost per unit of **new capacity**.
 
@@ -320,7 +321,7 @@ technologies:
 ## VedaLang: `fixed_om_cost`
 
 **Type**: number (≥0) or `time_varying_value`
-**Used in**: v0.2 technologies and deployment/stock objects with fixed cost assumptions
+**Used in**: v0.3 technologies and deployment/stock objects with fixed cost assumptions
 
 Fixed operation & maintenance cost per unit **installed capacity per year**.
 
@@ -331,7 +332,7 @@ Fixed operation & maintenance cost per unit **installed capacity per year**.
 ## VedaLang: `variable_om_cost`
 
 **Type**: number (≥0) or `time_varying_value`
-**Used in**: v0.2 technologies and deployment objects with activity-linked cost assumptions
+**Used in**: v0.3 technologies and deployment objects with activity-linked cost assumptions
 
 Variable operation & maintenance cost per unit of **activity**.
 
@@ -342,7 +343,7 @@ Variable operation & maintenance cost per unit of **activity**.
 ## VedaLang: `import_price`
 
 **Type**: number (≥0) or `time_varying_value`
-**Used in**: v0.2 technologies or opportunities that model import-style supply
+**Used in**: v0.3 technologies or opportunities that model import-style supply
 
 Price of imported commodities.
 
@@ -353,7 +354,7 @@ Price of imported commodities.
 ## VedaLang: `lifetime`
 
 **Type**: number (≥0) or `time_varying_value`
-**Used in**: v0.2 technologies and stock-bearing deployment objects
+**Used in**: v0.3 technologies and stock-bearing deployment objects
 
 Technical lifetime of **new capacity**.
 
@@ -366,7 +367,7 @@ Affects when capacity retires and how capital costs are annualized.
 ## VedaLang: `availability_factor`
 
 **Type**: number (0–1) or `time_varying_value`
-**Used in**: v0.2 technologies and deployment objects with annual utilization limits
+**Used in**: v0.3 technologies and deployment objects with annual utilization limits
 
 Fraction of time capacity is available for use.
 
@@ -377,7 +378,7 @@ Fraction of time capacity is available for use.
 ## VedaLang: `activity_bound`
 
 **Type**: `bound` object (`up`, `lo`, `fx`)
-**Used in**: v0.2 technologies, facilities, fleets, opportunities, and networks where activity is bounded
+**Used in**: v0.3 technologies, facilities, fleets, opportunities, and networks where activity is bounded
 
 Bounds on **annual process activity**.
 
@@ -395,7 +396,7 @@ technologies:
 ## VedaLang: `cap_bound`
 
 **Type**: `bound` object (`up`, `lo`, `fx`)
-**Used in**: v0.2 stock-bearing deployment objects
+**Used in**: v0.3 stock-bearing deployment objects
 
 Bounds on **total installed capacity**.
 
@@ -405,7 +406,7 @@ Bounds on **total installed capacity**.
 ## VedaLang: `ncap_bound`
 
 **Type**: `bound` object (`up`, `lo`, `fx`)
-**Used in**: v0.2 stock-bearing deployment objects
+**Used in**: v0.3 stock-bearing deployment objects
 
 Bounds on **new capacity additions per period**.
 
@@ -415,7 +416,7 @@ Bounds on **new capacity additions per period**.
 ## VedaLang: `stock`
 
 **Type**: number (≥0) or `time_varying_value`
-**Used in**: v0.2 facilities, fleets, and other stock-bearing deployment objects
+**Used in**: v0.3 facilities, fleets, and other stock-bearing deployment objects
 
 Aggregate **residual capacity** stock.
 
@@ -428,7 +429,7 @@ For new models, prefer `existing_capacity` to track vintages explicitly.
 ## VedaLang: `existing_capacity`
 
 **Type**: array of `past_investment` objects
-**Used in**: v0.2 technologies and stock-bearing deployment objects
+**Used in**: v0.3 technologies and stock-bearing deployment objects
 
 Past capacity investments with explicit **vintage years**.
 
@@ -451,7 +452,7 @@ facilities:
 ## VedaLang: `technology`
 
 **Type**: string
-**Used in**: v0.2 deployment objects that select one technology by ID
+**Used in**: v0.3 deployment objects that select one technology by ID
 
 Reference to a technology defined in the top-level `technologies` collection.
 """,
@@ -459,7 +460,7 @@ Reference to a technology defined in the top-level `technologies` collection.
 ## VedaLang: `region`
 
 **Type**: string
-**Used in**: v0.2 network arcs, spatial reference objects, and run-derived diagnostics
+**Used in**: v0.3 network arcs, spatial reference objects, and run-derived diagnostics
 
 Region identifier within the active run's selected `region_partition`.
 Source models usually express placement through `sites`, memberships, and run
@@ -567,7 +568,7 @@ outputs:
 ## VedaLang: `values`
 
 **Type**: object mapping `YYYY` → number
-**Used in**: v0.2 `time_varying_value`-style objects, temporal reference data, and year-indexed stock/cost series
+**Used in**: v0.3 `time_varying_value`-style objects, temporal reference data, and year-indexed stock/cost series
 
 Sparse time-series of year-indexed values.
 

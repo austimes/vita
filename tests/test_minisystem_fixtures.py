@@ -28,16 +28,16 @@ EXAMPLES_DIR = PROJECT_ROOT / "vedalang" / "examples"
 MINISYSTEM_FEATURES = {
     1: {
         "description": "Minimal solvable model",
-        "commodities": {"secondary:electricity", "service:residential_electricity"},
+        "commodities": {"electricity", "residential_electricity"},
         "processes": {"grid_supply_SINGLE", "residential_device_SINGLE_RES"},
         "features": ["basic RES", "demand projection"],
     },
     2: {
         "description": "Fuel chain",
         "commodities": {
-            "primary:natural_gas",
-            "secondary:electricity",
-            "service:residential_demand",
+            "natural_gas",
+            "electricity",
+            "residential_demand",
         },
         "processes": {
             "pipeline_gas_import_SINGLE",
@@ -49,9 +49,9 @@ MINISYSTEM_FEATURES = {
     3: {
         "description": "Investment decisions",
         "commodities": {
-            "primary:natural_gas",
-            "secondary:electricity",
-            "service:residential_demand",
+            "natural_gas",
+            "electricity",
+            "residential_demand",
         },
         "processes": {
             "gas_import_SINGLE",
@@ -66,10 +66,10 @@ MINISYSTEM_FEATURES = {
     4: {
         "description": "Emissions",
         "commodities": {
-            "primary:natural_gas",
-            "secondary:electricity",
-            "service:residential_demand",
-            "emission:co2",
+            "natural_gas",
+            "electricity",
+            "residential_demand",
+            "co2",
         },
         "processes": {
             "gas_import_SINGLE",
@@ -81,11 +81,11 @@ MINISYSTEM_FEATURES = {
     5: {
         "description": "Multiple generators",
         "commodities": {
-            "primary:natural_gas",
-            "secondary:electricity",
-            "resource:wind_resource",
-            "service:residential_demand",
-            "emission:co2",
+            "natural_gas",
+            "electricity",
+            "wind_resource",
+            "residential_demand",
+            "co2",
         },
         "processes": {
             "lng_terminal_SINGLE",
@@ -98,11 +98,11 @@ MINISYSTEM_FEATURES = {
     6: {
         "description": "Scenario parameters",
         "commodities": {
-            "primary:natural_gas",
-            "secondary:electricity",
-            "resource:wind_resource",
-            "service:residential_demand",
-            "emission:co2",
+            "natural_gas",
+            "electricity",
+            "wind_resource",
+            "residential_demand",
+            "co2",
         },
         "processes": {
             "gas_import_SINGLE",
@@ -115,10 +115,10 @@ MINISYSTEM_FEATURES = {
     7: {
         "description": "Multi-region",
         "commodities": {
-            "primary:gas",
-            "secondary:electricity",
-            "service:residential_demand",
-            "emission:co2",
+            "gas",
+            "electricity",
+            "residential_demand",
+            "co2",
         },
         # Process names include region, so we check for NORTH variants
         "processes": {
@@ -130,17 +130,17 @@ MINISYSTEM_FEATURES = {
     8: {
         "description": "Australian baseline scaffold",
         "commodities": {
-            "primary:gas",
-            "primary:coal",
-            "secondary:electricity",
-            "secondary:hydrogen",
-            "resource:solar_irradiance",
-            "resource:wind_resource",
-            "emission:co2",
-            "service:residential_demand",
-            "service:commercial_demand",
-            "service:industrial_demand",
-            "service:transport_demand",
+            "gas",
+            "coal",
+            "electricity",
+            "hydrogen",
+            "solar_irradiance",
+            "wind_resource",
+            "co2",
+            "residential_demand",
+            "commercial_demand",
+            "industrial_demand",
+            "transport_demand",
         },
         # Check NEM_EAST region processes
         "processes": {
@@ -289,7 +289,7 @@ class TestMiniSystem1ExpectedSolution:
                         if t["tag"] == "~TFM_DINS-AT":
                             for row in t["rows"]:
                                 cset = str(row.get("cset_cn", ""))
-                                if "service:residential_electricity" in cset:
+                                if "residential_electricity" in cset:
                                     assert row.get("com_proj") == 50
                                     return
 
@@ -318,7 +318,7 @@ class TestMiniSystem2FuelChain:
                                 "pipeline_gas_import" in row.get("process", "")
                                 and "commodity-out" in row
                             ):
-                                assert row["commodity-out"] == "primary:natural_gas"
+                                assert row["commodity-out"] == "natural_gas"
                                 return
 
         pytest.fail("pipeline_gas_import should have primary:natural_gas output")
@@ -338,9 +338,9 @@ class TestMiniSystem2FuelChain:
                     if t["tag"] == "~FI_T":
                         for row in t["rows"]:
                             if "ccgt" in row.get("process", ""):
-                                if row.get("commodity-in") == "primary:natural_gas":
+                                if row.get("commodity-in") == "natural_gas":
                                     has_input = True
-                                if row.get("commodity-out") == "secondary:electricity":
+                                if row.get("commodity-out") == "electricity":
                                     has_output = True
 
         assert has_input, "ccgt should have natural gas input"

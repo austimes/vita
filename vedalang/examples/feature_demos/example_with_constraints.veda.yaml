@@ -1,144 +1,124 @@
-dsl_version: "0.2"
-
+dsl_version: "0.3"
 commodities:
-  - id: emission:co2
-    kind: emission
-
-  - id: primary:natural_gas
-    kind: primary
-
-  - id: resource:solar_resource
-    kind: material
-
-  - id: resource:wind_resource
-    kind: material
-
-  - id: secondary:electricity
-    kind: secondary
-
-  - id: service:electricity_generation
-    kind: service
-
-  - id: service:electricity_service
-    kind: service
-
-  - id: service:gas_supply
-    kind: service
-
-  - id: service:solar_supply
-    kind: service
-
-  - id: service:wind_supply
-    kind: service
-
+  - id: co2
+    type: emission
+  - id: natural_gas
+    type: energy
+    energy_form: primary
+  - id: solar_resource
+    type: energy
+    energy_form: resource
+  - id: wind_resource
+    type: energy
+    energy_form: resource
+  - id: electricity
+    type: energy
+    energy_form: secondary
+  - id: electricity_generation
+    type: service
+  - id: electricity_service
+    type: service
+  - id: gas_supply
+    type: service
+  - id: solar_supply
+    type: service
+  - id: wind_supply
+    type: service
 technologies:
   - id: ccgt_generation
     inputs:
-      - commodity: primary:natural_gas
+      - commodity: natural_gas
         basis: HHV
     outputs:
-      - commodity: secondary:electricity
+      - commodity: electricity
     emissions:
-      - commodity: emission:co2
+      - commodity: co2
         factor: 0.056 t/GJ
     lifetime: 30 year
     performance:
       kind: efficiency
       value: 0.55
-    provides: service:electricity_generation
-
+    provides: electricity_generation
   - id: electric_service
     inputs:
-      - commodity: secondary:electricity
+      - commodity: electricity
     lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:electricity_service
-
+    provides: electricity_service
   - id: pipeline_import
     outputs:
-      - commodity: primary:natural_gas
+      - commodity: natural_gas
     lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:gas_supply
-
+    provides: gas_supply
   - id: solar_generation
     inputs:
-      - commodity: resource:solar_resource
+      - commodity: solar_resource
     outputs:
-      - commodity: secondary:electricity
+      - commodity: electricity
     lifetime: 25 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:electricity_generation
-
+    provides: electricity_generation
   - id: solar_resource_supply
     outputs:
-      - commodity: resource:solar_resource
+      - commodity: solar_resource
     lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:solar_supply
-
+    provides: solar_supply
   - id: wind_generation
     inputs:
-      - commodity: resource:wind_resource
+      - commodity: wind_resource
     outputs:
-      - commodity: secondary:electricity
+      - commodity: electricity
     lifetime: 25 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:electricity_generation
-
+    provides: electricity_generation
   - id: wind_resource_supply
     outputs:
-      - commodity: resource:wind_resource
+      - commodity: wind_resource
     lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:wind_supply
-
+    provides: wind_supply
 technology_roles:
   - id: electricity_generation
-    primary_service: service:electricity_generation
+    primary_service: electricity_generation
     technologies:
       - ccgt_generation
       - solar_generation
       - wind_generation
-
   - id: electricity_service
-    primary_service: service:electricity_service
+    primary_service: electricity_service
     technologies:
       - electric_service
-
   - id: gas_supply
-    primary_service: service:gas_supply
+    primary_service: gas_supply
     technologies:
       - pipeline_import
-
   - id: solar_supply
-    primary_service: service:solar_supply
+    primary_service: solar_supply
     technologies:
       - solar_resource_supply
-
   - id: wind_supply
-    primary_service: service:wind_supply
+    primary_service: wind_supply
     technologies:
       - wind_resource_supply
-
 spatial_layers:
   - id: geo.demo
     geometry_file: data/regions.geojson
     key: region_id
     kind: polygon
-
 region_partitions:
   - id: reg1_partition
     layer: geo.demo
@@ -147,7 +127,6 @@ region_partitions:
       value: REG1
     members:
       - REG1
-
 sites:
   - id: reg1_energy_hub
     location:
@@ -157,7 +136,6 @@ sites:
     membership_overrides:
       region_partitions:
         reg1_partition: REG1
-
 facilities:
   - id: reg1_fuel_supply
     site: reg1_energy_hub
@@ -169,7 +147,6 @@ facilities:
             year: 2025
           technology: pipeline_import
     technology_role: gas_supply
-
   - id: reg1_generation
     available_technologies:
       - ccgt_generation
@@ -183,20 +160,17 @@ facilities:
             value: 10 MW
             year: 2025
           technology: ccgt_generation
-
         - metric: installed_capacity
           observed:
             value: 3 MW
             year: 2025
           technology: solar_generation
-
         - metric: installed_capacity
           observed:
             value: 3 MW
             year: 2025
           technology: wind_generation
     technology_role: electricity_generation
-
   - id: reg1_service
     site: reg1_energy_hub
     stock:
@@ -207,7 +181,6 @@ facilities:
             year: 2025
           technology: electric_service
     technology_role: electricity_service
-
   - id: reg1_solar_supply
     site: reg1_energy_hub
     stock:
@@ -218,7 +191,6 @@ facilities:
             year: 2025
           technology: solar_resource_supply
     technology_role: solar_supply
-
   - id: reg1_wind_supply
     site: reg1_energy_hub
     stock:
@@ -229,7 +201,6 @@ facilities:
             year: 2025
           technology: wind_resource_supply
     technology_role: wind_supply
-
 opportunities:
   - id: reg1_solar_build
     max_new_capacity: 30 MW
@@ -238,7 +209,6 @@ opportunities:
         member: REG1
         partition: reg1_partition
     technology: solar_generation
-
   - id: reg1_wind_build
     max_new_capacity: 40 MW
     siting:
@@ -246,7 +216,6 @@ opportunities:
         member: REG1
         partition: reg1_partition
     technology: wind_generation
-
 runs:
   - id: reg1_2025
     base_year: 2025

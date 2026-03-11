@@ -111,12 +111,12 @@ def _validate_role_contracts(graph: ResolvedDefinitionGraph) -> None:
                 "technology_role references missing commodity "
                 f"'{role.primary_service}'",
             )
-        if primary.kind != "service":
+        if primary.type != "service":
             raise _error(
                 "E004",
                 role,
                 "technology_role.primary_service must reference a service commodity",
-                suggestion="Point primary_service at a `service:*` commodity.",
+                suggestion="Point primary_service at a commodity with `type: service`.",
             )
         for technology_id in role.technologies:
             if technology_id not in graph.technologies:
@@ -453,9 +453,11 @@ def _warn_run_specific(
                 ("facility", facility.id, site.model_region, technology, facility.site)
             )
         available = tuple(facility.available_technologies or role.technologies)
+        primary = graph.commodities.get(role.primary_service)
         if (
             len(run.model_regions) == 1
-            and role.primary_service.startswith("service:")
+            and primary is not None
+            and primary.type == "service"
             and (len(available) > 1 or role.transitions or len(available) != 1)
         ):
             warnings.append(

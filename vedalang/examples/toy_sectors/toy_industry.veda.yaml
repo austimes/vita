@@ -1,114 +1,99 @@
-dsl_version: "0.2"
-
+dsl_version: "0.3"
 commodities:
-  - id: emission:co2
-    kind: emission
-
-  - id: primary:natural_gas
-    kind: primary
-
-  - id: secondary:electricity
-    kind: secondary
-
-  - id: secondary:hydrogen
-    kind: secondary
-
-  - id: service:electricity_supply
-    kind: service
-
-  - id: service:gas_supply
-    kind: service
-
-  - id: service:hydrogen_supply
-    kind: service
-
-  - id: service:industrial_heat
-    kind: service
-
+  - id: co2
+    type: emission
+  - id: natural_gas
+    type: energy
+    energy_form: primary
+  - id: electricity
+    type: energy
+    energy_form: secondary
+  - id: hydrogen
+    type: energy
+    energy_form: secondary
+  - id: electricity_supply
+    type: service
+  - id: gas_supply
+    type: service
+  - id: hydrogen_supply
+    type: service
+  - id: industrial_heat
+    type: service
 technologies:
   - id: electric_heater
     inputs:
-      - commodity: secondary:electricity
+      - commodity: electricity
     investment_cost: 80 AUD2024/kW
     lifetime: 30 year
     performance:
       kind: efficiency
       value: 0.95
-    provides: service:industrial_heat
-
+    provides: industrial_heat
   - id: gas_boiler
     inputs:
-      - commodity: primary:natural_gas
+      - commodity: natural_gas
         basis: HHV
     emissions:
-      - commodity: emission:co2
+      - commodity: co2
         factor: 0.056 t/GJ
     investment_cost: 50 AUD2024/kW
     lifetime: 30 year
     performance:
       kind: efficiency
       value: 0.9
-    provides: service:industrial_heat
-
+    provides: industrial_heat
   - id: grid_electricity_supply
     outputs:
-      - commodity: secondary:electricity
+      - commodity: electricity
     lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:electricity_supply
+    provides: electricity_supply
     variable_om: 25 AUD2024/MWh
-
   - id: h2_boiler
     inputs:
-      - commodity: secondary:hydrogen
+      - commodity: hydrogen
         basis: HHV
     investment_cost: 100 AUD2024/kW
     lifetime: 30 year
     performance:
       kind: efficiency
       value: 0.85
-    provides: service:industrial_heat
-
+    provides: industrial_heat
   - id: pipeline_gas_supply
     outputs:
-      - commodity: primary:natural_gas
+      - commodity: natural_gas
     lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:gas_supply
+    provides: gas_supply
     variable_om: 8 AUD2024/MWh
-
   - id: pipeline_hydrogen_supply
     outputs:
-      - commodity: secondary:hydrogen
+      - commodity: hydrogen
     lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:hydrogen_supply
+    provides: hydrogen_supply
     variable_om: 18 AUD2024/MWh
-
 technology_roles:
   - id: electricity_supply
-    primary_service: service:electricity_supply
+    primary_service: electricity_supply
     technologies:
       - grid_electricity_supply
-
   - id: gas_supply
-    primary_service: service:gas_supply
+    primary_service: gas_supply
     technologies:
       - pipeline_gas_supply
-
   - id: hydrogen_supply
-    primary_service: service:hydrogen_supply
+    primary_service: hydrogen_supply
     technologies:
       - pipeline_hydrogen_supply
-
   - id: industrial_heat_supply
-    primary_service: service:industrial_heat
+    primary_service: industrial_heat
     technologies:
       - gas_boiler
       - electric_heater
@@ -118,18 +103,15 @@ technology_roles:
         from: gas_boiler
         kind: retrofit
         to: electric_heater
-
       - cost: 25 AUD2024/kW
         from: gas_boiler
         kind: retrofit
         to: h2_boiler
-
 spatial_layers:
   - id: geo.demo
     geometry_file: data/regions.geojson
     key: region_id
     kind: polygon
-
 region_partitions:
   - id: single_region
     layer: geo.demo
@@ -138,7 +120,6 @@ region_partitions:
       value: SINGLE
     members:
       - SINGLE
-
 fleets:
   - id: electricity_supply
     distribution:
@@ -151,7 +132,6 @@ fleets:
             year: 2025
           technology: grid_electricity_supply
     technology_role: electricity_supply
-
   - id: gas_supply
     distribution:
       method: direct
@@ -163,7 +143,6 @@ fleets:
             year: 2025
           technology: pipeline_gas_supply
     technology_role: gas_supply
-
   - id: hydrogen_supply
     distribution:
       method: direct
@@ -175,7 +154,6 @@ fleets:
             year: 2025
           technology: pipeline_hydrogen_supply
     technology_role: hydrogen_supply
-
   - id: industrial_heat
     available_technologies:
       - gas_boiler
@@ -186,7 +164,6 @@ fleets:
     new_build_limits:
       - max_new_capacity: 15 MW
         technology: electric_heater
-
       - max_new_capacity: 12 MW
         technology: h2_boiler
     stock:
@@ -196,20 +173,17 @@ fleets:
             value: 5 MW
             year: 2025
           technology: gas_boiler
-
         - metric: installed_capacity
           observed:
             value: 1 MW
             year: 2025
           technology: electric_heater
-
         - metric: installed_capacity
           observed:
             value: 0.5 MW
             year: 2025
           technology: h2_boiler
     technology_role: industrial_heat_supply
-
 runs:
   - id: single_2025
     base_year: 2025

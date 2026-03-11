@@ -15,16 +15,17 @@ def test_v0_2_compile_json_includes_section14_location_metadata(tmp_path):
     src.write_text(
         "\n".join(
             [
-                'dsl_version: "0.2"',
+                'dsl_version: "0.3"',
                 "commodities:",
-                "  - id: secondary:electricity",
-                "    kind: secondary",
+                "  - id: electricity",
+                "    type: energy",
+                "    energy_form: secondary",
                 "technologies:",
                 "  - id: gas_heater",
-                "    provides: secondary:electricity",
+                "    provides: electricity",
                 "technology_roles:",
                 "  - id: gas_boiler_role",
-                "    primary_service: secondary:electricity",
+                "    primary_service: electricity",
                 "    technologies: [gas_heater]",
                 "runs:",
                 "  - id: toy_run",
@@ -72,29 +73,29 @@ def test_v0_2_compile_json_includes_section14_location_metadata(tmp_path):
 
 def test_collect_v0_2_diagnostics_emits_prd_warning_codes():
     source = {
-        "dsl_version": "0.2",
+        "dsl_version": "0.3",
         "commodities": [
-            {"id": "primary:natural_gas", "kind": "primary"},
-            {"id": "service:space_heat", "kind": "service"},
+            {"id": "natural_gas", "type": "energy", "energy_form": "primary"},
+            {"id": "space_heat", "type": "service"},
         ],
         "technologies": [
             {
                 "id": "gas_heater",
-                "provides": "service:space_heat",
-                "inputs": [{"commodity": "primary:natural_gas", "basis": "HHV"}],
+                "provides": "space_heat",
+                "inputs": [{"commodity": "natural_gas", "basis": "HHV"}],
                 "performance": {"kind": "efficiency", "value": 0.9},
                 "stock_characterization": "heater_stock",
             },
             {
                 "id": "heat_pump",
-                "provides": "service:space_heat",
+                "provides": "space_heat",
                 "performance": {"kind": "cop", "value": 3.0},
             },
         ],
         "technology_roles": [
             {
                 "id": "gas_heat_pump",
-                "primary_service": "service:space_heat",
+                "primary_service": "space_heat",
                 "technologies": ["gas_heater", "heat_pump"],
             }
         ],
@@ -209,28 +210,28 @@ def test_collect_v0_2_diagnostics_emits_prd_warning_codes():
 
 def test_collect_v0_2_diagnostics_flags_duplicate_rollout_patterns():
     source = {
-        "dsl_version": "0.2",
+        "dsl_version": "0.3",
         "commodities": [
-            {"id": "secondary:electricity", "kind": "secondary"},
-            {"id": "service:space_heat", "kind": "service"},
+            {"id": "electricity", "type": "energy", "energy_form": "secondary"},
+            {"id": "space_heat", "type": "service"},
         ],
         "technologies": [
             {
                 "id": "gas_heater",
-                "provides": "service:space_heat",
+                "provides": "space_heat",
                 "performance": {"kind": "efficiency", "value": 0.9},
             },
             {
                 "id": "heat_pump",
-                "provides": "service:space_heat",
-                "inputs": [{"commodity": "secondary:electricity"}],
+                "provides": "space_heat",
+                "inputs": [{"commodity": "electricity"}],
                 "performance": {"kind": "cop", "value": 3.0},
             },
         ],
         "technology_roles": [
             {
                 "id": "space_heat_supply",
-                "primary_service": "service:space_heat",
+                "primary_service": "space_heat",
                 "technologies": ["gas_heater", "heat_pump"],
                 "transitions": [
                     {
@@ -311,16 +312,17 @@ def test_lsp_validate_document_uses_v0_2_diagnostics():
     doc = MockTextDocument(
         "\n".join(
             [
-                'dsl_version: "0.2"',
+                'dsl_version: "0.3"',
                 "commodities:",
-                "  - id: secondary:electricity",
-                "    kind: secondary",
+                "  - id: electricity",
+                "    type: energy",
+                "    energy_form: secondary",
                 "technologies:",
                 "  - id: gas_heater",
-                "    provides: secondary:electricity",
+                "    provides: electricity",
                 "technology_roles:",
                 "  - id: gas_heater",
-                "    primary_service: secondary:electricity",
+                "    primary_service: electricity",
                 "    technologies: [gas_heater]",
             ]
         )
@@ -335,23 +337,23 @@ def test_lsp_validate_document_uses_v0_2_diagnostics():
 
 def test_run_core_skips_legacy_xref_checks_for_v0_2_source():
     source = {
-        "dsl_version": "0.2",
+        "dsl_version": "0.3",
         "commodities": [
-            {"id": "primary:natural_gas", "kind": "primary"},
-            {"id": "service:space_heat", "kind": "service"},
+            {"id": "natural_gas", "type": "energy", "energy_form": "primary"},
+            {"id": "space_heat", "type": "service"},
         ],
         "technologies": [
             {
                 "id": "gas_heater",
-                "provides": "service:space_heat",
-                "inputs": [{"commodity": "primary:natural_gas", "basis": "HHV"}],
+                "provides": "space_heat",
+                "inputs": [{"commodity": "natural_gas", "basis": "HHV"}],
                 "performance": {"kind": "efficiency", "value": 0.9},
             }
         ],
         "technology_roles": [
             {
                 "id": "space_heat_supply",
-                "primary_service": "service:space_heat",
+                "primary_service": "space_heat",
                 "technologies": ["gas_heater"],
             }
         ],

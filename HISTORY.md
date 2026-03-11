@@ -1,6 +1,18 @@
 # VedaLang History
 
-Chronological record of the current v0.2-era repository state.
+Chronological record of the current repository state.
+
+## 2026-03-11
+
+- Hard-cut the public DSL from v0.2 to v0.3.
+- Removed authored commodity namespace prefixes so commodity definitions and
+  references now use bare IDs.
+- Split commodity semantics into explicit `type` and `energy_form` fields, with
+  `primary` / `secondary` / `resource` retained only as internal lowered energy
+  namespaces.
+- Updated schema, compiler, diagnostics, lint, LSP, examples, and regression
+  coverage so backend consumers receive canonical namespaced commodity IDs while
+  author-facing tooling shows bare commodity labels plus type metadata.
 
 ## 2026-03-08
 

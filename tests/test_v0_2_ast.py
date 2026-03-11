@@ -3,7 +3,7 @@ from vedalang.compiler import V0_2Source, parse_v0_2_source
 
 def valid_v0_2_source() -> dict:
     return {
-        "dsl_version": "0.2",
+        "dsl_version": "0.3",
         "imports": [
             {
                 "package": "vedalang.std.heat@1",
@@ -15,17 +15,17 @@ def valid_v0_2_source() -> dict:
             }
         ],
         "commodities": [
-            {"id": "primary:natural_gas", "kind": "primary"},
-            {"id": "secondary:electricity", "kind": "secondary"},
-            {"id": "service:space_heat", "kind": "service"},
+            {"id": "natural_gas", "type": "energy", "energy_form": "primary"},
+            {"id": "electricity", "type": "energy", "energy_form": "secondary"},
+            {"id": "space_heat", "type": "service"},
         ],
         "technologies": [
             {
                 "id": "heat.gas_heater",
-                "provides": "service:space_heat",
+                "provides": "space_heat",
                 "inputs": [
                     {
-                        "commodity": "primary:natural_gas",
+                        "commodity": "natural_gas",
                         "basis": "HHV",
                     }
                 ],
@@ -35,7 +35,7 @@ def valid_v0_2_source() -> dict:
         "technology_roles": [
             {
                 "id": "heat.residential_space_heat_supply",
-                "primary_service": "service:space_heat",
+                "primary_service": "space_heat",
                 "technologies": ["heat.gas_heater"],
                 "transitions": [
                     {
@@ -173,7 +173,7 @@ def valid_v0_2_source() -> dict:
                         "id": "qld_nsw",
                         "from": "QLD",
                         "to": "NSW",
-                        "commodity": "secondary:electricity",
+                        "commodity": "electricity",
                     }
                 ],
             }
@@ -193,9 +193,9 @@ def test_parse_v0_2_source_returns_typed_document() -> None:
     ast = parse_v0_2_source(valid_v0_2_source())
 
     assert isinstance(ast, V0_2Source)
-    assert ast.dsl_version == "0.2"
+    assert ast.dsl_version == "0.3"
     assert ast.imports[0].alias == "heat"
-    assert ast.commodities[0].id == "primary:natural_gas"
+    assert ast.commodities[0].id == "natural_gas"
     assert ast.technologies[0].performance.kind == "efficiency"
     assert ast.technology_roles[0].transitions[0].kind == "retrofit"
     assert (

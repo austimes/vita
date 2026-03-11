@@ -1,6 +1,6 @@
 # Your First VedaLang Model
 
-This tutorial uses the v0.2 DSL. You will build a minimal space-heating model
+This tutorial uses the v0.3 DSL. You will build a minimal space-heating model
 with one service commodity, one technology, one fleet, and one run.
 
 ## Step 1: Create a Minimal Model File
@@ -10,8 +10,9 @@ Create `my_first_model.veda.yaml` with this content:
 <!-- GENERATED:minimal-example-enums:start -->
 ### Enum-backed Fields In This Example
 
-- `dsl_version`: `0.2`
-- `commodities[*].kind`: `primary | secondary | service | emission | material | certificate`
+- `dsl_version`: `0.3`
+- `commodities[*].type`: `energy | service | material | emission | money | certificate`
+- `commodities[*].energy_form`: `primary | secondary | resource`
 - `technologies[*].inputs[*].basis`: `HHV | LHV`
 - `technologies[*].performance.kind`: `efficiency | cop | custom`
 - `spatial_layers[*].kind`: `polygon | point | grid`
@@ -21,19 +22,20 @@ Create `my_first_model.veda.yaml` with this content:
 
 ```yaml
 # Schema version for this model file.
-dsl_version: "0.2"
+dsl_version: "0.3"
 
 # Commodities declare the fuel and service namespaces used elsewhere.
 commodities:
-  - id: primary:natural_gas
-    kind: primary
-  - id: service:space_heat
-    kind: service
+  - id: natural_gas
+    type: energy
+    energy_form: primary
+  - id: space_heat
+    type: service
 
 # Technologies define the concrete conversion behavior and coefficients.
 technologies:
   - id: gas_heater
-    provides: service:space_heat
+    provides: space_heat
     inputs:
       - commodity: primary:natural_gas
         basis: HHV
@@ -44,7 +46,7 @@ technologies:
 # Technology roles group the technologies that may provide a service.
 technology_roles:
   - id: space_heat_supply
-    primary_service: service:space_heat
+    primary_service: space_heat
     technologies: [gas_heater]
 
 # Spatial layers point to the underlying geographic data source.
@@ -121,19 +123,19 @@ That compile writes the run-scoped artifacts:
 `vedalang validate` runs three stages:
 
 1. Lint and schema validation
-2. v0.2 compilation to CSIR, CPIR, TableIR, and Excel
+2. v0.3 compilation to CSIR, CPIR, TableIR, and Excel
 3. xl2times validation of the emitted Excel
 
 Use `--keep-workdir` if you want to inspect the generated Excel and artifact
 files.
 
-## Step 4: Common v0.2 Errors
+## Step 4: Common v0.3 Errors
 
 ### Wrong Primary Service
 
 **Error**: `E004 technology_role.primary_service must reference a service commodity`
 
-**Fix**: point `technology_roles[*].primary_service` at a `service:*` commodity.
+**Fix**: point `technology_roles[*].primary_service` at a commodity with `type: service`.
 
 ### Missing Run Selection
 

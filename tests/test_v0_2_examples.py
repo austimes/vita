@@ -22,7 +22,7 @@ def test_flagship_v0_2_examples_compile():
         assert bundle.csir is not None
         assert bundle.cpir is not None
         assert bundle.explain is not None
-        assert bundle.tableir["dsl_version"] == "0.2"
+        assert bundle.tableir["dsl_version"] == "0.3"
 
 
 def test_quickstart_v0_2_examples_compile():
@@ -45,7 +45,7 @@ def test_quickstart_v0_2_examples_compile():
         assert bundle.csir is not None
         assert bundle.cpir is not None
         assert bundle.explain is not None
-        assert bundle.tableir["dsl_version"] == "0.2"
+        assert bundle.tableir["dsl_version"] == "0.3"
 
 
 def test_ported_example_catalog_compiles():
@@ -100,4 +100,4 @@ def test_ported_example_catalog_compiles():
         assert bundle.csir is not None
         assert bundle.cpir is not None
         assert bundle.explain is not None
-        assert bundle.tableir["dsl_version"] == "0.2"
+        assert bundle.tableir["dsl_version"] == "0.3"

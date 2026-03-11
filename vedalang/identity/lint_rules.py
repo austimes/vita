@@ -1,4 +1,4 @@
-"""v0.2 naming convention lint rules for VedaLang."""
+"""Naming convention lint rules for the active VedaLang DSL."""
 
 from __future__ import annotations
 
@@ -6,18 +6,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any
 
-from vedalang.conventions import split_commodity_namespace
 from vedalang.versioning import looks_like_v0_2_source
 
-V0_2_COMMODITY_NAMESPACE_TO_KINDS: dict[str, frozenset[str]] = {
-    "primary": frozenset({"primary"}),
-    "secondary": frozenset({"secondary"}),
-    "resource": frozenset({"material"}),
-    "service": frozenset({"service"}),
-    "emission": frozenset({"emission"}),
-    "material": frozenset({"material"}),
-    "certificate": frozenset({"certificate"}),
-}
 
 @dataclass
 class LintDiagnostic:
@@ -47,14 +37,10 @@ class NamingLintRule(ABC):
 
 
 class N001_CommodityIDGrammar(NamingLintRule):
-    """Commodity IDs must use canonical v0.2 namespaces."""
+    """Commodity IDs must use bare authored names."""
 
     code = "N001"
-    description = "Commodity ID namespace must match canonical conventions"
-
-    def __init__(self) -> None:
-        self._valid_namespaces = set(V0_2_COMMODITY_NAMESPACE_TO_KINDS)
-        self._namespace_to_kinds = V0_2_COMMODITY_NAMESPACE_TO_KINDS
+    description = "Commodity IDs must not use lowered namespace prefixes"
 
     def check(self, source: dict) -> list[LintDiagnostic]:
         if not looks_like_v0_2_source(source):
@@ -63,43 +49,18 @@ class N001_CommodityIDGrammar(NamingLintRule):
         diagnostics: list[LintDiagnostic] = []
         for index, commodity in enumerate(source.get("commodities", []) or []):
             commodity_id = commodity.get("id", "")
-            kind = commodity.get("kind")
-            if not commodity_id or not isinstance(kind, str):
-                continue
-            namespace, _ = split_commodity_namespace(str(commodity_id))
-            if namespace is None:
+            if not commodity_id:
                 continue
             path = f"commodities[{index}].id"
-            if namespace not in self._valid_namespaces:
-                expected = [
-                    candidate
-                    for candidate, allowed_kinds in self._namespace_to_kinds.items()
-                    if kind in allowed_kinds
-                ]
-                expected_text = ", ".join(f"{candidate}:*" for candidate in expected)
+            if ":" in str(commodity_id):
                 diagnostics.append(
                     LintDiagnostic(
                         code=self.code,
                         severity="error",
                         message=(
-                            f"Unknown commodity namespace '{namespace}' in "
-                            f"'{commodity_id}'. Use {expected_text} for "
-                            f"kind '{kind}'."
-                        ),
-                        path=path,
-                    )
-                )
-                continue
-            expected_kinds = self._namespace_to_kinds.get(namespace, frozenset())
-            if kind not in expected_kinds:
-                diagnostics.append(
-                    LintDiagnostic(
-                        code=self.code,
-                        severity="error",
-                        message=(
-                            f"Commodity '{commodity_id}' namespace '{namespace}' "
-                            f"implies kind in {sorted(expected_kinds)}, but "
-                            f"commodity kind is '{kind}'."
+                            f"Commodity '{commodity_id}' uses a lowered namespace "
+                            "prefix. In v0.3 authored commodity IDs must be bare "
+                            "names; move the ontology into `type` and `energy_form`."
                         ),
                         path=path,
                     )

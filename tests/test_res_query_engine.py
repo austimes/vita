@@ -472,7 +472,7 @@ def test_commodity_inspector_reports_usage_lists():
     commodity_node = next(
         node
         for node in response["graph"]["nodes"]
-        if node["type"] == "commodity" and node["label"] == "service:space_heat"
+        if node["type"] == "commodity" and node["label"] == "space_heat"
     )
     inspector = response["details"]["nodes"][commodity_node["id"]]["inspector"]
     assert _section_by_key(inspector, "dsl")["label"] == "Object explorer"
@@ -519,24 +519,24 @@ def test_source_mode_inspector_marks_veda_section_partial_without_manifest():
 
 def test_collapse_scope_inspector_tracks_all_underlying_commodities(tmp_path):
     source = {
-        "dsl_version": "0.2",
+        "dsl_version": "0.3",
         "commodities": [
-            {"id": "secondary:electricity", "kind": "secondary"},
-            {"id": "service:space_heat@RES", "kind": "service"},
-            {"id": "service:space_heat@COM", "kind": "service"},
+            {"id": "electricity", "type": "energy", "energy_form": "secondary"},
+            {"id": "space_heat@RES", "type": "service"},
+            {"id": "space_heat@COM", "type": "service"},
         ],
         "technologies": [
             {
                 "id": "res_hp",
-                "provides": "service:space_heat@RES",
-                "inputs": [{"commodity": "secondary:electricity"}],
+                "provides": "space_heat@RES",
+                "inputs": [{"commodity": "electricity"}],
                 "performance": {"kind": "cop", "value": 3.0},
                 "emissions": [],
             },
             {
                 "id": "com_hp",
-                "provides": "service:space_heat@COM",
-                "inputs": [{"commodity": "secondary:electricity"}],
+                "provides": "space_heat@COM",
+                "inputs": [{"commodity": "electricity"}],
                 "performance": {"kind": "cop", "value": 3.0},
                 "emissions": [],
             },
@@ -544,12 +544,12 @@ def test_collapse_scope_inspector_tracks_all_underlying_commodities(tmp_path):
         "technology_roles": [
             {
                 "id": "res_space_heat",
-                "primary_service": "service:space_heat@RES",
+                "primary_service": "space_heat@RES",
                 "technologies": ["res_hp"],
             },
             {
                 "id": "com_space_heat",
-                "primary_service": "service:space_heat@COM",
+                "primary_service": "space_heat@COM",
                 "technologies": ["com_hp"],
             },
         ],
@@ -639,17 +639,17 @@ def test_collapse_scope_inspector_tracks_all_underlying_commodities(tmp_path):
     commodity_node = next(
         node
         for node in response["graph"]["nodes"]
-        if node["type"] == "commodity" and node["label"] == "service:space_heat"
+        if node["type"] == "commodity" and node["label"] == "space_heat"
     )
     details = response["details"]["nodes"][commodity_node["id"]]
     assert details["commodity_ids"] == [
-        "service:space_heat@COM",
-        "service:space_heat@RES",
+        "space_heat@COM",
+        "space_heat@RES",
     ]
     inspector = details["inspector"]
     assert inspector["summary"]["commodity_view_members"] == [
-        "service:space_heat@COM",
-        "service:space_heat@RES",
+        "space_heat@COM",
+        "space_heat@RES",
     ]
     assert details["scopes"]["regions"] == ["SINGLE"]
     lowered = _section_by_key(inspector, "lowered")
@@ -752,8 +752,8 @@ def test_object_explorer_source_blocks_use_exact_yaml_item_lines():
     role_item = next(item for item in dsl_items if item["kind"] == "technology_role")
     tech_item = next(item for item in dsl_items if item["kind"] == "technology")
 
-    assert role_item["source_location"]["start_line"] == 138
-    assert role_item["source_location"]["end_line"] == 141
+    assert role_item["source_location"]["start_line"] == 117
+    assert role_item["source_location"]["end_line"] == 120
     assert (
         role_item["source_location"]["lines"][0]["text"]
         == "  - id: farm_input_supply"
@@ -764,7 +764,7 @@ def test_object_explorer_source_blocks_use_exact_yaml_item_lines():
     )
     assert "excerpt" not in role_item["source_location"]
 
-    assert tech_item["source_location"]["start_line"] == 26
+    assert tech_item["source_location"]["start_line"] == 18
     assert (
         tech_item["source_location"]["lines"][0]["text"]
         == "  - id: farm_input_import"

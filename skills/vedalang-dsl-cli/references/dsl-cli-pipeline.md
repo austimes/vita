@@ -14,8 +14,8 @@ generation agents.
 ### Canonical Enums (Schema-Derived)
 
 - `stage`: `supply | conversion | distribution | storage | end_use | sink`
-- `commodity.type`: `fuel | energy | service | material | emission | money | other`
-- `commodity namespace prefix`: `primary | resource | secondary | service | material | emission | money`
+- `commodity.type`: `energy | service | material | emission | money | certificate`
+- `commodity namespace prefix`: `primary | secondary | resource | service | material | emission | money | certificate`
 - `scenario category`: `demands | prices | policies | technology_assumptions | resource_availability | global_settings`
 <!-- GENERATED:dsl-cli-canonical-enums:end -->
 

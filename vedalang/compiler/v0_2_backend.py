@@ -7,6 +7,7 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
+from vedalang.conventions import canonicalize_commodity_id
 from vedalang.versioning import annotate_tableir
 
 from .v0_2_ast import V0_2Source, parse_v0_2_source
@@ -20,13 +21,12 @@ from .v0_2_resolution import (
 from .v0_2_resolution import resolve_run as resolve_selected_run
 
 DEFAULT_UNITS = {
-    "primary": "PJ",
-    "secondary": "PJ",
-    "resource": "PJ",
+    "energy": "PJ",
     "service": "PJ",
     "material": "Mt",
     "emission": "Mt",
     "money": "MUSD",
+    "certificate": "PJ",
 }
 
 UNIT_DIMENSION = {
@@ -76,20 +76,27 @@ def _trade_sheet_name(commodity_symbol: str) -> str:
     return f"Uni_{commodity_symbol}"[:31]
 
 
-def _commodity_csets(kind: str) -> str:
+def _commodity_csets(type_: str) -> str:
     return {
-        "primary": "NRG",
-        "secondary": "NRG",
-        "resource": "NRG",
+        "energy": "NRG",
         "service": "DEM",
         "material": "MAT",
         "emission": "ENV",
         "money": "FIN",
-    }.get(kind, "NRG")
+        "certificate": "NRG",
+    }.get(type_, "NRG")
 
 
-def _default_unit(kind: str) -> str:
-    return DEFAULT_UNITS.get(kind, "PJ")
+def _default_unit(type_: str) -> str:
+    return DEFAULT_UNITS.get(type_, "PJ")
+
+
+def _canonical_commodity_id(commodity: Any) -> str:
+    return canonicalize_commodity_id(
+        commodity.id,
+        type_=commodity.type,
+        energy_form=commodity.energy_form,
+    )
 
 
 def _quantity_unit(quantity: dict[str, Any] | None) -> str:
@@ -115,14 +122,14 @@ def _activity_unit(
         if flow.get("direction") != "out":
             continue
         commodity = graph.commodities.get(flow.get("commodity", ""))
-        if commodity is not None and commodity.kind != "emission":
-            return _default_unit(commodity.kind)
+        if commodity is not None and commodity.type != "emission":
+            return _default_unit(commodity.type)
     for flow in process.get("flows", []):
         if flow.get("direction") != "in":
             continue
         commodity = graph.commodities.get(flow.get("commodity", ""))
         if commodity is not None:
-            return _default_unit(commodity.kind)
+            return _default_unit(commodity.type)
     return "PJ"
 
 
@@ -294,8 +301,8 @@ def lower_v0_2_bundle_to_tableir(
     default_region = ",".join(model_regions)
     bookname = _artifact_symbol("RUN", run_id)
     commodity_symbols = {
-        commodity_id: _commodity_symbol(commodity_id)
-        for commodity_id in sorted(graph.commodities)
+        commodity_id: _commodity_symbol(_canonical_commodity_id(commodity))
+        for commodity_id, commodity in sorted(graph.commodities.items())
     }
     process_symbols = {
         process["id"]: _process_symbol(process["id"])
@@ -305,9 +312,9 @@ def lower_v0_2_bundle_to_tableir(
     comm_rows = [
         {
             "region": default_region,
-            "csets": _commodity_csets(commodity.kind),
+            "csets": _commodity_csets(commodity.type),
             "commodity": commodity_symbols[commodity_id],
-            "unit": _default_unit(commodity.kind),
+            "unit": _default_unit(commodity.type),
         }
         for commodity_id, commodity in sorted(graph.commodities.items())
     ]

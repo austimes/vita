@@ -112,7 +112,7 @@ class TestCheck:
         )
 
         data = json.loads(result.stdout)
-        assert data["dsl_version"] == "0.2"
+        assert data["dsl_version"] == "0.3"
         assert data["artifact_version"] == "1.0.0"
         assert "success" in data
         assert "tables" in data
@@ -121,7 +121,7 @@ class TestCheck:
 
 class TestPipeline:
     def test_vedalang_dev_pipeline_v0_2_run_json(self, tmp_path):
-        """Pipeline exposes run-scoped artifact files for v0.2 input."""
+        """Pipeline exposes run-scoped artifact files for v0.3 input."""
         src = tmp_path / "toy_v0_2.veda.yaml"
         src.write_text(yaml.safe_dump(_v0_2_backend_source()), encoding="utf-8")
 
@@ -158,7 +158,7 @@ class TestPipeline:
         )
 
         data = json.loads(result.stdout)
-        assert data["dsl_version"] == "0.2"
+        assert data["dsl_version"] == "0.3"
         assert data["artifact_version"] == "1.0.0"
         assert "success" in data
         assert "steps" in data

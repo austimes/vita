@@ -1,6 +1,6 @@
 # VedaLang Heuristic Checks
 
-VedaLang's deterministic heuristics run on the active v0.2 public DSL before
+VedaLang's deterministic heuristics run on the active v0.3 public DSL before
 compilation and solver work. They focus on stock-coverage gaps that are cheap
 to detect from the authored source.
 
@@ -34,23 +34,23 @@ uv run vedalang validate model.veda.yaml
 **Severity:** Warning
 
 **Pattern detected:** A `facility` or `fleet` uses a `technology_role` whose
-`primary_service` is a `service:*` commodity, but the asset has no
+`primary_service` is a commodity with `type: service`, but the asset has no
 `stock.items`.
 
 **Why it matters:** Service-delivering assets usually need explicit base-year
 stock observations to anchor installed service capacity or activity. A service
-asset without stock is often an incomplete v0.2 model fragment.
+asset without stock is often an incomplete v0.3 model fragment.
 
 **Example:**
 
 ```yaml
 commodities:
-  - id: service:space_heat
-    kind: service
+  - id: space_heat
+    type: service
 
 technology_roles:
   - id: space_heat_supply
-    primary_service: service:space_heat
+    primary_service: space_heat
     technologies: [heat_pump]
 
 facilities:

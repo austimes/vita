@@ -1,78 +1,68 @@
-dsl_version: "0.2"
-
+dsl_version: "0.3"
 commodities:
-  - id: emission:co2
-    kind: emission
-
-  - id: primary:petrol
-    kind: primary
-
-  - id: secondary:electricity
-    kind: secondary
-
-  - id: service:electricity_supply
-    kind: service
-
-  - id: service:passenger_km
-    kind: service
-
-  - id: service:petrol_supply
-    kind: service
-
+  - id: co2
+    type: emission
+  - id: petrol
+    type: energy
+    energy_form: primary
+  - id: electricity
+    type: energy
+    energy_form: secondary
+  - id: electricity_supply
+    type: service
+  - id: passenger_km
+    type: service
+  - id: petrol_supply
+    type: service
 technologies:
   - id: electricity_import
     outputs:
-      - commodity: secondary:electricity
+      - commodity: electricity
     lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:electricity_supply
+    provides: electricity_supply
     variable_om: 6.94 AUD2024/MWh
-
   - id: ev_car
     inputs:
-      - commodity: secondary:electricity
+      - commodity: electricity
     investment_cost: 100 AUD2024/kW
     lifetime: 15 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:passenger_km
+    provides: passenger_km
     variable_om: 20 AUD2024/MWh
-
   - id: ice_car
     inputs:
-      - commodity: primary:petrol
+      - commodity: petrol
         basis: HHV
     emissions:
-      - commodity: emission:co2
+      - commodity: co2
         factor: 0.067 t/GJ
     lifetime: 15 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:passenger_km
+    provides: passenger_km
     variable_om: 50 AUD2024/MWh
-
   - id: petrol_import
     outputs:
-      - commodity: primary:petrol
+      - commodity: petrol
     lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:petrol_supply
+    provides: petrol_supply
     variable_om: 15 AUD2024/MWh
-
 technology_roles:
   - id: electricity_supply
-    primary_service: service:electricity_supply
+    primary_service: electricity_supply
     technologies:
       - electricity_import
-
   - id: passenger_mobility
-    primary_service: service:passenger_km
+    primary_service: passenger_km
     technologies:
       - ice_car
       - ev_car
@@ -81,18 +71,15 @@ technology_roles:
         from: ice_car
         kind: retrofit
         to: ev_car
-
   - id: petrol_supply
-    primary_service: service:petrol_supply
+    primary_service: petrol_supply
     technologies:
       - petrol_import
-
 spatial_layers:
   - id: geo.demo
     geometry_file: data/regions.geojson
     key: region_id
     kind: polygon
-
 region_partitions:
   - id: single_region
     layer: geo.demo
@@ -101,7 +88,6 @@ region_partitions:
       value: SINGLE
     members:
       - SINGLE
-
 fleets:
   - id: electricity_supply
     distribution:
@@ -114,7 +100,6 @@ fleets:
             year: 2025
           technology: electricity_import
     technology_role: electricity_supply
-
   - id: passenger_transport
     available_technologies:
       - ice_car
@@ -131,14 +116,12 @@ fleets:
             value: 200 MW
             year: 2025
           technology: ice_car
-
         - metric: installed_capacity
           observed:
             value: 10 MW
             year: 2025
           technology: ev_car
     technology_role: passenger_mobility
-
   - id: petrol_supply
     distribution:
       method: direct
@@ -150,7 +133,6 @@ fleets:
             year: 2025
           technology: petrol_import
     technology_role: petrol_supply
-
 runs:
   - id: single_2025
     base_year: 2025

@@ -1,119 +1,101 @@
-dsl_version: "0.2"
-
+dsl_version: "0.3"
 commodities:
-  - id: emission:co2e
-    kind: emission
-
-  - id: material:farm_inputs
-    kind: material
-
-  - id: material:farm_land
-    kind: material
-
-  - id: service:agricultural_output
-    kind: service
-
-  - id: service:carbon_removal
-    kind: service
-
-  - id: service:farm_input_supply
-    kind: service
-
-  - id: service:farm_land_supply
-    kind: service
-
+  - id: co2e
+    type: emission
+  - id: farm_inputs
+    type: material
+  - id: farm_land
+    type: material
+  - id: agricultural_output
+    type: service
+  - id: carbon_removal
+    type: service
+  - id: farm_input_supply
+    type: service
+  - id: farm_land_supply
+    type: service
 technologies:
   - id: farm_input_import
     outputs:
-      - commodity: material:farm_inputs
+      - commodity: farm_inputs
     lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:farm_input_supply
-
+    provides: farm_input_supply
   - id: land_endowment
     outputs:
-      - commodity: material:farm_land
+      - commodity: farm_land
     lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:farm_land_supply
-
+    provides: farm_land_supply
   - id: reforestation
     inputs:
-      - commodity: material:farm_land
+      - commodity: farm_land
     emissions:
-      - commodity: emission:co2e
+      - commodity: co2e
         factor: -1 t/t
     investment_cost: 15 AUD2024/kW
     lifetime: 50 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:carbon_removal
-
+    provides: carbon_removal
   - id: soil_carbon
     inputs:
-      - commodity: material:farm_land
+      - commodity: farm_land
     emissions:
-      - commodity: emission:co2e
+      - commodity: co2e
         factor: -1 t/t
     investment_cost: 30 AUD2024/kW
     lifetime: 30 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:carbon_removal
-
+    provides: carbon_removal
   - id: traditional_baseline
     inputs:
-      - commodity: material:farm_inputs
-
-      - commodity: material:farm_land
+      - commodity: farm_inputs
+      - commodity: farm_land
     emissions:
-      - commodity: emission:co2e
+      - commodity: co2e
         factor: 5 t/t
     lifetime: 50 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:agricultural_output
-
+    provides: agricultural_output
   - id: traditional_with_feed_additives
     inputs:
-      - commodity: material:farm_inputs
-
-      - commodity: material:farm_land
+      - commodity: farm_inputs
+      - commodity: farm_land
     emissions:
-      - commodity: emission:co2e
+      - commodity: co2e
         factor: 3 t/t
     investment_cost: 20 AUD2024/kW
     lifetime: 50 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:agricultural_output
-
+    provides: agricultural_output
   - id: traditional_with_improved_manure
     inputs:
-      - commodity: material:farm_inputs
-
-      - commodity: material:farm_land
+      - commodity: farm_inputs
+      - commodity: farm_land
     emissions:
-      - commodity: emission:co2e
+      - commodity: co2e
         factor: 3.75 t/t
     investment_cost: 10 AUD2024/kW
     lifetime: 50 year
     performance:
       kind: efficiency
       value: 1.0
-    provides: service:agricultural_output
-
+    provides: agricultural_output
 technology_roles:
   - id: agricultural_production
-    primary_service: service:agricultural_output
+    primary_service: agricultural_output
     technologies:
       - traditional_baseline
       - traditional_with_feed_additives
@@ -123,34 +105,28 @@ technology_roles:
         from: traditional_baseline
         kind: retrofit
         to: traditional_with_feed_additives
-
       - cost: 10 AUD2024/kW
         from: traditional_baseline
         kind: retrofit
         to: traditional_with_improved_manure
-
   - id: farm_carbon_management
-    primary_service: service:carbon_removal
+    primary_service: carbon_removal
     technologies:
       - soil_carbon
       - reforestation
-
   - id: farm_input_supply
-    primary_service: service:farm_input_supply
+    primary_service: farm_input_supply
     technologies:
       - farm_input_import
-
   - id: farm_land_supply
-    primary_service: service:farm_land_supply
+    primary_service: farm_land_supply
     technologies:
       - land_endowment
-
 spatial_layers:
   - id: geo.demo
     geometry_file: data/regions.geojson
     key: region_id
     kind: polygon
-
 region_partitions:
   - id: single_region
     layer: geo.demo
@@ -159,7 +135,6 @@ region_partitions:
       value: SINGLE
     members:
       - SINGLE
-
 sites:
   - id: single_farm
     location:
@@ -169,7 +144,6 @@ sites:
     membership_overrides:
       region_partitions:
         single_region: SINGLE
-
 facilities:
   - id: farm_input_supply_asset
     site: single_farm
@@ -181,7 +155,6 @@ facilities:
             year: 2025
           technology: farm_input_import
     technology_role: farm_input_supply
-
   - id: farm_land_endowment
     site: single_farm
     stock:
@@ -192,7 +165,6 @@ facilities:
             year: 2025
           technology: land_endowment
     technology_role: farm_land_supply
-
   - id: farm_production_asset
     available_technologies:
       - traditional_baseline
@@ -207,20 +179,17 @@ facilities:
             year: 2025
           technology: traditional_baseline
     technology_role: agricultural_production
-
 opportunities:
   - id: reforestation_rollout
     max_new_capacity: 1 MW
     siting:
       site: single_farm
     technology: reforestation
-
   - id: soil_carbon_rollout
     max_new_capacity: 1 MW
     siting:
       site: single_farm
     technology: soil_carbon
-
 runs:
   - id: single_2025
     base_year: 2025

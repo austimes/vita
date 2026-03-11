@@ -1,17 +1,18 @@
-dsl_version: "0.2"
+dsl_version: "0.3"
 commodities:
-  - id: emission:co2
-    kind: emission
+  - id: co2
+    type: emission
 technologies:
   - id: dac_ledger_sink
-    provides: emission:co2
+    provides: co2
     emissions:
-      - commodity: emission:co2
+      - commodity: co2
         factor: -1.0 t/t
     performance:
       kind: efficiency
       value: 1.0
 technology_roles:
   - id: remove_co2
-    primary_service: emission:co2
-    technologies: [dac_ledger_sink]
+    primary_service: co2
+    technologies:
+      - dac_ledger_sink

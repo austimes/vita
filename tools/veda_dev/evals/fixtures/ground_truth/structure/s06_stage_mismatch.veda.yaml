@@ -1,21 +1,24 @@
-dsl_version: "0.2"
+dsl_version: "0.3"
 commodities:
-  - id: secondary:electricity
-    kind: secondary
-  - id: primary:natural_gas
-    kind: primary
+  - id: electricity
+    type: energy
+    energy_form: secondary
+  - id: natural_gas
+    type: energy
+    energy_form: primary
 technologies:
   - id: odd_supply_ccgt
-    provides: secondary:electricity
+    provides: electricity
     inputs:
-      - commodity: primary:natural_gas
+      - commodity: natural_gas
         basis: HHV
     outputs:
-      - commodity: secondary:electricity
+      - commodity: electricity
     performance:
       kind: efficiency
       value: 0.55
 technology_roles:
   - id: export_power
-    primary_service: secondary:electricity
-    technologies: [odd_supply_ccgt]
+    primary_service: electricity
+    technologies:
+      - odd_supply_ccgt

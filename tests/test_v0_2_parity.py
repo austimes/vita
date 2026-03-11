@@ -1,4 +1,4 @@
-"""Parity checks for the v0.2 backend bridge."""
+"""Parity checks for the v0.3 backend bridge."""
 
 import json
 import subprocess
@@ -16,7 +16,7 @@ V0_2_FIXTURE = (
 
 
 def test_v0_2_fixture_reaches_xl2times_successfully():
-    """The flagship v0.2 fixture should pass compile + xl2times validation."""
+    """The flagship v0.3 fixture should pass compile + xl2times validation."""
     result = run_check(
         V0_2_FIXTURE,
         from_vedalang=True,
@@ -54,7 +54,7 @@ def test_v0_2_fixture_pipeline_no_solver_succeeds():
 
 
 def test_v0_2_emission_source_reaches_xl2times_successfully(tmp_path):
-    """Emission-bearing v0.2 sources should survive the xl2times path."""
+    """Emission-bearing v0.3 sources should survive the xl2times path."""
     src = tmp_path / "toy_heat_emissions.veda.yaml"
     src.write_text(
         yaml.safe_dump(_v0_2_backend_source(include_emissions=True)),

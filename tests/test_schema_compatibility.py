@@ -1,4 +1,4 @@
-"""Schema contract tests for the v0.2 hard cut."""
+"""Schema contract tests for the v0.3 hard cut."""
 
 import json
 from pathlib import Path
@@ -44,7 +44,7 @@ LEGACY_TOP_LEVEL_PROPERTIES = {
 
 
 class TestV0_2SchemaContract:
-    """Verify the current public schema matches the v0.2 DSL surface."""
+    """Verify the current public schema matches the v0.3 DSL surface."""
 
     @classmethod
     def setup_class(cls) -> None:
@@ -52,18 +52,18 @@ class TestV0_2SchemaContract:
 
     def test_dsl_version_property_is_const_v0_2(self) -> None:
         dsl_version = self.schema["properties"]["dsl_version"]
-        assert dsl_version["const"] == "0.2"
+        assert dsl_version["const"] == "0.3"
 
     def test_v0_2_top_level_properties_exist(self) -> None:
         current_properties = set(self.schema.get("properties", {}))
         missing = EXPECTED_V0_2_TOP_LEVEL_PROPERTIES - current_properties
-        assert not missing, f"Missing v0.2 top-level properties: {sorted(missing)}"
+        assert not missing, f"Missing v0.3 top-level properties: {sorted(missing)}"
 
     def test_legacy_top_level_properties_are_absent(self) -> None:
         current_properties = set(self.schema.get("properties", {}))
         unexpected = LEGACY_TOP_LEVEL_PROPERTIES & current_properties
         assert not unexpected, (
-            "Legacy public top-level properties leaked into v0.2 schema: "
+            "Legacy public top-level properties leaked into v0.3 schema: "
             f"{sorted(unexpected)}"
         )
 
@@ -86,7 +86,7 @@ class TestV0_2SchemaContract:
             "temporal_index_series",
             "zone_overlay",
         ]:
-            assert definition in defs, f"Missing v0.2 definition: {definition}"
+            assert definition in defs, f"Missing v0.3 definition: {definition}"
 
     def test_legacy_public_definitions_are_absent_from_v0_2_schema(self) -> None:
         defs = self.schema.get("$defs", {})
@@ -103,12 +103,12 @@ class TestV0_2SchemaContract:
             "demand",
         ]:
             assert definition not in defs, (
-                f"Legacy definition {definition} should not be present in v0.2 schema"
+                f"Legacy definition {definition} should not be present in v0.3 schema"
             )
 
     def test_required_fields_for_core_v0_2_objects(self) -> None:
         defs = self.schema["$defs"]
-        assert defs["commodity"]["required"] == ["id", "kind"]
+        assert defs["commodity"]["required"] == ["id", "type"]
         assert defs["technology"]["required"] == ["id", "provides"]
         assert defs["technology_role"]["required"] == [
             "id",
@@ -144,14 +144,20 @@ class TestV0_2SchemaContract:
         assert "new_build_limits" in defs["fleet"]["properties"]
 
     def test_commodity_kind_enum_matches_v0_2_namespaces(self) -> None:
-        enum_values = self.schema["$defs"]["commodity"]["properties"]["kind"]["enum"]
+        commodity = self.schema["$defs"]["commodity"]["properties"]
+        enum_values = commodity["type"]["enum"]
         assert enum_values == [
+            "energy",
+            "service",
+            "material",
+            "emission",
+            "money",
+            "certificate",
+        ]
+        assert commodity["energy_form"]["enum"] == [
             "primary",
             "secondary",
-            "service",
-            "emission",
-            "material",
-            "certificate",
+            "resource",
         ]
 
     def test_flow_basis_stays_explicit(self) -> None:
