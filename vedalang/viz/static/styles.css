@@ -355,23 +355,34 @@ h1 {
 }
 
 .graph-process-label {
+  --graph-label-secondary: #e2e8f0;
+  --graph-label-meta: #cbd5e1;
   position: absolute;
   transform: translate(-50%, -50%);
   width: 148px;
-  padding: 4px 6px;
+  padding: 6px 8px;
   border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
   text-align: center;
   line-height: 1.15;
   color: var(--text);
   box-sizing: border-box;
+  box-shadow: 0 8px 24px rgba(2, 6, 23, 0.24);
+  text-shadow: 0 1px 1px rgba(2, 6, 23, 0.5);
 }
 
 .graph-process-label.is-role {
-  background: rgba(99, 102, 241, 0.14);
+  --graph-label-secondary: #e0e7ff;
+  --graph-label-meta: #c7d2fe;
+  background: linear-gradient(180deg, rgba(99, 102, 241, 0.34), rgba(67, 56, 202, 0.24));
+  border-color: rgba(129, 140, 248, 0.55);
 }
 
 .graph-process-label.is-instance {
-  background: rgba(22, 163, 74, 0.14);
+  --graph-label-secondary: #dcfce7;
+  --graph-label-meta: #bbf7d0;
+  background: linear-gradient(180deg, rgba(22, 163, 74, 0.32), rgba(21, 128, 61, 0.24));
+  border-color: rgba(74, 222, 128, 0.48);
 }
 
 .graph-process-label-primary {
@@ -382,14 +393,16 @@ h1 {
 
 .graph-process-label-secondary {
   margin-top: 2px;
-  font-size: 9px;
-  color: rgba(229, 231, 235, 0.88);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--graph-label-secondary);
 }
 
 .graph-process-label-meta {
   margin-top: 2px;
-  font-size: 8px;
-  color: rgba(156, 163, 175, 0.88);
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--graph-label-meta);
 }
 
 .details-pane {
@@ -528,25 +541,68 @@ h1 {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-muted);
-  border: 1px solid rgba(75, 85, 99, 0.8);
+  color: #e2e8f0;
+  background: rgba(51, 65, 85, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.72);
   border-radius: 999px;
-  padding: 2px 8px;
+  padding: 3px 9px;
   font-size: 10px;
   font-weight: 700;
   text-transform: lowercase;
   white-space: nowrap;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.details-item-kind[data-kind="fleet"] {
+  color: #fef3c7;
+  background: rgba(180, 83, 9, 0.42);
+  border-color: rgba(251, 191, 36, 0.58);
+}
+
+.details-item-kind[data-kind="facility"] {
+  color: #fce7f3;
+  background: rgba(157, 23, 77, 0.38);
+  border-color: rgba(244, 114, 182, 0.5);
+}
+
+.details-item-kind[data-kind="technology_role"] {
+  color: #dbeafe;
+  background: rgba(30, 64, 175, 0.42);
+  border-color: rgba(96, 165, 250, 0.52);
+}
+
+.details-item-kind[data-kind="technology"] {
+  color: #dcfce7;
+  background: rgba(21, 128, 61, 0.4);
+  border-color: rgba(74, 222, 128, 0.5);
+}
+
+.details-item-kind[data-kind="commodity"],
+.details-item-kind[data-kind="trade_commodity"] {
+  color: #cffafe;
+  background: rgba(14, 116, 144, 0.44);
+  border-color: rgba(34, 211, 238, 0.5);
+}
+
+.details-item-kind[data-kind="transition"] {
+  color: #ede9fe;
+  background: rgba(91, 33, 182, 0.38);
+  border-color: rgba(167, 139, 250, 0.48);
 }
 
 .details-item-kind-button {
   cursor: pointer;
   background: transparent;
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease,
+    color 120ms ease;
 }
 
 .details-item-kind-button:hover,
 .details-item-kind-button:focus-visible {
-  border-color: rgba(148, 163, 184, 0.95);
-  color: #dbeafe;
+  border-color: rgba(226, 232, 240, 0.95);
+  filter: brightness(1.08);
   outline: none;
 }
 

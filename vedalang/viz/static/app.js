@@ -379,6 +379,13 @@ function displayKindLabel(kind) {
   return String(kind || "item").replaceAll("_", " ");
 }
 
+function badgeKindToken(kind) {
+  return String(kind || "item")
+    .trim()
+    .replaceAll(" ", "_")
+    .toLowerCase();
+}
+
 function objectExplorerTitle(item) {
   if (item && item.id) {
     return String(item.id);
@@ -557,6 +564,7 @@ function createObjectKindBadge(kind) {
     const badge = document.createElement("div");
     badge.className = "details-item-kind";
     badge.textContent = label;
+    badge.dataset.kind = badgeKindToken(kind);
     return { badge, panel: null };
   }
 
@@ -564,6 +572,7 @@ function createObjectKindBadge(kind) {
   badge.type = "button";
   badge.className = "details-item-kind details-item-kind-button";
   badge.textContent = label;
+  badge.dataset.kind = badgeKindToken(kind);
   badge.title = explainer;
   badge.setAttribute("aria-expanded", "false");
   badge.setAttribute("aria-label", `About ${label}`);
@@ -1124,7 +1133,8 @@ function renderInspector(inspector) {
 
           const right = document.createElement("div");
           right.className = "details-item-kind";
-          right.textContent = item.kind || "";
+          right.dataset.kind = badgeKindToken(item.kind);
+          right.textContent = displayKindLabel(item.kind || "");
           header.appendChild(right);
 
           card.appendChild(header);

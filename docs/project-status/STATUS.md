@@ -26,6 +26,9 @@ issue remains open.
 
 ## Recently Completed
 
+- `vedalang-j2p` — improved RES viewer contrast so inspector object-type badges
+  now use stronger, kind-specific pill colors and process overlay secondary and
+  meta label text reads clearly against the dark graph background
 - `vedalang-eiu` — removed redundant `id` rows from Object explorer cards,
   moved built-in object-type explainer text behind the type badge hover/click
   affordance, and flattened simple list rendering so outputs, stock entries,
