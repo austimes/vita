@@ -34,13 +34,19 @@ const COLLAPSED_OBJECT_FIELD_KEYS = new Set([
   "transitions",
 ]);
 const OBJECT_EXPLAINERS = {
-  facility: "Binds a technology role to a concrete place and can carry stock, build limits, and policies.",
-  fleet: "Binds a technology role to distributed stock and can carry stock, build limits, and policies.",
-  zone_opportunity: "Represents a zone-bound candidate build option with capped new-build potential.",
-  technology_role: "Groups interchangeable technologies delivering the same primary service.",
+  facility:
+    "Binds a technology role to a concrete place and can carry stock, build limits, and policies.",
+  fleet:
+    "Binds a technology role to distributed stock and can carry stock, build limits, and policies.",
+  zone_opportunity:
+    "Represents a zone-bound candidate build option with capped new-build potential.",
+  technology_role:
+    "Groups interchangeable technologies delivering the same primary service.",
   technology: "Describes inputs, outputs, performance, costs, lifetime, and emissions.",
-  commodity: "Defines a flow type used as an input, output, service, resource, emission ledger, or financial commodity.",
-  transition: "Describes a change path from one technology to another, including retrofit cost or lead time when present.",
+  commodity:
+    "Defines a flow type used as an input, output, service, resource, emission ledger, or financial commodity.",
+  transition:
+    "Describes a change path from one technology to another, including retrofit cost or lead time when present.",
 };
 
 const MODE_OPTIONS = [
@@ -63,12 +69,16 @@ const COMMODITY_VIEW_OPTIONS = [
   { value: "scoped", label: "scoped" },
 ];
 
-const STAGE_ORDER = ["supply", "conversion", "distribution", "storage", "end_use", "sink"];
+const STAGE_ORDER = [
+  "supply",
+  "conversion",
+  "distribution",
+  "storage",
+  "end_use",
+  "sink",
+];
 const STAGE_RANK = new Map(STAGE_ORDER.map((stage, index) => [stage, index]));
-const PROCESS_NODE_TYPES = new Set([
-  "role",
-  "instance",
-]);
+const PROCESS_NODE_TYPES = new Set(["role", "instance"]);
 
 const state = {
   file: "",
@@ -188,13 +198,18 @@ function clampDetailsPaneWidth(width) {
   if (!Number.isFinite(width)) {
     return DEFAULT_DETAILS_PANE_WIDTH;
   }
-  return Math.max(MIN_DETAILS_PANE_WIDTH, Math.min(MAX_DETAILS_PANE_WIDTH, Math.round(width)));
+  return Math.max(
+    MIN_DETAILS_PANE_WIDTH,
+    Math.min(MAX_DETAILS_PANE_WIDTH, Math.round(width)),
+  );
 }
 
 function setDetailsPaneWidth(width, { persist = true } = {}) {
   const nextWidth = clampDetailsPaneWidth(width);
   state.detailsPaneWidth = nextWidth;
-  document.getElementById("appRoot").style.setProperty("--details-pane-width", `${nextWidth}px`);
+  document
+    .getElementById("appRoot")
+    .style.setProperty("--details-pane-width", `${nextWidth}px`);
   if (persist) {
     savePreference(DETAILS_PANE_WIDTH_STORAGE_KEY, String(nextWidth));
   }
@@ -283,7 +298,9 @@ function isFlatRecord(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return false;
   }
-  return Object.values(value).every((item) => isPrimitiveValue(item) || isScalarArray(item));
+  return Object.values(value).every(
+    (item) => isPrimitiveValue(item) || isScalarArray(item),
+  );
 }
 
 function formatDetailValue(value) {
@@ -301,6 +318,14 @@ function formatDetailValue(value) {
 
 function formatFieldLabel(key) {
   return String(key || "item").replaceAll("_", " ");
+}
+
+function pruneObjectExplorerAttributes(item) {
+  const attributes = { ...(item && item.attributes ? item.attributes : {}) };
+  if (item && item.id && attributes.id === item.id) {
+    delete attributes.id;
+  }
+  return attributes;
 }
 
 function shouldCollapseObjectField(key, value) {
@@ -379,7 +404,11 @@ function renderDescriptionBlock(descriptionText) {
 }
 
 function renderSourceLocation(container, sourceLocation) {
-  if (!sourceLocation || !Array.isArray(sourceLocation.lines) || sourceLocation.lines.length === 0) {
+  if (
+    !sourceLocation ||
+    !Array.isArray(sourceLocation.lines) ||
+    sourceLocation.lines.length === 0
+  ) {
     return;
   }
   const block = document.createElement("details");
@@ -416,6 +445,82 @@ function renderSourceLocation(container, sourceLocation) {
 }
 
 function renderNestedArrayItems(items, depth) {
+  if (!Array.isArray(items) || items.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "details-field-value";
+    empty.textContent = "No items";
+    return empty;
+  }
+
+  if (items.every((item) => isPrimitiveValue(item) || isScalarArray(item))) {
+    const list = document.createElement("div");
+    list.className = "details-inline-list";
+    items.forEach((item) => {
+      const row = document.createElement("div");
+      row.className = "details-inline-list-item";
+      row.textContent = formatDetailValue(item);
+      list.appendChild(row);
+    });
+    return list;
+  }
+
+  if (items.every((item) => isFlatRecord(item))) {
+    const list = document.createElement("div");
+    list.className = "details-compact-record-list";
+    items.forEach((item, index) => {
+      const row = document.createElement("div");
+      row.className = "details-compact-record";
+
+      if (items.length > 1) {
+        const indexLabel = document.createElement("div");
+        indexLabel.className = "details-compact-record-index";
+        indexLabel.textContent = `${index + 1}`;
+        row.appendChild(indexLabel);
+      }
+
+      const fields = document.createElement("div");
+      fields.className = "details-compact-record-fields";
+      Object.entries(item).forEach(([key, value]) => {
+        if (
+          value === null ||
+          value === "" ||
+          (Array.isArray(value) && value.length === 0)
+        ) {
+          return;
+        }
+        const field = document.createElement("div");
+        field.className = "details-compact-record-field";
+
+        const label = document.createElement("span");
+        label.className = "details-compact-record-key";
+        label.textContent = formatFieldLabel(key);
+        field.appendChild(label);
+
+        const text = document.createElement("span");
+        text.className = "details-compact-record-value";
+        text.textContent = formatDetailValue(value);
+        field.appendChild(text);
+
+        fields.appendChild(field);
+      });
+
+      row.appendChild(fields);
+      list.appendChild(row);
+    });
+    return list;
+  }
+
+  if (items.length === 1) {
+    const only = items[0];
+    if (isPrimitiveValue(only) || isScalarArray(only)) {
+      const text = document.createElement("div");
+      text.className = "details-field-value";
+      text.textContent = formatDetailValue(only);
+      return text;
+    }
+    return renderNestedStructuredAttributes(only, depth + 1);
+  }
+
   const list = document.createElement("div");
   list.className = "details-tree-list";
   items.forEach((item, index) => {
@@ -444,6 +549,39 @@ function renderNestedArrayItems(items, depth) {
   return list;
 }
 
+function createObjectKindBadge(kind) {
+  const label = displayKindLabel(kind || "");
+  const explainer = OBJECT_EXPLAINERS[kind];
+
+  if (!explainer) {
+    const badge = document.createElement("div");
+    badge.className = "details-item-kind";
+    badge.textContent = label;
+    return { badge, panel: null };
+  }
+
+  const badge = document.createElement("button");
+  badge.type = "button";
+  badge.className = "details-item-kind details-item-kind-button";
+  badge.textContent = label;
+  badge.title = explainer;
+  badge.setAttribute("aria-expanded", "false");
+  badge.setAttribute("aria-label", `About ${label}`);
+
+  const panel = document.createElement("div");
+  panel.className = "details-item-kind-popover";
+  panel.hidden = true;
+  panel.textContent = explainer;
+
+  badge.addEventListener("click", () => {
+    const isOpen = !panel.hidden;
+    panel.hidden = isOpen;
+    badge.setAttribute("aria-expanded", isOpen ? "false" : "true");
+  });
+
+  return { badge, panel };
+}
+
 function renderNestedStructuredAttributes(attributes, depth = 0) {
   if (!attributes || typeof attributes !== "object" || Array.isArray(attributes)) {
     const text = document.createElement("div");
@@ -457,7 +595,11 @@ function renderNestedStructuredAttributes(attributes, depth = 0) {
   fields.dataset.depth = String(depth);
 
   Object.entries(attributes).forEach(([key, value]) => {
-    if (value === null || value === "" || (Array.isArray(value) && value.length === 0)) {
+    if (
+      value === null ||
+      value === "" ||
+      (Array.isArray(value) && value.length === 0)
+    ) {
       return;
     }
 
@@ -521,10 +663,8 @@ function renderObjectExplorerItem(item, depth = 0) {
   const header = document.createElement("div");
   header.className = "details-item-header details-item-header-object";
 
-  const kind = document.createElement("div");
-  kind.className = "details-item-kind";
-  kind.textContent = displayKindLabel(item.kind || "");
-  header.appendChild(kind);
+  const { badge, panel } = createObjectKindBadge(item.kind);
+  header.appendChild(badge);
 
   const title = document.createElement("div");
   title.className = "details-item-title";
@@ -532,19 +672,13 @@ function renderObjectExplorerItem(item, depth = 0) {
   header.appendChild(title);
 
   card.appendChild(header);
-
-  const explainer = OBJECT_EXPLAINERS[item.kind];
-  if (explainer) {
-    const explainerEl = document.createElement("div");
-    explainerEl.className = "details-item-explainer";
-    explainerEl.textContent = explainer;
-    card.appendChild(explainerEl);
+  if (panel) {
+    card.appendChild(panel);
   }
 
-  const attributes = { ...(item.attributes || {}) };
-  const descriptionText = typeof attributes.description === "string"
-    ? attributes.description.trim()
-    : "";
+  const attributes = pruneObjectExplorerAttributes(item);
+  const descriptionText =
+    typeof attributes.description === "string" ? attributes.description.trim() : "";
   delete attributes.description;
 
   if (descriptionText) {
@@ -609,9 +743,9 @@ function getVedaSection(inspector) {
 
 function isVedaTrayEligibleInspector(inspector) {
   return Boolean(
-    inspector
-    && state.lens === "system"
-    && (inspector.kind === "process" || inspector.kind === "commodity"),
+    inspector &&
+      state.lens === "system" &&
+      (inspector.kind === "process" || inspector.kind === "commodity"),
   );
 }
 
@@ -646,11 +780,20 @@ function currentVedaTrayInspector() {
   if (!state.vedaTablesEnabled || state.lens !== "system") {
     return null;
   }
-  if (!state.selectedSelectionType || state.selectedSelectionType !== "node" || !lastResponse) {
+  if (
+    !state.selectedSelectionType ||
+    state.selectedSelectionType !== "node" ||
+    !lastResponse
+  ) {
     return null;
   }
-  const details = (((lastResponse || {}).details || {}).nodes || {})[state.selectedNodeId] || null;
-  if (!details || !details.inspector || !isVedaTrayEligibleInspector(details.inspector)) {
+  const details =
+    (((lastResponse || {}).details || {}).nodes || {})[state.selectedNodeId] || null;
+  if (
+    !details ||
+    !details.inspector ||
+    !isVedaTrayEligibleInspector(details.inspector)
+  ) {
     return null;
   }
   return details.inspector;
@@ -759,7 +902,9 @@ function normalizeVedaTables(inspector) {
       if (!ref || typeof ref !== "object" || !ref.row || typeof ref.row !== "object") {
         return;
       }
-      const tableKey = ref.table_key || `${ref.file || ""}::${ref.sheet || ""}::${ref.table_index ?? 0}::${ref.tag || ""}`;
+      const tableKey =
+        ref.table_key ||
+        `${ref.file || ""}::${ref.sheet || ""}::${ref.table_index ?? 0}::${ref.tag || ""}`;
       if (!tableMap.has(tableKey)) {
         const table = {
           tableKey,
@@ -877,9 +1022,7 @@ function renderVedaTrayForInspector(inspector) {
 
   const { content } = clearVedaTrayContent();
   const normalized = normalizeVedaTables(inspector);
-  const title = inspector.title
-    ? `VEDA Tables: ${inspector.title}`
-    : "VEDA Tables";
+  const title = inspector.title ? `VEDA Tables: ${inspector.title}` : "VEDA Tables";
   const statusText = normalized.tables.length
     ? `${normalized.tables.length} rendered table${normalized.tables.length === 1 ? "" : "s"}`
     : "No rendered VEDA/TIMES tables for this selection.";
@@ -923,77 +1066,78 @@ function renderInspector(inspector) {
     container.appendChild(hint);
   }
 
-  const renderedSections = inspector.sections.filter(
-    (section) => INSPECTOR_RENDERED_SECTION_KEYS.has(section.key),
+  const renderedSections = inspector.sections.filter((section) =>
+    INSPECTOR_RENDERED_SECTION_KEYS.has(section.key),
   );
 
   if (renderedSections.length === 0) {
     const placeholder = document.createElement("div");
     placeholder.className = "details-placeholder";
-    placeholder.textContent = "No DSL, resolved semantic, or lowered IR details for this selection.";
+    placeholder.textContent =
+      "No DSL, resolved semantic, or lowered IR details for this selection.";
     container.appendChild(placeholder);
     return;
   }
 
   renderedSections.forEach((section) => {
-      const details = document.createElement("details");
-      details.className = "details-section";
-      details.open = Boolean(section.default_open);
+    const details = document.createElement("details");
+    details.className = "details-section";
+    details.open = Boolean(section.default_open);
 
-      const summary = document.createElement("summary");
-      summary.textContent = section.label || section.key || "Section";
-      details.appendChild(summary);
+    const summary = document.createElement("summary");
+    summary.textContent = section.label || section.key || "Section";
+    details.appendChild(summary);
 
-      const body = document.createElement("div");
-      body.className = "details-section-body";
+    const body = document.createElement("div");
+    body.className = "details-section-body";
 
-      const sectionStatus = formatSectionStatus(section.status);
-      if (sectionStatus) {
-        const status = document.createElement("div");
-        status.className = "details-section-status";
-        status.textContent = sectionStatus;
-        body.appendChild(status);
-      }
+    const sectionStatus = formatSectionStatus(section.status);
+    if (sectionStatus) {
+      const status = document.createElement("div");
+      status.className = "details-section-status";
+      status.textContent = sectionStatus;
+      body.appendChild(status);
+    }
 
-      if (!Array.isArray(section.items) || section.items.length === 0) {
-        const empty = document.createElement("div");
-        empty.className = "details-placeholder";
-        empty.textContent = "No items";
-        body.appendChild(empty);
-      } else {
-        section.items.forEach((item) => {
-          let card = null;
-          if (section.key === "dsl") {
-            card = renderObjectExplorerItem(item);
-          } else {
-            card = document.createElement("div");
-            card.className = "details-item";
+    if (!Array.isArray(section.items) || section.items.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "details-placeholder";
+      empty.textContent = "No items";
+      body.appendChild(empty);
+    } else {
+      section.items.forEach((item) => {
+        let card = null;
+        if (section.key === "dsl") {
+          card = renderObjectExplorerItem(item);
+        } else {
+          card = document.createElement("div");
+          card.className = "details-item";
 
-            const header = document.createElement("div");
-            header.className = "details-item-header";
+          const header = document.createElement("div");
+          header.className = "details-item-header";
 
-            const left = document.createElement("div");
-            left.className = "details-item-label";
-            const idText = item.id ? `: ${item.id}` : "";
-            left.textContent = `${item.label || item.kind || "item"}${idText}`;
-            header.appendChild(left);
+          const left = document.createElement("div");
+          left.className = "details-item-label";
+          const idText = item.id ? `: ${item.id}` : "";
+          left.textContent = `${item.label || item.kind || "item"}${idText}`;
+          header.appendChild(left);
 
-            const right = document.createElement("div");
-            right.className = "details-item-kind";
-            right.textContent = item.kind || "";
-            header.appendChild(right);
+          const right = document.createElement("div");
+          right.className = "details-item-kind";
+          right.textContent = item.kind || "";
+          header.appendChild(right);
 
-            card.appendChild(header);
-            card.appendChild(renderStructuredAttributes(item.attributes || {}));
-            renderSourceLocation(card, item.source_location);
-          }
-          body.appendChild(card);
-        });
-      }
+          card.appendChild(header);
+          card.appendChild(renderStructuredAttributes(item.attributes || {}));
+          renderSourceLocation(card, item.source_location);
+        }
+        body.appendChild(card);
+      });
+    }
 
-      details.appendChild(body);
-      container.appendChild(details);
-    });
+    details.appendChild(body);
+    container.appendChild(details);
+  });
 }
 
 function getRequest() {
@@ -1144,9 +1288,9 @@ function buildAlternatingColumnPositions(nodes, graphEdges) {
   const producerAnchors = new Map();
   const consumerAnchors = new Map();
   const neighbors = new Map();
-  const usedStageRanks = [...new Set(
-    processNodesWithStage.map((node) => Number(node.data.stageRank)),
-  )].sort((a, b) => a - b);
+  const usedStageRanks = [
+    ...new Set(processNodesWithStage.map((node) => Number(node.data.stageRank))),
+  ].sort((a, b) => a - b);
   const denseProcessColumns = new Map(
     usedStageRanks.map((rank, index) => [rank, index * 2]),
   );
@@ -1177,13 +1321,19 @@ function buildAlternatingColumnPositions(nodes, graphEdges) {
     const sourceProcessCol = nodeColumns.get(edge.source);
     const targetProcessCol = nodeColumns.get(edge.target);
 
-    if (Number.isFinite(sourceProcessCol) && isCommodityNodeType(targetNode.data.type)) {
+    if (
+      Number.isFinite(sourceProcessCol) &&
+      isCommodityNodeType(targetNode.data.type)
+    ) {
       const list = producerAnchors.get(edge.target) || [];
       list.push(sourceProcessCol + 1);
       producerAnchors.set(edge.target, list);
     }
 
-    if (isCommodityNodeType(sourceNode.data.type) && Number.isFinite(targetProcessCol)) {
+    if (
+      isCommodityNodeType(sourceNode.data.type) &&
+      Number.isFinite(targetProcessCol)
+    ) {
       const list = consumerAnchors.get(edge.source) || [];
       list.push(targetProcessCol - 1);
       consumerAnchors.set(edge.source, list);
@@ -1236,7 +1386,9 @@ function buildAlternatingColumnPositions(nodes, graphEdges) {
     }
   }
 
-  const assignedColumns = [...nodeColumns.values()].filter((value) => Number.isFinite(value));
+  const assignedColumns = [...nodeColumns.values()].filter((value) =>
+    Number.isFinite(value),
+  );
   let fallbackColumn = assignedColumns.length ? Math.max(...assignedColumns) + 1 : 0;
   const unresolved = nodes.filter((node) => !nodeColumns.has(node.data.id));
   unresolved.sort((left, right) => {
@@ -1486,7 +1638,8 @@ function renderVedaTrayForCurrentSelection() {
     return;
   }
 
-  const details = (((lastResponse || {}).details || {}).nodes || {})[state.selectedNodeId] || null;
+  const details =
+    (((lastResponse || {}).details || {}).nodes || {})[state.selectedNodeId] || null;
   if (details && details.inspector && isVedaTrayEligibleInspector(details.inspector)) {
     renderVedaTrayForInspector(details.inspector);
     return;
@@ -1497,22 +1650,30 @@ function renderVedaTrayForCurrentSelection() {
 
 function renderSelectionFromState() {
   if (!lastResponse) {
-    renderDetailsPlaceholder("Select a process or commodity node to inspect its layers.");
+    renderDetailsPlaceholder(
+      "Select a process or commodity node to inspect its layers.",
+    );
     hideVedaTray();
     return;
   }
 
   if (!state.selectedSelectionType || !state.selectedNodeId) {
-    renderDetailsPlaceholder("Select a process or commodity node to inspect its layers.");
+    renderDetailsPlaceholder(
+      "Select a process or commodity node to inspect its layers.",
+    );
     renderVedaTrayForCurrentSelection();
     return;
   }
 
   if (state.selectedSelectionType === "node") {
-    const details = (((lastResponse || {}).details || {}).nodes || {})[state.selectedNodeId];
+    const details = (((lastResponse || {}).details || {}).nodes || {})[
+      state.selectedNodeId
+    ];
     if (!details) {
       clearSelectionState();
-      renderDetailsPlaceholder("Select a process or commodity node to inspect its layers.");
+      renderDetailsPlaceholder(
+        "Select a process or commodity node to inspect its layers.",
+      );
       renderVedaTrayForCurrentSelection();
       return;
     }
@@ -1527,10 +1688,14 @@ function renderSelectionFromState() {
     return;
   }
 
-  const details = (((lastResponse || {}).details || {}).edges || {})[state.selectedNodeId];
+  const details = (((lastResponse || {}).details || {}).edges || {})[
+    state.selectedNodeId
+  ];
   if (!details) {
     clearSelectionState();
-    renderDetailsPlaceholder("Select a process or commodity node to inspect its layers.");
+    renderDetailsPlaceholder(
+      "Select a process or commodity node to inspect its layers.",
+    );
     renderVedaTrayForCurrentSelection();
     return;
   }
@@ -1608,7 +1773,8 @@ function initCy() {
 
   cy.on("tap", "node", (event) => {
     const id = event.target.id();
-    const details = (lastResponse && lastResponse.details && lastResponse.details.nodes[id]) || {};
+    const details =
+      (lastResponse && lastResponse.details && lastResponse.details.nodes[id]) || {};
     selectNode(id, details.inspector || null);
     setVedaTrayCollapsed(false);
     if (details.inspector) {
@@ -1624,7 +1790,8 @@ function initCy() {
 
   cy.on("tap", "edge", (event) => {
     const id = event.target.id();
-    const details = (lastResponse && lastResponse.details && lastResponse.details.edges[id]) || {};
+    const details =
+      (lastResponse && lastResponse.details && lastResponse.details.edges[id]) || {};
     selectEdge(id);
     if (details.inspector) {
       renderInspector(details.inspector);
@@ -1649,9 +1816,10 @@ function renderGraph(response) {
     const details = detailNodes[node.id] || {};
     const stage = typeof details.stage === "string" ? details.stage : null;
     const stageRankValue = isProcessNodeType(node.type) ? stageRank(stage) : null;
-    const label = isProcessNodeType(node.type) && stage
-      ? `${node.label}\n[${formatStageLabel(stage)}]`
-      : node.label;
+    const label =
+      isProcessNodeType(node.type) && stage
+        ? `${node.label}\n[${formatStageLabel(stage)}]`
+        : node.label;
 
     return {
       data: {
@@ -1746,7 +1914,9 @@ function renderFileExplorer() {
     : "Selected: (none)";
   upButton.disabled = !state.parentDir;
 
-  const directories = state.currentEntries.filter((entry) => entry.kind === "directory");
+  const directories = state.currentEntries.filter(
+    (entry) => entry.kind === "directory",
+  );
   const files = state.currentEntries.filter((entry) => entry.kind === "file");
 
   directories.forEach((entry) => {
@@ -1836,7 +2006,10 @@ function renderRegionGroup() {
     return;
   }
 
-  const uiSelected = state.regions.length === 0 ? [...available] : normalizeToKnown(state.regions, available);
+  const uiSelected =
+    state.regions.length === 0
+      ? [...available]
+      : normalizeToKnown(state.regions, available);
 
   container.appendChild(
     createOptionButton({
@@ -1874,7 +2047,13 @@ function renderRegionGroup() {
   });
 }
 
-function renderFacetMultiGroup({ containerId, available, selected, anyLabel, onSelect }) {
+function renderFacetMultiGroup({
+  containerId,
+  available,
+  selected,
+  anyLabel,
+  onSelect,
+}) {
   const container = document.getElementById(containerId);
   container.innerHTML = "";
 
@@ -1957,15 +2136,20 @@ function renderControls() {
     runQuery();
   });
 
-  renderSingleGroup("granularityButtons", GRANULARITY_OPTIONS, state.granularity, (value) => {
-    state.granularity = value;
-    if (value === "instance" && state.commodityView !== "scoped") {
-      state.commodityView = "scoped";
-    } else if (value !== "instance" && state.commodityView === "scoped") {
-      state.commodityView = "collapse_scope";
-    }
-    runQuery();
-  });
+  renderSingleGroup(
+    "granularityButtons",
+    GRANULARITY_OPTIONS,
+    state.granularity,
+    (value) => {
+      state.granularity = value;
+      if (value === "instance" && state.commodityView !== "scoped") {
+        state.commodityView = "scoped";
+      } else if (value !== "instance" && state.commodityView === "scoped") {
+        state.commodityView = "collapse_scope";
+      }
+      runQuery();
+    },
+  );
 
   renderSingleGroup("lensButtons", LENS_OPTIONS, state.lens, (value) => {
     state.lens = value;
@@ -2152,8 +2336,12 @@ function wireControls() {
   const toggleDetails = () => {
     setDetailsPaneCollapsed(!state.detailsPaneCollapsed);
   };
-  document.getElementById("toggleInspectorBtn").addEventListener("click", toggleDetails);
-  document.getElementById("toggleDetailsPaneBtn").addEventListener("click", toggleDetails);
+  document
+    .getElementById("toggleInspectorBtn")
+    .addEventListener("click", toggleDetails);
+  document
+    .getElementById("toggleDetailsPaneBtn")
+    .addEventListener("click", toggleDetails);
   document.getElementById("closeVedaTrayBtn").addEventListener("click", () => {
     setVedaTrayCollapsed(true);
     hideVedaTray();
@@ -2168,28 +2356,30 @@ function wireControls() {
     }
     await loadDirectory(state.parentDir);
   });
-  document.getElementById("detailsResizeHandle").addEventListener("pointerdown", (event) => {
-    if (state.detailsPaneCollapsed) {
-      return;
-    }
-    const appRoot = document.getElementById("appRoot");
-    const container = document.getElementById("resMainTop");
-    appRoot.classList.add("is-resizing");
-    const onPointerMove = (moveEvent) => {
-      const rect = container.getBoundingClientRect();
-      setDetailsPaneWidth(rect.right - moveEvent.clientX);
-      scheduleProcessLabelRefresh();
-    };
-    const onPointerUp = () => {
-      appRoot.classList.remove("is-resizing");
-      window.removeEventListener("pointermove", onPointerMove);
-      window.removeEventListener("pointerup", onPointerUp);
-      scheduleViewportReset();
-    };
-    window.addEventListener("pointermove", onPointerMove);
-    window.addEventListener("pointerup", onPointerUp);
-    event.preventDefault();
-  });
+  document
+    .getElementById("detailsResizeHandle")
+    .addEventListener("pointerdown", (event) => {
+      if (state.detailsPaneCollapsed) {
+        return;
+      }
+      const appRoot = document.getElementById("appRoot");
+      const container = document.getElementById("resMainTop");
+      appRoot.classList.add("is-resizing");
+      const onPointerMove = (moveEvent) => {
+        const rect = container.getBoundingClientRect();
+        setDetailsPaneWidth(rect.right - moveEvent.clientX);
+        scheduleProcessLabelRefresh();
+      };
+      const onPointerUp = () => {
+        appRoot.classList.remove("is-resizing");
+        window.removeEventListener("pointermove", onPointerMove);
+        window.removeEventListener("pointerup", onPointerUp);
+        scheduleViewportReset();
+      };
+      window.addEventListener("pointermove", onPointerMove);
+      window.addEventListener("pointerup", onPointerUp);
+      event.preventDefault();
+    });
   window.addEventListener("resize", () => {
     scheduleProcessLabelRefresh();
     if (windowResizeTimer) {

@@ -26,6 +26,10 @@ issue remains open.
 
 ## Recently Completed
 
+- `vedalang-eiu` — removed redundant `id` rows from Object explorer cards,
+  moved built-in object-type explainer text behind the type badge hover/click
+  affordance, and flattened simple list rendering so outputs, stock entries,
+  and similar fields no longer expand into unnecessary nested cards
 - `vedalang-84d` — removed generic `opportunities` from the public DSL,
   replaced them with explicit `zone_opportunities`, tightened zone-only
   resolution and provenance through CSIR/CPIR/viewer surfaces, and migrated

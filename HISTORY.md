@@ -13,6 +13,9 @@ Chronological record of the current repository state.
 - Updated schema, compiler, diagnostics, lint, LSP, examples, and regression
   coverage so backend consumers receive canonical namespaced commodity IDs while
   author-facing tooling shows bare commodity labels plus type metadata.
+- Simplified the RES viewer Object explorer by hiding redundant `id` rows,
+  moving built-in type descriptions behind the type badge, and compacting
+  simple list rendering to avoid unnecessary nested cards.
 - Removed generic `opportunities` from the public DSL in favor of explicit
   `zone_opportunities`, migrated example rollouts to fleet/facility
   `new_build_limits`, and rewrote the toy agriculture model to use fleet-first
