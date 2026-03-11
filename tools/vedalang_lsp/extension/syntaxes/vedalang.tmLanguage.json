@@ -23,7 +23,7 @@
       "patterns": [
         {
           "name": "keyword.control.vedalang",
-          "match": "\\b(dsl_version|imports|commodities|technologies|technology_roles|stock_characterizations|spatial_layers|spatial_measure_sets|temporal_index_series|region_partitions|zone_overlays|sites|facilities|fleets|opportunities|networks|runs)\\b"
+          "match": "\\b(dsl_version|imports|commodities|technologies|technology_roles|stock_characterizations|spatial_layers|spatial_measure_sets|temporal_index_series|region_partitions|zone_overlays|sites|facilities|fleets|zone_opportunities|networks|runs)\\b"
         },
         {
           "name": "keyword.other.vedalang",

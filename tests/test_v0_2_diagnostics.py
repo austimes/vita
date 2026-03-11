@@ -273,6 +273,9 @@ def test_collect_v0_2_diagnostics_flags_duplicate_rollout_patterns():
                 "site": "single_site",
                 "technology_role": "space_heat_supply",
                 "available_technologies": ["gas_heater", "heat_pump"],
+                "new_build_limits": [
+                    {"technology": "heat_pump", "max_new_capacity": "60 MW"}
+                ],
                 "stock": {
                     "items": [
                         {
@@ -282,14 +285,6 @@ def test_collect_v0_2_diagnostics_flags_duplicate_rollout_patterns():
                         }
                     ]
                 },
-            }
-        ],
-        "opportunities": [
-            {
-                "id": "heat_pump_rollout",
-                "technology": "heat_pump",
-                "siting": {"site": "single_site"},
-                "max_new_capacity": "60 MW",
             }
         ],
         "runs": [
@@ -305,7 +300,7 @@ def test_collect_v0_2_diagnostics_flags_duplicate_rollout_patterns():
     diagnostics = collect_v0_2_diagnostics(source, selected_run="single_2025")
     codes = {diag["code"] for diag in diagnostics}
 
-    assert {"W012", "W013", "W014"} <= codes
+    assert {"W013"} <= codes
 
 
 def test_lsp_validate_document_uses_v0_2_diagnostics():

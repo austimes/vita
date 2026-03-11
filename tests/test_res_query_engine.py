@@ -31,30 +31,35 @@ def _assert_table_row_ref_contract(row_ref: dict) -> None:
     )
 
 
-ROLE_REFOR_LABEL = (
+ROLE_CARBON_LABEL = (
     "farm_carbon_management\n"
-    "reforestation_rollout\n"
-    "[opportunity]"
-)
-ROLE_SOIL_LABEL = (
     "farm_carbon_management\n"
-    "soil_carbon_rollout\n"
-    "[opportunity]"
+    "[fleet instance]"
 )
 ROLE_PROD_LABEL = (
     "agricultural_production\n"
-    "farm_production_asset\n"
-    "[facility instance]"
+    "farm_production\n"
+    "[fleet instance]"
+)
+ROLE_ZONE_WIND_LABEL = (
+    "electricity_generation\n"
+    "reg1_new_wind\n"
+    "[zone opportunity]"
 )
 INSTANCE_BASELINE_LABEL = (
     "traditional_baseline\n"
     "agricultural_production\n"
-    "[farm_production_asset, facility instance]"
+    "[farm_production, fleet instance]"
 )
 INSTANCE_SOIL_LABEL = (
     "soil_carbon\n"
     "farm_carbon_management\n"
-    "[soil_carbon_rollout, opportunity]"
+    "[farm_carbon_management, fleet instance]"
+)
+INSTANCE_ZONE_WIND_LABEL = (
+    "onshore_wind_turbine\n"
+    "electricity_generation\n"
+    "[reg1_new_wind, zone opportunity]"
 )
 
 
@@ -308,7 +313,7 @@ def test_compiled_commodity_view_collapse_scope_merges_namespaces():
     assert len(collapsed_labels) <= len(scoped_labels)
 
 
-def test_role_granularity_exposes_opportunity_provenance_in_labels():
+def test_role_granularity_keeps_toy_agriculture_fleet_first():
     source_file = EXAMPLES_DIR / "toy_sectors/toy_agriculture.veda.yaml"
 
     response = query_res_graph(
@@ -329,22 +334,51 @@ def test_role_granularity_exposes_opportunity_provenance_in_labels():
     labels = [node["label"] for node in role_nodes]
 
     assert len(labels) == len(set(labels))
-    assert ROLE_REFOR_LABEL in labels
-    assert ROLE_SOIL_LABEL in labels
+    assert ROLE_CARBON_LABEL in labels
     assert ROLE_PROD_LABEL in labels
 
-    reforestation_node = next(
+    carbon_node = next(
         node
         for node in role_nodes
-        if node["label"] == ROLE_REFOR_LABEL
+        if node["label"] == ROLE_CARBON_LABEL
     )
     assert (
-        response["details"]["nodes"][reforestation_node["id"]]["group_origin"]
-        == "opportunity"
+        response["details"]["nodes"][carbon_node["id"]]["group_origin"]
+        == "role_instance"
     )
     assert (
-        response["details"]["nodes"][reforestation_node["id"]]["scopes"]["regions"]
+        response["details"]["nodes"][carbon_node["id"]]["scopes"]["regions"]
         == ["SINGLE"]
+    )
+
+
+def test_role_granularity_exposes_zone_opportunity_provenance_in_labels():
+    source_file = EXAMPLES_DIR / "feature_demos/example_with_bounds.veda.yaml"
+
+    response = query_res_graph(
+        {
+            "version": "1",
+            "file": str(source_file),
+            "mode": "compiled",
+            "granularity": "role",
+            "lens": "system",
+            "filters": {"regions": [], "case": None, "sectors": [], "scopes": []},
+            "compiled": {"truth": "auto", "cache": True, "allow_partial": True},
+        }
+    )
+
+    role_nodes = [
+        node for node in response["graph"]["nodes"] if node["type"] == "role"
+    ]
+    labels = [node["label"] for node in role_nodes]
+
+    assert ROLE_ZONE_WIND_LABEL in labels
+    wind_node = next(
+        node for node in role_nodes if node["label"] == ROLE_ZONE_WIND_LABEL
+    )
+    assert (
+        response["details"]["nodes"][wind_node["id"]]["group_origin"]
+        == "zone_opportunity"
     )
 
 
@@ -715,17 +749,17 @@ def test_asset_backed_role_object_explorer_nests_facility_role_technology():
         }
     )
 
-    node_id = "role:asset:facilities.farm_input_supply_asset"
+    node_id = "role:asset:fleets.farm_input_supply"
     inspector = response["details"]["nodes"][node_id]["inspector"]
     dsl = _section_by_key(inspector, "dsl")
     assert dsl["label"] == "Object explorer"
     assert dsl["status"] == "ok"
     assert len(dsl["items"]) == 1
-    facility = dsl["items"][0]
-    assert facility["kind"] == "facility"
-    assert facility["id"] == "farm_input_supply_asset"
-    assert [child["kind"] for child in facility["children"]] == ["technology_role"]
-    role = facility["children"][0]
+    fleet = dsl["items"][0]
+    assert fleet["kind"] == "fleet"
+    assert fleet["id"] == "farm_input_supply"
+    assert [child["kind"] for child in fleet["children"]] == ["technology_role"]
+    role = fleet["children"][0]
     assert role["id"] == "farm_input_supply"
     assert [child["kind"] for child in role["children"]] == ["technology"]
     assert [child["id"] for child in role["children"]] == ["farm_input_import"]
@@ -746,7 +780,7 @@ def test_object_explorer_source_blocks_use_exact_yaml_item_lines():
         }
     )
 
-    node_id = "role:asset:facilities.farm_input_supply_asset"
+    node_id = "role:asset:fleets.farm_input_supply"
     inspector = response["details"]["nodes"][node_id]["inspector"]
     dsl_items = _flatten_dsl_items(_section_by_key(inspector, "dsl")["items"])
     role_item = next(item for item in dsl_items if item["kind"] == "technology_role")
@@ -795,14 +829,10 @@ def test_object_explorer_includes_role_transitions_as_nested_items():
         }
     )
 
-    node_id = next(
-        node["id"]
-        for node in response["graph"]["nodes"]
-        if node["type"] == "instance" and node["label"] == INSTANCE_BASELINE_LABEL
-    )
+    node_id = "instance:asset:traditional_baseline:fleets.farm_production"
     inspector = response["details"]["nodes"][node_id]["inspector"]
-    facility = _section_by_key(inspector, "dsl")["items"][0]
-    role = facility["children"][0]
+    fleet = _section_by_key(inspector, "dsl")["items"][0]
+    role = fleet["children"][0]
 
     assert [child["kind"] for child in role["children"]] == [
         "technology",
@@ -813,8 +843,8 @@ def test_object_explorer_includes_role_transitions_as_nested_items():
     assert role["children"][2]["attributes"]["kind"] == "retrofit"
 
 
-def test_object_explorer_opportunity_nests_role_then_technology():
-    source_file = EXAMPLES_DIR / "toy_sectors/toy_agriculture.veda.yaml"
+def test_object_explorer_zone_opportunity_nests_role_then_technology():
+    source_file = EXAMPLES_DIR / "feature_demos/example_with_bounds.veda.yaml"
 
     response = query_res_graph(
         {
@@ -824,7 +854,7 @@ def test_object_explorer_opportunity_nests_role_then_technology():
             "granularity": "instance",
             "lens": "system",
             "filters": {
-                "regions": ["SINGLE"],
+                "regions": ["REG1"],
                 "case": None,
                 "sectors": [],
                 "scopes": [],
@@ -836,20 +866,20 @@ def test_object_explorer_opportunity_nests_role_then_technology():
     node_id = next(
         node["id"]
         for node in response["graph"]["nodes"]
-        if node["type"] == "instance" and node["label"] == INSTANCE_SOIL_LABEL
+        if node["type"] == "instance" and node["label"] == INSTANCE_ZONE_WIND_LABEL
     )
     inspector = response["details"]["nodes"][node_id]["inspector"]
     dsl = _section_by_key(inspector, "dsl")
     assert dsl["status"] == "ok"
     assert len(dsl["items"]) == 1
     opportunity = dsl["items"][0]
-    assert opportunity["kind"] == "opportunity"
-    assert opportunity["id"] == "soil_carbon_rollout"
+    assert opportunity["kind"] == "zone_opportunity"
+    assert opportunity["id"] == "reg1_new_wind"
     assert [child["kind"] for child in opportunity["children"]] == ["technology_role"]
     role = opportunity["children"][0]
-    assert role["id"] == "farm_carbon_management"
+    assert role["id"] == "electricity_generation"
     assert [child["kind"] for child in role["children"]] == ["technology"]
-    assert role["children"][0]["id"] == "soil_carbon"
+    assert role["children"][0]["id"] == "onshore_wind_turbine"
 
 
 def test_multi_run_v0_2_query_requires_explicit_run_and_exposes_facets(tmp_path):

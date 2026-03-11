@@ -18,7 +18,7 @@ def test_toy_resources_is_a_single_v0_2_fleet_capped_model():
     )
 
     assert bundle.run_id == "single_2025"
-    assert bundle.csir["opportunities"] == []
+    assert bundle.csir["zone_opportunities"] == []
     capped_process = next(
         process
         for process in bundle.cpir["processes"]

@@ -152,6 +152,11 @@ facilities:
       - ccgt_generation
       - solar_generation
       - wind_generation
+    new_build_limits:
+      - max_new_capacity: 30 MW
+        technology: solar_generation
+      - max_new_capacity: 40 MW
+        technology: wind_generation
     site: reg1_energy_hub
     stock:
       items:
@@ -201,21 +206,6 @@ facilities:
             year: 2025
           technology: wind_resource_supply
     technology_role: wind_supply
-opportunities:
-  - id: reg1_solar_build
-    max_new_capacity: 30 MW
-    siting:
-      region_member:
-        member: REG1
-        partition: reg1_partition
-    technology: solar_generation
-  - id: reg1_wind_build
-    max_new_capacity: 40 MW
-    siting:
-      region_member:
-        member: REG1
-        partition: reg1_partition
-    technology: wind_generation
 runs:
   - id: reg1_2025
     base_year: 2025

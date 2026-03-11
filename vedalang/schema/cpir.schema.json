@@ -36,7 +36,7 @@
         "properties": {
           "id": {"type": "string"},
           "source_role_instance": {"type": "string"},
-          "source_opportunity": {"type": "string"},
+          "source_zone_opportunity": {"type": "string"},
           "technology": {"type": "string"},
           "model_region": {"type": "string"},
           "model_stock_metric": {"type": "string"},
@@ -46,7 +46,7 @@
         },
         "anyOf": [
           {"required": ["source_role_instance"]},
-          {"required": ["source_opportunity"]}
+          {"required": ["source_zone_opportunity"]}
         ]
       }
     },

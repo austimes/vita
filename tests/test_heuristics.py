@@ -109,6 +109,23 @@ class TestH001ServiceAssetWithoutStock:
         issues = H001_ServiceAssetWithoutStock().apply(source)
         assert issues == []
 
+    def test_ignores_service_facility_with_new_build_limits_only(self):
+        source = make_source(
+            facilities=[
+                {
+                    "id": "reg1_heat",
+                    "site": "reg1_home",
+                    "technology_role": "space_heat_supply",
+                    "new_build_limits": [
+                        {"technology": "heat_pump", "max_new_capacity": "10 kW"}
+                    ],
+                }
+            ]
+        )
+
+        issues = H001_ServiceAssetWithoutStock().apply(source)
+        assert issues == []
+
 
 class TestH002AnnualActivityStockWithoutSupply:
     def test_triggers_when_only_annual_activity_is_present(self):

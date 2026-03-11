@@ -13,6 +13,10 @@ Chronological record of the current repository state.
 - Updated schema, compiler, diagnostics, lint, LSP, examples, and regression
   coverage so backend consumers receive canonical namespaced commodity IDs while
   author-facing tooling shows bare commodity labels plus type metadata.
+- Removed generic `opportunities` from the public DSL in favor of explicit
+  `zone_opportunities`, migrated example rollouts to fleet/facility
+  `new_build_limits`, and rewrote the toy agriculture model to use fleet-first
+  stock and rollout boundaries.
 
 ## 2026-03-08
 

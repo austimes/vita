@@ -24,7 +24,7 @@ from vedalang.lint.prompt_registry import load_prompt_template
 from vedalang.versioning import looks_like_v0_2_source
 
 CHECK_ID = "llm.units.component_quorum"
-DEFAULT_PROMPT_VERSION = "v4"
+DEFAULT_PROMPT_VERSION = "v5"
 DEFAULT_MODELS = ("gpt-5-nano",)
 DEFAULT_MAX_OUTPUT_TOKENS = 2200
 
@@ -233,14 +233,15 @@ def _component_payload(source: dict, component: str) -> dict[str, Any]:
                             "observed": item.get("observed"),
                         }
                     )
-    opportunity_uses = [
+    zone_opportunity_uses = [
         {
             "id": opportunity.get("id"),
+            "technology_role": opportunity.get("technology_role"),
             "technology": opportunity.get("technology"),
             "max_new_capacity": opportunity.get("max_new_capacity"),
-            "siting": opportunity.get("siting"),
+            "zone": opportunity.get("zone"),
         }
-        for opportunity in source.get("opportunities", []) or []
+        for opportunity in source.get("zone_opportunities", []) or []
         if isinstance(opportunity, dict)
         and str(opportunity.get("technology")) == component
     ]
@@ -284,7 +285,7 @@ def _component_payload(source: dict, component: str) -> dict[str, Any]:
     payload["technology_roles"] = technology_roles
     payload["deployment"] = {
         "stock_uses": stock_uses,
-        "opportunities": opportunity_uses,
+        "zone_opportunities": zone_opportunity_uses,
     }
     payload["commodities"] = {
         commodity_id: commodities[commodity_id]

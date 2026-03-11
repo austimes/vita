@@ -107,6 +107,9 @@ def _v0_2_backend_source(
                 "site": "brisbane_site",
                 "technology_role": "space_heat_supply",
                 "available_technologies": ["gas_heater", "heat_pump"],
+                "new_build_limits": [
+                    {"technology": "heat_pump", "max_new_capacity": "500 MW"}
+                ],
                 "stock": {
                     "items": [
                         {
@@ -116,19 +119,6 @@ def _v0_2_backend_source(
                         }
                     ]
                 },
-            }
-        ],
-        "opportunities": [
-            {
-                "id": "qld_heat_pumps",
-                "technology": "heat_pump",
-                "siting": {
-                    "region_member": {
-                        "partition": "toy_states",
-                        "member": "QLD",
-                    }
-                },
-                "max_new_capacity": "500 MW",
             }
         ],
         "networks": [
@@ -248,8 +238,6 @@ def test_compile_v0_2_bundle_attaches_asset_new_build_limits_to_role_processes()
     source["fleets"][0]["new_build_limits"] = [
         {"technology": "heat_pump", "max_new_capacity": "500 MW"}
     ]
-    source.pop("opportunities", None)
-
     bundle = compile_vedalang_bundle(
         source,
         selected_run="toy_states_2025",
@@ -263,6 +251,6 @@ def test_compile_v0_2_bundle_attaches_asset_new_build_limits_to_role_processes()
         for row in tfm_rows
     )
     assert not any(
-        process.get("source_opportunity")
+        process.get("source_zone_opportunity")
         for process in bundle.cpir.get("processes", [])
     )

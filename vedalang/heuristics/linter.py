@@ -108,7 +108,8 @@ class H001_ServiceAssetWithoutStock(HeuristicRule):
                     continue
                 stock = asset.get("stock")
                 has_items = bool((stock or {}).get("items"))
-                if has_items:
+                has_new_build_limits = bool(asset.get("new_build_limits"))
+                if has_items or has_new_build_limits:
                     continue
                 asset_id = asset.get("id", f"{section_name}[{index}]")
                 issues.append(
@@ -118,7 +119,8 @@ class H001_ServiceAssetWithoutStock(HeuristicRule):
                         message=(
                             f"{section_name[:-1].capitalize()} '{asset_id}' uses "
                             f"service role '{role_id}' but has no stock observations. "
-                            "Add stock.items for existing base-year service capacity "
+                            "Add stock.items for existing base-year service capacity, "
+                            "add new_build_limits for a greenfield build boundary, "
                             "or remove the asset until it is modeled."
                         ),
                         location=f"{section_name}[{index}].stock",

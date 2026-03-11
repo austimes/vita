@@ -136,6 +136,9 @@ facilities:
     available_technologies:
       - ccgt
       - wind
+    new_build_limits:
+      - max_new_capacity: 40 MW
+        technology: wind
     site: reg1_energy_hub
     stock:
       items:
@@ -170,14 +173,6 @@ facilities:
             year: 2025
           technology: onshore_wind_resource
     technology_role: wind_resource_supply
-opportunities:
-  - id: reg1_wind_expansion
-    max_new_capacity: 40 MW
-    siting:
-      region_member:
-        member: REG1
-        partition: reg1_partition
-    technology: wind
 runs:
   - id: reg1_2025
     base_year: 2025

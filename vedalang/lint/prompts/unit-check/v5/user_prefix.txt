@@ -1,0 +1,32 @@
+Assess unit/coefficient consistency for this component.
+Focus on concrete unit conversion or denominator errors that would change
+model math, not general plausibility commentary.
+When raising a concern, propose a fix and expected units based on
+technology intent, commodity names, and deployment context.
+
+Decision constraints:
+- Prefer no finding over speculative finding.
+- Do not emit reminder-style findings unless tied to a concrete mismatch.
+- For UNIT_OTHER, include a specific contradiction and correction.
+- For missing combustible-basis metadata, use UNIT_BASIS_MISSING explicitly.
+
+Allowed unit enums from schema:
+__UNIT_REFERENCE__
+
+Monetary literal syntax and policy:
+- monetary_unit_token examples: MAUD24, MUSD23, USD2014
+- cost_rate_literal format: '<value> <moneyYY>/<denominator>' with optional '/yr'
+- denominator expectations:
+  * variable_om -> activity or service denominator
+  * investment_cost -> stock or capacity denominator
+  * fixed_om -> stock or capacity denominator per year
+
+Model unit policy:
+__UNIT_POLICY__
+
+Model monetary policy:
+__MONETARY_POLICY__
+
+Component ID: __COMPONENT_ID__
+Payload JSON:
+__PAYLOAD_JSON__

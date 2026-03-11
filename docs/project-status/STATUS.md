@@ -21,11 +21,16 @@ issue remains open.
 ## Open Work
 
 - `vedalang-bit` — require authored descriptions for RES object-explorer types
-  so facilities, fleets, opportunities, technology roles, and technologies all
-  carry user-facing explanatory copy in the viewer
+  so facilities, fleets, zone opportunities, technology roles, and
+  technologies all carry user-facing explanatory copy in the viewer
 
 ## Recently Completed
 
+- `vedalang-84d` — removed generic `opportunities` from the public DSL,
+  replaced them with explicit `zone_opportunities`, tightened zone-only
+  resolution and provenance through CSIR/CPIR/viewer surfaces, and migrated
+  the example/test corpus to fleet/facility `new_build_limits` unless the
+  build class is genuinely zone-bound
 - `vedalang-6ov` — hard-cut the public DSL to v0.3 commodity identity: removed
   authored commodity prefixes, split commodity semantics into explicit
   `type`/`energy_form`, lowered commodities to canonical backend namespaces,
@@ -52,7 +57,8 @@ issue remains open.
   expanders with line gutters, and switched inspector source snippets from
   processed JSON excerpts to exact authored `.veda.yaml` blocks
 - `vedalang-3qd` — added direct fleet distribution and asset-scoped
-  `new_build_limits`, reserved `opportunities` for place-bound build classes,
+  `new_build_limits`, reserved `zone_opportunities` for explicitly zone-bound
+  build classes,
   split viewer provenance labels into facility-vs-fleet instances, and
   migrated the toy-sector examples and tutorial to fleet-first single-region
   authoring
@@ -100,8 +106,8 @@ issue remains open.
   instance nodes so semantic role or technology stays on the first line and
   provenance moves to lower lines
 - `vedalang-ndd` — updated the v0.2 RES role-granularity viewer so
-  opportunity-backed groups expose their opportunity provenance in node labels
-  and no longer collide with role-instance-backed groups
+  zone-opportunity-backed groups expose their provenance in node labels and no
+  longer collide with role-instance-backed groups
 - `vedalang-ky3` — rewrote `toy_agriculture.veda.yaml` with coherent `farm_*`
   naming, explicit retrofit transitions for agricultural production, and a
   separate land-carbon management role where soil carbon and reforestation

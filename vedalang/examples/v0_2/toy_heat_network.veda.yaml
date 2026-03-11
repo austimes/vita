@@ -69,6 +69,9 @@ facilities:
     available_technologies:
       - gas_heater
       - heat_pump
+    new_build_limits:
+      - max_new_capacity: 500 MW
+        technology: heat_pump
     site: brisbane_site
     stock:
       items:
@@ -78,14 +81,6 @@ facilities:
             year: 2025
           technology: gas_heater
     technology_role: space_heat_supply
-opportunities:
-  - id: qld_heat_pumps
-    max_new_capacity: 500 MW
-    siting:
-      region_member:
-        member: QLD
-        partition: toy_states
-    technology: heat_pump
 networks:
   - id: east_coast_power
     kind: transmission

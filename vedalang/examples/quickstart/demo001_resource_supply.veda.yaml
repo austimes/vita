@@ -132,6 +132,15 @@ facilities:
       - mine_coal_step1
       - mine_coal_step2
       - mine_coal_step3
+    new_build_limits:
+      - max_new_capacity: 1000 MW
+        technology: coal_import
+      - max_new_capacity: 600 MW
+        technology: mine_coal_step1
+      - max_new_capacity: 300 MW
+        technology: mine_coal_step2
+      - max_new_capacity: 150 MW
+        technology: mine_coal_step3
     site: reg1_coal_hub
     stock:
       items:
@@ -156,35 +165,6 @@ facilities:
             year: 2005
           technology: mine_coal_step3
     technology_role: coal_primary_supply
-opportunities:
-  - id: coal_import_window
-    max_new_capacity: 1000 MW
-    siting:
-      region_member:
-        member: REG1
-        partition: reg1_partition
-    technology: coal_import
-  - id: mine_step1_expansion
-    max_new_capacity: 600 MW
-    siting:
-      region_member:
-        member: REG1
-        partition: reg1_partition
-    technology: mine_coal_step1
-  - id: mine_step2_expansion
-    max_new_capacity: 300 MW
-    siting:
-      region_member:
-        member: REG1
-        partition: reg1_partition
-    technology: mine_coal_step2
-  - id: mine_step3_expansion
-    max_new_capacity: 150 MW
-    siting:
-      region_member:
-        member: REG1
-        partition: reg1_partition
-    technology: mine_coal_step3
 runs:
   - id: reg1_2005
     base_year: 2005

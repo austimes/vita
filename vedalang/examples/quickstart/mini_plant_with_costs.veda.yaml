@@ -109,6 +109,11 @@ facilities:
     available_technologies:
       - ccgt
       - ocgt
+    new_build_limits:
+      - max_new_capacity: 500 MW
+        technology: ccgt
+      - max_new_capacity: 300 MW
+        technology: ocgt
     site: reg1_energy_hub
     stock:
       items:
@@ -128,21 +133,6 @@ facilities:
             year: 2020
           technology: residential_device
     technology_role: residential_delivery
-opportunities:
-  - id: reg1_ccgt_expansion
-    max_new_capacity: 500 MW
-    siting:
-      region_member:
-        member: REG1
-        partition: reg1_partition
-    technology: ccgt
-  - id: reg1_ocgt_expansion
-    max_new_capacity: 300 MW
-    siting:
-      region_member:
-        member: REG1
-        partition: reg1_partition
-    technology: ocgt
 runs:
   - id: reg1_2020
     base_year: 2020

@@ -112,7 +112,7 @@ VEDALANG_KEYWORDS = [
     "sites",
     "facilities",
     "fleets",
-    "opportunities",
+    "zone_opportunities",
     "networks",
     "runs",
 ]

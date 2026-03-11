@@ -40,9 +40,9 @@ from .v0_2_resolution import (
     allocate_fleet_stock,
     resolve_asset_stock,
     resolve_imports,
-    resolve_opportunities,
     resolve_run,
     resolve_sites,
+    resolve_zone_opportunities,
 )
 
 __all__ = [
@@ -76,7 +76,7 @@ __all__ = [
     "parse_v0_2_source",
     "resolve_asset_stock",
     "resolve_imports",
-    "resolve_opportunities",
+    "resolve_zone_opportunities",
     "resolve_run",
     "resolve_sites",
     "reset_registry",

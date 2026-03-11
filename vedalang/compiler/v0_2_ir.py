@@ -17,8 +17,8 @@ from .v0_2_resolution import (
     parse_quantity,
     resolve_asset_new_build_limits,
     resolve_asset_stock,
-    resolve_opportunities,
     resolve_sites,
+    resolve_zone_opportunities,
 )
 
 ARTIFACT_VERSION = "1.0.0"
@@ -55,7 +55,7 @@ def emit_csir(
         site_region_memberships=site_region_memberships,
         site_zone_memberships=site_zone_memberships,
     )
-    resolved_opportunities = resolve_opportunities(graph, run, resolved_sites)
+    resolved_zone_opportunities = resolve_zone_opportunities(graph, run, resolved_sites)
     explain_objects: dict[str, Any] = {}
     explain_traces: dict[str, Any] = {}
     role_instances: list[dict[str, Any]] = []
@@ -255,22 +255,26 @@ def emit_csir(
                 "trace_ids": [total_trace, alloc_trace],
             }
 
-    opportunities = []
-    for opportunity_id in sorted(resolved_opportunities):
-        opportunity = resolved_opportunities[opportunity_id]
-        trace_id = f"trace.opportunity.{opportunity_id}.siting"
+    zone_opportunities = []
+    for opportunity_id in sorted(resolved_zone_opportunities):
+        opportunity = resolved_zone_opportunities[opportunity_id]
+        trace_id = f"trace.zone_opportunity.{opportunity_id}.siting"
         explain_traces[trace_id] = {
-            "kind": "opportunity_siting",
-            "opportunity": opportunity_id,
+            "kind": "zone_opportunity_siting",
+            "zone_opportunity": opportunity_id,
             "model_region": opportunity.model_region,
+            "zone": graph.zone_opportunities[opportunity_id].zone,
         }
-        opportunities.append(
+        zone_opportunities.append(
             {
                 "id": opportunity_id,
+                "technology_role": opportunity.technology_role,
                 "technology": opportunity.technology,
                 "model_region": opportunity.model_region,
                 "max_new_capacity": _quantity_dict(
-                    parse_quantity(graph.opportunities[opportunity_id].max_new_capacity)
+                    parse_quantity(
+                        graph.zone_opportunities[opportunity_id].max_new_capacity
+                    )
                 ),
                 "trace_ids": [trace_id],
             }
@@ -350,7 +354,7 @@ def emit_csir(
         "technology_role_instances": sorted(
             role_instances, key=lambda item: item["id"]
         ),
-        "opportunities": opportunities,
+        "zone_opportunities": zone_opportunities,
         "networks": networks,
     }
     explain = {
@@ -507,13 +511,15 @@ def lower_csir_to_cpir(
                     ),
                 }
             )
-    for opportunity in csir.get("opportunities", []):
-        process_id = f"P::opportunity::{opportunity['id']}::{opportunity['technology']}"
+    for opportunity in csir.get("zone_opportunities", []):
+        process_id = (
+            f"P::zone_opportunity::{opportunity['id']}::{opportunity['technology']}"
+        )
         technology = graph.technologies[opportunity["technology"]]
         processes.append(
             {
                 "id": process_id,
-                "source_opportunity": opportunity["id"],
+                "source_zone_opportunity": opportunity["id"],
                 "technology": opportunity["technology"],
                 "model_region": opportunity["model_region"],
                 "model_stock_metric": "installed_capacity",
@@ -523,12 +529,12 @@ def lower_csir_to_cpir(
             }
         )
         explain_objects[process_id] = {
-            "generated_from": {"opportunity": opportunity["id"]},
+            "generated_from": {"zone_opportunity": opportunity["id"]},
             "trace_ids": [f"trace.lower.{process_id}"],
         }
         explain_traces[f"trace.lower.{process_id}"] = {
-            "kind": "opportunity_to_process",
-            "opportunity": opportunity["id"],
+            "kind": "zone_opportunity_to_process",
+            "zone_opportunity": opportunity["id"],
             "technology": opportunity["technology"],
         }
     for network in csir.get("networks", []):

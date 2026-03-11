@@ -13,7 +13,7 @@ SCHEMA_FIELD_DOCS: dict[str, str] = {
 ## VedaLang: `name`
 
 **Type**: string
-**Used in**: active v0.3 objects such as `commodity`, `technology`, `technology_role`, `site`, `facility`, `fleet`, `opportunity`, `network`, and `run`
+**Used in**: active v0.3 objects such as `commodity`, `technology`, `technology_role`, `site`, `facility`, `fleet`, `zone_opportunity`, `network`, and `run`
 
 Identifier or human-readable label, depending on context.
 
@@ -343,7 +343,7 @@ Variable operation & maintenance cost per unit of **activity**.
 ## VedaLang: `import_price`
 
 **Type**: number (≥0) or `time_varying_value`
-**Used in**: v0.3 technologies or opportunities that model import-style supply
+**Used in**: v0.3 technologies or zone opportunities that model import-style supply
 
 Price of imported commodities.
 
@@ -378,7 +378,7 @@ Fraction of time capacity is available for use.
 ## VedaLang: `activity_bound`
 
 **Type**: `bound` object (`up`, `lo`, `fx`)
-**Used in**: v0.3 technologies, facilities, fleets, opportunities, and networks where activity is bounded
+**Used in**: v0.3 technologies, facilities, fleets, zone opportunities, and networks where activity is bounded
 
 Bounds on **annual process activity**.
 

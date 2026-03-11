@@ -11,7 +11,7 @@ TIMES/VEDA concepts.
 - `facilities` and `fleets` carry existing stock observations.
 - `facilities[*].new_build_limits` and `fleets[*].new_build_limits` carry
   technology-specific new-build caps on instantiated asset boundaries.
-- `opportunities` carry place-bound future build classes.
+- `zone_opportunities` carry explicitly zone-bound future build classes.
 - `runs` carry base year and currency year context.
 
 ## Technology Attributes
@@ -55,7 +55,7 @@ technologies:
 | `fleets[*].stock.items[*]` | regional stock initialization | Distributed stock or direct-bound toy stock |
 | `facilities[*].new_build_limits[*]` | `NCAP_BND` | New-build cap on the facility-instantiated process |
 | `fleets[*].new_build_limits[*]` | `NCAP_BND` | New-build cap on the fleet-instantiated process |
-| `opportunities[*].max_new_capacity` | `NCAP_BND` | Place-bound greenfield/resource build class |
+| `zone_opportunities[*].max_new_capacity` | `NCAP_BND` | Zone-bound greenfield/resource build class |
 
 Example:
 
@@ -93,6 +93,6 @@ fleets:
   fuel-specific roles.
 - Prefer `fleets` with `distribution.method: direct` for toy-scale sectors where
   the site identity is not part of the example.
-- Reserve `opportunities` for site/zone/region-specific build classes rather
+- Reserve `zone_opportunities` for explicit zone-bound build classes rather
   than generic rollout caps.
 - Treat Excel and DD files as compiled artifacts, not authoring surfaces.

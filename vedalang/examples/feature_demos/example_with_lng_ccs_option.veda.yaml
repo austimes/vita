@@ -90,6 +90,9 @@ facilities:
     available_technologies:
       - lng_boiler_baseline
       - lng_boiler_with_ccs
+    new_build_limits:
+      - max_new_capacity: 40 MW
+        technology: lng_boiler_with_ccs
     site: lng_industrial_hub
     stock:
       items:
@@ -114,14 +117,6 @@ facilities:
             year: 2025
           technology: lng_import_terminal
     technology_role: lng_supply
-opportunities:
-  - id: single_ccs_retrofit
-    max_new_capacity: 40 MW
-    siting:
-      region_member:
-        member: SINGLE
-        partition: single_region
-    technology: lng_boiler_with_ccs
 runs:
   - id: single_2025
     base_year: 2025

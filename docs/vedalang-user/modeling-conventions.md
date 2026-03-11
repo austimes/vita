@@ -15,7 +15,7 @@ This guide describes the active **v0.3** modeling contract.
 - `technology_roles` group substitutable technologies around one service intent.
 - `facilities` place named site-bound stock.
 - `fleets` place distributed or generic stock boundaries.
-- `opportunities` represent place-bound greenfield/new-build classes.
+- `zone_opportunities` represent explicitly zone-bound greenfield/new-build classes.
 - `networks` represent inter-regional transfer infrastructure.
 - `runs` define the model region partition and reporting currency year.
 
@@ -93,9 +93,12 @@ technology_roles:
   not need spatial weights or site geometry just to instantiate stock.
 - Use `membership_overrides` only when the site-to-region mapping would be
   ambiguous otherwise.
-- Use `opportunities` only for place-bound build classes: site, zone, or region
-  specific greenfield/resource opportunities.
-- Do not use `opportunities` for generic “technology exists in the role but has
+- Use `zone_opportunities` only for explicitly zone-bound greenfield/resource
+  build classes.
+- Use stockless `facilities` plus `new_build_limits` for site-bound greenfield
+  build classes.
+- Use `fleets` plus `new_build_limits` for generic regional rollout caps.
+- Do not use `zone_opportunities` for generic “technology exists in the role but has
   zero stock” cases.
 
 ## Stocks and Costs
@@ -117,26 +120,28 @@ technology_roles:
 | Generic alternative technology with no current stock | `technology_roles[*].technologies` |
 | Retrofit or upgrade of existing stock | `technology_roles[*].transitions` |
 | Technology-specific new-build cap on an instantiated asset boundary | `facility.new_build_limits` or `fleet.new_build_limits` |
-| Place-bound greenfield/resource/build class | `opportunity` |
+| Zone-bound greenfield/resource/build class | `zone_opportunity` |
 
-Valid `opportunity` examples:
+Valid `zone_opportunity` examples:
 
 - REZ-specific wind class
-- Region-specific mine expansion step
-- Site-specific greenfield project with distinct place identity
+- Offshore wind development zone
+- Dedicated storage basin zone
 
-Non-`opportunity` examples:
+Non-`zone_opportunity` examples:
 
 - Generic heat pump rollout in a single-region residential fleet
 - EV uptake in a generic passenger fleet
-- Retrofit of an existing facility already represented in role transitions
+- Site-specific greenfield project represented as a stockless facility with
+  `new_build_limits`
+- Retrofit of an existing asset already represented in role transitions
 
 ## Diagnostics Expectations
 
 - A technology role that delivers end-use service must still have physical
   inputs somewhere in its technologies unless it is a true supply or sink role.
-- Facilities and opportunities are place-based objects; fleets are the default
-  authoring surface for toy models and generic distributed sectors.
+- Facilities and zone opportunities are place-based objects; fleets are the
+  default authoring surface for toy models and generic distributed sectors.
 - Commodity kind should align with topology:
   `primary` for fuels, `secondary` for carriers, `service` for demands,
   `emission` for ledger outputs.
@@ -151,6 +156,6 @@ Non-`opportunity` examples:
 - [ ] Existing stock is placed through `facilities` or `fleets`.
 - [ ] Generic toy-model stock uses fleets with `distribution.method: direct`.
 - [ ] Capped buildout on existing assets uses `new_build_limits`.
-- [ ] `opportunities` are reserved for place-bound build classes.
+- [ ] `zone_opportunities` are reserved for explicitly zone-bound build classes.
 - [ ] Networks are modeled with `networks`, not fake technologies.
 - [ ] Runs are present and identify the intended region partition.

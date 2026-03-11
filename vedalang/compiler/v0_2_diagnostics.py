@@ -22,9 +22,9 @@ from .v0_2_resolution import (
     allocate_fleet_stock,
     resolve_asset_stock,
     resolve_imports,
-    resolve_opportunities,
     resolve_run,
     resolve_sites,
+    resolve_zone_opportunities,
 )
 
 ROLE_IMPL_HINTS = (
@@ -441,7 +441,11 @@ def _warn_run_specific(
         site_region_memberships=site_region_memberships,
         site_zone_memberships=site_zone_memberships,
     )
-    resolved_opportunities = resolve_opportunities(graph, run, resolved_sites)
+    resolved_zone_opportunities = resolve_zone_opportunities(
+        graph,
+        run,
+        resolved_sites,
+    )
     asset_regions: list[tuple[str, str, str, str, str | None]] = []
     for facility in graph.facilities.values():
         role = graph.technology_roles.get(facility.technology_role)
@@ -489,8 +493,8 @@ def _warn_run_specific(
                 asset_regions.append(
                     ("fleet", fleet.id, allocation.model_region, technology, None)
                 )
-    for opportunity in graph.opportunities.values():
-        resolved = resolved_opportunities.get(opportunity.id)
+    for opportunity in graph.zone_opportunities.values():
+        resolved = resolved_zone_opportunities.get(opportunity.id)
         if resolved is None:
             continue
         duplicates = [
@@ -512,38 +516,13 @@ def _warn_run_specific(
                 _diagnostic(
                     "W012",
                     "warning",
-                    "opportunity duplicates a technology already available "
+                    "zone opportunity duplicates a technology already available "
                     "through a facility or fleet in the same resolved region; "
                     "prefer asset new_build_limits for generic capped buildout",
                     object_id=opportunity.id,
                     location=_location_of(opportunity),
                 )
             )
-        if opportunity.siting.site:
-            for facility in graph.facilities.values():
-                if facility.site != opportunity.siting.site:
-                    continue
-                role = graph.technology_roles.get(facility.technology_role)
-                if role is None:
-                    continue
-                allowed = set(facility.available_technologies or role.technologies)
-                transition_targets = {item.to_technology for item in role.transitions}
-                if (
-                    opportunity.technology in allowed
-                    or opportunity.technology in transition_targets
-                ):
-                    warnings.append(
-                        _diagnostic(
-                            "W014",
-                            "warning",
-                            "site-bound opportunity looks like a retrofit or "
-                            "upgrade on existing asset stock; prefer transitions "
-                            "or asset new_build_limits",
-                            object_id=opportunity.id,
-                            location=_location_of(opportunity),
-                        )
-                    )
-                    break
     return warnings
 
 

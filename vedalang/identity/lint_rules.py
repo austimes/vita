@@ -91,7 +91,7 @@ class N011_SnakeCasePreferred(NamingLintRule):
             "sites",
             "facilities",
             "fleets",
-            "opportunities",
+            "zone_opportunities",
             "networks",
             "runs",
         )

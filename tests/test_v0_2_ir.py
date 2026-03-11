@@ -104,12 +104,12 @@ def test_cpir_contains_transitions_and_network_arcs():
     assert len(artifacts.cpir["transitions"]) == 4
     assert len(artifacts.cpir["network_arcs"]) == 1
     assert any(
-        process.get("source_opportunity") == "qld_central_rez_heat"
+        process.get("source_zone_opportunity") == "qld_central_rez_heat"
         for process in artifacts.cpir["processes"]
     )
     opportunity_process = next(
         process
         for process in artifacts.cpir["processes"]
-        if process.get("source_opportunity") == "qld_central_rez_heat"
+        if process.get("source_zone_opportunity") == "qld_central_rez_heat"
     )
     assert opportunity_process["max_new_capacity"]["amount"] == 1500.0

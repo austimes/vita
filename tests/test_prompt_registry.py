@@ -51,6 +51,13 @@ def test_units_v3_prompt_manifest_validates():
     assert manifest["content_sha256"] == digest
 
 
+def test_units_v5_prompt_manifest_validates():
+    bundle = get_prompt_bundle("llm.units.component_quorum", "v5")
+    digest = compute_prompt_bundle_hash(bundle)
+    manifest = json.loads(bundle.manifest_path.read_text(encoding="utf-8"))
+    assert manifest["content_sha256"] == digest
+
+
 def test_prompt_version_all_resolves_sorted_versions():
     versions = resolve_prompt_versions("llm.structure.res_assessment", "all")
     assert "v1" in versions

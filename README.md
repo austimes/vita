@@ -118,7 +118,7 @@ uv run vedalang-dev pipeline model.veda.yaml --no-solver
 
 VedaLang v0.3 uses explicit quantity strings and no implicit basis/defaulting:
 
-- stock, costs, transfer capacities, and opportunity bounds carry explicit unit
+- stock, costs, transfer capacities, and zone-opportunity bounds carry explicit unit
   strings at the point where the value is authored
 - combustible technology inputs must declare `basis: HHV|LHV` at the flow site
 - asset-count stock requires an explicit `stock_characterization` before the

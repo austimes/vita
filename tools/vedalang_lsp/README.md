@@ -10,7 +10,7 @@ Language Server Protocol (LSP) implementation for VedaLang, providing IDE suppor
   - Indexes, units, and metadata
 
 - **Autocompletion**: Context-aware suggestions for:
-  - VedaLang v0.2 root objects (`commodities`, `technologies`, `technology_roles`, `sites`, `facilities`, `fleets`, `opportunities`, `networks`, `runs`)
+  - VedaLang v0.3 root objects (`commodities`, `technologies`, `technology_roles`, `sites`, `facilities`, `fleets`, `zone_opportunities`, `networks`, `runs`)
   - Technology and asset attributes (`performance`, `costs`, `stock`, `membership_overrides`, etc.)
   - Enum values (`primary`, `secondary`, `service`, `material`, `emission`, etc.)
 

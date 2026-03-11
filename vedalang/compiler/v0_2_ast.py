@@ -278,18 +278,11 @@ class FleetDecl:
 
 
 @dataclass(frozen=True)
-class OpportunitySiting:
-    zone: str | None
-    site: str | None
-    region_member: dict[str, str] | None
-    source_ref: SourceRef
-
-
-@dataclass(frozen=True)
-class OpportunityDecl:
+class ZoneOpportunityDecl:
     id: str
+    technology_role: str
     technology: str
-    siting: OpportunitySiting
+    zone: str
     max_new_capacity: str | int | float
     profile_ref: str | None
     description: str | None
@@ -353,7 +346,7 @@ class V0_2Source:
     sites: tuple[SiteDecl, ...]
     facilities: tuple[FacilityDecl, ...]
     fleets: tuple[FleetDecl, ...]
-    opportunities: tuple[OpportunityDecl, ...]
+    zone_opportunities: tuple[ZoneOpportunityDecl, ...]
     networks: tuple[NetworkDecl, ...]
     runs: tuple[RunDecl, ...]
 
@@ -812,29 +805,12 @@ def parse_v0_2_source(source: dict[str, Any]) -> V0_2Source:
             )
             for idx, item in enumerate(source.get("fleets") or [])
         ),
-        opportunities=tuple(
-            OpportunityDecl(
+        zone_opportunities=tuple(
+            ZoneOpportunityDecl(
                 id=str(item["id"]),
+                technology_role=str(item["technology_role"]),
                 technology=str(item["technology"]),
-                siting=OpportunitySiting(
-                    zone=str(item["siting"]["zone"])
-                    if item.get("siting", {}).get("zone")
-                    else None,
-                    site=str(item["siting"]["site"])
-                    if item.get("siting", {}).get("site")
-                    else None,
-                    region_member=(
-                        {
-                            "partition": str(
-                                item["siting"]["region_member"]["partition"]
-                            ),
-                            "member": str(item["siting"]["region_member"]["member"]),
-                        }
-                        if item.get("siting", {}).get("region_member")
-                        else None
-                    ),
-                    source_ref=_source_ref(f"opportunities[{idx}].siting"),
-                ),
+                zone=str(item["zone"]),
                 max_new_capacity=item["max_new_capacity"],
                 profile_ref=(
                     str(item["profile_ref"]) if item.get("profile_ref") else None
@@ -842,9 +818,9 @@ def parse_v0_2_source(source: dict[str, Any]) -> V0_2Source:
                 description=(
                     str(item["description"]) if item.get("description") else None
                 ),
-                source_ref=_source_ref(f"opportunities[{idx}]"),
+                source_ref=_source_ref(f"zone_opportunities[{idx}]"),
             )
-            for idx, item in enumerate(source.get("opportunities") or [])
+            for idx, item in enumerate(source.get("zone_opportunities") or [])
         ),
         networks=tuple(
             NetworkDecl(

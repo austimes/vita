@@ -7,12 +7,11 @@ to detect from the authored source.
 Separate from the `H0xx` heuristic rules, the compiler also emits structural
 `W0xx` diagnostics for ambiguous object usage. Recent additions include:
 
-- duplicated opportunity-vs-asset rollout patterns
+- duplicated zone-opportunity-vs-asset rollout patterns
 - single-region generic service stock modeled as a facility instead of a fleet
-- site-bound opportunities that look like retrofits on existing assets
 
 For toy models, prefer `fleets` with `distribution.method: direct` and use
-`new_build_limits` on the fleet rather than a duplicate `opportunity`.
+`new_build_limits` on the fleet rather than a duplicate zone-bound build class.
 
 ## Running Heuristic Checks
 
@@ -35,7 +34,7 @@ uv run vedalang validate model.veda.yaml
 
 **Pattern detected:** A `facility` or `fleet` uses a `technology_role` whose
 `primary_service` is a commodity with `type: service`, but the asset has no
-`stock.items`.
+`stock.items` and no `new_build_limits`.
 
 **Why it matters:** Service-delivering assets usually need explicit base-year
 stock observations to anchor installed service capacity or activity. A service
@@ -59,8 +58,9 @@ facilities:
     technology_role: space_heat_supply
 ```
 
-**Fix:** Add `stock.items` for the existing base-year asset, or remove the
-asset until it is ready to be modeled.
+**Fix:** Add `stock.items` for the existing base-year asset, add
+`new_build_limits` for a greenfield build boundary, or remove the asset until
+it is ready to be modeled.
 
 ### H002: Annual-Activity Stock Without Matching Installed Capacity
 

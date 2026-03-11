@@ -201,16 +201,12 @@ def valid_v0_2_source() -> dict:
                 },
             }
         ],
-        "opportunities": [
+        "zone_opportunities": [
             {
                 "id": "qld_central_rez_wind_class_1",
+                "technology_role": "heat.residential_space_heat_supply",
                 "technology": "heat.heat_pump",
-                "siting": {
-                    "region_member": {
-                        "partition": "regions.toy_states_3",
-                        "member": "QLD",
-                    }
-                },
+                "zone": "regions.aemo_rez_2024.qld_central_rez",
                 "max_new_capacity": "1500 MW",
             }
         ],
@@ -297,12 +293,9 @@ def test_site_location_requires_point_or_feature_ref() -> None:
         jsonschema.validate(data, load_schema())
 
 
-def test_opportunity_siting_allows_exactly_one_mode() -> None:
+def test_zone_opportunity_requires_explicit_zone() -> None:
     data = valid_v0_2_source()
-    data["opportunities"][0]["siting"] = {
-        "site": "gladstone_refinery",
-        "zone": "regions.aemo_rez_2024",
-    }
+    data["zone_opportunities"][0].pop("zone")
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(data, load_schema())
 

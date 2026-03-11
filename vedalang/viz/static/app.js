@@ -36,7 +36,7 @@ const COLLAPSED_OBJECT_FIELD_KEYS = new Set([
 const OBJECT_EXPLAINERS = {
   facility: "Binds a technology role to a concrete place and can carry stock, build limits, and policies.",
   fleet: "Binds a technology role to distributed stock and can carry stock, build limits, and policies.",
-  opportunity: "Represents a place-bound candidate build option with capped new-build potential.",
+  zone_opportunity: "Represents a zone-bound candidate build option with capped new-build potential.",
   technology_role: "Groups interchangeable technologies delivering the same primary service.",
   technology: "Describes inputs, outputs, performance, costs, lifetime, and emissions.",
   commodity: "Defines a flow type used as an input, output, service, resource, emission ledger, or financial commodity.",

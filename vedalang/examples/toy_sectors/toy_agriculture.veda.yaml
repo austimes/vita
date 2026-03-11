@@ -135,18 +135,10 @@ region_partitions:
       value: SINGLE
     members:
       - SINGLE
-sites:
-  - id: single_farm
-    location:
-      point:
-        lat: -35.31
-        lon: 149.12
-    membership_overrides:
-      region_partitions:
-        single_region: SINGLE
-facilities:
-  - id: farm_input_supply_asset
-    site: single_farm
+fleets:
+  - id: farm_input_supply
+    distribution:
+      method: direct
     stock:
       items:
         - metric: installed_capacity
@@ -156,7 +148,8 @@ facilities:
           technology: farm_input_import
     technology_role: farm_input_supply
   - id: farm_land_endowment
-    site: single_farm
+    distribution:
+      method: direct
     stock:
       items:
         - metric: installed_capacity
@@ -165,12 +158,13 @@ facilities:
             year: 2025
           technology: land_endowment
     technology_role: farm_land_supply
-  - id: farm_production_asset
+  - id: farm_production
     available_technologies:
       - traditional_baseline
       - traditional_with_feed_additives
       - traditional_with_improved_manure
-    site: single_farm
+    distribution:
+      method: direct
     stock:
       items:
         - metric: installed_capacity
@@ -179,17 +173,15 @@ facilities:
             year: 2025
           technology: traditional_baseline
     technology_role: agricultural_production
-opportunities:
-  - id: reforestation_rollout
-    max_new_capacity: 1 MW
-    siting:
-      site: single_farm
-    technology: reforestation
-  - id: soil_carbon_rollout
-    max_new_capacity: 1 MW
-    siting:
-      site: single_farm
-    technology: soil_carbon
+  - id: farm_carbon_management
+    distribution:
+      method: direct
+    new_build_limits:
+      - max_new_capacity: 1 MW
+        technology: reforestation
+      - max_new_capacity: 1 MW
+        technology: soil_carbon
+    technology_role: farm_carbon_management
 runs:
   - id: single_2025
     base_year: 2025

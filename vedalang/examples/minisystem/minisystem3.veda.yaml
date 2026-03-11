@@ -90,6 +90,9 @@ facilities:
           technology: gas_import
     technology_role: gas_supply
   - id: generation_facility
+    new_build_limits:
+      - max_new_capacity: 8 MW
+        technology: ccgt
     site: single_hub
     stock:
       items:
@@ -109,14 +112,6 @@ facilities:
             year: 2025
           technology: residential_device
     technology_role: residential_service
-opportunities:
-  - id: ccgt_expansion
-    max_new_capacity: 8 MW
-    siting:
-      region_member:
-        member: SINGLE
-        partition: single_region
-    technology: ccgt
 runs:
   - id: single_2025
     base_year: 2025

@@ -103,6 +103,9 @@ facilities:
       - coal_calciner
       - gas_calciner
       - hydrogen_calciner
+    new_build_limits:
+      - max_new_capacity: 8 MW
+        technology: hydrogen_calciner
     site: gladstone_refinery
     stock:
       items:
@@ -117,6 +120,9 @@ facilities:
       - coal_calciner
       - gas_calciner
       - hydrogen_calciner
+    new_build_limits:
+      - max_new_capacity: 3.5 MW
+        technology: gas_calciner
     site: newcastle_refinery
     stock:
       items:
@@ -126,17 +132,6 @@ facilities:
             year: 2025
           technology: coal_calciner
     technology_role: alumina_calcination
-opportunities:
-  - id: nsw_gas_retrofit
-    max_new_capacity: 3.5 MW
-    siting:
-      site: newcastle_refinery
-    technology: gas_calciner
-  - id: qld_hydrogen_retrofit
-    max_new_capacity: 8 MW
-    siting:
-      site: gladstone_refinery
-    technology: hydrogen_calciner
 runs:
   - id: au_states_2025
     base_year: 2025

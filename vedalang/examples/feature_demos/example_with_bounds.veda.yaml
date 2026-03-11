@@ -110,6 +110,11 @@ region_partitions:
       value: REG1
     members:
       - REG1
+zone_overlays:
+  - id: reg1_build_zones
+    layer: geo.demo
+    key: build_zone
+    geometry_file: data/build_zones.geojson
 sites:
   - id: reg1_energy_hub
     location:
@@ -119,6 +124,8 @@ sites:
     membership_overrides:
       region_partitions:
         reg1_partition: REG1
+      zone_overlays:
+        reg1_build_zones: reg1_rez
 facilities:
   - id: reg1_gas_supply
     site: reg1_energy_hub
@@ -174,21 +181,17 @@ facilities:
             year: 2025
           technology: onshore_wind_resource
     technology_role: wind_resource_supply
-opportunities:
+zone_opportunities:
   - id: reg1_new_ccgt
-    max_new_capacity: 2 MW
-    siting:
-      region_member:
-        member: REG1
-        partition: reg1_partition
+    technology_role: electricity_generation
     technology: ccgt
+    zone: reg1_build_zones.reg1_rez
+    max_new_capacity: 2 MW
   - id: reg1_new_wind
-    max_new_capacity: 50 MW
-    siting:
-      region_member:
-        member: REG1
-        partition: reg1_partition
+    technology_role: electricity_generation
     technology: onshore_wind_turbine
+    zone: reg1_build_zones.reg1_rez
+    max_new_capacity: 50 MW
 runs:
   - id: reg1_2025
     base_year: 2025

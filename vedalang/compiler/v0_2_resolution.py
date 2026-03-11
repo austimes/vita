@@ -13,7 +13,6 @@ from .v0_2_ast import (
     FacilityDecl,
     FleetDecl,
     NetworkDecl,
-    OpportunityDecl,
     RegionPartitionDecl,
     RunDecl,
     SiteDecl,
@@ -25,6 +24,7 @@ from .v0_2_ast import (
     TechnologyRoleDecl,
     TemporalIndexSeriesDecl,
     V0_2Source,
+    ZoneOpportunityDecl,
     ZoneOverlayDecl,
 )
 
@@ -85,7 +85,7 @@ class ResolvedDefinitionGraph:
     sites: dict[str, SiteDecl]
     facilities: dict[str, FacilityDecl]
     fleets: dict[str, FleetDecl]
-    opportunities: dict[str, OpportunityDecl]
+    zone_opportunities: dict[str, ZoneOpportunityDecl]
     networks: dict[str, NetworkDecl]
     runs: dict[str, RunDecl]
 
@@ -127,8 +127,9 @@ class FleetAllocation:
 
 
 @dataclass(frozen=True)
-class ResolvedOpportunity:
+class ResolvedZoneOpportunity:
     id: str
+    technology_role: str
     technology: str
     model_region: str
 
@@ -199,7 +200,10 @@ def _object_maps(source: V0_2Source) -> dict[str, dict[str, Any]]:
         "sites": _by_id(source.sites, "site"),
         "facilities": _by_id(source.facilities, "facility"),
         "fleets": _by_id(source.fleets, "fleet"),
-        "opportunities": _by_id(source.opportunities, "opportunity"),
+        "zone_opportunities": _by_id(
+            source.zone_opportunities,
+            "zone_opportunity",
+        ),
         "networks": _by_id(source.networks, "network"),
         "runs": _by_id(source.runs, "run"),
     }
@@ -226,6 +230,15 @@ def _package_dependency_refs(kind: str, item: Any) -> list[tuple[str, str]]:
         return [("spatial_layers", item.layer)]
     if kind == "zone_overlays":
         return [("spatial_layers", item.layer)]
+    if kind == "zone_opportunities":
+        refs = [
+            ("technology_roles", item.technology_role),
+            ("technologies", item.technology),
+        ]
+        zone_ref = item.zone
+        zone_overlay = zone_ref.rsplit(".", 1)[0] if "." in zone_ref else zone_ref
+        refs.append(("zone_overlays", zone_overlay))
+        return refs
     return []
 
 
@@ -335,6 +348,34 @@ def _qualify_imported_object(
                     source_ref=transition.source_ref,
                 )
                 for transition in item.transitions
+            ),
+            description=item.description,
+            source_ref=item.source_ref,
+        )
+    if kind == "zone_opportunities":
+        qualified_zone = item.zone
+        for overlay_id in sorted(candidates["zone_overlays"], key=len, reverse=True):
+            if item.zone == overlay_id or item.zone.startswith(f"{overlay_id}."):
+                qualified_zone = (
+                    item.zone
+                    if item.zone.startswith(f"{alias}.")
+                    else _qualify_id(alias, item.zone)
+                )
+                break
+        return ZoneOpportunityDecl(
+            id=_qualify_id(alias, item.id),
+            technology_role=_qualify_ref(
+                alias,
+                item.technology_role,
+                candidates["technology_roles"],
+            ),
+            technology=_qualify_ref(alias, item.technology, candidates["technologies"]),
+            zone=qualified_zone,
+            max_new_capacity=item.max_new_capacity,
+            profile_ref=(
+                _qualify_ref(alias, item.profile_ref, set())
+                if item.profile_ref
+                else None
             ),
             description=item.description,
             source_ref=item.source_ref,
@@ -562,73 +603,60 @@ def resolve_sites(
     return resolved
 
 
-def resolve_opportunities(
+def resolve_zone_opportunities(
     graph: ResolvedDefinitionGraph,
     run: RunContext,
     resolved_sites: dict[str, ResolvedSite],
-) -> dict[str, ResolvedOpportunity]:
-    """Resolve opportunities to a single model region."""
-    resolved: dict[str, ResolvedOpportunity] = {}
+) -> dict[str, ResolvedZoneOpportunity]:
+    """Resolve zone opportunities to a single model region."""
+    resolved: dict[str, ResolvedZoneOpportunity] = {}
     overlay_ids = sorted(graph.zone_overlays, key=len, reverse=True)
-    for opportunity in graph.opportunities.values():
-        model_region: str | None = None
-        if opportunity.siting.site:
-            site = resolved_sites.get(opportunity.siting.site)
-            if site is None:
-                raise V0_2ResolutionError(
-                    "E014",
-                    opportunity.id,
-                    f"site '{opportunity.siting.site}' is not resolved",
-                )
-            model_region = site.model_region
-        elif opportunity.siting.region_member:
-            partition = opportunity.siting.region_member["partition"]
-            member = opportunity.siting.region_member["member"]
-            if partition != run.region_partition or member not in run.model_regions:
-                raise V0_2ResolutionError(
-                    "E014",
-                    opportunity.id,
-                    "region_member siting does not match selected run partition",
-                )
-            model_region = member
-        elif opportunity.siting.zone:
-            zone_ref = opportunity.siting.zone
-            overlay_id = next(
-                (
-                    candidate
-                    for candidate in overlay_ids
-                    if zone_ref.startswith(f"{candidate}.")
-                ),
-                None,
+    for opportunity in graph.zone_opportunities.values():
+        role = graph.technology_roles.get(opportunity.technology_role)
+        if role is None:
+            raise V0_2ResolutionError(
+                "E003",
+                opportunity.id,
+                f"technology_role '{opportunity.technology_role}' is not defined",
             )
-            if overlay_id is None:
-                raise V0_2ResolutionError(
-                    "E014",
-                    opportunity.id,
-                    f"zone reference '{zone_ref}' is invalid",
-                )
-            zone_member = zone_ref[len(overlay_id) + 1 :]
-            matching_sites = [
-                site.model_region
-                for site in resolved_sites.values()
-                if site.zone_memberships.get(overlay_id) == zone_member
-            ]
-            unique = sorted(set(matching_sites))
-            if len(unique) != 1:
-                raise V0_2ResolutionError(
-                    "E014",
-                    opportunity.id,
-                    f"zone '{zone_ref}' resolves ambiguously",
-                )
-            model_region = unique[0]
-        if model_region is None:
+        if opportunity.technology not in role.technologies:
+            raise V0_2ResolutionError(
+                "E023",
+                opportunity.id,
+                "zone_opportunity technology must be a member of technology_role",
+            )
+        zone_ref = opportunity.zone
+        overlay_id = next(
+            (
+                candidate
+                for candidate in overlay_ids
+                if zone_ref.startswith(f"{candidate}.")
+            ),
+            None,
+        )
+        if overlay_id is None:
             raise V0_2ResolutionError(
                 "E014",
                 opportunity.id,
-                "opportunity siting could not be resolved",
+                f"zone reference '{zone_ref}' is invalid",
             )
-        resolved[opportunity.id] = ResolvedOpportunity(
+        zone_member = zone_ref[len(overlay_id) + 1 :]
+        matching_sites = [
+            site.model_region
+            for site in resolved_sites.values()
+            if site.zone_memberships.get(overlay_id) == zone_member
+        ]
+        unique = sorted(set(matching_sites))
+        if len(unique) != 1:
+            raise V0_2ResolutionError(
+                "E014",
+                opportunity.id,
+                f"zone '{zone_ref}' resolves ambiguously",
+            )
+        model_region = unique[0]
+        resolved[opportunity.id] = ResolvedZoneOpportunity(
             id=opportunity.id,
+            technology_role=opportunity.technology_role,
             technology=opportunity.technology,
             model_region=model_region,
         )

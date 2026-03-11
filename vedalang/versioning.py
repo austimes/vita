@@ -25,7 +25,7 @@ V0_2_TOP_LEVEL_KEYS = frozenset(
         "sites",
         "facilities",
         "fleets",
-        "opportunities",
+        "zone_opportunities",
         "networks",
         "runs",
     }

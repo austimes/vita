@@ -1349,7 +1349,7 @@ FMT_ROOT_KEY_ORDER = (
     "sites",
     "facilities",
     "fleets",
-    "opportunities",
+    "zone_opportunities",
     "networks",
     "runs",
 )

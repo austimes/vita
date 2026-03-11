@@ -105,7 +105,9 @@ def _local_object_maps(parsed_source: V0_2Source) -> dict[str, dict[str, Any]]:
         },
         "facilities": {item.id: item for item in parsed_source.facilities},
         "fleets": {item.id: item for item in parsed_source.fleets},
-        "opportunities": {item.id: item for item in parsed_source.opportunities},
+        "zone_opportunities": {
+            item.id: item for item in parsed_source.zone_opportunities
+        },
     }
 
 
@@ -359,8 +361,8 @@ def _asset_kind_and_id(source_asset: str | None) -> tuple[str | None, str | None
 def _local_map_key_for_kind(kind: str) -> str:
     if kind == "facility":
         return "facilities"
-    if kind == "opportunity":
-        return "opportunities"
+    if kind == "zone_opportunity":
+        return "zone_opportunities"
     return f"{kind}s"
 
 
@@ -462,7 +464,7 @@ def _build_nested_dsl_items(
     locator: SourceLocator,
     asset_kind: str | None,
     asset_id: str | None,
-    source_opportunity: str,
+    source_zone_opportunity: str,
     role_id: str | None,
     technology_ids: list[str],
 ) -> tuple[list[dict[str, Any]], bool]:
@@ -480,14 +482,14 @@ def _build_nested_dsl_items(
             locator=locator,
         )
         partial = partial or missing
-    elif source_opportunity:
+    elif source_zone_opportunity:
         root_item, missing = _local_or_resolved_item(
             local_maps=local_maps,
             resolved_maps=resolved_maps,
-            map_key="opportunities",
-            object_id=source_opportunity,
-            label="opportunity",
-            kind="opportunity",
+            map_key="zone_opportunities",
+            object_id=source_zone_opportunity,
+            label="zone opportunity",
+            kind="zone_opportunity",
             locator=locator,
         )
         partial = partial or missing
@@ -557,21 +559,23 @@ def _source_asset_for_dsl_item(
     )
 
 
-def _source_opportunity_for_dsl_item(
+def _source_zone_opportunity_for_dsl_item(
     node_details: dict[str, Any],
     primary_process: dict[str, Any],
 ) -> str:
-    source_opportunity = str(node_details.get("source_opportunity", "") or "")
-    if source_opportunity:
-        return source_opportunity
-    return str(primary_process.get("source_opportunity", "") or "")
+    source_zone_opportunity = str(
+        node_details.get("source_zone_opportunity", "") or ""
+    )
+    if source_zone_opportunity:
+        return source_zone_opportunity
+    return str(primary_process.get("source_zone_opportunity", "") or "")
 
 
 def _process_semantic_origin_item(
     process: dict[str, Any],
     *,
     role_instances: dict[str, dict[str, Any]],
-    opportunities: dict[str, dict[str, Any]],
+    zone_opportunities: dict[str, dict[str, Any]],
 ) -> dict[str, Any] | None:
     source_role_instance = str(process.get("source_role_instance", "") or "")
     if source_role_instance:
@@ -584,14 +588,14 @@ def _process_semantic_origin_item(
                 attributes=role_instance,
                 source_location=None,
             )
-    source_opportunity = str(process.get("source_opportunity", "") or "")
-    if source_opportunity:
-        opportunity = opportunities.get(source_opportunity)
+    source_zone_opportunity = str(process.get("source_zone_opportunity", "") or "")
+    if source_zone_opportunity:
+        opportunity = zone_opportunities.get(source_zone_opportunity)
         if opportunity is not None:
             return _item(
-                label="resolved opportunity",
-                kind="opportunity",
-                object_id=source_opportunity,
+                label="resolved zone opportunity",
+                kind="zone_opportunity",
+                object_id=source_zone_opportunity,
                 attributes=opportunity,
                 source_location=None,
             )
@@ -734,7 +738,7 @@ def build_system_node_inspectors(
         "technology_roles": context.graph.technology_roles,
         "facilities": context.graph.facilities,
         "fleets": context.graph.fleets,
-        "opportunities": context.graph.opportunities,
+        "zone_opportunities": context.graph.zone_opportunities,
     }
     locator = SourceLocator(context.source, context.source_file)
     table_indexes = _table_indexes(context.tableir)
@@ -745,9 +749,9 @@ def build_system_node_inspectors(
         for item in context.csir.get("technology_role_instances", [])
         if isinstance(item, dict) and item.get("id")
     }
-    opportunities = {
+    zone_opportunities = {
         str(item["id"]): item
-        for item in context.csir.get("opportunities", [])
+        for item in context.csir.get("zone_opportunities", [])
         if isinstance(item, dict) and item.get("id")
     }
     processes = {
@@ -797,7 +801,7 @@ def build_system_node_inspectors(
                 role_instances=role_instances,
             )
             asset_kind, asset_id = _asset_kind_and_id(source_asset)
-            source_opportunity = _source_opportunity_for_dsl_item(
+            source_zone_opportunity = _source_zone_opportunity_for_dsl_item(
                 node_details,
                 primary_process,
             )
@@ -816,7 +820,7 @@ def build_system_node_inspectors(
                 locator=locator,
                 asset_kind=asset_kind,
                 asset_id=asset_id,
-                source_opportunity=source_opportunity,
+                source_zone_opportunity=source_zone_opportunity,
                 role_id=role_id,
                 technology_ids=technology_ids,
             )
@@ -825,7 +829,7 @@ def build_system_node_inspectors(
             origin_item = _process_semantic_origin_item(
                 primary_process,
                 role_instances=role_instances,
-                opportunities=opportunities,
+                zone_opportunities=zone_opportunities,
             )
             if origin_item is not None:
                 semantic_items.append(origin_item)

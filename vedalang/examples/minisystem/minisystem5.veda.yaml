@@ -127,6 +127,9 @@ facilities:
     available_technologies:
       - ccgt
       - wind
+    new_build_limits:
+      - max_new_capacity: 20 MW
+        technology: wind
     site: single_hub
     stock:
       items:
@@ -161,14 +164,6 @@ facilities:
             year: 2025
           technology: onshore_wind_supply
     technology_role: wind_supply
-opportunities:
-  - id: wind_expansion
-    max_new_capacity: 20 MW
-    siting:
-      region_member:
-        member: SINGLE
-        partition: single_region
-    technology: wind
 runs:
   - id: single_2025
     base_year: 2025

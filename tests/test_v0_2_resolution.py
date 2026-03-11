@@ -6,9 +6,9 @@ from vedalang.compiler.v0_2_resolution import (
     allocate_fleet_stock,
     resolve_asset_stock,
     resolve_imports,
-    resolve_opportunities,
     resolve_run,
     resolve_sites,
+    resolve_zone_opportunities,
 )
 
 
@@ -222,11 +222,12 @@ def _packages_and_model():
                     },
                 }
             ],
-            "opportunities": [
+            "zone_opportunities": [
                 {
                     "id": "qld_central_rez_heat",
+                    "technology_role": "heat.residential_space_heat_supply",
                     "technology": "heat.heat_pump",
-                    "siting": {"zone": "regions.aemo_rez_2024.qld_central_rez"},
+                    "zone": "regions.aemo_rez_2024.qld_central_rez",
                     "max_new_capacity": "1500 MW",
                 }
             ],
@@ -357,7 +358,7 @@ def test_resolve_imports_detects_missing_object_and_cycle():
         resolve_imports(conflicting, packages)
 
 
-def test_resolve_run_sites_and_opportunities():
+def test_resolve_run_sites_and_zone_opportunities():
     packages, model = _packages_and_model()
     graph = resolve_imports(model, packages)
     run = resolve_run(graph, "toy_states_2025")
@@ -369,12 +370,15 @@ def test_resolve_run_sites_and_opportunities():
             "gladstone_refinery": {"regions.aemo_rez_2024": "qld_central_rez"}
         },
     )
-    opportunities = resolve_opportunities(graph, run, sites)
+    opportunities = resolve_zone_opportunities(graph, run, sites)
 
     assert run.model_regions == ("NSW", "VIC", "QLD")
     assert sites["gladstone_refinery"].model_region == "QLD"
     assert sites["manual_override_site"].model_region == "VIC"
     assert opportunities["qld_central_rez_heat"].model_region == "QLD"
+    assert opportunities["qld_central_rez_heat"].technology_role == (
+        "heat.residential_space_heat_supply"
+    )
 
     with pytest.raises(V0_2ResolutionError, match="E008"):
         resolve_sites(

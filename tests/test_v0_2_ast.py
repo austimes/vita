@@ -147,16 +147,12 @@ def valid_v0_2_source() -> dict:
                 },
             }
         ],
-        "opportunities": [
+        "zone_opportunities": [
             {
                 "id": "qld_central_rez_wind_class_1",
+                "technology_role": "heat.residential_space_heat_supply",
                 "technology": "heat.gas_heater",
-                "siting": {
-                    "region_member": {
-                        "partition": "regions.toy_states_3",
-                        "member": "QLD",
-                    }
-                },
+                "zone": "regions.aemo_rez_2024.qld_central_rez",
                 "max_new_capacity": "1500 MW",
             }
         ],
@@ -207,10 +203,11 @@ def test_parse_v0_2_source_returns_typed_document() -> None:
     assert ast.facilities[0].new_build_limits[0].technology == "heat.heat_pump"
     assert ast.fleets[0].distribution.weight_by == "demo.abs_demography.dwelling_stock"
     assert ast.fleets[0].distribution.target_regions == ()
-    assert ast.opportunities[0].siting.region_member == {
-        "partition": "regions.toy_states_3",
-        "member": "QLD",
-    }
+    assert (
+        ast.zone_opportunities[0].technology_role
+        == "heat.residential_space_heat_supply"
+    )
+    assert ast.zone_opportunities[0].zone == "regions.aemo_rez_2024.qld_central_rez"
     assert ast.networks[0].links[0].from_node == "QLD"
     assert ast.runs[0].region_partition == "regions.toy_states_3"
 

@@ -27,7 +27,7 @@ EXPECTED_V0_2_TOP_LEVEL_PROPERTIES = {
     "sites",
     "facilities",
     "fleets",
-    "opportunities",
+    "zone_opportunities",
     "networks",
     "runs",
 }
@@ -80,7 +80,7 @@ class TestV0_2SchemaContract:
             "site",
             "facility",
             "fleet",
-            "opportunity",
+            "zone_opportunity",
             "network",
             "run",
             "temporal_index_series",
@@ -128,10 +128,11 @@ class TestV0_2SchemaContract:
         assert defs["site"]["required"] == ["id", "location"]
         assert defs["facility"]["required"] == ["id", "site", "technology_role"]
         assert defs["fleet"]["required"] == ["id", "technology_role", "distribution"]
-        assert defs["opportunity"]["required"] == [
+        assert defs["zone_opportunity"]["required"] == [
             "id",
+            "technology_role",
             "technology",
-            "siting",
+            "zone",
             "max_new_capacity",
         ]
         assert defs["network"]["required"] == ["id", "kind", "node_basis", "links"]

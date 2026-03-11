@@ -124,8 +124,8 @@ def _asset_kind(source_asset: str | None) -> str | None:
 def _group_origin(process: dict[str, Any]) -> str:
     if process.get("source_role_instance"):
         return "role_instance"
-    if process.get("source_opportunity"):
-        return "opportunity"
+    if process.get("source_zone_opportunity"):
+        return "zone_opportunity"
     return "group"
 
 
@@ -141,7 +141,7 @@ def _display_process_label(
         role_instances=role_instances,
         technology_to_role=technology_to_role,
     )
-    source_opportunity = str(process.get("source_opportunity", "") or "")
+    source_zone_opportunity = str(process.get("source_zone_opportunity", "") or "")
     asset_name = _asset_name_for_process(process, role_instances=role_instances)
     asset_provenance = _asset_provenance_label(
         process,
@@ -152,16 +152,16 @@ def _display_process_label(
         technology = str(process.get("technology", "") or process.get("id", ""))
         if asset_name:
             provenance = f"[{asset_name}, {asset_provenance}]"
-        elif source_opportunity:
-            provenance = f"[{source_opportunity}, opportunity]"
+        elif source_zone_opportunity:
+            provenance = f"[{source_zone_opportunity}, zone opportunity]"
         else:
             provenance = "[group]"
         return "\n".join([technology, role_name, provenance])
 
     if asset_name:
         return "\n".join([role_name, asset_name, f"[{asset_provenance}]"])
-    if source_opportunity:
-        return "\n".join([role_name, source_opportunity, "[opportunity]"])
+    if source_zone_opportunity:
+        return "\n".join([role_name, source_zone_opportunity, "[zone opportunity]"])
     return "\n".join([role_name, "[group]"])
 
 
@@ -178,14 +178,16 @@ def _group_key(
         technology_to_role=technology_to_role,
     )
     source_asset = _source_asset_for_process(process, role_instances=role_instances)
-    source_opportunity = str(process.get("source_opportunity", "") or "")
+    source_zone_opportunity = str(process.get("source_zone_opportunity", "") or "")
     technology = str(process.get("technology", "") or process.get("id", ""))
 
     if granularity == "instance":
         if source_asset:
             key = f"instance:asset:{technology}:{source_asset}"
-        elif source_opportunity:
-            key = f"instance:opportunity:{technology}:{source_opportunity}"
+        elif source_zone_opportunity:
+            key = (
+                f"instance:zone_opportunity:{technology}:{source_zone_opportunity}"
+            )
         else:
             key = f"instance:group:{technology}:{role_name}"
         return (
@@ -201,8 +203,8 @@ def _group_key(
 
     if source_asset:
         key = f"role:asset:{source_asset}"
-    elif source_opportunity:
-        key = f"role:opportunity:{source_opportunity}"
+    elif source_zone_opportunity:
+        key = f"role:zone_opportunity:{source_zone_opportunity}"
     else:
         key = f"role:group:{role_name}"
     return (
@@ -386,7 +388,7 @@ def _build_system_node_detail(
     technology: str | None,
     source_asset: str | None,
     source_role_instance: str | None,
-    source_opportunity: str | None,
+    source_zone_opportunity: str | None,
     commodity: str | None = None,
     commodity_kind: str | None = None,
 ) -> dict[str, Any]:
@@ -407,7 +409,7 @@ def _build_system_node_detail(
             "source_asset": source_asset,
             "source_asset_kind": _asset_kind(source_asset),
             "source_role_instance": source_role_instance,
-            "source_opportunity": source_opportunity,
+            "source_zone_opportunity": source_zone_opportunity,
         },
         "aggregation": {
             "is_aggregated": False,
@@ -479,7 +481,9 @@ def build_v0_2_system_graph(
         source_role_instance = (
             str(process.get("source_role_instance", "") or "") or None
         )
-        source_opportunity = str(process.get("source_opportunity", "") or "") or None
+        source_zone_opportunity = (
+            str(process.get("source_zone_opportunity", "") or "") or None
+        )
 
         if group_id not in node_map:
             node = {"id": group_id, "label": label, "type": node_type}
@@ -499,7 +503,7 @@ def build_v0_2_system_graph(
                 ),
                 source_asset=source_asset,
                 source_role_instance=source_role_instance,
-                source_opportunity=source_opportunity,
+                source_zone_opportunity=source_zone_opportunity,
             )
             detail.update(
                 {
@@ -512,14 +516,14 @@ def build_v0_2_system_graph(
                     "group_origin": _group_origin(process),
                     "source_role_instance": source_role_instance,
                     "source_asset": source_asset,
-                    "source_opportunity": source_opportunity,
+                    "source_zone_opportunity": source_zone_opportunity,
                     "initial_stock": process.get("initial_stock"),
                     "available_technologies": [],
                     "max_new_capacity": process.get("max_new_capacity"),
                     "member_process_ids": [],
                     "member_technologies": [],
                     "member_source_role_instances": [],
-                    "member_source_opportunities": [],
+                    "member_source_zone_opportunities": [],
                     "member_source_assets": [],
                     "stock_entries": [],
                     "capacity_entries": [],
@@ -536,8 +540,8 @@ def build_v0_2_system_graph(
             source_role_instance,
         )
         _append_unique(
-            group_details["member_source_opportunities"],
-            source_opportunity,
+            group_details["member_source_zone_opportunities"],
+            source_zone_opportunity,
         )
         _append_unique(group_details["member_source_assets"], source_asset)
         for technology_id in role_instances.get(source_role_instance or "", {}).get(
@@ -587,7 +591,7 @@ def build_v0_2_system_graph(
                     technology=None,
                     source_asset=None,
                     source_role_instance=None,
-                    source_opportunity=None,
+                    source_zone_opportunity=None,
                     commodity=commodity,
                     commodity_kind=commodity_kind,
                 )
@@ -725,8 +729,8 @@ def build_v0_2_system_graph(
         detail["member_source_role_instances"] = _sorted_unique(
             detail.get("member_source_role_instances", [])
         )
-        detail["member_source_opportunities"] = _sorted_unique(
-            detail.get("member_source_opportunities", [])
+        detail["member_source_zone_opportunities"] = _sorted_unique(
+            detail.get("member_source_zone_opportunities", [])
         )
         detail["member_source_assets"] = _sorted_unique(
             detail.get("member_source_assets", [])

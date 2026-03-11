@@ -101,7 +101,7 @@ the **package/run/CSIR/CPIR** reset has landed as the active public DSL.
 What this means for design-agent work:
 - Prefer the current object-model terminology and architecture:
   `package`, `run`, `commodity`, `technology`, `technology_role`,
-  `stock_characterization`, `site`, `facility`, `fleet`, `opportunity`,
+  `stock_characterization`, `site`, `facility`, `fleet`, `zone_opportunity`,
   `network`, `CSIR`, `CPIR`, `explain.json`.
 - Keep the run-scoped frontend and the Excel/xl2times/TIMES backend path in
   parity when making changes.

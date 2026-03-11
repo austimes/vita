@@ -89,10 +89,10 @@
         "$ref": "#/$defs/fleet"
       }
     },
-    "opportunities": {
+    "zone_opportunities": {
       "type": "array",
       "items": {
-        "$ref": "#/$defs/opportunity"
+        "$ref": "#/$defs/zone_opportunity"
       }
     },
     "networks": {
@@ -176,7 +176,7 @@
     },
     {
       "required": [
-        "opportunities"
+        "zone_opportunities"
       ]
     },
     {
@@ -1215,56 +1215,28 @@
         }
       }
     },
-    "opportunity_siting": {
-      "type": "object",
-      "additionalProperties": false,
-      "oneOf": [
-        {
-          "required": [
-            "zone"
-          ]
-        },
-        {
-          "required": [
-            "site"
-          ]
-        },
-        {
-          "required": [
-            "region_member"
-          ]
-        }
-      ],
-      "properties": {
-        "zone": {
-          "$ref": "#/$defs/identifier"
-        },
-        "site": {
-          "$ref": "#/$defs/identifier"
-        },
-        "region_member": {
-          "$ref": "#/$defs/region_member_ref"
-        }
-      }
-    },
-    "opportunity": {
+    "zone_opportunity": {
       "type": "object",
       "additionalProperties": false,
       "required": [
         "id",
+        "technology_role",
         "technology",
-        "siting",
+        "zone",
         "max_new_capacity"
       ],
       "properties": {
         "id": {
           "$ref": "#/$defs/identifier"
         },
+        "technology_role": {
+          "$ref": "#/$defs/identifier"
+        },
         "technology": {
           "$ref": "#/$defs/identifier"
         },
-        "siting": {
-          "$ref": "#/$defs/opportunity_siting"
+        "zone": {
+          "$ref": "#/$defs/identifier"
         },
         "max_new_capacity": {
           "$ref": "#/$defs/quantity"
