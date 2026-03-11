@@ -300,6 +300,190 @@ def _coefficient_metrics(entries: list[dict[str, Any]]) -> dict[str, Any]:
     return metric
 
 
+def _process_technology(process_id: str | None) -> str | None:
+    if not process_id:
+        return None
+    technology = str(process_id).rsplit("::", 1)[-1]
+    return technology or None
+
+
+def _normalize_transition(transition: dict[str, Any]) -> dict[str, Any] | None:
+    if not isinstance(transition, dict):
+        return None
+    transition_id = str(transition.get("id", "") or "")
+    if not transition_id:
+        return None
+    from_process = str(transition.get("from_process", "") or "")
+    to_process = str(transition.get("to_process", "") or "")
+    normalized = {
+        "id": transition_id,
+        "kind": str(transition.get("kind", "") or ""),
+        "source_role_instance": str(transition.get("source_role_instance", "") or ""),
+        "from_process": from_process,
+        "to_process": to_process,
+        "from_technology": _process_technology(from_process),
+        "to_technology": _process_technology(to_process),
+        "cost": transition.get("cost"),
+    }
+    return normalized
+
+
+def _kind_basis(transitions: list[dict[str, Any]]) -> str | None:
+    kinds = {
+        str(transition.get("kind", "") or "")
+        for transition in transitions
+        if transition.get("kind")
+    }
+    if not kinds:
+        return None
+    if kinds == {"retrofit"}:
+        return "retrofit"
+    if kinds == {"switch"}:
+        return "switch"
+    return "transition"
+
+
+def _transition_badge_label(
+    *,
+    node_type: str,
+    participation: str,
+    kind_basis: str | None,
+) -> str | None:
+    if participation == "none" or not kind_basis:
+        return None
+    if node_type == "role":
+        if kind_basis == "retrofit":
+            return "retrofit options"
+        if kind_basis == "switch":
+            return "switch options"
+        return "transition options"
+    if kind_basis == "retrofit":
+        prefix = "retrofit"
+    elif kind_basis == "switch":
+        prefix = "switch"
+    else:
+        prefix = "transition"
+    if participation == "source":
+        return f"{prefix} source"
+    if participation == "option":
+        return f"{prefix} option"
+    if participation == "source_and_option":
+        return f"{prefix} source + option"
+    return None
+
+
+def _empty_transition_semantics() -> dict[str, Any]:
+    return {
+        "has_transitions": False,
+        "badge_label": None,
+        "participation": "none",
+        "direction": "none",
+        "kind_basis": None,
+        "matched_transition_count": 0,
+        "matched_transition_ids": [],
+        "matched_transitions": [],
+        "incoming_technologies": [],
+        "outgoing_technologies": [],
+    }
+
+
+def _transition_semantics_for_role(
+    transitions: list[dict[str, Any]],
+) -> dict[str, Any]:
+    if not transitions:
+        return _empty_transition_semantics()
+    matched = sorted(
+        transitions,
+        key=lambda item: (
+            str(item.get("kind", "") or ""),
+            str(item.get("from_technology", "") or ""),
+            str(item.get("to_technology", "") or ""),
+            str(item.get("id", "") or ""),
+        ),
+    )
+    kind_basis = _kind_basis(matched)
+    return {
+        "has_transitions": True,
+        "badge_label": _transition_badge_label(
+            node_type="role",
+            participation="role",
+            kind_basis=kind_basis,
+        ),
+        "participation": "role",
+        "direction": "role",
+        "kind_basis": kind_basis,
+        "matched_transition_count": len(matched),
+        "matched_transition_ids": [str(item["id"]) for item in matched],
+        "matched_transitions": matched,
+        "incoming_technologies": _sorted_unique(
+            [item.get("from_technology") for item in matched]
+        ),
+        "outgoing_technologies": _sorted_unique(
+            [item.get("to_technology") for item in matched]
+        ),
+    }
+
+
+def _transition_semantics_for_instance(
+    *,
+    transitions: list[dict[str, Any]],
+    member_process_ids: list[str],
+) -> dict[str, Any]:
+    if not transitions:
+        return _empty_transition_semantics()
+    process_ids = set(member_process_ids)
+    matched = sorted(
+        transitions,
+        key=lambda item: (
+            str(item.get("kind", "") or ""),
+            str(item.get("from_technology", "") or ""),
+            str(item.get("to_technology", "") or ""),
+            str(item.get("id", "") or ""),
+        ),
+    )
+    incoming = _sorted_unique(
+        [
+            item.get("from_technology")
+            for item in matched
+            if str(item.get("to_process", "") or "") in process_ids
+        ]
+    )
+    outgoing = _sorted_unique(
+        [
+            item.get("to_technology")
+            for item in matched
+            if str(item.get("from_process", "") or "") in process_ids
+        ]
+    )
+    has_incoming = bool(incoming)
+    has_outgoing = bool(outgoing)
+    if has_incoming and has_outgoing:
+        participation = "source_and_option"
+    elif has_outgoing:
+        participation = "source"
+    elif has_incoming:
+        participation = "option"
+    else:
+        participation = "none"
+    kind_basis = _kind_basis(matched)
+    return {
+        "has_transitions": participation != "none",
+        "badge_label": _transition_badge_label(
+            node_type="instance",
+            participation=participation,
+            kind_basis=kind_basis,
+        ),
+        "participation": participation,
+        "direction": participation,
+        "kind_basis": kind_basis,
+        "matched_transition_count": len(matched),
+        "matched_transition_ids": [str(item["id"]) for item in matched],
+        "matched_transitions": matched,
+        "incoming_technologies": incoming,
+        "outgoing_technologies": outgoing,
+    }
+
+
 def _node_metric_summary(
     *,
     stock_entries: list[dict[str, Any]],
@@ -451,6 +635,22 @@ def build_v0_2_system_graph(
         for role in technology_roles.values()
         for technology in role.get("technologies", [])
     }
+    transitions_by_role_instance: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    transitions_by_from_process: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    transitions_by_to_process: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for raw_transition in cpir.get("transitions", []):
+        transition = _normalize_transition(raw_transition)
+        if transition is None:
+            continue
+        source_role_instance = str(transition.get("source_role_instance", "") or "")
+        from_process = str(transition.get("from_process", "") or "")
+        to_process = str(transition.get("to_process", "") or "")
+        if source_role_instance:
+            transitions_by_role_instance[source_role_instance].append(transition)
+        if from_process:
+            transitions_by_from_process[from_process].append(transition)
+        if to_process:
+            transitions_by_to_process[to_process].append(transition)
     commodity_metadata = {
         str(item["id"]): item
         for item in csir.get("commodities", [])
@@ -527,6 +727,7 @@ def build_v0_2_system_graph(
                     "member_source_assets": [],
                     "stock_entries": [],
                     "capacity_entries": [],
+                    "transition_semantics": _empty_transition_semantics(),
                 }
             )
             details_nodes[group_id] = detail
@@ -764,6 +965,26 @@ def build_v0_2_system_graph(
         if detail["identity"]["node_type"] == "commodity":
             detail["identity"]["commodity_view_members"] = detail.get(
                 "commodity_ids", []
+            )
+        elif detail["identity"]["node_type"] == "role":
+            matched_by_id: dict[str, dict[str, Any]] = {}
+            for role_instance_id in detail["member_source_role_instances"]:
+                transitions = transitions_by_role_instance.get(role_instance_id, [])
+                for transition in transitions:
+                    matched_by_id[str(transition["id"])] = transition
+            detail["transition_semantics"] = _transition_semantics_for_role(
+                list(matched_by_id.values())
+            )
+        elif detail["identity"]["node_type"] == "instance":
+            matched_by_id = {}
+            for process_id in detail["member_process_ids"]:
+                for transition in transitions_by_from_process.get(process_id, []):
+                    matched_by_id[str(transition["id"])] = transition
+                for transition in transitions_by_to_process.get(process_id, []):
+                    matched_by_id[str(transition["id"])] = transition
+            detail["transition_semantics"] = _transition_semantics_for_instance(
+                transitions=list(matched_by_id.values()),
+                member_process_ids=detail["member_process_ids"],
             )
 
     nodes.sort(key=lambda node: (node["type"], node["label"], node["id"]))

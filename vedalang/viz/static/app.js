@@ -19,7 +19,7 @@ const MAX_LABEL_SCALE = 6;
 const DEFAULT_DETAILS_PANE_WIDTH = 360;
 const MIN_DETAILS_PANE_WIDTH = 280;
 const MAX_DETAILS_PANE_WIDTH = 620;
-const INSPECTOR_RENDERED_SECTION_KEYS = new Set(["dsl", "semantic", "lowered"]);
+const INSPECTOR_RENDERED_SECTION_KEYS = new Set(["dsl", "semantic", "transitions", "lowered"]);
 const COLLAPSED_OBJECT_FIELD_KEYS = new Set([
   "stock",
   "new_build_limits",
@@ -1568,6 +1568,16 @@ function refreshProcessLabelLayer() {
     }
 
     const { primary, secondary, meta } = splitProcessLabel(node.data("label"));
+    const detail =
+      (lastResponse &&
+        lastResponse.details &&
+        lastResponse.details.nodes &&
+        lastResponse.details.nodes[node.id()]) ||
+      {};
+    const transitionSemantics =
+      detail && typeof detail.transition_semantics === "object"
+        ? detail.transition_semantics
+        : null;
     const position = node.renderedPosition();
     const labelEl = document.createElement("div");
     labelEl.className = `graph-process-label ${nodeType === "role" ? "is-role" : "is-instance"}`;
@@ -1575,6 +1585,16 @@ function refreshProcessLabelLayer() {
     labelEl.style.top = `${position.y}px`;
     labelEl.style.width = `${PROCESS_LABEL_WIDTH}px`;
     labelEl.style.transform = `translate(-50%, -50%) scale(${labelScale})`;
+
+    if (transitionSemantics && transitionSemantics.badge_label) {
+      const badgeEl = document.createElement("div");
+      badgeEl.className = "graph-process-label-badge";
+      badgeEl.dataset.transitionKind = transitionSemantics.kind_basis || "transition";
+      badgeEl.dataset.transitionParticipation =
+        transitionSemantics.participation || "none";
+      badgeEl.textContent = transitionSemantics.badge_label;
+      labelEl.appendChild(badgeEl);
+    }
 
     const primaryEl = document.createElement("div");
     primaryEl.className = "graph-process-label-primary";

@@ -457,6 +457,55 @@ def _transition_inspector_items(
     return items
 
 
+def _transition_summary_section(
+    *,
+    node_type: str,
+    node_details: dict[str, Any],
+) -> dict[str, Any] | None:
+    semantics = node_details.get("transition_semantics")
+    if not isinstance(semantics, dict) or not semantics.get("has_transitions"):
+        return None
+    summary_attributes = {
+        "badge_label": semantics.get("badge_label"),
+        "participation": semantics.get("participation"),
+        "matched_transition_count": semantics.get("matched_transition_count"),
+        "incoming_technologies": semantics.get("incoming_technologies", []),
+        "outgoing_technologies": semantics.get("outgoing_technologies", []),
+    }
+    if node_type == "instance":
+        summary_attributes["technology"] = node_details.get("technology")
+        summary_attributes["direction"] = semantics.get("direction")
+    transition_items = [
+        _item(
+            label="transition",
+            kind="transition",
+            object_id=(
+                f"{transition.get('from_technology', 'from')}->"
+                f"{transition.get('to_technology', 'to')}"
+            ),
+            attributes=transition,
+            source_location=None,
+        )
+        for transition in semantics.get("matched_transitions", [])
+        if isinstance(transition, dict)
+    ]
+    return _section(
+        key="transitions",
+        label="Transitions",
+        default_open=True,
+        items=[
+            _item(
+                label="transition summary",
+                kind="transition_summary",
+                object_id=None,
+                attributes=summary_attributes,
+                source_location=None,
+            ),
+            *transition_items,
+        ],
+    )
+
+
 def _build_nested_dsl_items(
     *,
     local_maps: dict[str, dict[str, Any]],
@@ -893,6 +942,67 @@ def build_system_node_inspectors(
                 for part in str(node.get("label", node_id)).split("\n")
                 if part and not part.startswith("[")
             ) or str(node.get("label", node_id))
+            transitions_section = _transition_summary_section(
+                node_type=node_type,
+                node_details=node_details,
+            )
+            sections = [
+                _detail_section(
+                    key="identity",
+                    label="Identity",
+                    attributes=node_details.get("identity"),
+                    default_open=True,
+                ),
+                _detail_section(
+                    key="scopes",
+                    label="Scopes",
+                    attributes=node_details.get("scopes"),
+                    default_open=True,
+                ),
+                _detail_section(
+                    key="provenance",
+                    label="Provenance",
+                    attributes=node_details.get("provenance"),
+                ),
+                _detail_section(
+                    key="aggregation",
+                    label="Aggregation",
+                    attributes=node_details.get("aggregation"),
+                ),
+                _detail_section(
+                    key="metrics",
+                    label="Metrics",
+                    attributes=node_details.get("metrics"),
+                ),
+                _section(
+                    key="dsl",
+                    label="Object explorer",
+                    default_open=True,
+                    items=dsl_items,
+                    partial=dsl_partial,
+                ),
+                _section(
+                    key="semantic",
+                    label="Resolved semantic model",
+                    default_open=False,
+                    items=semantic_items,
+                ),
+                _section(
+                    key="lowered",
+                    label="Lowered IR",
+                    default_open=False,
+                    items=lowered_items,
+                ),
+                _section(
+                    key="veda",
+                    label="VEDA/TIMES",
+                    default_open=False,
+                    items=veda_items,
+                    partial=veda_partial or context.manifest is None,
+                ),
+            ]
+            if transitions_section is not None:
+                sections.insert(7, transitions_section)
             inspectors[node_id] = {
                 "title": title,
                 "kind": "process",
@@ -905,61 +1015,7 @@ def build_system_node_inspectors(
                         "is_aggregated"
                     ),
                 },
-                "sections": [
-                    _detail_section(
-                        key="identity",
-                        label="Identity",
-                        attributes=node_details.get("identity"),
-                        default_open=True,
-                    ),
-                    _detail_section(
-                        key="scopes",
-                        label="Scopes",
-                        attributes=node_details.get("scopes"),
-                        default_open=True,
-                    ),
-                    _detail_section(
-                        key="provenance",
-                        label="Provenance",
-                        attributes=node_details.get("provenance"),
-                    ),
-                    _detail_section(
-                        key="aggregation",
-                        label="Aggregation",
-                        attributes=node_details.get("aggregation"),
-                    ),
-                    _detail_section(
-                        key="metrics",
-                        label="Metrics",
-                        attributes=node_details.get("metrics"),
-                    ),
-                    _section(
-                        key="dsl",
-                        label="Object explorer",
-                        default_open=True,
-                        items=dsl_items,
-                        partial=dsl_partial,
-                    ),
-                    _section(
-                        key="semantic",
-                        label="Resolved semantic model",
-                        default_open=False,
-                        items=semantic_items,
-                    ),
-                    _section(
-                        key="lowered",
-                        label="Lowered IR",
-                        default_open=False,
-                        items=lowered_items,
-                    ),
-                    _section(
-                        key="veda",
-                        label="VEDA/TIMES",
-                        default_open=False,
-                        items=veda_items,
-                        partial=veda_partial or context.manifest is None,
-                    ),
-                ],
+                "sections": sections,
             }
             continue
 

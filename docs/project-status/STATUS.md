@@ -26,6 +26,11 @@ issue remains open.
 
 ## Recently Completed
 
+- `vedalang-vyz` — surfaced retrofit/changeover semantics in the RES viewer so
+  system-lens role and instance nodes expose transition badges on the graph and
+  a dedicated `Transitions` inspector section, while leaving fleet
+  `new_build_limits` and `zone_opportunity` nodes unmarked unless explicit role
+  transitions exist
 - `vedalang-j2p` — improved RES viewer contrast so inspector object-type badges
   now use stronger, kind-specific pill colors and process overlay secondary and
   meta label text reads clearly against the dark graph background

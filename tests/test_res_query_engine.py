@@ -51,6 +51,16 @@ INSTANCE_BASELINE_LABEL = (
     "agricultural_production\n"
     "[farm_production, fleet instance]"
 )
+INSTANCE_FEED_ADDITIVES_LABEL = (
+    "traditional_with_feed_additives\n"
+    "agricultural_production\n"
+    "[farm_production, fleet instance]"
+)
+INSTANCE_IMPROVED_MANURE_LABEL = (
+    "traditional_with_improved_manure\n"
+    "agricultural_production\n"
+    "[farm_production, fleet instance]"
+)
 INSTANCE_SOIL_LABEL = (
     "soil_carbon\n"
     "farm_carbon_management\n"
@@ -133,7 +143,7 @@ def test_compiled_instance_query_returns_process_nodes():
     )
     details = response["details"]["nodes"][instance_node["id"]]
     inspector = details["inspector"]
-    assert [section["key"] for section in inspector["sections"]] == [
+    expected_sections = [
         "identity",
         "scopes",
         "provenance",
@@ -141,9 +151,11 @@ def test_compiled_instance_query_returns_process_nodes():
         "metrics",
         "dsl",
         "semantic",
-        "lowered",
-        "veda",
     ]
+    if details["transition_semantics"]["has_transitions"]:
+        expected_sections.append("transitions")
+    expected_sections.extend(["lowered", "veda"])
+    assert [section["key"] for section in inspector["sections"]] == expected_sections
     assert inspector["kind"] == "process"
     assert inspector["node_type"] == "instance"
     assert _section_by_key(inspector, "identity")["default_open"] is True
@@ -734,6 +746,161 @@ def test_instance_granularity_uses_stacked_technology_role_and_provenance_labels
     )
 
 
+def test_toy_agriculture_transition_semantics_ignore_new_build_limits() -> None:
+    source_file = EXAMPLES_DIR / "toy_sectors/toy_agriculture.veda.yaml"
+
+    response = query_res_graph(
+        {
+            "version": "1",
+            "file": str(source_file),
+            "mode": "compiled",
+            "granularity": "instance",
+            "lens": "system",
+            "filters": {"regions": [], "case": None, "sectors": [], "scopes": []},
+            "compiled": {"truth": "auto", "cache": True, "allow_partial": True},
+        }
+    )
+
+    instance_details = response["details"]["nodes"]
+    instance_nodes = [
+        node for node in response["graph"]["nodes"] if node["type"] == "instance"
+    ]
+
+    baseline_node = next(
+        node for node in instance_nodes if node["label"] == INSTANCE_BASELINE_LABEL
+    )
+    baseline_semantics = instance_details[baseline_node["id"]]["transition_semantics"]
+    assert baseline_semantics["has_transitions"] is True
+    assert baseline_semantics["participation"] == "source"
+    assert baseline_semantics["direction"] == "source"
+    assert baseline_semantics["kind_basis"] == "retrofit"
+    assert baseline_semantics["badge_label"] == "retrofit source"
+    assert baseline_semantics["incoming_technologies"] == []
+    assert baseline_semantics["outgoing_technologies"] == [
+        "traditional_with_feed_additives",
+        "traditional_with_improved_manure",
+    ]
+
+    feed_node = next(
+        node
+        for node in instance_nodes
+        if node["label"] == INSTANCE_FEED_ADDITIVES_LABEL
+    )
+    feed_semantics = instance_details[feed_node["id"]]["transition_semantics"]
+    assert feed_semantics["has_transitions"] is True
+    assert feed_semantics["participation"] == "option"
+    assert feed_semantics["direction"] == "option"
+    assert feed_semantics["badge_label"] == "retrofit option"
+    assert feed_semantics["incoming_technologies"] == ["traditional_baseline"]
+    assert feed_semantics["outgoing_technologies"] == []
+
+    manure_node = next(
+        node
+        for node in instance_nodes
+        if node["label"] == INSTANCE_IMPROVED_MANURE_LABEL
+    )
+    manure_semantics = instance_details[manure_node["id"]]["transition_semantics"]
+    assert manure_semantics["has_transitions"] is True
+    assert manure_semantics["participation"] == "option"
+    assert manure_semantics["direction"] == "option"
+    assert manure_semantics["badge_label"] == "retrofit option"
+    assert manure_semantics["incoming_technologies"] == ["traditional_baseline"]
+    assert manure_semantics["outgoing_technologies"] == []
+
+    soil_node = next(
+        node for node in instance_nodes if node["label"] == INSTANCE_SOIL_LABEL
+    )
+    soil_semantics = instance_details[soil_node["id"]]["transition_semantics"]
+    assert soil_semantics["has_transitions"] is False
+    assert soil_semantics["badge_label"] is None
+
+
+def test_toy_agriculture_role_transition_semantics_expose_retrofit_options():
+    source_file = EXAMPLES_DIR / "toy_sectors/toy_agriculture.veda.yaml"
+
+    response = query_res_graph(
+        {
+            "version": "1",
+            "file": str(source_file),
+            "mode": "compiled",
+            "granularity": "role",
+            "lens": "system",
+            "filters": {"regions": [], "case": None, "sectors": [], "scopes": []},
+            "compiled": {"truth": "auto", "cache": True, "allow_partial": True},
+        }
+    )
+
+    role_nodes = [node for node in response["graph"]["nodes"] if node["type"] == "role"]
+    prod_node = next(node for node in role_nodes if node["label"] == ROLE_PROD_LABEL)
+    prod_semantics = response["details"]["nodes"][prod_node["id"]][
+        "transition_semantics"
+    ]
+    assert prod_semantics["has_transitions"] is True
+    assert prod_semantics["participation"] == "role"
+    assert prod_semantics["direction"] == "role"
+    assert prod_semantics["kind_basis"] == "retrofit"
+    assert prod_semantics["badge_label"] == "retrofit options"
+    assert prod_semantics["matched_transition_count"] == 2
+    assert prod_semantics["incoming_technologies"] == ["traditional_baseline"]
+    assert prod_semantics["outgoing_technologies"] == [
+        "traditional_with_feed_additives",
+        "traditional_with_improved_manure",
+    ]
+
+    carbon_node = next(
+        node for node in role_nodes if node["label"] == ROLE_CARBON_LABEL
+    )
+    carbon_semantics = response["details"]["nodes"][carbon_node["id"]][
+        "transition_semantics"
+    ]
+    assert carbon_semantics["has_transitions"] is False
+    assert carbon_semantics["badge_label"] is None
+
+
+def test_zone_opportunity_nodes_without_role_transitions_are_not_marked_as_retrofits():
+    source_file = EXAMPLES_DIR / "feature_demos/example_with_bounds.veda.yaml"
+
+    role_response = query_res_graph(
+        {
+            "version": "1",
+            "file": str(source_file),
+            "mode": "compiled",
+            "granularity": "role",
+            "lens": "system",
+            "filters": {"regions": [], "case": None, "sectors": [], "scopes": []},
+            "compiled": {"truth": "auto", "cache": True, "allow_partial": True},
+        }
+    )
+    role_node = next(
+        node
+        for node in role_response["graph"]["nodes"]
+        if node["type"] == "role" and node["label"] == ROLE_ZONE_WIND_LABEL
+    )
+    role_details = role_response["details"]["nodes"][role_node["id"]]
+    assert role_details["group_origin"] == "zone_opportunity"
+    assert role_details["transition_semantics"]["has_transitions"] is False
+
+    instance_response = query_res_graph(
+        {
+            "version": "1",
+            "file": str(source_file),
+            "mode": "compiled",
+            "granularity": "instance",
+            "lens": "system",
+            "filters": {"regions": ["REG1"], "case": None, "sectors": [], "scopes": []},
+            "compiled": {"truth": "auto", "cache": True, "allow_partial": True},
+        }
+    )
+    instance_node = next(
+        node
+        for node in instance_response["graph"]["nodes"]
+        if node["type"] == "instance" and node["label"] == INSTANCE_ZONE_WIND_LABEL
+    )
+    instance_details = instance_response["details"]["nodes"][instance_node["id"]]
+    assert instance_details["group_origin"] == "zone_opportunity"
+    assert instance_details["transition_semantics"]["has_transitions"] is False
+
+
 def test_asset_backed_role_object_explorer_nests_facility_role_technology():
     source_file = EXAMPLES_DIR / "toy_sectors/toy_agriculture.veda.yaml"
 
@@ -841,6 +1008,39 @@ def test_object_explorer_includes_role_transitions_as_nested_items():
     ]
     assert role["children"][1]["attributes"]["kind"] == "retrofit"
     assert role["children"][2]["attributes"]["kind"] == "retrofit"
+
+
+def test_retrofit_linked_nodes_include_transitions_inspector_section():
+    source_file = EXAMPLES_DIR / "toy_sectors/toy_agriculture.veda.yaml"
+
+    response = query_res_graph(
+        {
+            "version": "1",
+            "file": str(source_file),
+            "mode": "compiled",
+            "granularity": "instance",
+            "lens": "system",
+            "filters": {
+                "regions": ["SINGLE"],
+                "case": None,
+                "sectors": [],
+                "scopes": [],
+            },
+            "compiled": {"truth": "auto", "cache": True, "allow_partial": True},
+        }
+    )
+
+    node_id = "instance:asset:traditional_baseline:fleets.farm_production"
+    inspector = response["details"]["nodes"][node_id]["inspector"]
+    transitions = _section_by_key(inspector, "transitions")
+    assert transitions["label"] == "Transitions"
+    assert transitions["default_open"] is True
+    assert transitions["items"][0]["kind"] == "transition_summary"
+    assert transitions["items"][0]["attributes"]["badge_label"] == "retrofit source"
+    assert [item["kind"] for item in transitions["items"][1:]] == [
+        "transition",
+        "transition",
+    ]
 
 
 def test_object_explorer_zone_opportunity_nests_role_then_technology():
