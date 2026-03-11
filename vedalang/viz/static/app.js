@@ -10,6 +10,8 @@ const SIDEBAR_TAB_STORAGE_KEY = "vedalang.viz.sidebarTab";
 const DETAILS_PANE_STORAGE_KEY = "vedalang.viz.detailsPaneCollapsed";
 const DETAILS_PANE_WIDTH_STORAGE_KEY = "vedalang.viz.detailsPaneWidth";
 const VEDA_TABLES_STORAGE_KEY = "vedalang.viz.vedaTablesEnabled";
+const OBJECT_EXPLORER_SHOW_ALL_STORAGE_KEY =
+  "vedalang.viz.objectExplorerShowAllAttributes";
 const SIDEBAR_TABS = new Set(["files", "view", "filters"]);
 const PROCESS_NODE_WIDTH = 168;
 const PROCESS_NODE_HEIGHT = 82;
@@ -107,6 +109,7 @@ const state = {
   vedaTablesEnabled: false,
   vedaTrayCollapsed: false,
   vedaTrayTitle: "VEDA Tables",
+  objectExplorerShowAllAttributes: false,
   selectedNodeId: "",
   selectedSelectionType: "",
   selectedInspector: null,
@@ -265,6 +268,46 @@ function loadVedaTablesPreference() {
   }
 }
 
+function setObjectExplorerShowAllAttributes(showAll) {
+  state.objectExplorerShowAllAttributes = Boolean(showAll);
+  savePreference(OBJECT_EXPLORER_SHOW_ALL_STORAGE_KEY, showAll ? "1" : "0");
+  if (state.selectedInspector) {
+    renderInspector(state.selectedInspector);
+  }
+}
+
+function loadObjectExplorerShowAllPreference() {
+  try {
+    return localStorage.getItem(OBJECT_EXPLORER_SHOW_ALL_STORAGE_KEY) === "1";
+  } catch (error) {
+    void error;
+    return false;
+  }
+}
+
+function getObjectExplorerSection(inspector) {
+  if (!inspector || !Array.isArray(inspector.sections)) {
+    return null;
+  }
+  const section = inspector.sections.find((item) => item.key === "dsl") || null;
+  if (!section || !Array.isArray(section.items) || section.items.length === 0) {
+    return null;
+  }
+  return section;
+}
+
+function updateObjectExplorerToggle(inspector) {
+  const control = document.getElementById("objectExplorerToggle");
+  const input = document.getElementById("objectExplorerShowAllAttributes");
+  if (!control || !input) {
+    return;
+  }
+  const showToggle = Boolean(getObjectExplorerSection(inspector));
+  control.hidden = !showToggle;
+  input.checked = state.objectExplorerShowAllAttributes;
+  input.disabled = !showToggle;
+}
+
 function clearDetailsInspector() {
   const container = document.getElementById("detailsInspector");
   container.innerHTML = "";
@@ -272,6 +315,7 @@ function clearDetailsInspector() {
 }
 
 function renderDetailsPlaceholder(text) {
+  updateObjectExplorerToggle(null);
   const container = clearDetailsInspector();
   const placeholder = document.createElement("div");
   placeholder.className = "details-placeholder";
@@ -320,11 +364,20 @@ function formatFieldLabel(key) {
   return String(key || "item").replaceAll("_", " ");
 }
 
-function pruneObjectExplorerAttributes(item) {
+function visibleObjectExplorerAttributes(item, showAllAttributes) {
   const attributes = { ...(item && item.attributes ? item.attributes : {}) };
+  if (showAllAttributes) {
+    return attributes;
+  }
   if (item && item.id && attributes.id === item.id) {
     delete attributes.id;
   }
+  const hidden = item && item.presentation && Array.isArray(item.presentation.compact_hidden_attributes)
+    ? item.presentation.compact_hidden_attributes
+    : [];
+  hidden.forEach((key) => {
+    delete attributes[key];
+  });
   return attributes;
 }
 
@@ -473,20 +526,20 @@ function renderNestedArrayItems(items, depth) {
 
   if (items.every((item) => isFlatRecord(item))) {
     const list = document.createElement("div");
-    list.className = "details-compact-record-list";
+    list.className = "details-object-record-list";
     items.forEach((item, index) => {
       const row = document.createElement("div");
-      row.className = "details-compact-record";
+      row.className = "details-object-record";
 
       if (items.length > 1) {
         const indexLabel = document.createElement("div");
-        indexLabel.className = "details-compact-record-index";
+        indexLabel.className = "details-object-record-index";
         indexLabel.textContent = `${index + 1}`;
         row.appendChild(indexLabel);
       }
 
       const fields = document.createElement("div");
-      fields.className = "details-compact-record-fields";
+      fields.className = "details-object-record-fields";
       Object.entries(item).forEach(([key, value]) => {
         if (
           value === null ||
@@ -496,15 +549,15 @@ function renderNestedArrayItems(items, depth) {
           return;
         }
         const field = document.createElement("div");
-        field.className = "details-compact-record-field";
+        field.className = "details-object-record-field";
 
         const label = document.createElement("span");
-        label.className = "details-compact-record-key";
+        label.className = "details-object-record-key";
         label.textContent = formatFieldLabel(key);
         field.appendChild(label);
 
         const text = document.createElement("span");
-        text.className = "details-compact-record-value";
+        text.className = "details-object-record-value";
         text.textContent = formatDetailValue(value);
         field.appendChild(text);
 
@@ -529,19 +582,18 @@ function renderNestedArrayItems(items, depth) {
   }
 
   const list = document.createElement("div");
-  list.className = "details-tree-list";
+  list.className = "details-object-group-list";
   items.forEach((item, index) => {
-    const row = document.createElement("details");
-    row.className = "details-tree-group";
-    row.open = index === 0;
+    const row = document.createElement("div");
+    row.className = "details-object-group-item";
 
-    const summary = document.createElement("summary");
-    summary.className = "details-tree-group-summary";
-    summary.textContent = `Item ${index + 1}`;
-    row.appendChild(summary);
+    const label = document.createElement("div");
+    label.className = "details-object-group-label";
+    label.textContent = `Item ${index + 1}`;
+    row.appendChild(label);
 
     const body = document.createElement("div");
-    body.className = "details-tree-group-body";
+    body.className = "details-object-group-body";
     if (isPrimitiveValue(item) || isScalarArray(item)) {
       const text = document.createElement("div");
       text.className = "details-field-value";
@@ -600,7 +652,7 @@ function renderNestedStructuredAttributes(attributes, depth = 0) {
   }
 
   const fields = document.createElement("div");
-  fields.className = "details-fields details-fields-nested";
+  fields.className = "details-object-fields";
   fields.dataset.depth = String(depth);
 
   Object.entries(attributes).forEach(([key, value]) => {
@@ -630,12 +682,19 @@ function renderNestedStructuredAttributes(attributes, depth = 0) {
       return;
     }
 
-    const group = document.createElement("details");
-    group.className = "details-tree-group";
-    group.open = !shouldCollapseObjectField(key, value);
+    const collapsible = shouldCollapseObjectField(key, value);
+    const group = document.createElement(collapsible ? "details" : "div");
+    group.className = collapsible
+      ? "details-object-group details-object-group-collapsible"
+      : "details-object-group";
+    if (collapsible) {
+      group.open = false;
+    }
 
-    const summary = document.createElement("summary");
-    summary.className = "details-tree-group-summary";
+    const summary = document.createElement(collapsible ? "summary" : "div");
+    summary.className = collapsible
+      ? "details-object-group-summary"
+      : "details-object-group-label";
     if (Array.isArray(value)) {
       summary.textContent = `${formatFieldLabel(key)} (${value.length})`;
     } else {
@@ -644,7 +703,7 @@ function renderNestedStructuredAttributes(attributes, depth = 0) {
     group.appendChild(summary);
 
     const body = document.createElement("div");
-    body.className = "details-tree-group-body";
+    body.className = "details-object-group-body";
     if (Array.isArray(value)) {
       body.appendChild(renderNestedArrayItems(value, depth + 1));
     } else {
@@ -685,7 +744,10 @@ function renderObjectExplorerItem(item, depth = 0) {
     card.appendChild(panel);
   }
 
-  const attributes = pruneObjectExplorerAttributes(item);
+  const attributes = visibleObjectExplorerAttributes(
+    item,
+    state.objectExplorerShowAllAttributes,
+  );
   const descriptionText =
     typeof attributes.description === "string" ? attributes.description.trim() : "";
   delete attributes.description;
@@ -729,6 +791,7 @@ function formatQueryStatus(status, modeUsed) {
 }
 
 function renderRawDetails(details) {
+  updateObjectExplorerToggle(null);
   const container = clearDetailsInspector();
   container.appendChild(createJsonPre(details));
 }
@@ -1056,6 +1119,7 @@ function renderVedaTrayForInspector(inspector) {
 }
 
 function renderInspector(inspector) {
+  updateObjectExplorerToggle(inspector);
   const container = clearDetailsInspector();
   if (!inspector || !Array.isArray(inspector.sections)) {
     renderDetailsPlaceholder("No structured inspector data for this selection.");
@@ -2372,6 +2436,11 @@ function wireControls() {
   document
     .getElementById("toggleDetailsPaneBtn")
     .addEventListener("click", toggleDetails);
+  document
+    .getElementById("objectExplorerShowAllAttributes")
+    .addEventListener("change", (event) => {
+      setObjectExplorerShowAllAttributes(event.target.checked);
+    });
   document.getElementById("closeVedaTrayBtn").addEventListener("click", () => {
     setVedaTrayCollapsed(true);
     hideVedaTray();
@@ -2429,6 +2498,7 @@ async function bootstrap() {
   setDetailsPaneWidth(loadDetailsPaneWidthPreference(), { persist: false });
   setDetailsPaneCollapsed(loadDetailsPaneCollapsedPreference());
   setVedaTablesEnabled(loadVedaTablesPreference());
+  setObjectExplorerShowAllAttributes(loadObjectExplorerShowAllPreference());
   renderDiagnostics([]);
 
   try {

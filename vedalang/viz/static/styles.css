@@ -459,6 +459,7 @@ h1 {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 10px;
 }
@@ -470,6 +471,22 @@ h1 {
 
 .details-toggle-btn {
   padding-inline: 10px;
+}
+
+.details-checkbox-control {
+  margin-left: auto;
+}
+
+.details-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.details-checkbox-label input {
+  margin: 0;
 }
 
 .details-inspector {
@@ -748,6 +765,12 @@ h1 {
   gap: 8px;
 }
 
+.details-object-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .details-field-row {
   display: grid;
   grid-template-columns: minmax(100px, 140px) 1fr;
@@ -772,13 +795,15 @@ h1 {
   overflow-wrap: anywhere;
 }
 
-.details-tree-group {
+.details-tree-group,
+.details-object-group {
   border: 1px solid rgba(71, 85, 105, 0.55);
   border-radius: 6px;
   background: rgba(15, 23, 42, 0.28);
 }
 
-.details-tree-group-summary {
+.details-tree-group-summary,
+.details-object-group-summary {
   cursor: pointer;
   padding: 7px 10px;
   font-size: 11px;
@@ -786,21 +811,87 @@ h1 {
   color: #cbd5e1;
 }
 
-.details-tree-group[open] > .details-tree-group-summary {
+.details-tree-group[open] > .details-tree-group-summary,
+.details-object-group[open] > .details-object-group-summary {
   border-bottom: 1px solid rgba(71, 85, 105, 0.45);
 }
 
-.details-tree-group-body {
+.details-tree-group-body,
+.details-object-group-body {
   display: flex;
   flex-direction: column;
   gap: 8px;
   padding: 8px 10px;
 }
 
+.details-object-group {
+  gap: 6px;
+  margin-left: 12px;
+  padding-left: 12px;
+  border: 0;
+  border-left: 1px solid rgba(71, 85, 105, 0.55);
+  border-radius: 0;
+  background: transparent;
+}
+
+.details-object-group-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #cbd5e1;
+}
+
+.details-object-group-collapsible {
+  margin-left: 0;
+  padding-left: 0;
+  border-left: 0;
+}
+
+.details-object-group-collapsible > .details-object-group-summary {
+  display: block;
+  margin-left: 12px;
+  padding: 0 0 0 12px;
+  border-left: 1px solid rgba(71, 85, 105, 0.55);
+  border-bottom: 0;
+  background: transparent;
+  list-style: none;
+}
+
+.details-object-group-collapsible > .details-object-group-summary::-webkit-details-marker {
+  display: none;
+}
+
+.details-object-group-collapsible > .details-object-group-summary::before {
+  content: "▸";
+  margin-right: 6px;
+  color: var(--text-muted);
+}
+
+.details-object-group-collapsible[open] > .details-object-group-summary::before {
+  content: "▾";
+}
+
+.details-object-group-collapsible > .details-object-group-body {
+  margin-left: 12px;
+  padding: 8px 0 0 12px;
+  border-left: 1px solid rgba(71, 85, 105, 0.55);
+}
+
 .details-tree-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.details-object-group-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.details-object-group-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .details-inline-list {
@@ -814,13 +905,15 @@ h1 {
   color: var(--text);
 }
 
-.details-compact-record-list {
+.details-compact-record-list,
+.details-object-record-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.details-compact-record {
+.details-compact-record,
+.details-object-record {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   gap: 8px;
@@ -831,34 +924,48 @@ h1 {
   background: rgba(15, 23, 42, 0.24);
 }
 
-.details-compact-record-index {
+.details-object-record {
+  padding: 0;
+  border: 0;
+  border-left: 2px solid rgba(71, 85, 105, 0.45);
+  border-radius: 0;
+  background: transparent;
+  padding-left: 10px;
+}
+
+.details-compact-record-index,
+.details-object-record-index {
   min-width: 18px;
   font-size: 10px;
   font-weight: 700;
   color: var(--text-muted);
 }
 
-.details-compact-record-fields {
+.details-compact-record-fields,
+.details-object-record-fields {
   display: flex;
   flex-wrap: wrap;
   gap: 8px 12px;
   min-width: 0;
 }
 
-.details-compact-record-field {
+.details-compact-record-field,
+.details-object-record-field {
   display: inline-flex;
   flex-wrap: wrap;
   gap: 4px;
   min-width: 0;
 }
 
-.details-compact-record-key {
+.details-compact-record-key,
+.details-object-record-key {
   font-size: 11px;
   font-weight: 700;
   color: var(--text-muted);
 }
 
-.details-compact-record-value {
+.details-compact-record-value,
+.details-object-record-value {
   font-size: 11px;
   color: var(--text);
   overflow-wrap: anywhere;

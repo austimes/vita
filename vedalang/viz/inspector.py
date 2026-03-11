@@ -135,6 +135,7 @@ def _item(
     attributes: Any,
     source_location: dict[str, Any] | None,
     children: list[dict[str, Any]] | None = None,
+    presentation: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     item = {
         "label": label,
@@ -145,6 +146,8 @@ def _item(
     }
     if children:
         item["children"] = children
+    if presentation:
+        item["presentation"] = _normalize_json(presentation)
     return item
 
 
@@ -387,6 +390,52 @@ def _technology_to_role_map(
     }
 
 
+DSL_OBJECT_CARD_KINDS = {
+    "commodity",
+    "technology",
+    "technology_role",
+    "facility",
+    "fleet",
+    "zone_opportunity",
+    "transition",
+}
+
+
+def _dsl_object_presentation(
+    kind: str,
+    compact_hidden_attributes: list[str] | None = None,
+) -> dict[str, Any] | None:
+    if kind not in DSL_OBJECT_CARD_KINDS:
+        return None
+    hidden = ["id"]
+    if compact_hidden_attributes:
+        hidden.extend(
+            str(value)
+            for value in compact_hidden_attributes
+            if isinstance(value, str) and value
+        )
+    return {
+        "render": "object_card",
+        "compact_hidden_attributes": _sorted_unique(hidden),
+    }
+
+
+def _extend_compact_hidden_attributes(item: dict[str, Any], *attributes: str) -> None:
+    if not attributes:
+        return
+    kind = str(item.get("kind", "") or "")
+    presentation = item.get("presentation")
+    if not isinstance(presentation, dict):
+        presentation = _dsl_object_presentation(kind)
+        if presentation is None:
+            return
+        item["presentation"] = presentation
+    hidden = presentation.get("compact_hidden_attributes")
+    values = list(hidden) if isinstance(hidden, list) else []
+    values.extend(attribute for attribute in attributes if attribute)
+    presentation["compact_hidden_attributes"] = _sorted_unique(values)
+
+
 def _local_or_resolved_item(
     *,
     local_maps: dict[str, dict[str, Any]],
@@ -408,6 +457,7 @@ def _local_or_resolved_item(
                 object_id=object_id,
                 attributes=local,
                 source_location=source_location,
+                presentation=_dsl_object_presentation(kind),
             ),
             source_location is None,
         )
@@ -421,6 +471,7 @@ def _local_or_resolved_item(
             object_id=object_id,
             attributes=resolved,
             source_location=None,
+            presentation=_dsl_object_presentation(kind),
         ),
         True,
     )
@@ -452,6 +503,7 @@ def _transition_inspector_items(
                 object_id=transition_id,
                 attributes=transition,
                 source_location=None,
+                presentation=_dsl_object_presentation("transition"),
             )
         )
     return items
@@ -574,11 +626,23 @@ def _build_nested_dsl_items(
     transition_items = _transition_inspector_items(role_item)
 
     if role_item is not None:
+        if technology_items:
+            _extend_compact_hidden_attributes(role_item, "technologies")
+        if transition_items:
+            _extend_compact_hidden_attributes(role_item, "transitions")
         role_children = [*technology_items, *transition_items]
         if role_children:
             role_item["children"] = role_children
 
     if root_item is not None:
+        root_kind = str(root_item.get("kind", "") or "")
+        if root_kind in {"facility", "fleet"} and role_item is not None:
+            _extend_compact_hidden_attributes(root_item, "technology_role")
+        if root_kind == "zone_opportunity":
+            if role_item is not None:
+                _extend_compact_hidden_attributes(root_item, "technology_role")
+            if technology_items:
+                _extend_compact_hidden_attributes(root_item, "technology")
         root_children = [role_item] if role_item is not None else technology_items
         if root_children:
             root_item["children"] = root_children

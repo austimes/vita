@@ -22,6 +22,11 @@ def _flatten_dsl_items(items: list[dict]) -> list[dict]:
     return flattened
 
 
+def _compact_hidden_attributes(item: dict) -> list[str]:
+    presentation = item.get("presentation") or {}
+    return list(presentation.get("compact_hidden_attributes") or [])
+
+
 def _assert_table_row_ref_contract(row_ref: dict) -> None:
     assert "table_index" in row_ref
     assert isinstance(row_ref["table_index"], int)
@@ -522,6 +527,9 @@ def test_commodity_inspector_reports_usage_lists():
     )
     inspector = response["details"]["nodes"][commodity_node["id"]]["inspector"]
     assert _section_by_key(inspector, "dsl")["label"] == "Object explorer"
+    commodity_item = _section_by_key(inspector, "dsl")["items"][0]
+    assert commodity_item["presentation"]["render"] == "object_card"
+    assert _compact_hidden_attributes(commodity_item) == ["id"]
     lowered = _section_by_key(inspector, "lowered")
     usage = lowered["items"][0]["attributes"]
     assert usage["produced_by"]
@@ -925,11 +933,18 @@ def test_asset_backed_role_object_explorer_nests_facility_role_technology():
     fleet = dsl["items"][0]
     assert fleet["kind"] == "fleet"
     assert fleet["id"] == "farm_input_supply"
+    assert fleet["presentation"]["render"] == "object_card"
+    assert _compact_hidden_attributes(fleet) == ["id", "technology_role"]
     assert [child["kind"] for child in fleet["children"]] == ["technology_role"]
     role = fleet["children"][0]
     assert role["id"] == "farm_input_supply"
+    assert role["presentation"]["render"] == "object_card"
+    assert _compact_hidden_attributes(role) == ["id", "technologies"]
     assert [child["kind"] for child in role["children"]] == ["technology"]
+    technology = role["children"][0]
     assert [child["id"] for child in role["children"]] == ["farm_input_import"]
+    assert technology["presentation"]["render"] == "object_card"
+    assert _compact_hidden_attributes(technology) == ["id"]
 
 
 def test_object_explorer_source_blocks_use_exact_yaml_item_lines():
@@ -1001,11 +1016,15 @@ def test_object_explorer_includes_role_transitions_as_nested_items():
     fleet = _section_by_key(inspector, "dsl")["items"][0]
     role = fleet["children"][0]
 
+    assert _compact_hidden_attributes(fleet) == ["id", "technology_role"]
+    assert _compact_hidden_attributes(role) == ["id", "technologies", "transitions"]
     assert [child["kind"] for child in role["children"]] == [
         "technology",
         "transition",
         "transition",
     ]
+    assert _compact_hidden_attributes(role["children"][0]) == ["id"]
+    assert _compact_hidden_attributes(role["children"][1]) == ["id"]
     assert role["children"][1]["attributes"]["kind"] == "retrofit"
     assert role["children"][2]["attributes"]["kind"] == "retrofit"
 
@@ -1075,9 +1094,20 @@ def test_object_explorer_zone_opportunity_nests_role_then_technology():
     opportunity = dsl["items"][0]
     assert opportunity["kind"] == "zone_opportunity"
     assert opportunity["id"] == "reg1_new_wind"
+    assert opportunity["presentation"]["render"] == "object_card"
+    assert _compact_hidden_attributes(opportunity) == [
+        "id",
+        "technology",
+        "technology_role",
+    ]
     assert [child["kind"] for child in opportunity["children"]] == ["technology_role"]
     role = opportunity["children"][0]
     assert role["id"] == "electricity_generation"
+    assert role["presentation"]["render"] == "object_card"
+    assert _compact_hidden_attributes(role) == ["id", "technologies"]
+    technology = role["children"][0]
+    assert technology["presentation"]["render"] == "object_card"
+    assert _compact_hidden_attributes(technology) == ["id"]
     assert [child["kind"] for child in role["children"]] == ["technology"]
     assert role["children"][0]["id"] == "onshore_wind_turbine"
 

@@ -26,6 +26,11 @@ issue remains open.
 
 ## Recently Completed
 
+- `vedalang-fng` — cleaned up the RES viewer Object explorer card taxonomy so
+  only authored objects render as cards, added compact presentation metadata
+  plus a `Show all attributes` inspector toggle, and restyled nested attribute
+  groups so relationship fields no longer compete visually with true object
+  cards
 - `vedalang-vyz` — surfaced retrofit/changeover semantics in the RES viewer so
   system-lens role and instance nodes expose transition badges on the graph and
   a dedicated `Transitions` inspector section, while leaving fleet

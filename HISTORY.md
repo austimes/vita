@@ -16,6 +16,10 @@ Chronological record of the current repository state.
 - Simplified the RES viewer Object explorer by hiding redundant `id` rows,
   moving built-in type descriptions behind the type badge, and compacting
   simple list rendering to avoid unnecessary nested cards.
+- Tightened the RES viewer Object explorer card taxonomy so only authored
+  semantic objects render as cards, added presentation metadata for compact
+  attribute hiding, introduced a `Show all attributes` toggle, and restyled
+  nested attribute groups to read as fields instead of nested cards.
 - Removed generic `opportunities` from the public DSL in favor of explicit
   `zone_opportunities`, migrated example rollouts to fleet/facility
   `new_build_limits`, and rewrote the toy agriculture model to use fleet-first
