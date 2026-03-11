@@ -26,6 +26,11 @@ issue remains open.
 
 ## Recently Completed
 
+- `vedalang-n0a` — flattened Object explorer attribute rendering so nested
+  non-object data like stock, distribution, performance, emissions, and nested
+  cost fields now render as always-visible indented attribute trees instead of
+  nested disclosure blocks, while leaving object cards and source expanders
+  unchanged
 - `vedalang-fng` — cleaned up the RES viewer Object explorer card taxonomy so
   only authored objects render as cards, added compact presentation metadata
   plus a `Show all attributes` inspector toggle, and restyled nested attribute

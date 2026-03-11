@@ -20,6 +20,10 @@ Chronological record of the current repository state.
   semantic objects render as cards, added presentation metadata for compact
   attribute hiding, introduced a `Show all attributes` toggle, and restyled
   nested attribute groups to read as fields instead of nested cards.
+- Flattened Object explorer attribute rendering further so nested non-object
+  structures are always visible as indented field trees instead of disclosure
+  widgets, matching the simpler transition-attribute presentation while
+  keeping source excerpts collapsible.
 - Reworked RES graph visualization so ledger emissions are now rendered as
   node-level process annotations with emission state metadata, legends, and
   gas markers instead of pseudo-flow edges, while material carbon flows remain

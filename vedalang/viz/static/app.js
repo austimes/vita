@@ -22,19 +22,6 @@ const DEFAULT_DETAILS_PANE_WIDTH = 360;
 const MIN_DETAILS_PANE_WIDTH = 280;
 const MAX_DETAILS_PANE_WIDTH = 620;
 const INSPECTOR_RENDERED_SECTION_KEYS = new Set(["dsl", "semantic", "transitions", "lowered"]);
-const COLLAPSED_OBJECT_FIELD_KEYS = new Set([
-  "stock",
-  "new_build_limits",
-  "policies",
-  "performance",
-  "emissions",
-  "investment_cost",
-  "fixed_om",
-  "variable_om",
-  "inputs",
-  "outputs",
-  "transitions",
-]);
 const OBJECT_EXPLAINERS = {
   facility:
     "Binds a technology role to a concrete place and can carry stock, build limits, and policies.",
@@ -387,19 +374,6 @@ function visibleObjectExplorerAttributes(item, showAllAttributes) {
   return attributes;
 }
 
-function shouldCollapseObjectField(key, value) {
-  if (COLLAPSED_OBJECT_FIELD_KEYS.has(String(key || ""))) {
-    return true;
-  }
-  if (Array.isArray(value)) {
-    return value.length > 1 && value.some((item) => !isPrimitiveValue(item));
-  }
-  if (value && typeof value === "object") {
-    return true;
-  }
-  return false;
-}
-
 function renderStructuredAttributes(attributes) {
   if (!attributes || typeof attributes !== "object" || Array.isArray(attributes)) {
     return createJsonPre(attributes);
@@ -532,45 +506,19 @@ function renderNestedArrayItems(items, depth) {
 
   if (items.every((item) => isFlatRecord(item))) {
     const list = document.createElement("div");
-    list.className = "details-object-record-list";
+    list.className = "details-object-array-list";
     items.forEach((item, index) => {
       const row = document.createElement("div");
-      row.className = "details-object-record";
+      row.className = "details-object-array-item";
 
       if (items.length > 1) {
         const indexLabel = document.createElement("div");
-        indexLabel.className = "details-object-record-index";
-        indexLabel.textContent = `${index + 1}`;
+        indexLabel.className = "details-object-array-item-label";
+        indexLabel.textContent = `Item ${index + 1}`;
         row.appendChild(indexLabel);
       }
 
-      const fields = document.createElement("div");
-      fields.className = "details-object-record-fields";
-      Object.entries(item).forEach(([key, value]) => {
-        if (
-          value === null ||
-          value === "" ||
-          (Array.isArray(value) && value.length === 0)
-        ) {
-          return;
-        }
-        const field = document.createElement("div");
-        field.className = "details-object-record-field";
-
-        const label = document.createElement("span");
-        label.className = "details-object-record-key";
-        label.textContent = formatFieldLabel(key);
-        field.appendChild(label);
-
-        const text = document.createElement("span");
-        text.className = "details-object-record-value";
-        text.textContent = formatDetailValue(value);
-        field.appendChild(text);
-
-        fields.appendChild(field);
-      });
-
-      row.appendChild(fields);
+      row.appendChild(renderNestedStructuredAttributes(item, depth + 1));
       list.appendChild(row);
     });
     return list;
@@ -588,27 +536,24 @@ function renderNestedArrayItems(items, depth) {
   }
 
   const list = document.createElement("div");
-  list.className = "details-object-group-list";
+  list.className = "details-object-array-list";
   items.forEach((item, index) => {
     const row = document.createElement("div");
-    row.className = "details-object-group-item";
+    row.className = "details-object-array-item";
 
     const label = document.createElement("div");
-    label.className = "details-object-group-label";
+    label.className = "details-object-array-item-label";
     label.textContent = `Item ${index + 1}`;
     row.appendChild(label);
 
-    const body = document.createElement("div");
-    body.className = "details-object-group-body";
     if (isPrimitiveValue(item) || isScalarArray(item)) {
       const text = document.createElement("div");
       text.className = "details-field-value";
       text.textContent = formatDetailValue(item);
-      body.appendChild(text);
+      row.appendChild(text);
     } else {
-      body.appendChild(renderNestedStructuredAttributes(item, depth + 1));
+      row.appendChild(renderNestedStructuredAttributes(item, depth + 1));
     }
-    row.appendChild(body);
     list.appendChild(row);
   });
   return list;
@@ -670,53 +615,31 @@ function renderNestedStructuredAttributes(attributes, depth = 0) {
       return;
     }
 
+    const row = document.createElement("div");
+    row.className = "details-field-row";
+
+    const label = document.createElement("div");
+    label.className = "details-field-key";
+    label.textContent = Array.isArray(value)
+      ? `${formatFieldLabel(key)} (${value.length})`
+      : formatFieldLabel(key);
+    row.appendChild(label);
+
+    const content = document.createElement("div");
+    content.className = "details-object-field-value";
     if (isPrimitiveValue(value) || isScalarArray(value)) {
-      const row = document.createElement("div");
-      row.className = "details-field-row";
-
-      const label = document.createElement("div");
-      label.className = "details-field-key";
-      label.textContent = formatFieldLabel(key);
-      row.appendChild(label);
-
       const text = document.createElement("div");
       text.className = "details-field-value";
       text.textContent = formatDetailValue(value);
-      row.appendChild(text);
-
-      fields.appendChild(row);
-      return;
-    }
-
-    const collapsible = shouldCollapseObjectField(key, value);
-    const group = document.createElement(collapsible ? "details" : "div");
-    group.className = collapsible
-      ? "details-object-group details-object-group-collapsible"
-      : "details-object-group";
-    if (collapsible) {
-      group.open = false;
-    }
-
-    const summary = document.createElement(collapsible ? "summary" : "div");
-    summary.className = collapsible
-      ? "details-object-group-summary"
-      : "details-object-group-label";
-    if (Array.isArray(value)) {
-      summary.textContent = `${formatFieldLabel(key)} (${value.length})`;
+      content.appendChild(text);
+    } else if (Array.isArray(value)) {
+      content.appendChild(renderNestedArrayItems(value, depth + 1));
     } else {
-      summary.textContent = formatFieldLabel(key);
+      content.appendChild(renderNestedStructuredAttributes(value, depth + 1));
     }
-    group.appendChild(summary);
+    row.appendChild(content);
 
-    const body = document.createElement("div");
-    body.className = "details-object-group-body";
-    if (Array.isArray(value)) {
-      body.appendChild(renderNestedArrayItems(value, depth + 1));
-    } else {
-      body.appendChild(renderNestedStructuredAttributes(value, depth + 1));
-    }
-    group.appendChild(body);
-    fields.appendChild(group);
+    fields.appendChild(row);
   });
 
   if (!fields.childNodes.length) {
