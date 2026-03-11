@@ -4,6 +4,11 @@ from __future__ import annotations
 
 from vedalang.conventions import stage_label, stage_order
 from vedalang.versioning import looks_like_v0_2_source
+from vedalang.viz.ledger_emissions import (
+    ledger_state_from_value,
+    mermaid_emission_suffix,
+    summarize_ledger_emissions,
+)
 
 DEFAULT_ACTIVITY_UNIT = "PJ"
 DEFAULT_CAPACITY_UNIT = "GW"
@@ -37,7 +42,8 @@ def export_res_graph(source: dict) -> dict:
             "energy_form": raw.get("energy_form"),
         }
         commodities_by_id[str(commodity_id)] = entry
-        commodity_nodes.append(entry)
+        if entry["type"] != "emission":
+            commodity_nodes.append(entry)
 
     technologies = {
         str(item["id"]): item
@@ -92,6 +98,7 @@ def export_res_graph(source: dict) -> dict:
         }
         if role_inputs:
             role_entry["variant_inputs"] = role_inputs
+        role_ledger_entries: list[dict[str, str]] = []
         role_nodes.append(role_entry)
 
         output_edge_key = (str(role_id), primary_service, "output")
@@ -115,13 +122,18 @@ def export_res_graph(source: dict) -> dict:
                 if isinstance(flow, dict) and flow.get("commodity")
             )
             v_outputs = _variant_outputs(tech, primary_service)
+            topology_outputs = [
+                commodity_id
+                for commodity_id in v_outputs
+                if commodities_by_id.get(commodity_id, {}).get("type") != "emission"
+            ]
             variant_entry = {
                 "id": tech_id,
                 "role": str(role_id),
                 "kind": derived_kind,
                 "kind_source": "derived",
                 "inputs": v_inputs,
-                "outputs": v_outputs,
+                "outputs": topology_outputs,
             }
             emissions = {
                 str(flow["commodity"]): str(flow["factor"])
@@ -130,7 +142,30 @@ def export_res_graph(source: dict) -> dict:
             }
             if emissions:
                 variant_entry["emission_factors"] = emissions
+            variant_entry["ledger_emissions"] = summarize_ledger_emissions(
+                [
+                    {
+                        "commodity_id": commodity_id,
+                        "member_id": tech_id,
+                        "state": ledger_state_from_value(factor),
+                    }
+                    for commodity_id, factor in emissions.items()
+                    if ledger_state_from_value(factor) is not None
+                ],
+                member_ids=[tech_id],
+            )
             variant_nodes.append(variant_entry)
+            role_ledger_entries.extend(
+                [
+                    {
+                        "commodity_id": commodity_id,
+                        "member_id": tech_id,
+                        "state": ledger_state_from_value(factor),
+                    }
+                    for commodity_id, factor in emissions.items()
+                    if ledger_state_from_value(factor) is not None
+                ]
+            )
 
             for commodity_id in v_inputs:
                 edge_key = (commodity_id, str(role_id), "input")
@@ -149,15 +184,11 @@ def export_res_graph(source: dict) -> dict:
                 )
                 existing_edges.add(edge_key)
 
-            for commodity_id in v_outputs:
+            for commodity_id in topology_outputs:
                 if commodity_id == primary_service:
                     continue
                 variant_outputs_extra.add(commodity_id)
-                direction = (
-                    "emission"
-                    if commodities_by_id.get(commodity_id, {}).get("type") == "emission"
-                    else "output"
-                )
+                direction = "output"
                 edge_key = (str(role_id), commodity_id, direction)
                 if edge_key in existing_edges:
                     _append_source_variant(edges, edge_key, tech_id)
@@ -174,26 +205,13 @@ def export_res_graph(source: dict) -> dict:
                 )
                 existing_edges.add(edge_key)
 
-            for emission_id in emissions:
-                edge_key = (str(role_id), emission_id, "emission")
-                if edge_key in existing_edges:
-                    _append_source_variant(edges, edge_key, tech_id)
-                    continue
-                edges.append(
-                    {
-                        "from": str(role_id),
-                        "to": emission_id,
-                        "direction": "emission",
-                        "commodity": emission_id,
-                        "scope": "variant",
-                        "source_variants": [tech_id],
-                    }
-                )
-                existing_edges.add(edge_key)
-
         if variant_outputs_extra:
             role_entry["has_variant_level_outputs"] = True
             role_entry["variant_outputs"] = sorted(variant_outputs_extra)
+        role_entry["ledger_emissions"] = summarize_ledger_emissions(
+            role_ledger_entries,
+            member_ids=tech_ids,
+        )
 
     commodity_nodes.sort(key=lambda c: c["id"])
     role_nodes.sort(key=lambda r: r["id"])
@@ -298,6 +316,7 @@ def res_graph_to_mermaid(graph: dict) -> str:
     """Convert a normalized RES graph to Mermaid flowchart syntax."""
     lines = ["flowchart LR"]
     stage_rank = stage_order(include_demand=True)
+    role_classes: list[tuple[str, str]] = []
 
     roles_by_stage: dict[str, list[dict]] = {}
     for role in graph.get("roles", []):
@@ -313,6 +332,9 @@ def res_graph_to_mermaid(graph: dict) -> str:
             safe_id = _sanitize(role["id"])
             label = _format_role_label(role)
             lines.append(f'        R_{safe_id}["{label}"]')
+            ledger = role.get("ledger_emissions")
+            if isinstance(ledger, dict) and ledger.get("present"):
+                role_classes.append((safe_id, f'ledger_{ledger.get("state")}'))
         lines.append("    end")
 
     lines.append("")
@@ -329,8 +351,6 @@ def res_graph_to_mermaid(graph: dict) -> str:
         to_id = _sanitize(edge["to"])
         if edge["direction"] == "input":
             lines.append(f"    C_{from_id} --> R_{to_id}")
-        elif edge["direction"] == "emission":
-            lines.append(f"    R_{from_id} -.-> C_{to_id}")
         else:
             lines.append(f"    R_{from_id} --> C_{to_id}")
 
@@ -339,19 +359,42 @@ def res_graph_to_mermaid(graph: dict) -> str:
     lines.append("    classDef fuel fill:#d9a84a,stroke:#876a2e,color:#fff")
     lines.append("    classDef energy fill:#4a90d9,stroke:#2e5a87,color:#fff")
     lines.append("    classDef service fill:#4ad94a,stroke:#2e872e,color:#fff")
-    lines.append("    classDef emission fill:#d94a4a,stroke:#872e2e,color:#fff")
     lines.append("    classDef material fill:#a0522d,stroke:#5a2e1a,color:#fff")
     lines.append("    classDef role fill:#9b59b6,stroke:#6c3483,color:#fff")
+    lines.append("    classDef ledger_emit stroke:#ef4444,stroke-width:4px")
+    lines.append("    classDef ledger_remove stroke:#22c55e,stroke-width:4px")
+    lines.append("    classDef ledger_mixed stroke:#f59e0b,stroke-width:4px")
+
+    lines.extend(
+        [
+            "",
+            '    subgraph legend["Ledger emission styling"]',
+            (
+                '        LEGEND_NOTE["Ledger emissions are process coefficients, '
+                'not commodity flows."]'
+            ),
+            '        LEGEND_EMIT["Emitter border"]',
+            '        LEGEND_REMOVE["Removal border"]',
+            '        LEGEND_MIXED["Mixed border"]',
+            "    end",
+            "    class LEGEND_EMIT ledger_emit",
+            "    class LEGEND_REMOVE ledger_remove",
+            "    class LEGEND_MIXED ledger_mixed",
+        ]
+    )
 
     for commodity in graph.get("commodities", []):
         safe_id = _sanitize(commodity["id"])
         commodity_type = commodity.get("type", "energy")
-        if commodity_type in ("fuel", "energy", "service", "emission", "material"):
+        if commodity_type in ("fuel", "energy", "service", "material"):
             lines.append(f"    class C_{safe_id} {commodity_type}")
 
     for role in graph.get("roles", []):
         safe_id = _sanitize(role["id"])
         lines.append(f"    class R_{safe_id} role")
+    for safe_id, role_class in role_classes:
+        if role_class in {"ledger_emit", "ledger_remove", "ledger_mixed"}:
+            lines.append(f"    class R_{safe_id} {role_class}")
 
     return "\n".join(lines)
 
@@ -377,6 +420,12 @@ def _format_role_label(role: dict) -> str:
     kind_label = f" [{derived_kind}]" if derived_kind else ""
     capacity_unit = role.get("capacity_unit") or DEFAULT_CAPACITY_UNIT
     activity_unit = role.get("activity_unit") or DEFAULT_ACTIVITY_UNIT
+    emission_suffix = mermaid_emission_suffix(role.get("ledger_emissions"))
+    emission_line = f"<br/>{emission_suffix}" if emission_suffix else ""
+    label = (
+        f"{role['id']}{kind_label}<br/>"
+        f"cap: {capacity_unit} | act: {activity_unit}{emission_line}"
+    )
     return _escape_label(
-        f"{role['id']}{kind_label}<br/>cap: {capacity_unit} | act: {activity_unit}"
+        label
     )

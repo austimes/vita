@@ -20,6 +20,10 @@ Chronological record of the current repository state.
   semantic objects render as cards, added presentation metadata for compact
   attribute hiding, introduced a `Show all attributes` toggle, and restyled
   nested attribute groups to read as fields instead of nested cards.
+- Reworked RES graph visualization so ledger emissions are now rendered as
+  node-level process annotations with emission state metadata, legends, and
+  gas markers instead of pseudo-flow edges, while material carbon flows remain
+  normal topology.
 - Removed generic `opportunities` from the public DSL in favor of explicit
   `zone_opportunities`, migrated example rollouts to fleet/facility
   `new_build_limits`, and rewrote the toy agriculture model to use fleet-first

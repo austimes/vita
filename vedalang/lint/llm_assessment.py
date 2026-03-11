@@ -31,7 +31,7 @@ from vedalang.lint.res_export import export_res_graph, res_graph_to_mermaid
 
 CHECK_ID = "llm.structure.res_assessment"
 DEFAULT_MODEL = "gpt-5-nano"
-DEFAULT_PROMPT_VERSION = "v3"
+DEFAULT_PROMPT_VERSION = "v4"
 DEFAULT_MAX_OUTPUT_TOKENS = 2500
 
 # Path to the canonical modeling conventions document (single source of truth)

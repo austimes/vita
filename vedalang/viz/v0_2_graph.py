@@ -6,6 +6,12 @@ from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any
 
+from .ledger_emissions import (
+    empty_ledger_emissions,
+    ledger_state_from_value,
+    summarize_ledger_emissions,
+)
+
 
 @dataclass
 class FilterSpec:
@@ -602,6 +608,7 @@ def _build_system_node_detail(
             "member_ids": [],
         },
         "metrics": {},
+        "ledger_emissions": empty_ledger_emissions(),
     }
     return detail
 
@@ -727,6 +734,7 @@ def build_v0_2_system_graph(
                     "member_source_assets": [],
                     "stock_entries": [],
                     "capacity_entries": [],
+                    "ledger_emission_entries": [],
                     "transition_semantics": _empty_transition_semantics(),
                 }
             )
@@ -767,6 +775,18 @@ def build_v0_2_system_graph(
 
         for flow in process.get("flows", []):
             if not isinstance(flow, dict):
+                continue
+            direction = str(flow.get("direction", ""))
+            if direction == "emission":
+                emission_state = ledger_state_from_value(flow.get("coefficient"))
+                if emission_state is not None:
+                    group_details["ledger_emission_entries"].append(
+                        {
+                            "commodity_id": str(flow.get("commodity", "") or ""),
+                            "member_id": str(process.get("id", "") or ""),
+                            "state": emission_state,
+                        }
+                    )
                 continue
             commodity = str(flow.get("commodity", ""))
             commodity_label = _display_commodity(commodity, commodity_view)
@@ -817,7 +837,6 @@ def build_v0_2_system_graph(
             _append_unique(commodity_details["model_regions"], region)
             _append_unique(commodity_details["member_process_ids"], process.get("id"))
 
-            direction = str(flow.get("direction", ""))
             if direction == "in":
                 source_id, target_id, edge_type = commodity_node_id, group_id, "input"
             else:
@@ -961,6 +980,10 @@ def build_v0_2_system_graph(
         detail["metrics"] = _node_metric_summary(
             stock_entries=detail.pop("stock_entries", []),
             capacity_entries=detail.pop("capacity_entries", []),
+        )
+        detail["ledger_emissions"] = summarize_ledger_emissions(
+            detail.pop("ledger_emission_entries", []),
+            member_ids=detail.get("member_process_ids", []),
         )
         if detail["identity"]["node_type"] == "commodity":
             detail["identity"]["commodity_view_members"] = detail.get(

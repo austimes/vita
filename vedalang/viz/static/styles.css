@@ -332,6 +332,81 @@ h1 {
     linear-gradient(180deg, rgba(15, 23, 42, 0.72), rgba(13, 21, 37, 0.96));
 }
 
+.graph-ledger-legend {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 12;
+  max-width: min(420px, calc(100% - 24px));
+  padding: 10px 12px;
+  border: 1px solid rgba(148, 163, 184, 0.32);
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.84);
+  box-shadow: 0 12px 24px rgba(2, 6, 23, 0.28);
+  backdrop-filter: blur(8px);
+}
+
+.graph-ledger-legend-copy {
+  font-size: 11px;
+  line-height: 1.35;
+  color: #e2e8f0;
+}
+
+.graph-ledger-legend-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-top: 8px;
+}
+
+.graph-ledger-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #cbd5e1;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.graph-ledger-legend-swatch,
+.graph-ledger-legend-gas {
+  display: inline-block;
+  width: 16px;
+  height: 8px;
+  border-radius: 999px;
+}
+
+.graph-ledger-legend-swatch {
+  background: rgba(255, 255, 255, 0.08);
+  border: 2px solid transparent;
+}
+
+.graph-ledger-legend-swatch.is-emit {
+  border-color: #ef4444;
+}
+
+.graph-ledger-legend-swatch.is-remove {
+  border-color: #22c55e;
+}
+
+.graph-ledger-legend-swatch.is-mixed {
+  border-color: #f59e0b;
+}
+
+.graph-ledger-legend-gas.is-co2 {
+  background: #ef4444;
+}
+
+.graph-ledger-legend-gas.is-ch4 {
+  background: #f97316;
+}
+
+.graph-ledger-legend-gas.is-n2o {
+  background: #38bdf8;
+}
+
 .pane-resize-handle {
   width: 8px;
   cursor: col-resize;
@@ -372,6 +447,18 @@ h1 {
   box-sizing: border-box;
   box-shadow: 0 8px 24px rgba(2, 6, 23, 0.24);
   text-shadow: 0 1px 1px rgba(2, 6, 23, 0.5);
+}
+
+.graph-process-label[data-ledger-state="emit"] {
+  border-color: rgba(239, 68, 68, 0.88);
+}
+
+.graph-process-label[data-ledger-state="remove"] {
+  border-color: rgba(34, 197, 94, 0.88);
+}
+
+.graph-process-label[data-ledger-state="mixed"] {
+  border-color: rgba(245, 158, 11, 0.9);
 }
 
 .graph-process-label.is-role {
@@ -430,6 +517,43 @@ h1 {
   --graph-label-badge-bg: rgba(96, 165, 250, 0.84);
   --graph-label-badge-border: rgba(191, 219, 254, 0.88);
   --graph-label-badge-text: #0f172a;
+}
+
+.graph-process-label-gas-rail {
+  display: flex;
+  width: calc(100% + 16px);
+  height: 6px;
+  margin: -6px -8px 6px;
+  overflow: hidden;
+  border-radius: 10px 10px 0 0;
+}
+
+.graph-process-label-gas-segment {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.graph-process-label-gas-segment[data-state="remove"] {
+  background-image:
+    repeating-linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.7) 0,
+      rgba(255, 255, 255, 0.7) 2px,
+      transparent 2px,
+      transparent 5px
+    );
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.8);
+}
+
+.graph-process-label-gas-segment[data-state="mixed"] {
+  background-image:
+    linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.82) 0,
+      rgba(255, 255, 255, 0.82) 50%,
+      transparent 50%,
+      transparent 100%
+    );
 }
 
 .graph-process-label-secondary {

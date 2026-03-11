@@ -19,6 +19,7 @@ from vedalang.versioning import looks_like_v0_2_source
 
 from .compiled_artifacts import resolve_compiled_artifacts
 from .inspector import InspectorContext, build_system_node_inspectors
+from .ledger_emissions import mermaid_emission_suffix
 from .v0_2_graph import (
     FilterSpec,
     build_v0_2_system_graph,
@@ -554,10 +555,21 @@ def _sanitize_mermaid_id(node_id: str) -> str:
     return "".join(ch if ch.isalnum() or ch == "_" else "_" for ch in node_id)
 
 
+def _mermaid_ledger_class(detail: dict[str, Any]) -> str | None:
+    ledger = detail.get("ledger_emissions")
+    if not isinstance(ledger, dict) or not ledger.get("present"):
+        return None
+    state = str(ledger.get("state", "") or "")
+    if state in {"emit", "remove", "mixed"}:
+        return f"ledger_{state}"
+    return None
+
+
 def response_to_mermaid(response: dict[str, Any]) -> str:
     """Render a query response graph as Mermaid flowchart syntax."""
     lines = ["flowchart LR"]
     details_nodes = response.get("details", {}).get("nodes", {})
+    node_classes: list[tuple[str, str]] = []
 
     for node in response.get("graph", {}).get("nodes", []):
         node_raw_id = str(node.get("id", ""))
@@ -572,6 +584,13 @@ def response_to_mermaid(response: dict[str, Any]) -> str:
         stage = detail.get("stage") if isinstance(detail, dict) else None
         if node_type in {"role", "instance"} and isinstance(stage, str) and stage:
             label = f"{label}\\n[{stage_label(stage)}]"
+        if node_type in {"role", "instance"} and isinstance(detail, dict):
+            emission_suffix = mermaid_emission_suffix(detail.get("ledger_emissions"))
+            if emission_suffix:
+                label = f"{label}\\n{emission_suffix}"
+            ledger_class = _mermaid_ledger_class(detail)
+            if ledger_class is not None:
+                node_classes.append((node_id, ledger_class))
         label = label.replace('"', "\\\"")
         if node_type.startswith("commodity") or node_type == "trade_commodity":
             lines.append(f"    N_{node_id}((\"{label}\"))")
@@ -582,12 +601,33 @@ def response_to_mermaid(response: dict[str, Any]) -> str:
         source = _sanitize_mermaid_id(str(edge.get("source", "")))
         target = _sanitize_mermaid_id(str(edge.get("target", "")))
         edge_type = str(edge.get("type", ""))
-        if edge_type == "emission":
-            lines.append(f"    N_{source} -.-> N_{target}")
-        elif edge_type == "trade":
+        if edge_type == "trade":
             lines.append(f"    N_{source} ==> N_{target}")
         else:
             lines.append(f"    N_{source} --> N_{target}")
+
+    lines.extend(
+        [
+            "",
+            '    subgraph legend["Ledger emission styling"]',
+            (
+                '        LEGEND_NOTE["Ledger emissions are process coefficients, '
+                'not commodity flows."]'
+            ),
+            '        LEGEND_EMIT["Emitter border"]',
+            '        LEGEND_REMOVE["Removal border"]',
+            '        LEGEND_MIXED["Mixed border"]',
+            "    end",
+            "    classDef ledger_emit stroke:#ef4444,stroke-width:4px",
+            "    classDef ledger_remove stroke:#22c55e,stroke-width:4px",
+            "    classDef ledger_mixed stroke:#f59e0b,stroke-width:4px",
+            "    class LEGEND_EMIT ledger_emit",
+            "    class LEGEND_REMOVE ledger_remove",
+            "    class LEGEND_MIXED ledger_mixed",
+        ]
+    )
+    for node_id, ledger_class in node_classes:
+        lines.append(f"    class N_{node_id} {ledger_class}")
 
     return "\n".join(lines)
 

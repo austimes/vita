@@ -55,12 +55,22 @@ def test_toy_buildings_graph_exposes_v0_2_roles_and_emissions(toy_buildings_grap
     assert variants["gas_heater"]["inputs"] == ["natural_gas"]
     assert variants["gas_heater"]["outputs"] == ["space_heat"]
     assert "co2" in variants["gas_heater"]["emission_factors"]
+    assert variants["gas_heater"]["ledger_emissions"]["state"] == "emit"
     assert variants["heat_pump"]["inputs"] == ["electricity"]
 
-    emission_edges = [
-        edge for edge in toy_buildings_graph["edges"] if edge["direction"] == "emission"
-    ]
-    assert emission_edges
+    assert all(edge["direction"] != "emission" for edge in toy_buildings_graph["edges"])
+    commodity_ids = {
+        commodity["id"] for commodity in toy_buildings_graph["commodities"]
+    }
+    assert "co2" not in commodity_ids
+    role = next(
+        role
+        for role in toy_buildings_graph["roles"]
+        if role["id"] == "space_heat_supply"
+    )
+    assert (
+        role["ledger_emissions"]["coverage"] == "some_members"
+    )
 
 
 def test_toy_electricity_graph_has_multiple_regions_and_trade_ready_shape(
@@ -80,6 +90,10 @@ def test_mermaid_output_contains_stage_and_commodity_nodes(toy_buildings_graph):
     assert 'subgraph stage_supply["Supply"]' in mermaid
     assert "C_space_heat" in mermaid
     assert "classDef role" in mermaid
+    assert "classDef ledger_emit" in mermaid
+    assert "Ledger emissions are process coefficients, not commodity flows." in mermaid
+    assert "-.->" not in mermaid
+    assert "CO2" in mermaid
 
 
 def test_lint_res_export_flags_write_files(tmp_path):

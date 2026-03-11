@@ -91,6 +91,182 @@ def _write_multi_run_source(path: Path) -> None:
     path.write_text(yaml.safe_dump(source), encoding="utf-8")
 
 
+def _emission_contract_source() -> dict:
+    return {
+        "dsl_version": "0.3",
+        "commodities": [
+            {"id": "natural_gas", "type": "energy", "energy_form": "primary"},
+            {"id": "electricity", "type": "energy", "energy_form": "secondary"},
+            {"id": "space_heat", "type": "service"},
+            {"id": "co2", "type": "emission"},
+            {"id": "methane", "type": "emission"},
+            {"id": "sf6", "type": "emission"},
+            {"id": "captured_co2", "type": "material"},
+        ],
+        "technologies": [
+            {
+                "id": "gas_heater",
+                "provides": "space_heat",
+                "inputs": [{"commodity": "natural_gas", "basis": "HHV"}],
+                "performance": {"kind": "efficiency", "value": 0.9},
+                "emissions": [{"commodity": "co2", "factor": "0.056 t/GJ"}],
+            },
+            {
+                "id": "heat_pump",
+                "provides": "space_heat",
+                "inputs": [{"commodity": "electricity"}],
+                "performance": {"kind": "cop", "value": 3.2},
+                "emissions": [],
+            },
+            {
+                "id": "dac_unit",
+                "provides": "space_heat",
+                "inputs": [{"commodity": "electricity"}],
+                "outputs": [
+                    {"commodity": "space_heat"},
+                    {"commodity": "captured_co2", "coefficient": "0.1 t/GJ"},
+                ],
+                "performance": {"kind": "efficiency", "value": 1.0},
+                "emissions": [{"commodity": "co2", "factor": "-0.02 t/GJ"}],
+            },
+            {
+                "id": "methane_heater",
+                "provides": "space_heat",
+                "inputs": [{"commodity": "natural_gas", "basis": "HHV"}],
+                "performance": {"kind": "efficiency", "value": 0.85},
+                "emissions": [
+                    {"commodity": "co2", "factor": "0.04 t/GJ"},
+                    {"commodity": "methane", "factor": "0.003 t/GJ"},
+                ],
+            },
+            {
+                "id": "sf6_unit",
+                "provides": "space_heat",
+                "inputs": [{"commodity": "electricity"}],
+                "performance": {"kind": "efficiency", "value": 1.0},
+                "emissions": [{"commodity": "sf6", "factor": "0.001 t/GJ"}],
+            },
+        ],
+        "technology_roles": [
+            {
+                "id": "space_heat_supply",
+                "primary_service": "space_heat",
+                "technologies": ["gas_heater", "heat_pump"],
+            },
+            {
+                "id": "carbon_removal_service",
+                "primary_service": "space_heat",
+                "technologies": ["dac_unit"],
+            },
+            {
+                "id": "methane_heat_service",
+                "primary_service": "space_heat",
+                "technologies": ["methane_heater"],
+            },
+            {
+                "id": "sf6_heat_service",
+                "primary_service": "space_heat",
+                "technologies": ["sf6_unit"],
+            },
+        ],
+        "spatial_layers": [
+            {
+                "id": "geo.demo",
+                "kind": "polygon",
+                "key": "region_id",
+                "geometry_file": "data/regions.geojson",
+            }
+        ],
+        "region_partitions": [
+            {
+                "id": "single_partition",
+                "layer": "geo.demo",
+                "members": ["SINGLE"],
+                "mapping": {"kind": "constant", "value": "SINGLE"},
+            }
+        ],
+        "sites": [
+            {
+                "id": "single_site",
+                "location": {"point": {"lat": 0.0, "lon": 0.0}},
+                "membership_overrides": {
+                    "region_partitions": {"single_partition": "SINGLE"}
+                },
+            }
+        ],
+        "facilities": [
+            {
+                "id": "base_heat",
+                "site": "single_site",
+                "technology_role": "space_heat_supply",
+                "available_technologies": ["gas_heater", "heat_pump"],
+                "stock": {
+                    "items": [
+                        {
+                            "technology": "gas_heater",
+                            "metric": "installed_capacity",
+                            "observed": {"value": "10 MW", "year": 2025},
+                        }
+                    ]
+                },
+            },
+            {
+                "id": "dac_capture",
+                "site": "single_site",
+                "technology_role": "carbon_removal_service",
+                "available_technologies": ["dac_unit"],
+                "stock": {
+                    "items": [
+                        {
+                            "technology": "dac_unit",
+                            "metric": "installed_capacity",
+                            "observed": {"value": "2 MW", "year": 2025},
+                        }
+                    ]
+                },
+            },
+            {
+                "id": "methane_heat",
+                "site": "single_site",
+                "technology_role": "methane_heat_service",
+                "available_technologies": ["methane_heater"],
+                "stock": {
+                    "items": [
+                        {
+                            "technology": "methane_heater",
+                            "metric": "installed_capacity",
+                            "observed": {"value": "4 MW", "year": 2025},
+                        }
+                    ]
+                },
+            },
+            {
+                "id": "sf6_heat",
+                "site": "single_site",
+                "technology_role": "sf6_heat_service",
+                "available_technologies": ["sf6_unit"],
+                "stock": {
+                    "items": [
+                        {
+                            "technology": "sf6_unit",
+                            "metric": "installed_capacity",
+                            "observed": {"value": "1 MW", "year": 2025},
+                        }
+                    ]
+                },
+            },
+        ],
+        "runs": [
+            {
+                "id": "single_run",
+                "base_year": 2025,
+                "currency_year": 2024,
+                "region_partition": "single_partition",
+            }
+        ],
+    }
+
+
 def test_source_query_returns_v0_2_role_graph():
     source_file = EXAMPLES_DIR / "toy_sectors/toy_buildings.veda.yaml"
 
@@ -285,6 +461,167 @@ def test_mermaid_output_contains_flowchart():
     mermaid = response_to_mermaid(response)
     assert mermaid.startswith("flowchart LR")
     assert "alumina_calcination" in mermaid
+
+
+def test_compiled_system_graph_uses_node_level_ledger_emissions_metadata():
+    bundle = compile_vedalang_bundle(
+        _emission_contract_source(),
+        selected_run="single_run",
+    )
+
+    built = build_v0_2_system_graph(
+        csir=bundle.csir or {},
+        cpir=bundle.cpir or {},
+        granularity="instance",
+        commodity_view="collapse_scope",
+        filters=FilterSpec(regions={"SINGLE"}, sectors=set(), scopes=set()),
+    )
+
+    assert all(edge["type"] != "emission" for edge in built["graph"]["edges"])
+    commodity_labels = {
+        node["label"]
+        for node in built["graph"]["nodes"]
+        if node["type"] == "commodity"
+    }
+    assert "co2" not in commodity_labels
+    assert "methane" not in commodity_labels
+    assert "sf6" not in commodity_labels
+    assert "captured_co2" in commodity_labels
+
+    gas_heater = built["details"]["nodes"][
+        "instance:asset:gas_heater:facilities.base_heat"
+    ]["ledger_emissions"]
+    assert gas_heater["state"] == "emit"
+    assert gas_heater["coverage"] == "all_members"
+    assert gas_heater["gases"] == [
+        {
+            "commodity_id": "co2",
+            "code": "CO2",
+            "known": True,
+            "color_key": "co2",
+            "state": "emit",
+            "member_process_ids": [
+                "P::role_instance.base_heat@SINGLE::gas_heater"
+            ],
+        }
+    ]
+
+    dac = built["details"]["nodes"][
+        "instance:asset:dac_unit:facilities.dac_capture"
+    ]["ledger_emissions"]
+    assert dac["state"] == "remove"
+    assert dac["gases"][0]["state"] == "remove"
+
+    methane = built["details"]["nodes"][
+        "instance:asset:methane_heater:facilities.methane_heat"
+    ]["ledger_emissions"]
+    assert methane["state"] == "emit"
+    assert [gas["code"] for gas in methane["gases"]] == ["CO2", "CH4"]
+
+    sf6 = built["details"]["nodes"][
+        "instance:asset:sf6_unit:facilities.sf6_heat"
+    ]["ledger_emissions"]
+    assert sf6["gases"][0]["color_key"] == "other"
+    assert sf6["gases"][0]["known"] is False
+    assert sf6["gases"][0]["code"] == "SF6"
+
+    role_built = build_v0_2_system_graph(
+        csir=bundle.csir or {},
+        cpir=bundle.cpir or {},
+        granularity="role",
+        commodity_view="collapse_scope",
+        filters=FilterSpec(regions={"SINGLE"}, sectors=set(), scopes=set()),
+    )
+    role = role_built["details"]["nodes"]["role:asset:facilities.base_heat"][
+        "ledger_emissions"
+    ]
+    assert role["state"] == "emit"
+    assert role["coverage"] == "some_members"
+
+    captured_edge = next(
+        edge
+        for edge in built["graph"]["edges"]
+        if edge["target"] == "commodity:captured_co2"
+    )
+    assert captured_edge["type"] == "out"
+
+
+def test_query_mermaid_renders_ledger_emissions_without_flow_arrows(tmp_path):
+    source_file = tmp_path / "emissions.veda.yaml"
+    source_file.write_text(
+        yaml.safe_dump(_emission_contract_source()),
+        encoding="utf-8",
+    )
+
+    response = query_res_graph(
+        {
+            "version": "1",
+            "file": str(source_file),
+            "run": "single_run",
+            "mode": "source",
+            "granularity": "instance",
+            "lens": "system",
+            "filters": {"regions": [], "case": None, "sectors": [], "scopes": []},
+            "compiled": {"truth": "auto", "cache": True, "allow_partial": True},
+        }
+    )
+
+    mermaid = response_to_mermaid(response)
+    assert "classDef ledger_emit" in mermaid
+    assert "classDef ledger_remove" in mermaid
+    assert "Ledger emissions are process coefficients, not commodity flows." in mermaid
+    assert "-.->" not in mermaid
+    assert "CO2" in mermaid
+    assert "-CO2" in mermaid
+    assert "CO2/CH4" in mermaid
+
+
+def test_role_ledger_emissions_classify_mixed_state():
+    source = _emission_contract_source()
+    source["technology_roles"].append(
+        {
+            "id": "mixed_heat_service",
+            "primary_service": "space_heat",
+            "technologies": ["gas_heater", "dac_unit"],
+        }
+    )
+    source["facilities"].append(
+        {
+            "id": "mixed_heat",
+            "site": "single_site",
+            "technology_role": "mixed_heat_service",
+            "available_technologies": ["gas_heater", "dac_unit"],
+            "stock": {
+                "items": [
+                    {
+                        "technology": "gas_heater",
+                        "metric": "installed_capacity",
+                        "observed": {"value": "3 MW", "year": 2025},
+                    }
+                ]
+            },
+        }
+    )
+
+    bundle = compile_vedalang_bundle(
+        source,
+        selected_run="single_run",
+    )
+    built = build_v0_2_system_graph(
+        csir=bundle.csir or {},
+        cpir=bundle.cpir or {},
+        granularity="role",
+        commodity_view="collapse_scope",
+        filters=FilterSpec(regions={"SINGLE"}, sectors=set(), scopes=set()),
+    )
+
+    mixed = built["details"]["nodes"]["role:asset:facilities.mixed_heat"][
+        "ledger_emissions"
+    ]
+    assert mixed["present"] is True
+    assert mixed["state"] == "mixed"
+    assert mixed["coverage"] == "all_members"
+    assert mixed["gases"][0]["state"] == "mixed"
 
 
 def test_compiled_commodity_view_collapse_scope_merges_namespaces():

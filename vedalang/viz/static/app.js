@@ -81,6 +81,12 @@ const STAGE_ORDER = [
 ];
 const STAGE_RANK = new Map(STAGE_ORDER.map((stage, index) => [stage, index]));
 const PROCESS_NODE_TYPES = new Set(["role", "instance"]);
+const LEDGER_GAS_COLORS = {
+  co2: "#ef4444",
+  ch4: "#f97316",
+  n2o: "#38bdf8",
+  other: "#c084fc",
+};
 
 const state = {
   file: "",
@@ -1247,6 +1253,37 @@ function styleForNode(nodeType) {
   return { shape: "round-rectangle", color: "#16a34a" };
 }
 
+function normalizeLedgerEmissions(raw) {
+  if (!raw || typeof raw !== "object" || !raw.present) {
+    return { present: false, state: "none", coverage: "none", gases: [] };
+  }
+  const gases = Array.isArray(raw.gases) ? raw.gases : [];
+  return {
+    present: true,
+    state: String(raw.state || "none"),
+    coverage: String(raw.coverage || "none"),
+    gases,
+  };
+}
+
+function ledgerBorderStyle(ledgerEmissions) {
+  const state = ledgerEmissions && ledgerEmissions.present ? ledgerEmissions.state : "none";
+  if (state === "emit") {
+    return { color: "#ef4444", width: 3 };
+  }
+  if (state === "remove") {
+    return { color: "#22c55e", width: 3 };
+  }
+  if (state === "mixed") {
+    return { color: "#f59e0b", width: 3 };
+  }
+  return { color: "#0f172a", width: 1 };
+}
+
+function ledgerGasColor(colorKey) {
+  return LEDGER_GAS_COLORS[colorKey] || LEDGER_GAS_COLORS.other;
+}
+
 function isProcessNodeType(nodeType) {
   return PROCESS_NODE_TYPES.has(nodeType);
 }
@@ -1649,6 +1686,22 @@ function refreshProcessLabelLayer() {
     labelEl.style.top = `${position.y}px`;
     labelEl.style.width = `${PROCESS_LABEL_WIDTH}px`;
     labelEl.style.transform = `translate(-50%, -50%) scale(${labelScale})`;
+    const ledgerEmissions = normalizeLedgerEmissions(detail.ledger_emissions);
+    labelEl.dataset.ledgerState = ledgerEmissions.state;
+
+    if (ledgerEmissions.present && ledgerEmissions.gases.length > 0) {
+      const railEl = document.createElement("div");
+      railEl.className = "graph-process-label-gas-rail";
+      ledgerEmissions.gases.forEach((gas) => {
+        const segmentEl = document.createElement("div");
+        segmentEl.className = "graph-process-label-gas-segment";
+        segmentEl.dataset.state = String(gas.state || "emit");
+        segmentEl.style.backgroundColor = ledgerGasColor(String(gas.color_key || "other"));
+        segmentEl.title = `${gas.code || gas.commodity_id || "Emission"} (${gas.state || "emit"})`;
+        railEl.appendChild(segmentEl);
+      });
+      labelEl.appendChild(railEl);
+    }
 
     if (transitionSemantics && transitionSemantics.badge_label) {
       const badgeEl = document.createElement("div");
@@ -1818,8 +1871,8 @@ function initCy() {
           color: "#e5e7eb",
           "text-valign": "center",
           "text-halign": "center",
-          "border-width": 1,
-          "border-color": "#0f172a",
+          "border-width": "data(borderWidth)",
+          "border-color": "data(borderColor)",
           width: 60,
           height: 40,
         },
@@ -1914,6 +1967,8 @@ function renderGraph(response) {
       isProcessNodeType(node.type) && stage
         ? `${node.label}\n[${formatStageLabel(stage)}]`
         : node.label;
+    const ledgerEmissions = normalizeLedgerEmissions(details.ledger_emissions);
+    const border = ledgerBorderStyle(ledgerEmissions);
 
     return {
       data: {
@@ -1924,6 +1979,9 @@ function renderGraph(response) {
         color: style.color,
         stage,
         stageRank: stageRankValue,
+        borderColor: border.color,
+        borderWidth: border.width,
+        ledgerEmissions,
       },
     };
   });
