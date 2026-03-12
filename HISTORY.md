@@ -24,6 +24,10 @@ Chronological record of the current repository state.
   structures are always visible as indented field trees instead of disclosure
   widgets, matching the simpler transition-attribute presentation while
   keeping source excerpts collapsible.
+- Tuned the Object explorer tree styling again so nested non-object attributes
+  use tighter key/value columns and cleaner indentation rails, aligning more
+  closely with the supplied inspector mockup without changing the object-card
+  hierarchy.
 - Reworked RES graph visualization so ledger emissions are now rendered as
   node-level process annotations with emission state metadata, legends, and
   gas markers instead of pseudo-flow edges, while material carbon flows remain

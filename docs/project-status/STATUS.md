@@ -26,6 +26,10 @@ issue remains open.
 
 ## Recently Completed
 
+- `vedalang-g0l` — refined the Object explorer nested attribute layout toward
+  the line-based mockup, tightening key/value columns and indentation rails so
+  non-object attribute trees read like a continuous outline inside each object
+  card
 - `vedalang-n0a` — flattened Object explorer attribute rendering so nested
   non-object data like stock, distribution, performance, emissions, and nested
   cost fields now render as always-visible indented attribute trees instead of

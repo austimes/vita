@@ -886,13 +886,17 @@ h1 {
 .details-object-fields {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
+}
+
+.details-object-fields[data-depth="0"] {
+  gap: 8px;
 }
 
 .details-field-row {
   display: grid;
-  grid-template-columns: minmax(100px, 140px) 1fr;
-  gap: 6px 10px;
+  grid-template-columns: minmax(120px, 170px) minmax(0, 1fr);
+  gap: 4px 14px;
   align-items: start;
 }
 
@@ -900,6 +904,7 @@ h1 {
   font-size: 11px;
   font-weight: 700;
   color: var(--text-muted);
+  line-height: 1.25;
 }
 
 .details-field {
@@ -911,40 +916,43 @@ h1 {
   font-size: 11px;
   color: var(--text);
   overflow-wrap: anywhere;
+  line-height: 1.25;
 }
 
 .details-object-field-value {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   min-width: 0;
-  padding-left: 12px;
-  border-left: 1px solid rgba(71, 85, 105, 0.55);
+  padding-left: 14px;
+  border-left: 1px solid rgba(71, 85, 105, 0.5);
 }
 
 .details-object-array-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .details-object-array-item {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   min-width: 0;
+  padding-left: 14px;
+  border-left: 1px solid rgba(71, 85, 105, 0.45);
 }
 
 .details-object-array-item-label {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
-  color: var(--text-muted);
+  color: #cbd5e1;
 }
 
 .details-inline-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .details-inline-list-item {
