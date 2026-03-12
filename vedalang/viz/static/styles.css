@@ -583,7 +583,6 @@ h1 {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 10px;
 }
@@ -591,14 +590,26 @@ h1 {
 .details-pane-header h2 {
   margin: 0;
   font-size: 14px;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .details-toggle-btn {
   padding-inline: 10px;
 }
 
-.details-checkbox-control {
+.details-pane-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
   margin-left: auto;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.details-checkbox-control {
+  min-width: 0;
 }
 
 .details-checkbox-label {
@@ -895,9 +906,42 @@ h1 {
 
 .details-field-row {
   display: grid;
-  grid-template-columns: minmax(120px, 170px) minmax(0, 1fr);
-  gap: 4px 14px;
+  grid-template-columns: minmax(84px, 0.92fr) minmax(0, 1.5fr);
+  gap: 4px 10px;
   align-items: start;
+  min-width: 0;
+}
+
+.details-field-row-stacked {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.details-object-fields[data-depth="0"] > .details-field-row {
+  grid-template-columns: minmax(104px, 0.95fr) minmax(0, 1.45fr);
+  gap: 4px 12px;
+}
+
+.details-object-fields[data-depth="1"] > .details-field-row,
+.details-object-fields[data-depth="2"] > .details-field-row {
+  grid-template-columns: minmax(78px, 0.72fr) minmax(0, 1.7fr);
+  gap: 4px 8px;
+}
+
+.details-object-fields[data-depth="3"] > .details-field-row,
+.details-object-fields[data-depth="4"] > .details-field-row,
+.details-object-fields[data-depth="5"] > .details-field-row {
+  grid-template-columns: minmax(62px, 0.58fr) minmax(0, 1.84fr);
+  gap: 4px 8px;
+}
+
+.details-object-fields[data-depth="1"] > .details-field-row-stacked,
+.details-object-fields[data-depth="2"] > .details-field-row-stacked,
+.details-object-fields[data-depth="3"] > .details-field-row-stacked,
+.details-object-fields[data-depth="4"] > .details-field-row-stacked,
+.details-object-fields[data-depth="5"] > .details-field-row-stacked {
+  gap: 3px;
 }
 
 .details-field-key {
@@ -905,6 +949,8 @@ h1 {
   font-weight: 700;
   color: var(--text-muted);
   line-height: 1.25;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .details-field {
@@ -917,6 +963,7 @@ h1 {
   color: var(--text);
   overflow-wrap: anywhere;
   line-height: 1.25;
+  min-width: 0;
 }
 
 .details-object-field-value {
@@ -924,7 +971,7 @@ h1 {
   flex-direction: column;
   gap: 4px;
   min-width: 0;
-  padding-left: 14px;
+  padding-left: 8px;
   border-left: 1px solid rgba(71, 85, 105, 0.5);
 }
 
@@ -939,7 +986,7 @@ h1 {
   flex-direction: column;
   gap: 4px;
   min-width: 0;
-  padding-left: 14px;
+  padding-left: 8px;
   border-left: 1px solid rgba(71, 85, 105, 0.45);
 }
 
@@ -958,6 +1005,18 @@ h1 {
 .details-inline-list-item {
   font-size: 11px;
   color: var(--text);
+}
+
+@media (max-width: 1380px) {
+  .details-pane-header {
+    align-items: flex-start;
+  }
+
+  .details-pane-actions {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+  }
 }
 
 .details-hint {

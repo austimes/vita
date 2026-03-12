@@ -18,8 +18,8 @@ const PROCESS_NODE_HEIGHT = 82;
 const PROCESS_LABEL_WIDTH = 148;
 const MIN_LABEL_SCALE = 0.35;
 const MAX_LABEL_SCALE = 6;
-const DEFAULT_DETAILS_PANE_WIDTH = 360;
-const MIN_DETAILS_PANE_WIDTH = 280;
+const DEFAULT_DETAILS_PANE_WIDTH = 440;
+const MIN_DETAILS_PANE_WIDTH = 400;
 const MAX_DETAILS_PANE_WIDTH = 620;
 const INSPECTOR_RENDERED_SECTION_KEYS = new Set(["dsl", "semantic", "transitions", "lowered"]);
 const OBJECT_EXPLAINERS = {
@@ -213,7 +213,11 @@ function setDetailsPaneWidth(width, { persist = true } = {}) {
 
 function loadDetailsPaneWidthPreference() {
   try {
-    const raw = Number(localStorage.getItem(DETAILS_PANE_WIDTH_STORAGE_KEY));
+    const stored = localStorage.getItem(DETAILS_PANE_WIDTH_STORAGE_KEY);
+    if (stored === null || stored === "") {
+      return DEFAULT_DETAILS_PANE_WIDTH;
+    }
+    const raw = Number(stored);
     return clampDetailsPaneWidth(raw);
   } catch (error) {
     void error;
@@ -616,17 +620,23 @@ function renderNestedStructuredAttributes(attributes, depth = 0) {
     }
 
     const row = document.createElement("div");
-    row.className = "details-field-row";
-
     const label = document.createElement("div");
     label.className = "details-field-key";
     label.textContent = Array.isArray(value)
       ? `${formatFieldLabel(key)} (${value.length})`
       : formatFieldLabel(key);
-    row.appendChild(label);
 
     const content = document.createElement("div");
     content.className = "details-object-field-value";
+    const isStructuredValue = !isPrimitiveValue(value) && !isScalarArray(value);
+    if (isStructuredValue && depth >= 1) {
+      row.className = "details-field-row details-field-row-stacked";
+      row.appendChild(label);
+    } else {
+      row.className = "details-field-row";
+      row.appendChild(label);
+    }
+
     if (isPrimitiveValue(value) || isScalarArray(value)) {
       const text = document.createElement("div");
       text.className = "details-field-value";

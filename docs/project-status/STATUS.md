@@ -26,6 +26,11 @@ issue remains open.
 
 ## Recently Completed
 
+- `vedalang-xga` — browser-verified the live RES viewer inspector, fixed the
+  broken missing-width preference path that was forcing narrow panes, grouped
+  inspector header actions coherently, and reworked nested Object explorer
+  attribute rows so deeper structures stack instead of collapsing values into
+  unreadable slivers
 - `vedalang-g0l` — refined the Object explorer nested attribute layout toward
   the line-based mockup, tightening key/value columns and indentation rails so
   non-object attribute trees read like a continuous outline inside each object

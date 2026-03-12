@@ -28,6 +28,10 @@ Chronological record of the current repository state.
   use tighter key/value columns and cleaner indentation rails, aligning more
   closely with the supplied inspector mockup without changing the object-card
   hierarchy.
+- Used live browser verification against the standalone RES viewer to fix the
+  inspector pane width preference bug and adjust nested Object explorer
+  attribute rows so deeper structures stack instead of collapsing into
+  character-by-character value columns.
 - Reworked RES graph visualization so ledger emissions are now rendered as
   node-level process annotations with emission state metadata, legends, and
   gas markers instead of pseudo-flow edges, while material carbon flows remain
