@@ -4,6 +4,10 @@ Chronological record of the current repository state.
 
 ## 2026-03-12
 
+- Simplified the RES viewer Object explorer attribute presentation again so
+  nested attributes now render as plain indented `field: value` lines without
+  column alignment bars or array-count labels like `items (2)` / `outputs (1)`,
+  and verified the live browser view against the agriculture example.
 - Continued the browser-verified Object explorer layout pass so nested flat
   attribute arrays now read like the supplied inspector mockup: array items no
   longer add a second bordered sub-pane, deeper rows bias more strongly toward

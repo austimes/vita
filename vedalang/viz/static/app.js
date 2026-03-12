@@ -491,68 +491,27 @@ function renderSourceLocation(container, sourceLocation) {
 function renderNestedArrayItems(items, depth) {
   if (!Array.isArray(items) || items.length === 0) {
     const empty = document.createElement("div");
-    empty.className = "details-field-value";
+    empty.className = "details-object-line details-object-line-empty";
     empty.textContent = "No items";
     return empty;
   }
 
   if (items.every((item) => isPrimitiveValue(item) || isScalarArray(item))) {
-    const list = document.createElement("div");
-    list.className = "details-inline-list";
-    items.forEach((item) => {
-      const row = document.createElement("div");
-      row.className = "details-inline-list-item";
-      row.textContent = formatDetailValue(item);
-      list.appendChild(row);
-    });
-    return list;
-  }
-
-  if (items.every((item) => isFlatRecord(item))) {
-    const list = document.createElement("div");
-    list.className = "details-object-array-list";
-    items.forEach((item, index) => {
-      const row = document.createElement("div");
-      row.className = "details-object-array-item details-object-array-item-flat";
-
-      if (items.length > 1) {
-        const indexLabel = document.createElement("div");
-        indexLabel.className = "details-object-array-item-label";
-        indexLabel.textContent = `Item ${index + 1}`;
-        row.appendChild(indexLabel);
-      }
-
-      row.appendChild(renderNestedStructuredAttributes(item, depth + 1));
-      list.appendChild(row);
-    });
-    return list;
-  }
-
-  if (items.length === 1) {
-    const only = items[0];
-    if (isPrimitiveValue(only) || isScalarArray(only)) {
-      const text = document.createElement("div");
-      text.className = "details-field-value";
-      text.textContent = formatDetailValue(only);
-      return text;
-    }
-    return renderNestedStructuredAttributes(only, depth + 1);
+    const text = document.createElement("div");
+    text.className = "details-object-line-value";
+    text.textContent = items.map((item) => formatDetailValue(item)).join(", ");
+    return text;
   }
 
   const list = document.createElement("div");
   list.className = "details-object-array-list";
-  items.forEach((item, index) => {
+  items.forEach((item) => {
     const row = document.createElement("div");
     row.className = "details-object-array-item";
 
-    const label = document.createElement("div");
-    label.className = "details-object-array-item-label";
-    label.textContent = `Item ${index + 1}`;
-    row.appendChild(label);
-
     if (isPrimitiveValue(item) || isScalarArray(item)) {
       const text = document.createElement("div");
-      text.className = "details-field-value";
+      text.className = "details-object-line-value";
       text.textContent = formatDetailValue(item);
       row.appendChild(text);
     } else {
@@ -601,7 +560,7 @@ function createObjectKindBadge(kind) {
 function renderNestedStructuredAttributes(attributes, depth = 0) {
   if (!attributes || typeof attributes !== "object" || Array.isArray(attributes)) {
     const text = document.createElement("div");
-    text.className = "details-field-value";
+    text.className = "details-object-line-value";
     text.textContent = formatDetailValue(attributes);
     return text;
   }
@@ -620,44 +579,61 @@ function renderNestedStructuredAttributes(attributes, depth = 0) {
     }
 
     const row = document.createElement("div");
-    const label = document.createElement("div");
-    label.className = "details-field-key";
-    label.textContent = Array.isArray(value)
-      ? `${formatFieldLabel(key)} (${value.length})`
-      : formatFieldLabel(key);
-
-    const content = document.createElement("div");
-    content.className = "details-object-field-value";
     const isStructuredValue = !isPrimitiveValue(value) && !isScalarArray(value);
-    if (isStructuredValue) {
-      content.classList.add("details-object-field-value-structured");
-    }
-    if (isStructuredValue && depth >= 1) {
-      row.className = "details-field-row details-field-row-stacked";
-      row.appendChild(label);
-    } else {
-      row.className = "details-field-row";
-      row.appendChild(label);
-    }
+    row.className = "details-object-row";
 
     if (isPrimitiveValue(value) || isScalarArray(value)) {
-      const text = document.createElement("div");
-      text.className = "details-field-value";
+      const line = document.createElement("div");
+      line.className = "details-object-line";
+
+      const label = document.createElement("span");
+      label.className = "details-object-line-key";
+      label.textContent = `${formatFieldLabel(key)}:`;
+      line.appendChild(label);
+
+      line.appendChild(document.createTextNode(" "));
+
+      const text = document.createElement("span");
+      text.className = "details-object-line-value";
       text.textContent = formatDetailValue(value);
-      content.appendChild(text);
+      line.appendChild(text);
+      row.appendChild(line);
     } else if (Array.isArray(value)) {
+      const line = document.createElement("div");
+      line.className = "details-object-line";
+
+      const label = document.createElement("span");
+      label.className = "details-object-line-key";
+      label.textContent = `${formatFieldLabel(key)}:`;
+      line.appendChild(label);
+      row.appendChild(line);
+
+      const content = document.createElement("div");
+      content.className = "details-object-children";
       content.appendChild(renderNestedArrayItems(value, depth + 1));
+      row.appendChild(content);
     } else {
+      const line = document.createElement("div");
+      line.className = "details-object-line";
+
+      const label = document.createElement("span");
+      label.className = "details-object-line-key";
+      label.textContent = `${formatFieldLabel(key)}:`;
+      line.appendChild(label);
+      row.appendChild(line);
+
+      const content = document.createElement("div");
+      content.className = "details-object-children";
       content.appendChild(renderNestedStructuredAttributes(value, depth + 1));
+      row.appendChild(content);
     }
-    row.appendChild(content);
 
     fields.appendChild(row);
   });
 
   if (!fields.childNodes.length) {
     const empty = document.createElement("div");
-    empty.className = "details-field-value";
+    empty.className = "details-object-line details-object-line-empty";
     empty.textContent = "No fields";
     fields.appendChild(empty);
   }

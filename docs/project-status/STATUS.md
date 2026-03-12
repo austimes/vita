@@ -35,6 +35,10 @@ issue remains open.
   removed redundant nested array-item rails, widened the deepest key/value
   rows, and aligned flat attribute arrays like `stock.items` more closely with
   the supplied line-based inspector mockup
+- `vedalang-sx5` — replaced the remaining Object explorer column layout with
+  a plain indented `field: value` tree, removed array-count labels like
+  `items (n)` / `outputs (n)`, and browser-verified the agriculture inspector
+  against the simplified mockup direction
 - `vedalang-g0l` — refined the Object explorer nested attribute layout toward
   the line-based mockup, tightening key/value columns and indentation rails so
   non-object attribute trees read like a continuous outline inside each object
