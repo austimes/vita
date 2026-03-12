@@ -2,6 +2,13 @@
 
 Chronological record of the current repository state.
 
+## 2026-03-12
+
+- Continued the browser-verified Object explorer layout pass so nested flat
+  attribute arrays now read like the supplied inspector mockup: array items no
+  longer add a second bordered sub-pane, deeper rows bias more strongly toward
+  values, and the default inspector width now matches the live expanded layout.
+
 ## 2026-03-11
 
 - Hard-cut the public DSL from v0.2 to v0.3.

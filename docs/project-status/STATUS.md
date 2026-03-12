@@ -1,6 +1,6 @@
 # VedaLang Project Status
 
-**Last updated:** 2026-03-11
+**Last updated:** 2026-03-12
 
 ## Summary
 
@@ -31,6 +31,10 @@ issue remains open.
   inspector header actions coherently, and reworked nested Object explorer
   attribute rows so deeper structures stack instead of collapsing values into
   unreadable slivers
+- `vedalang-7r8` — browser-verified the follow-up Object explorer layout pass,
+  removed redundant nested array-item rails, widened the deepest key/value
+  rows, and aligned flat attribute arrays like `stock.items` more closely with
+  the supplied line-based inspector mockup
 - `vedalang-g0l` — refined the Object explorer nested attribute layout toward
   the line-based mockup, tightening key/value columns and indentation rails so
   non-object attribute trees read like a continuous outline inside each object

@@ -513,7 +513,7 @@ function renderNestedArrayItems(items, depth) {
     list.className = "details-object-array-list";
     items.forEach((item, index) => {
       const row = document.createElement("div");
-      row.className = "details-object-array-item";
+      row.className = "details-object-array-item details-object-array-item-flat";
 
       if (items.length > 1) {
         const indexLabel = document.createElement("div");
@@ -629,6 +629,9 @@ function renderNestedStructuredAttributes(attributes, depth = 0) {
     const content = document.createElement("div");
     content.className = "details-object-field-value";
     const isStructuredValue = !isPrimitiveValue(value) && !isScalarArray(value);
+    if (isStructuredValue) {
+      content.classList.add("details-object-field-value-structured");
+    }
     if (isStructuredValue && depth >= 1) {
       row.className = "details-field-row details-field-row-stacked";
       row.appendChild(label);

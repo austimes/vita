@@ -11,7 +11,7 @@
   --button-active: #0ea5e9;
   --button-active-border: #38bdf8;
   --left-sidebar-width: 340px;
-  --details-pane-width: 360px;
+  --details-pane-width: 440px;
 }
 
 * {
@@ -897,16 +897,16 @@ h1 {
 .details-object-fields {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .details-object-fields[data-depth="0"] {
-  gap: 8px;
+  gap: 10px;
 }
 
 .details-field-row {
   display: grid;
-  grid-template-columns: minmax(84px, 0.92fr) minmax(0, 1.5fr);
+  grid-template-columns: minmax(80px, 0.74fr) minmax(0, 1.9fr);
   gap: 4px 10px;
   align-items: start;
   min-width: 0;
@@ -919,21 +919,21 @@ h1 {
 }
 
 .details-object-fields[data-depth="0"] > .details-field-row {
-  grid-template-columns: minmax(104px, 0.95fr) minmax(0, 1.45fr);
+  grid-template-columns: minmax(100px, 0.82fr) minmax(0, 1.58fr);
   gap: 4px 12px;
 }
 
 .details-object-fields[data-depth="1"] > .details-field-row,
 .details-object-fields[data-depth="2"] > .details-field-row {
-  grid-template-columns: minmax(78px, 0.72fr) minmax(0, 1.7fr);
+  grid-template-columns: minmax(70px, 0.52fr) minmax(0, 2.05fr);
   gap: 4px 8px;
 }
 
 .details-object-fields[data-depth="3"] > .details-field-row,
 .details-object-fields[data-depth="4"] > .details-field-row,
 .details-object-fields[data-depth="5"] > .details-field-row {
-  grid-template-columns: minmax(62px, 0.58fr) minmax(0, 1.84fr);
-  gap: 4px 8px;
+  grid-template-columns: minmax(72px, 0.58fr) minmax(0, 1.95fr);
+  gap: 3px 8px;
 }
 
 .details-object-fields[data-depth="1"] > .details-field-row-stacked,
@@ -971,7 +971,7 @@ h1 {
   flex-direction: column;
   gap: 4px;
   min-width: 0;
-  padding-left: 8px;
+  padding-left: 10px;
   border-left: 1px solid rgba(71, 85, 105, 0.5);
 }
 
@@ -986,14 +986,32 @@ h1 {
   flex-direction: column;
   gap: 4px;
   min-width: 0;
-  padding-left: 8px;
-  border-left: 1px solid rgba(71, 85, 105, 0.45);
+}
+
+.details-object-array-item + .details-object-array-item {
+  margin-top: 2px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(71, 85, 105, 0.28);
+}
+
+.details-object-array-item-flat {
+  gap: 3px;
 }
 
 .details-object-array-item-label {
   font-size: 11px;
   font-weight: 700;
   color: #cbd5e1;
+  padding-left: 10px;
+}
+
+.details-object-field-value-structured > .details-object-array-list,
+.details-object-field-value-structured > .details-object-fields {
+  min-width: 0;
+}
+
+.details-object-field-value-structured > .details-object-array-list {
+  gap: 6px;
 }
 
 .details-inline-list {
