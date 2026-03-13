@@ -2,10 +2,10 @@ from pathlib import Path
 
 import yaml
 
-from tests.test_v0_2_backend import _v0_2_backend_source
+from tests.test_backend_bridge import _sample_source
 from vedalang.compiler import compile_vedalang_bundle
+from vedalang.viz.graph import FilterSpec, build_system_graph
 from vedalang.viz.query_engine import query_res_graph, response_to_mermaid
-from vedalang.viz.v0_2_graph import FilterSpec, build_v0_2_system_graph
 
 EXAMPLES_DIR = Path(__file__).resolve().parent.parent / "vedalang" / "examples"
 
@@ -79,7 +79,7 @@ INSTANCE_ZONE_WIND_LABEL = (
 
 
 def _write_multi_run_source(path: Path) -> None:
-    source = _v0_2_backend_source()
+    source = _sample_source()
     source["runs"].append(
         {
             "id": "toy_states_alt",
@@ -267,7 +267,7 @@ def _emission_contract_source() -> dict:
     }
 
 
-def test_source_query_returns_v0_2_role_graph():
+def test_source_query_returns_public_role_graph():
     source_file = EXAMPLES_DIR / "toy_sectors/toy_buildings.veda.yaml"
 
     response = query_res_graph(
@@ -469,7 +469,7 @@ def test_compiled_system_graph_uses_node_level_ledger_emissions_metadata():
         selected_run="single_run",
     )
 
-    built = build_v0_2_system_graph(
+    built = build_system_graph(
         csir=bundle.csir or {},
         cpir=bundle.cpir or {},
         granularity="instance",
@@ -525,7 +525,7 @@ def test_compiled_system_graph_uses_node_level_ledger_emissions_metadata():
     assert sf6["gases"][0]["known"] is False
     assert sf6["gases"][0]["code"] == "SF6"
 
-    role_built = build_v0_2_system_graph(
+    role_built = build_system_graph(
         csir=bundle.csir or {},
         cpir=bundle.cpir or {},
         granularity="role",
@@ -607,7 +607,7 @@ def test_role_ledger_emissions_classify_mixed_state():
         source,
         selected_run="single_run",
     )
-    built = build_v0_2_system_graph(
+    built = build_system_graph(
         csir=bundle.csir or {},
         cpir=bundle.cpir or {},
         granularity="role",
@@ -738,12 +738,12 @@ def test_role_granularity_exposes_zone_opportunity_provenance_in_labels():
 
 def test_system_graph_aggregates_multi_region_fleet_role_nodes():
     bundle = compile_vedalang_bundle(
-        _v0_2_backend_source(include_fleet=True),
+        _sample_source(include_fleet=True),
         selected_run="toy_states_2025",
         custom_weights={"weights/custom_heat.csv": {"NSW": 0.6, "QLD": 0.4}},
     )
 
-    built = build_v0_2_system_graph(
+    built = build_system_graph(
         csir=bundle.csir or {},
         cpir=bundle.cpir or {},
         granularity="role",
@@ -770,7 +770,7 @@ def test_system_graph_aggregates_multi_region_fleet_role_nodes():
 
 def test_region_filter_excludes_other_system_regions(tmp_path):
     source_file = tmp_path / "two_region.veda.yaml"
-    source_file.write_text(yaml.safe_dump(_v0_2_backend_source()), encoding="utf-8")
+    source_file.write_text(yaml.safe_dump(_sample_source()), encoding="utf-8")
 
     qld = query_res_graph(
         {
@@ -1449,7 +1449,7 @@ def test_object_explorer_zone_opportunity_nests_role_then_technology():
     assert role["children"][0]["id"] == "onshore_wind_turbine"
 
 
-def test_multi_run_v0_2_query_requires_explicit_run_and_exposes_facets(tmp_path):
+def test_multi_run_public_query_requires_explicit_run_and_exposes_facets(tmp_path):
     source_file = tmp_path / "multi_run.veda.yaml"
     _write_multi_run_source(source_file)
 
@@ -1470,7 +1470,7 @@ def test_multi_run_v0_2_query_requires_explicit_run_and_exposes_facets(tmp_path)
     assert response["facets"]["runs"] == ["toy_states_2025", "toy_states_alt"]
 
 
-def test_multi_run_v0_2_query_succeeds_with_selected_run(tmp_path):
+def test_multi_run_public_query_succeeds_with_selected_run(tmp_path):
     source_file = tmp_path / "multi_run.veda.yaml"
     _write_multi_run_source(source_file)
 

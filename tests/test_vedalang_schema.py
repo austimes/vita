@@ -14,7 +14,7 @@ def load_schema() -> dict:
         return json.load(f)
 
 
-def valid_v0_2_source() -> dict:
+def valid_public_source() -> dict:
     return {
         "dsl_version": "0.3",
         "imports": [
@@ -240,8 +240,8 @@ def valid_v0_2_source() -> dict:
     }
 
 
-def test_v0_2_source_validates() -> None:
-    jsonschema.validate(valid_v0_2_source(), load_schema())
+def test_public_source_validates() -> None:
+    jsonschema.validate(valid_public_source(), load_schema())
 
 
 def test_missing_all_object_families_rejected() -> None:
@@ -250,35 +250,35 @@ def test_missing_all_object_families_rejected() -> None:
 
 
 def test_invalid_commodity_kind_rejected() -> None:
-    data = valid_v0_2_source()
+    data = valid_public_source()
     data["commodities"][0]["kind"] = "fuel"
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(data, load_schema())
 
 
 def test_invalid_performance_kind_rejected() -> None:
-    data = valid_v0_2_source()
+    data = valid_public_source()
     data["technologies"][0]["performance"]["kind"] = "ratio"
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(data, load_schema())
 
 
 def test_import_only_requires_supported_object_families() -> None:
-    data = valid_v0_2_source()
+    data = valid_public_source()
     data["imports"][0]["only"] = {"facilities": ["x"]}
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(data, load_schema())
 
 
 def test_distribution_requires_matching_method_field() -> None:
-    data = valid_v0_2_source()
+    data = valid_public_source()
     data["fleets"][0]["distribution"] = {"method": "custom"}
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(data, load_schema())
 
 
 def test_distribution_direct_accepts_target_regions() -> None:
-    data = valid_v0_2_source()
+    data = valid_public_source()
     data["fleets"][0]["distribution"] = {
         "method": "direct",
         "target_regions": ["QLD"],
@@ -287,42 +287,42 @@ def test_distribution_direct_accepts_target_regions() -> None:
 
 
 def test_site_location_requires_point_or_feature_ref() -> None:
-    data = valid_v0_2_source()
+    data = valid_public_source()
     data["sites"][0]["location"] = {}
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(data, load_schema())
 
 
 def test_zone_opportunity_requires_explicit_zone() -> None:
-    data = valid_v0_2_source()
+    data = valid_public_source()
     data["zone_opportunities"][0].pop("zone")
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(data, load_schema())
 
 
 def test_network_node_basis_requires_partition_ref() -> None:
-    data = valid_v0_2_source()
+    data = valid_public_source()
     data["networks"][0]["node_basis"] = {"kind": "region_partition"}
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(data, load_schema())
 
 
 def test_temporal_index_series_requires_index_unit() -> None:
-    data = valid_v0_2_source()
+    data = valid_public_source()
     data["temporal_index_series"][0]["unit"] = "ratio"
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(data, load_schema())
 
 
 def test_stock_characterization_requires_conversions() -> None:
-    data = valid_v0_2_source()
+    data = valid_public_source()
     data["stock_characterizations"][0]["conversions"] = []
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(data, load_schema())
 
 
 def test_asset_new_build_limits_require_technology_and_capacity() -> None:
-    data = valid_v0_2_source()
+    data = valid_public_source()
     data["facilities"][0]["new_build_limits"] = [{"technology": "heat.gas_heater"}]
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(data, load_schema())
@@ -331,7 +331,7 @@ def test_asset_new_build_limits_require_technology_and_capacity() -> None:
 def test_minimal_reference_package_validates() -> None:
     data = {
         "dsl_version": "0.3",
-        "spatial_layers": deepcopy(valid_v0_2_source()["spatial_layers"]),
-        "region_partitions": deepcopy(valid_v0_2_source()["region_partitions"]),
+        "spatial_layers": deepcopy(valid_public_source()["spatial_layers"]),
+        "region_partitions": deepcopy(valid_public_source()["region_partitions"]),
     }
     jsonschema.validate(data, load_schema())

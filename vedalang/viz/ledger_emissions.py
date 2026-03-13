@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from vedalang.compiler.v0_2_resolution import parse_quantity
+from vedalang.compiler.resolution import parse_quantity
 
 KNOWN_GASES = {
     "co2": {"code": "CO2", "color_key": "co2"},

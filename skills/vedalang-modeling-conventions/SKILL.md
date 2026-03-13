@@ -2,7 +2,7 @@
 name: vedalang-modeling-conventions
 description: >-
   Advisory VedaLang modeling conventions for service-oriented, physical-only
-  RES design. Use when authoring or reviewing v0.2 example models for
+  RES design. Use when authoring or reviewing current public-surface example models for
   technology_role/technology structure, asset stock declarations, run-scoped
   compilation, and diagnostics boundaries.
 ---

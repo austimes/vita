@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from tests.test_v0_2_backend import _v0_2_backend_source
+from tests.test_backend_bridge import _sample_source
 
 EXAMPLES_DIR = Path(__file__).parent.parent / "vedalang" / "examples"
 MINI_PLANT = EXAMPLES_DIR / "quickstart/mini_plant.veda.yaml"
@@ -120,10 +120,10 @@ class TestCheck:
 
 
 class TestPipeline:
-    def test_vedalang_dev_pipeline_v0_2_run_json(self, tmp_path):
+    def test_vedalang_dev_pipeline_public_run_json(self, tmp_path):
         """Pipeline exposes run-scoped artifact files for v0.3 input."""
-        src = tmp_path / "toy_v0_2.veda.yaml"
-        src.write_text(yaml.safe_dump(_v0_2_backend_source()), encoding="utf-8")
+        src = tmp_path / "toy_public.veda.yaml"
+        src.write_text(yaml.safe_dump(_sample_source()), encoding="utf-8")
 
         result = run_vedalang_dev(
             "pipeline",

@@ -1,4 +1,4 @@
-"""Semantic resolution helpers for the VedaLang v0.2 frontend."""
+"""Semantic resolution helpers for the VedaLang public frontend."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
-from .v0_2_ast import (
+from .ast import (
     BaseYearAdjustment,
     CommodityDecl,
     FacilityDecl,
@@ -16,6 +16,7 @@ from .v0_2_ast import (
     RegionPartitionDecl,
     RunDecl,
     SiteDecl,
+    SourceDocument,
     SpatialLayerDecl,
     SpatialMeasureSetDecl,
     StockCharacterizationDecl,
@@ -23,7 +24,6 @@ from .v0_2_ast import (
     TechnologyDecl,
     TechnologyRoleDecl,
     TemporalIndexSeriesDecl,
-    V0_2Source,
     ZoneOpportunityDecl,
     ZoneOverlayDecl,
 )
@@ -31,7 +31,7 @@ from .v0_2_ast import (
 QUANTITY_RE = re.compile(r"^\s*([+-]?\d+(?:\.\d+)?)\s*(.*)\s*$")
 
 
-class V0_2ResolutionError(Exception):
+class ResolutionError(Exception):
     """Deterministic resolution error with a PRD-aligned code."""
 
     def __init__(
@@ -146,7 +146,7 @@ def parse_quantity(value: str | int | float) -> ParsedQuantity:
         return ParsedQuantity(value=float(value), unit="")
     match = QUANTITY_RE.match(str(value))
     if not match:
-        raise V0_2ResolutionError("E016", str(value), "quantity could not be parsed")
+        raise ResolutionError("E016", str(value), "quantity could not be parsed")
     return ParsedQuantity(value=float(match.group(1)), unit=match.group(2).strip())
 
 
@@ -163,7 +163,7 @@ def _by_id(items: tuple[Any, ...], kind: str) -> dict[str, Any]:
     for item in items:
         item_id = getattr(item, "id")
         if item_id in mapping:
-            raise V0_2ResolutionError("E001", item_id, f"duplicate {kind} ID")
+            raise ResolutionError("E001", item_id, f"duplicate {kind} ID")
         mapping[item_id] = item
     return mapping
 
@@ -178,7 +178,7 @@ def _qualify_ref(alias: str, ref: str, candidates: set[str]) -> str:
     return ref
 
 
-def _object_maps(source: V0_2Source) -> dict[str, dict[str, Any]]:
+def _object_maps(source: SourceDocument) -> dict[str, dict[str, Any]]:
     return {
         "commodities": _by_id(source.commodities, "commodity"),
         "technologies": _by_id(source.technologies, "technology"),
@@ -438,21 +438,21 @@ def _qualify_imported_object(
 
 
 def resolve_imports(
-    source: V0_2Source,
-    packages: dict[str, V0_2Source],
+    source: SourceDocument,
+    packages: dict[str, SourceDocument],
 ) -> ResolvedDefinitionGraph:
     """Resolve local objects plus imported package objects with closure."""
 
     def visit_package(package_name: str, stack: tuple[str, ...] = ()) -> None:
         if package_name in stack:
-            raise V0_2ResolutionError(
+            raise ResolutionError(
                 "E003",
                 package_name,
                 "import cycle detected",
             )
         package = packages.get(package_name)
         if package is None:
-            raise V0_2ResolutionError(
+            raise ResolutionError(
                 "E003", package_name, "imported package not found"
             )
         for child in package.imports:
@@ -463,7 +463,7 @@ def resolve_imports(
         visit_package(item.package)
         package = packages.get(item.package)
         if package is None:
-            raise V0_2ResolutionError(
+            raise ResolutionError(
                 "E003", item.package, "imported package not found"
             )
         package_maps = _object_maps(package)
@@ -475,7 +475,7 @@ def resolve_imports(
             kind, object_id = pending.pop()
             package_kind = package_maps.get(kind)
             if package_kind is None or object_id not in package_kind:
-                raise V0_2ResolutionError(
+                raise ResolutionError(
                     "E003",
                     f"{item.alias}.{object_id}",
                     f"imported {kind[:-1]} not found in package {item.package}",
@@ -495,7 +495,7 @@ def resolve_imports(
                 )
                 qualified_id = getattr(qualified, "id")
                 if qualified_id in imported[kind]:
-                    raise V0_2ResolutionError(
+                    raise ResolutionError(
                         "E001", qualified_id, "duplicate imported ID"
                     )
                 imported[kind][qualified_id] = qualified
@@ -505,7 +505,7 @@ def resolve_imports(
         merged[kind] = dict(imported[kind])
         for object_id, item in local.items():
             if object_id in merged[kind]:
-                raise V0_2ResolutionError(
+                raise ResolutionError(
                     "E001", object_id, "local ID overrides import"
                 )
             merged[kind][object_id] = item
@@ -516,10 +516,10 @@ def resolve_run(graph: ResolvedDefinitionGraph, run_id: str) -> RunContext:
     """Resolve a selected run into a deterministic compilation context."""
     run = graph.runs.get(run_id)
     if run is None:
-        raise V0_2ResolutionError("E002", run_id, "run not found")
+        raise ResolutionError("E002", run_id, "run not found")
     partition = graph.region_partitions.get(run.region_partition)
     if partition is None:
-        raise V0_2ResolutionError(
+        raise ResolutionError(
             "E002",
             run.region_partition,
             "run references missing region_partition",
@@ -529,7 +529,7 @@ def resolve_run(graph: ResolvedDefinitionGraph, run_id: str) -> RunContext:
     elif partition.mapping.kind == "constant" and partition.mapping.value:
         model_regions = (partition.mapping.value,)
     else:
-        raise V0_2ResolutionError(
+        raise ResolutionError(
             "E002",
             partition.id,
             "region_partition does not define a member set",
@@ -561,7 +561,7 @@ def resolve_sites(
                 run.region_partition
             )
             if override and override not in run.model_regions:
-                raise V0_2ResolutionError(
+                raise ResolutionError(
                     "E017",
                     site.id,
                     "membership override target "
@@ -577,7 +577,7 @@ def resolve_sites(
                 else list(raw_membership or [])
             )
             if len(memberships) != 1 or memberships[0] not in run.model_regions:
-                raise V0_2ResolutionError(
+                raise ResolutionError(
                     "E008",
                     site.id,
                     "site cannot be resolved to exactly one model_region",
@@ -587,7 +587,7 @@ def resolve_sites(
         for overlay_id, membership in (zone_data.get(site.id) or {}).items():
             values = [membership] if isinstance(membership, str) else list(membership)
             if len(values) != 1:
-                raise V0_2ResolutionError(
+                raise ResolutionError(
                     "E014",
                     site.id,
                     f"zone overlay {overlay_id} membership is ambiguous",
@@ -614,13 +614,13 @@ def resolve_zone_opportunities(
     for opportunity in graph.zone_opportunities.values():
         role = graph.technology_roles.get(opportunity.technology_role)
         if role is None:
-            raise V0_2ResolutionError(
+            raise ResolutionError(
                 "E003",
                 opportunity.id,
                 f"technology_role '{opportunity.technology_role}' is not defined",
             )
         if opportunity.technology not in role.technologies:
-            raise V0_2ResolutionError(
+            raise ResolutionError(
                 "E023",
                 opportunity.id,
                 "zone_opportunity technology must be a member of technology_role",
@@ -635,7 +635,7 @@ def resolve_zone_opportunities(
             None,
         )
         if overlay_id is None:
-            raise V0_2ResolutionError(
+            raise ResolutionError(
                 "E014",
                 opportunity.id,
                 f"zone reference '{zone_ref}' is invalid",
@@ -648,7 +648,7 @@ def resolve_zone_opportunities(
         ]
         unique = sorted(set(matching_sites))
         if len(unique) != 1:
-            raise V0_2ResolutionError(
+            raise ResolutionError(
                 "E014",
                 opportunity.id,
                 f"zone '{zone_ref}' resolves ambiguously",
@@ -679,7 +679,7 @@ def adjust_stock_to_base_year(
         adjusted = observed_quantity
         trace = {"method": "none", "observed_year": obs_year, "base_year": base_year}
     elif adjustment is None:
-        raise V0_2ResolutionError(
+        raise ResolutionError(
             "E011",
             observation.technology,
             "observed year differs from run base_year and no adjustment rule "
@@ -692,7 +692,7 @@ def adjust_stock_to_base_year(
             or obs_year not in series.values
             or base_year not in series.values
         ):
-            raise V0_2ResolutionError(
+            raise ResolutionError(
                 "E011",
                 observation.technology,
                 "temporal index series cannot adjust the observed year to the "
@@ -727,7 +727,7 @@ def adjust_stock_to_base_year(
             "base_year": base_year,
         }
     else:
-        raise V0_2ResolutionError(
+        raise ResolutionError(
             "E011", observation.technology, "invalid adjustment rule"
         )
     return AdjustedStock(
@@ -752,7 +752,7 @@ def resolve_asset_stock(
         return ()
     role = graph.technology_roles.get(asset.technology_role)
     if role is None:
-        raise V0_2ResolutionError(
+        raise ResolutionError(
             "E002",
             asset.technology_role,
             "asset references missing technology_role",
@@ -762,13 +762,13 @@ def resolve_asset_stock(
         role.technologies
     ):
         code = "E006" if isinstance(asset, FacilityDecl) else "E007"
-        raise V0_2ResolutionError(
+        raise ResolutionError(
             code, asset.id, "available_technologies not subset of role.technologies"
         )
     adjusted: list[AdjustedStock] = []
     for item in asset.stock.items:
         if item.technology not in allowed:
-            raise V0_2ResolutionError(
+            raise ResolutionError(
                 "E015",
                 asset.id,
                 "stock item technology "
@@ -792,7 +792,7 @@ def resolve_asset_new_build_limits(
 ) -> tuple[ResolvedAssetNewBuildLimit, ...]:
     role = graph.technology_roles.get(asset.technology_role)
     if role is None:
-        raise V0_2ResolutionError(
+        raise ResolutionError(
             "E002",
             asset.technology_role,
             "asset references missing technology_role",
@@ -802,7 +802,7 @@ def resolve_asset_new_build_limits(
     seen: set[str] = set()
     for item in asset.new_build_limits:
         if item.technology in seen:
-            raise V0_2ResolutionError(
+            raise ResolutionError(
                 "E022",
                 asset.id,
                 "duplicate new_build_limits entry for technology "
@@ -811,7 +811,7 @@ def resolve_asset_new_build_limits(
             )
         seen.add(item.technology)
         if item.technology not in allowed:
-            raise V0_2ResolutionError(
+            raise ResolutionError(
                 "E023",
                 asset.id,
                 "new_build_limits technology "
@@ -849,7 +849,7 @@ def derive_stock_views(
         return views
     characterization = _find_stock_characterization(graph, stock.technology)
     if characterization is None:
-        raise V0_2ResolutionError(
+        raise ResolutionError(
             "E012",
             stock.technology,
             "asset_count lowering requires a stock_characterization",
@@ -862,7 +862,7 @@ def derive_stock_views(
     for metric in required_metrics:
         conversion = conversions.get(metric)
         if conversion is None:
-            raise V0_2ResolutionError(
+            raise ResolutionError(
                 "E012",
                 stock.technology,
                 f"missing asset_count -> {metric} conversion",
@@ -889,7 +889,7 @@ def allocate_fleet_stock(
         target_regions = tuple(fleet.distribution.target_regions)
         if not target_regions:
             if len(run.model_regions) != 1:
-                raise V0_2ResolutionError(
+                raise ResolutionError(
                     "E020",
                     fleet.id,
                     "direct fleet distribution requires target_regions for "
@@ -901,7 +901,7 @@ def allocate_fleet_stock(
             region for region in target_regions if region not in run.model_regions
         ]
         if invalid:
-            raise V0_2ResolutionError(
+            raise ResolutionError(
                 "E021",
                 fleet.id,
                 "distribution.target_regions contains regions outside the "
@@ -944,7 +944,7 @@ def allocate_fleet_stock(
         weight_ref = fleet.distribution.weight_by or ""
         weights = dict((measure_weights or {}).get(weight_ref, {}))
         if not weights:
-            raise V0_2ResolutionError(
+            raise ResolutionError(
                 "E009",
                 fleet.id,
                 "fleet distribution weight measure cannot be rolled up to "
@@ -955,14 +955,14 @@ def allocate_fleet_stock(
             (custom_weights or {}).get(fleet.distribution.custom_weights_file or "", {})
         )
         if not weights:
-            raise V0_2ResolutionError(
+            raise ResolutionError(
                 "E009",
                 fleet.id,
                 "custom fleet distribution weights are unavailable",
             )
     total = sum(float(weights.get(region, 0.0)) for region in run.model_regions)
     if total <= 0:
-        raise V0_2ResolutionError(
+        raise ResolutionError(
             "E010",
             fleet.id,
             "proportional fleet distribution has non-positive total weight",

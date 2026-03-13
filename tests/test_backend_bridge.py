@@ -4,7 +4,7 @@ from vedalang.compiler import compile_vedalang_bundle
 from vedalang.compiler.compiler import load_tableir_schema
 
 
-def _v0_2_backend_source(
+def _sample_source(
     include_fleet: bool = False,
     include_emissions: bool = True,
 ) -> dict:
@@ -184,9 +184,9 @@ def _table_rows(tableir: dict, tag: str) -> list[dict]:
     return rows
 
 
-def test_compile_v0_2_bundle_emits_artifacts_and_trade_links():
+def test_compile_public_bundle_emits_artifacts_and_trade_links():
     bundle = compile_vedalang_bundle(
-        _v0_2_backend_source(),
+        _sample_source(),
         selected_run="toy_states_2025",
     )
 
@@ -211,9 +211,9 @@ def test_compile_v0_2_bundle_emits_artifacts_and_trade_links():
     assert trade_rows[0]["NSW"] == 1
 
 
-def test_compile_v0_2_bundle_allocates_fleet_stock_with_custom_weights():
+def test_compile_public_bundle_allocates_fleet_stock_with_custom_weights():
     bundle = compile_vedalang_bundle(
-        _v0_2_backend_source(include_fleet=True),
+        _sample_source(include_fleet=True),
         selected_run="toy_states_2025",
         custom_weights={
             "weights/custom_heat.csv": {"NSW": 0.6, "QLD": 0.4},
@@ -229,8 +229,8 @@ def test_compile_v0_2_bundle_allocates_fleet_stock_with_custom_weights():
     assert any(row.get("value") == 480.0 for row in prc_resid)
 
 
-def test_compile_v0_2_bundle_attaches_asset_new_build_limits_to_role_processes():
-    source = _v0_2_backend_source(include_fleet=True)
+def test_compile_public_bundle_attaches_asset_new_build_limits_to_role_processes():
+    source = _sample_source(include_fleet=True)
     source["fleets"][0]["distribution"] = {
         "method": "direct",
         "target_regions": ["QLD"],

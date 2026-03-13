@@ -1,5 +1,12 @@
 """VedaLang compiler - transforms VedaLang source to TableIR."""
 
+from .artifacts import (
+    ResolvedArtifacts,
+    build_run_artifacts,
+    emit_csir,
+    lower_csir_to_cpir,
+)
+from .ast import SourceDocument, parse_source
 from .compiler import (
     CompileBundle,
     SemanticValidationError,
@@ -20,6 +27,15 @@ from .registry import (
     get_registry,
     reset_registry,
 )
+from .resolution import (
+    ResolutionError,
+    allocate_fleet_stock,
+    resolve_asset_stock,
+    resolve_imports,
+    resolve_run,
+    resolve_sites,
+    resolve_zone_opportunities,
+)
 from .table_schemas import (
     TableValidationError,
     VedaFieldSchema,
@@ -27,22 +43,6 @@ from .table_schemas import (
     VedaTableSchema,
     get_all_schemas,
     validate_tableir,
-)
-from .v0_2_ast import V0_2Source, parse_v0_2_source
-from .v0_2_ir import (
-    ResolvedArtifacts,
-    build_v0_2_artifacts,
-    emit_csir,
-    lower_csir_to_cpir,
-)
-from .v0_2_resolution import (
-    V0_2ResolutionError,
-    allocate_fleet_stock,
-    resolve_asset_stock,
-    resolve_imports,
-    resolve_run,
-    resolve_sites,
-    resolve_zone_opportunities,
 )
 
 __all__ = [
@@ -59,21 +59,21 @@ __all__ = [
     "VedaLangError",
     "VedaRegistry",
     "ResolvedArtifacts",
-    "V0_2Source",
-    "V0_2ResolutionError",
+    "SourceDocument",
+    "ResolutionError",
     "VedaTableLayout",
     "VedaTableSchema",
     "compile_demands",
     "compile_vedalang_bundle",
     "compile_vedalang_to_tableir",
-    "build_v0_2_artifacts",
+    "build_run_artifacts",
     "emit_csir",
     "get_all_schemas",
     "get_registry",
     "lower_csir_to_cpir",
     "load_vedalang",
     "allocate_fleet_stock",
-    "parse_v0_2_source",
+    "parse_source",
     "resolve_asset_stock",
     "resolve_imports",
     "resolve_zone_opportunities",

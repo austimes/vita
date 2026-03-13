@@ -132,7 +132,7 @@ VedaLang uses precise terminology to avoid ambiguity in the VEDA ecosystem:
 These category names are currently a compiler/runtime convention for
 `scen_{case}_{category}.xlsx` naming. They are not yet declared as a
 `vedalang.schema.json` enum because scenario workbooks are outside the authored
-v0.2 DSL surface.
+public DSL surface.
 
 **Key distinctions:**
 - **Model architecture** (VT_* files): processes, commodities, topology — the Reference Energy System
@@ -389,12 +389,13 @@ The LSP has two parts: a **Python server** (`tools/vedalang_lsp/server/`) and a 
 cd tools/vedalang_lsp/extension && bun run compile
 
 # 2. Copy compiled JS to the installed extension (Cursor)
-cp tools/vedalang_lsp/extension/out/*.js ~/.cursor/extensions/austimes.vedalang-0.2.0/out/
+EXT_DIR=$(ls -d ~/.cursor/extensions/austimes.vedalang-* | sort | tail -n1)
+cp tools/vedalang_lsp/extension/out/*.js "$EXT_DIR/out/"
 
 # 3. Reload window: Cmd+Shift+P → "Developer: Reload Window"
 ```
 
-**Important:** Cursor loads the extension from `~/.cursor/extensions/austimes.vedalang-0.2.0/`, NOT from the repo's `out/` directory. After `bun run compile`, you MUST copy the built JS files to the installed extension path. For VS Code, the equivalent path is `~/.vscode/extensions/`.
+**Important:** Cursor loads the extension from the installed `~/.cursor/extensions/austimes.vedalang-*/` directory, NOT from the repo's `out/` directory. After `bun run compile`, you MUST copy the built JS files to the installed extension path. For VS Code, the equivalent path is `~/.vscode/extensions/`.
 
 Python server changes (e.g., `tools/vedalang_lsp/server/server.py`) take effect on window reload without any build step.
 

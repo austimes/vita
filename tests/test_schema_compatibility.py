@@ -12,7 +12,7 @@ def load_schema(path: Path) -> dict:
         return json.load(handle)
 
 
-EXPECTED_V0_2_TOP_LEVEL_PROPERTIES = {
+EXPECTED_PUBLIC_TOP_LEVEL_PROPERTIES = {
     "dsl_version",
     "imports",
     "commodities",
@@ -43,20 +43,20 @@ LEGACY_TOP_LEVEL_PROPERTIES = {
 }
 
 
-class TestV0_2SchemaContract:
+class TestPublicSchemaContract:
     """Verify the current public schema matches the v0.3 DSL surface."""
 
     @classmethod
     def setup_class(cls) -> None:
         cls.schema = load_schema(SCHEMA_PATH)
 
-    def test_dsl_version_property_is_const_v0_2(self) -> None:
+    def test_dsl_version_property_is_const_public(self) -> None:
         dsl_version = self.schema["properties"]["dsl_version"]
         assert dsl_version["const"] == "0.3"
 
-    def test_v0_2_top_level_properties_exist(self) -> None:
+    def test_public_top_level_properties_exist(self) -> None:
         current_properties = set(self.schema.get("properties", {}))
-        missing = EXPECTED_V0_2_TOP_LEVEL_PROPERTIES - current_properties
+        missing = EXPECTED_PUBLIC_TOP_LEVEL_PROPERTIES - current_properties
         assert not missing, f"Missing v0.3 top-level properties: {sorted(missing)}"
 
     def test_legacy_top_level_properties_are_absent(self) -> None:
@@ -67,7 +67,7 @@ class TestV0_2SchemaContract:
             f"{sorted(unexpected)}"
         )
 
-    def test_current_schema_definitions_cover_v0_2_object_families(self) -> None:
+    def test_current_schema_definitions_cover_public_object_families(self) -> None:
         defs = self.schema.get("$defs", {})
         for definition in [
             "commodity",
@@ -88,7 +88,7 @@ class TestV0_2SchemaContract:
         ]:
             assert definition in defs, f"Missing v0.3 definition: {definition}"
 
-    def test_legacy_public_definitions_are_absent_from_v0_2_schema(self) -> None:
+    def test_legacy_public_definitions_are_absent_from_public_schema(self) -> None:
         defs = self.schema.get("$defs", {})
         for definition in [
             "process_role",
@@ -106,7 +106,7 @@ class TestV0_2SchemaContract:
                 f"Legacy definition {definition} should not be present in v0.3 schema"
             )
 
-    def test_required_fields_for_core_v0_2_objects(self) -> None:
+    def test_required_fields_for_core_public_objects(self) -> None:
         defs = self.schema["$defs"]
         assert defs["commodity"]["required"] == ["id", "type"]
         assert defs["technology"]["required"] == ["id", "provides"]
@@ -144,7 +144,7 @@ class TestV0_2SchemaContract:
         assert "new_build_limits" in defs["facility"]["properties"]
         assert "new_build_limits" in defs["fleet"]["properties"]
 
-    def test_commodity_kind_enum_matches_v0_2_namespaces(self) -> None:
+    def test_commodity_kind_enum_matches_public_namespaces(self) -> None:
         commodity = self.schema["$defs"]["commodity"]["properties"]
         enum_values = commodity["type"]["enum"]
         assert enum_values == [

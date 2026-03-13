@@ -31,7 +31,7 @@ from vedalang.compiler.compiler import (
     load_vedalang,
     validate_vedalang,
 )
-from vedalang.compiler.v0_2_resolution import V0_2ResolutionError
+from vedalang.compiler.resolution import ResolutionError
 from vedalang.lint.code_categories import (
     CATEGORY_RUNNERS as CODE_CATEGORY_RUNNERS,
 )
@@ -235,7 +235,7 @@ def _add_compile_parser(subparsers):
     )
     p.add_argument(
         "--run",
-        help="Compile the specified v0.2 run",
+        help="Compile the specified run",
     )
     p.add_argument("--no-lint", action="store_true", help="Skip linting before compile")
     p.add_argument("--json", action="store_true", help="Output JSON format")
@@ -278,7 +278,7 @@ def _add_validate_parser(subparsers):
     )
     p.add_argument(
         "--run",
-        help="Validate the specified v0.2 run",
+        help="Validate the specified run",
     )
     p.add_argument("--json", action="store_true", help="Output JSON format")
     p.add_argument(
@@ -326,7 +326,7 @@ def _add_res_parser(subparsers):
     common.add_argument(
         "--run",
         default=None,
-        help="Optional v0.2 run selection for multi-run sources",
+        help="Optional run selection for multi-run sources",
     )
     common.add_argument(
         "--region",
@@ -392,7 +392,7 @@ def _add_viz_parser(subparsers):
     p.add_argument(
         "--run",
         default=None,
-        help="Initial v0.2 run selection for multi-run sources",
+        help="Initial run selection for multi-run sources",
     )
     mode_group = p.add_mutually_exclusive_group()
     mode_group.add_argument(
@@ -1866,7 +1866,7 @@ def cmd_compile(args) -> int:
     except SemanticValidationError as e:
         _error(f"Semantic error: {e}", output_json, str(file_path))
         return 2
-    except V0_2ResolutionError as e:
+    except ResolutionError as e:
         diagnostics = [e.as_diagnostic()]
         _attach_source_positions(diagnostics, source=source, file_path=file_path)
         diag = diagnostics[0]

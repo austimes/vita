@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from vedalang.compiler.v0_2_diagnostics import (
-    category_for_v0_2_code,
-    collect_v0_2_diagnostics,
+from vedalang.compiler.diagnostics import (
+    category_for_code,
+    collect_diagnostics,
 )
 from vedalang.heuristics.linter import run_heuristics
 from vedalang.identity.lint_rules import lint_naming_conventions
 from vedalang.lint.diagnostics import with_meta
-from vedalang.versioning import looks_like_v0_2_source
+from vedalang.versioning import looks_like_supported_source
 
 
 def run_core(source: dict) -> list[dict]:
@@ -30,16 +30,16 @@ def run_identity(source: dict) -> list[dict]:
                 check_id="code.identity.naming",
             )
         )
-    if looks_like_v0_2_source(source):
-        for diag in collect_v0_2_diagnostics(source):
-            if category_for_v0_2_code(diag["code"]) != "identity":
+    if looks_like_supported_source(source):
+        for diag in collect_diagnostics(source):
+            if category_for_code(diag["code"]) != "identity":
                 continue
             diagnostics.append(
                 with_meta(
                     diag,
                     category="identity",
                     engine="code",
-                    check_id="code.identity.v0_2_prd_section_14",
+                    check_id="code.identity.prd_section_14",
                 )
             )
     return diagnostics
@@ -67,16 +67,16 @@ def collect_structural_by_category(source: dict) -> dict[str, list[dict]]:
         "emissions": [],
         "identity": [],
     }
-    if not looks_like_v0_2_source(source):
+    if not looks_like_supported_source(source):
         return grouped
-    for diag in collect_v0_2_diagnostics(source):
-        category = category_for_v0_2_code(diag["code"])
+    for diag in collect_diagnostics(source):
+        category = category_for_code(diag["code"])
         grouped.setdefault(category, []).append(
             with_meta(
                 diag,
                 category=category,
                 engine="code",
-                check_id=f"code.{category}.v0_2_prd_section_14",
+                check_id=f"code.{category}.prd_section_14",
             )
         )
     return grouped

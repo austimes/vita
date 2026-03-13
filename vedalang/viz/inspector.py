@@ -8,14 +8,14 @@ from typing import Any
 
 import yaml
 
+from vedalang.compiler.ast import SourceDocument
+from vedalang.compiler.backend import _commodity_symbol, _process_symbol
+from vedalang.compiler.resolution import ResolvedDefinitionGraph, RunContext
 from vedalang.compiler.source_maps import (
     build_source_block,
     resolve_location_to_runtime_path,
     yaml_node_for_path,
 )
-from vedalang.compiler.v0_2_ast import V0_2Source
-from vedalang.compiler.v0_2_backend import _commodity_symbol, _process_symbol
-from vedalang.compiler.v0_2_resolution import ResolvedDefinitionGraph, RunContext
 from vedalang.conventions import canonicalize_commodity_id
 
 
@@ -23,7 +23,7 @@ from vedalang.conventions import canonicalize_commodity_id
 class InspectorContext:
     source: dict[str, Any]
     source_file: Path
-    parsed_source: V0_2Source
+    parsed_source: SourceDocument
     graph: ResolvedDefinitionGraph
     run_context: RunContext
     csir: dict[str, Any]
@@ -96,7 +96,7 @@ class TableIndexes:
     commodity_rows: dict[str, dict[str, list[dict[str, Any]]]]
 
 
-def _local_object_maps(parsed_source: V0_2Source) -> dict[str, dict[str, Any]]:
+def _local_object_maps(parsed_source: SourceDocument) -> dict[str, dict[str, Any]]:
     return {
         "commodities": {item.id: item for item in parsed_source.commodities},
         "technologies": {item.id: item for item in parsed_source.technologies},

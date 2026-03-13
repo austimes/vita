@@ -21,7 +21,7 @@ from vedalang.lint.llm_runtime import (
     canonical_model_name,
 )
 from vedalang.lint.prompt_registry import load_prompt_template
-from vedalang.versioning import looks_like_v0_2_source
+from vedalang.versioning import looks_like_supported_source
 
 CHECK_ID = "llm.units.component_quorum"
 DEFAULT_PROMPT_VERSION = "v5"
@@ -187,9 +187,11 @@ def save_store(path: Path, store: dict[str, Any]) -> None:
 
 
 def list_components(source: dict) -> list[str]:
-    """List v0.2 technology IDs for certification."""
-    if not looks_like_v0_2_source(source):
-        raise ValueError("LLM unit checks now support only the v0.2 object model")
+    """List public-surface technology IDs for certification."""
+    if not looks_like_supported_source(source):
+        raise ValueError(
+            "LLM unit checks now support only the current public object model"
+        )
     return [
         str(technology["id"])
         for technology in source.get("technologies") or []
@@ -199,8 +201,10 @@ def list_components(source: dict) -> list[str]:
 
 def _component_payload(source: dict, component: str) -> dict[str, Any]:
     """Build canonical payload used for fingerprinting and LLM review."""
-    if not looks_like_v0_2_source(source):
-        raise ValueError("LLM unit checks now support only the v0.2 object model")
+    if not looks_like_supported_source(source):
+        raise ValueError(
+            "LLM unit checks now support only the current public object model"
+        )
 
     commodities = {
         str(c.get("id")): c
@@ -251,7 +255,7 @@ def _component_payload(source: dict, component: str) -> dict[str, Any]:
         if isinstance(run, dict) and run.get("currency_year") is not None
     ]
     payload: dict[str, Any] = {
-        "dsl_version": source.get("dsl_version", "0.2"),
+        "dsl_version": source.get("dsl_version", "0.3"),
         "unit_policy": {
             "basis_policy": "explicit_at_flow_site",
             "activity_capacity_units": "derived_from_stock_metric_and_cost_denominator",

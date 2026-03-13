@@ -52,7 +52,7 @@ This directory contains supporting documentation:
 
 Current migration stance:
 - Prototype hard cut; backward-compatibility shims are not retained by default
-- Canonical public target is the v0.2 PRD in `docs/prds/20260307-vedalang-v0.2.prd.txt`
+- Canonical public target is the v0.3 PRD in `docs/VEDA2_NL_to_VEDA_PRD_v0_3.txt`
 
 ## What This Documentation Does NOT Cover
 

@@ -268,7 +268,7 @@ uv run vedalang fmt --check <path>
 uv run ruff check .
 
 # Validate a v0.3 example
-uv run vedalang validate vedalang/examples/v0_2/mini_space_heat.veda.yaml --run toy_region_2025
+uv run vedalang validate vedalang/examples/quickstart/mini_space_heat.veda.yaml --run toy_region_2025
 ```
 
 ---

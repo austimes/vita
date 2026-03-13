@@ -1,24 +1,24 @@
-"""PRD Section 14 diagnostics for the VedaLang v0.2 frontend."""
+"""PRD Section 14 diagnostics for the VedaLang public frontend."""
 
 from __future__ import annotations
 
 import re
 from typing import Any
 
-from vedalang.versioning import looks_like_v0_2_source
+from vedalang.versioning import looks_like_supported_source
 
-from .v0_2_ast import (
+from .artifacts import build_run_artifacts
+from .ast import (
     FacilityDecl,
     FleetDecl,
     TechnologyDecl,
     TechnologyRoleDecl,
-    parse_v0_2_source,
+    parse_source,
 )
-from .v0_2_ir import build_v0_2_artifacts
-from .v0_2_resolution import (
+from .resolution import (
+    ResolutionError,
     ResolvedDefinitionGraph,
     RunContext,
-    V0_2ResolutionError,
     allocate_fleet_stock,
     resolve_asset_stock,
     resolve_imports,
@@ -77,8 +77,8 @@ def _error(
     *,
     object_id: str | None = None,
     suggestion: str | None = None,
-) -> V0_2ResolutionError:
-    return V0_2ResolutionError(
+) -> ResolutionError:
+    return ResolutionError(
         code,
         object_id or getattr(obj, "id", "<unknown>"),
         message,
@@ -87,7 +87,7 @@ def _error(
     )
 
 
-def category_for_v0_2_code(code: str) -> str:
+def category_for_code(code: str) -> str:
     if code in {"W001", "W002", "W008"}:
         return "identity"
     return "structure"
@@ -526,7 +526,7 @@ def _warn_run_specific(
     return warnings
 
 
-def collect_v0_2_diagnostics(
+def collect_diagnostics(
     source: dict[str, Any],
     *,
     selected_run: str | None = None,
@@ -536,14 +536,14 @@ def collect_v0_2_diagnostics(
     measure_weights: dict[str, dict[str, float]] | None = None,
     custom_weights: dict[str, dict[str, float]] | None = None,
 ) -> list[dict[str, Any]]:
-    """Collect PRD Section 14 diagnostics for a v0.2 source document."""
-    if not looks_like_v0_2_source(source):
+    """Collect PRD Section 14 diagnostics for a public source document."""
+    if not looks_like_supported_source(source):
         return []
 
     try:
-        parsed = parse_v0_2_source(source)
+        parsed = parse_source(source)
         normalized_packages = {
-            name: parse_v0_2_source(pkg) if isinstance(pkg, dict) else pkg
+            name: parse_source(pkg) if isinstance(pkg, dict) else pkg
             for name, pkg in (packages or {}).items()
         }
         graph = resolve_imports(parsed, normalized_packages)
@@ -562,7 +562,7 @@ def collect_v0_2_diagnostics(
         run: RunContext | None = None
         if run_id is not None:
             run = resolve_run(graph, run_id)
-            build_v0_2_artifacts(
+            build_run_artifacts(
                 graph,
                 run,
                 site_region_memberships=site_region_memberships,
@@ -584,5 +584,5 @@ def collect_v0_2_diagnostics(
             diagnostics,
             key=lambda diag: (diag["severity"], diag["code"], diag["object_id"]),
         )
-    except V0_2ResolutionError as exc:
+    except ResolutionError as exc:
         return [exc.as_diagnostic()]

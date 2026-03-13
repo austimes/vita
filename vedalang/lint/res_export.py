@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from vedalang.conventions import stage_label, stage_order
-from vedalang.versioning import looks_like_v0_2_source
+from vedalang.versioning import looks_like_supported_source
 from vedalang.viz.ledger_emissions import (
     ledger_state_from_value,
     mermaid_emission_suffix,
@@ -23,10 +23,10 @@ DEFAULT_COMMODITY_UNITS = {
 
 
 def export_res_graph(source: dict) -> dict:
-    """Build a deterministic RES graph from a v0.2 VedaLang source."""
-    if not looks_like_v0_2_source(source):
+    """Build a deterministic RES graph from a public VedaLang source."""
+    if not looks_like_supported_source(source):
         raise ValueError(
-            "RES export now supports only the v0.2 object model "
+            "RES export now supports only the current public object model "
             "(commodities/technologies/technology_roles/... )."
         )
 

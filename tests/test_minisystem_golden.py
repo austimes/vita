@@ -35,7 +35,7 @@ def test_minisystem8_exists_and_compiles():
     assert bundle.explain is not None
 
 
-def test_minisystem8_uses_multi_region_v0_2_surface():
+def test_minisystem8_uses_multi_region_public_surface():
     source = load_vedalang(MINISYSTEM_PATH)
     assert source["region_partitions"][0]["members"] == ["NEM_EAST", "NEM_SOUTH", "WA"]
     assert any(

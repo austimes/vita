@@ -248,7 +248,7 @@ def run_pipeline(
         if input_kind == "vedalang":
             try:
                 from vedalang.compiler import (
-                    V0_2ResolutionError,
+                    ResolutionError,
                     compile_vedalang_bundle,
                     load_vedalang,
                 )
@@ -299,7 +299,7 @@ def run_pipeline(
                 if verbose:
                     count = compile_result.artifacts["file_count"]
                     print(f"[compile] Created TableIR with {count} files")
-            except V0_2ResolutionError as e:
+            except ResolutionError as e:
                 compile_result.success = False
                 compile_result.errors.append(f"{e.code}: {e.message}")
             except Exception as e:

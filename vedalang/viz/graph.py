@@ -1,4 +1,4 @@
-"""Graph builders for v0.2 CSIR/CPIR artifacts."""
+"""Graph builders for public CSIR/CPIR artifacts."""
 
 from __future__ import annotations
 
@@ -613,7 +613,7 @@ def _build_system_node_detail(
     return detail
 
 
-def build_v0_2_system_graph(
+def build_system_graph(
     *,
     csir: dict[str, Any],
     cpir: dict[str, Any],
@@ -621,7 +621,7 @@ def build_v0_2_system_graph(
     commodity_view: str,
     filters: FilterSpec,
 ) -> dict[str, Any]:
-    """Build a RES graph view from v0.2 compiled artifacts."""
+    """Build a RES graph view from public compiled artifacts."""
     nodes: list[dict[str, str]] = []
     edges: list[dict[str, str]] = []
     node_map: dict[str, dict[str, str]] = {}
@@ -1034,13 +1034,13 @@ def build_v0_2_system_graph(
     }
 
 
-def build_v0_2_trade_graph(
+def build_trade_graph(
     *,
     csir: dict[str, Any] | None,
     cpir: dict[str, Any] | None,
     filters: FilterSpec,
 ) -> dict[str, Any]:
-    """Build a trade lens from v0.2 CSIR/CPIR network data."""
+    """Build a trade lens from public CSIR/CPIR network data."""
     model_regions = sorted(
         region
         for region in list((csir or {}).get("model_regions", []) or [])

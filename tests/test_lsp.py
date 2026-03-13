@@ -184,11 +184,11 @@ class TestWordExtraction:
 
 
 class TestSchemaLookup:
-    def test_schema_for_path_resolves_v0_2_arrays(self):
+    def test_schema_for_path_resolves_public_arrays(self):
         node = schema_for_path(["technologies", 0, "inputs", 0, "commodity"])
         assert node is not None
 
-    def test_schema_for_key_at_position_uses_v0_2_schema(self):
+    def test_schema_for_key_at_position_uses_public_schema(self):
         doc = MockTextDocument(SAMPLE_MODEL)
         line = next(i for i, text in enumerate(doc.lines) if "provides:" in text)
         pos = types.Position(line=line, character=4)
@@ -198,7 +198,7 @@ class TestSchemaLookup:
 
 
 class TestIndexingAndDiagnostics:
-    def test_parse_and_index_collects_v0_2_symbols(self):
+    def test_parse_and_index_collects_public_symbols(self):
         doc = MockTextDocument(SAMPLE_MODEL)
         parsed = parse_and_index(server, doc)
         assert parsed is not None
@@ -217,13 +217,13 @@ class TestIndexingAndDiagnostics:
         )
         assert any(ref.kind == "technology" and ref.name == "heat_pump" for ref in refs)
 
-    def test_find_definition_range_supports_v0_2_ids(self):
+    def test_find_definition_range_supports_public_ids(self):
         doc = MockTextDocument(SAMPLE_MODEL)
         rng = find_definition_range(doc, "technology", "heat_pump")
         assert rng.start.line >= 0
         assert rng.end.character > rng.start.character
 
-    def test_validate_document_accepts_valid_v0_2_source(self):
+    def test_validate_document_accepts_valid_public_source(self):
         doc = MockTextDocument(SAMPLE_MODEL)
         diagnostics = validate_document(server, doc)
         errors = [
@@ -240,7 +240,7 @@ class TestIndexingAndDiagnostics:
         assert all(d.source == "vedalang-schema" for d in diagnostics)
         assert all("Schema validation:" in d.message for d in diagnostics)
 
-    def test_validate_document_surfaces_v0_2_semantic_errors(self):
+    def test_validate_document_surfaces_public_semantic_errors(self):
         invalid = MockTextDocument(
             """dsl_version: "0.3"
 commodities:

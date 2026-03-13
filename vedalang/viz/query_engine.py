@@ -7,25 +7,25 @@ from typing import Any
 
 import jsonschema
 
+from vedalang.compiler.ast import parse_source
 from vedalang.compiler.compiler import (
     compile_vedalang_bundle,
     load_vedalang,
     validate_vedalang,
 )
-from vedalang.compiler.v0_2_ast import parse_v0_2_source
-from vedalang.compiler.v0_2_resolution import resolve_imports, resolve_run
+from vedalang.compiler.resolution import resolve_imports, resolve_run
 from vedalang.conventions import stage_label
-from vedalang.versioning import looks_like_v0_2_source
+from vedalang.versioning import looks_like_supported_source
 
 from .compiled_artifacts import resolve_compiled_artifacts
-from .inspector import InspectorContext, build_system_node_inspectors
-from .ledger_emissions import mermaid_emission_suffix
-from .v0_2_graph import (
+from .graph import (
     FilterSpec,
-    build_v0_2_system_graph,
-    build_v0_2_trade_graph,
+    build_system_graph,
+    build_trade_graph,
     infer_run_id,
 )
+from .inspector import InspectorContext, build_system_node_inspectors
+from .ledger_emissions import mermaid_emission_suffix
 
 VALID_MODES = {"source", "compiled"}
 VALID_GRANULARITIES = {"role", "instance"}
@@ -113,7 +113,7 @@ def _default_facets() -> dict[str, list[str]]:
     }
 
 
-def _v0_2_runs(source: dict[str, Any]) -> list[str]:
+def _source_runs(source: dict[str, Any]) -> list[str]:
     runs = source.get("runs")
     if not isinstance(runs, list):
         return []
@@ -124,7 +124,7 @@ def _v0_2_runs(source: dict[str, Any]) -> list[str]:
     ]
 
 
-def _v0_2_model_regions(
+def _source_model_regions(
     source: dict[str, Any],
     *,
     run_id: str | None = None,
@@ -161,9 +161,9 @@ def _facets_for_source(
     run_id: str | None = None,
 ) -> dict[str, list[str]]:
     facets = _default_facets()
-    if looks_like_v0_2_source(source):
-        facets["runs"] = sorted(_v0_2_runs(source))
-        facets["regions"] = sorted(_v0_2_model_regions(source, run_id=run_id))
+    if looks_like_supported_source(source):
+        facets["runs"] = sorted(_source_runs(source))
+        facets["regions"] = sorted(_source_model_regions(source, run_id=run_id))
     return facets
 
 
@@ -174,7 +174,7 @@ def _filters_from_request(
     run_id: str | None = None,
 ) -> tuple[FilterSpec, list[dict[str, str]]]:
     diagnostics: list[dict[str, str]] = []
-    model_regions = _v0_2_model_regions(source, run_id=run_id)
+    model_regions = _source_model_regions(source, run_id=run_id)
     requested_regions = set(req["filters"]["regions"])
     regions = requested_regions or model_regions
     unknown_regions = sorted(regions - model_regions) if model_regions else []
@@ -251,7 +251,7 @@ def _attach_system_inspectors(
     if not isinstance(detail_nodes, dict) or not isinstance(graph_nodes, list):
         return
 
-    parsed_source = parse_v0_2_source(source)
+    parsed_source = parse_source(source)
     resolved_graph = resolve_imports(parsed_source, {})
     run_context = resolve_run(resolved_graph, run_id)
     inspectors = build_system_node_inspectors(
@@ -312,7 +312,7 @@ def query_res_graph(request: dict[str, Any]) -> dict[str, Any]:
     run_id: str | None = None
     facets = _facets_for_source(source)
 
-    if not looks_like_v0_2_source(source):
+    if not looks_like_supported_source(source):
         try:
             validate_vedalang(source)
         except jsonschema.ValidationError as exc:
@@ -327,7 +327,7 @@ def query_res_graph(request: dict[str, Any]) -> dict[str, Any]:
             )
         return _empty_response(req["mode"], diagnostics, facets=facets)
 
-    available_runs = _v0_2_runs(source)
+    available_runs = _source_runs(source)
     requested_run = req.get("run")
     if requested_run is not None:
         requested_run = str(requested_run)
@@ -353,7 +353,7 @@ def query_res_graph(request: dict[str, Any]) -> dict[str, Any]:
             _diagnostic(
                 "RUN_SELECTION_REQUIRED",
                 "error",
-                "v0.2 graph queries require an explicit run when the source "
+                "Graph queries require an explicit run when the source "
                 "defines multiple runs.",
             )
         )
@@ -376,19 +376,19 @@ def query_res_graph(request: dict[str, Any]) -> dict[str, Any]:
                 _diagnostic(
                     "SOURCE_GRAPH_BUILD_FAILED",
                     "error",
-                    f"Failed to compile v0.2 source graph: {exc}",
+                    f"Failed to compile public source graph: {exc}",
                 )
             )
             return _empty_response(req["mode"], diagnostics, facets=facets)
         if bundle.csir and bundle.cpir:
             if req["lens"] == "trade":
-                built = build_v0_2_trade_graph(
+                built = build_trade_graph(
                     csir=bundle.csir,
                     cpir=bundle.cpir,
                     filters=filters,
                 )
             else:
-                built = build_v0_2_system_graph(
+                built = build_system_graph(
                     csir=bundle.csir,
                     cpir=bundle.cpir,
                     granularity=req["granularity"],
@@ -418,9 +418,9 @@ def query_res_graph(request: dict[str, Any]) -> dict[str, Any]:
             }
         diagnostics.append(
             _diagnostic(
-                "V0_2_ARTIFACTS_UNAVAILABLE",
+                "ARTIFACTS_UNAVAILABLE",
                 "error",
-                "v0.2 source compilation did not produce CSIR/CPIR artifacts.",
+                "Public source compilation did not produce CSIR/CPIR artifacts.",
             )
         )
         return _empty_response(req["mode"], diagnostics, facets=facets)
@@ -437,13 +437,13 @@ def query_res_graph(request: dict[str, Any]) -> dict[str, Any]:
     artifacts.update(compiled.artifacts)
     if compiled.csir is not None and compiled.cpir is not None:
         if req["lens"] == "trade":
-            built = build_v0_2_trade_graph(
+            built = build_trade_graph(
                 csir=compiled.csir,
                 cpir=compiled.cpir,
                 filters=filters,
             )
         else:
-            built = build_v0_2_system_graph(
+            built = build_system_graph(
                 csir=compiled.csir,
                 cpir=compiled.cpir,
                 granularity=req["granularity"],
@@ -480,13 +480,13 @@ def query_res_graph(request: dict[str, Any]) -> dict[str, Any]:
             )
             return _empty_response(mode_used, diagnostics, facets=facets)
         built = (
-            build_v0_2_trade_graph(
+            build_trade_graph(
                 csir=bundle.csir,
                 cpir=bundle.cpir,
                 filters=filters,
             )
             if req["lens"] == "trade"
-            else build_v0_2_system_graph(
+            else build_system_graph(
                 csir=bundle.csir or {},
                 cpir=bundle.cpir or {},
                 granularity=req["granularity"],
@@ -511,7 +511,7 @@ def query_res_graph(request: dict[str, Any]) -> dict[str, Any]:
             _diagnostic(
                 "COMPILED_SOURCE_FALLBACK",
                 "warning",
-                "Compiled artifacts unavailable; returned v0.2 source-mode "
+                "Compiled artifacts unavailable; returned public source-mode "
                 "graph fallback.",
             )
         )
@@ -534,7 +534,7 @@ def query_res_graph(request: dict[str, Any]) -> dict[str, Any]:
                 _diagnostic(
                     "NO_NETWORKS",
                     "warning",
-                    "Trade lens is empty because the v0.2 source defines no "
+                    "Trade lens is empty because the public source defines no "
                     "networks with links.",
                 )
             )

@@ -1,4 +1,4 @@
-"""CSIR/CPIR/explain emitters for the VedaLang v0.2 frontend."""
+"""CSIR/CPIR/explain emitters for the VedaLang public frontend."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from typing import Any
 from vedalang.conventions import canonicalize_commodity_id
 from vedalang.versioning import DSL_VERSION
 
-from .v0_2_resolution import (
+from .resolution import (
     ParsedQuantity,
     ResolvedDefinitionGraph,
     RunContext,
@@ -594,7 +594,7 @@ def lower_csir_to_cpir(
     return cpir, explain
 
 
-def build_v0_2_artifacts(
+def build_run_artifacts(
     graph: ResolvedDefinitionGraph,
     run: RunContext,
     *,
@@ -603,7 +603,7 @@ def build_v0_2_artifacts(
     measure_weights: dict[str, dict[str, float]] | None = None,
     custom_weights: dict[str, dict[str, float]] | None = None,
 ) -> ResolvedArtifacts:
-    """Build CSIR, explain, and CPIR artifacts for a resolved v0.2 model."""
+    """Build CSIR, explain, and CPIR artifacts for a resolved public model."""
     csir, explain = emit_csir(
         graph,
         run,

@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any
 
-from vedalang.versioning import looks_like_v0_2_source
+from vedalang.versioning import looks_like_supported_source
 
 
 @dataclass
@@ -43,7 +43,7 @@ class N001_CommodityIDGrammar(NamingLintRule):
     description = "Commodity IDs must not use lowered namespace prefixes"
 
     def check(self, source: dict) -> list[LintDiagnostic]:
-        if not looks_like_v0_2_source(source):
+        if not looks_like_supported_source(source):
             return []
 
         diagnostics: list[LintDiagnostic] = []
@@ -69,13 +69,13 @@ class N001_CommodityIDGrammar(NamingLintRule):
 
 
 class N011_SnakeCasePreferred(NamingLintRule):
-    """Top-level v0.2 object IDs should prefer snake_case."""
+    """Top-level public object IDs should prefer snake_case."""
 
     code = "N011"
     description = "IDs should use snake_case (underscores, not dashes)"
 
     def check(self, source: dict) -> list[LintDiagnostic]:
-        if not looks_like_v0_2_source(source):
+        if not looks_like_supported_source(source):
             return []
 
         diagnostics: list[LintDiagnostic] = []

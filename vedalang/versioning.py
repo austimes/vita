@@ -10,7 +10,7 @@ TABLEIR_ARTIFACT_VERSION = "1.0.0"
 CHECK_OUTPUT_VERSION = "1.0.0"
 PIPELINE_OUTPUT_VERSION = "1.0.0"
 
-V0_2_TOP_LEVEL_KEYS = frozenset(
+SUPPORTED_SOURCE_TOP_LEVEL_KEYS = frozenset(
     {
         "imports",
         "commodities",
@@ -32,14 +32,14 @@ V0_2_TOP_LEVEL_KEYS = frozenset(
 )
 
 
-def looks_like_v0_2_source(source: dict[str, Any] | None) -> bool:
+def looks_like_supported_source(source: dict[str, Any] | None) -> bool:
     """Return True when a source payload uses the active public object model."""
     if not isinstance(source, dict):
         return False
     declared_version = source.get("dsl_version")
     if isinstance(declared_version, str) and declared_version == DSL_VERSION:
         return True
-    return bool(V0_2_TOP_LEVEL_KEYS.intersection(source))
+    return bool(SUPPORTED_SOURCE_TOP_LEVEL_KEYS.intersection(source))
 
 
 def with_dsl_version(source: dict[str, Any]) -> dict[str, Any]:
@@ -47,7 +47,7 @@ def with_dsl_version(source: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(source, dict):
         return source
     normalized = deepcopy(source)
-    if looks_like_v0_2_source(normalized):
+    if looks_like_supported_source(normalized):
         normalized.setdefault("dsl_version", DSL_VERSION)
     return normalized
 

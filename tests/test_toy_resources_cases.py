@@ -9,7 +9,7 @@ TOY_RESOURCES_PATH = (
 )
 
 
-def test_toy_resources_is_a_single_v0_2_fleet_capped_model():
+def test_toy_resources_is_a_single_public_fleet_capped_model():
     source = load_vedalang(TOY_RESOURCES_PATH)
     bundle = compile_vedalang_bundle(
         source,

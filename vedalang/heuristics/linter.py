@@ -1,4 +1,4 @@
-"""VedaLang v0.2 heuristics linter."""
+"""VedaLang public-surface heuristics linter."""
 
 from __future__ import annotations
 
@@ -6,8 +6,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any
 
-from vedalang.compiler.v0_2_resolution import parse_quantity
-from vedalang.versioning import looks_like_v0_2_source
+from vedalang.compiler.resolution import parse_quantity
+from vedalang.versioning import looks_like_supported_source
 
 
 @dataclass
@@ -96,7 +96,7 @@ class H001_ServiceAssetWithoutStock(HeuristicRule):
     default_severity = "warning"
 
     def apply(self, source: dict) -> list[LintIssue]:
-        if not looks_like_v0_2_source(source):
+        if not looks_like_supported_source(source):
             return []
 
         issues: list[LintIssue] = []
@@ -142,7 +142,7 @@ class H002_AnnualActivityStockWithoutSupply(HeuristicRule):
     default_severity = "warning"
 
     def apply(self, source: dict) -> list[LintIssue]:
-        if not looks_like_v0_2_source(source):
+        if not looks_like_supported_source(source):
             return []
 
         issues: list[LintIssue] = []

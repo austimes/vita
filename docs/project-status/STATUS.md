@@ -1,6 +1,6 @@
 # VedaLang Project Status
 
-**Last updated:** 2026-03-12
+**Last updated:** 2026-03-13
 
 ## Summary
 
@@ -9,8 +9,8 @@ backend parity, diagnostics, tooling, and supported example catalog remain
 landed, and the commodity identity reset has now removed authored namespace
 prefixes in favor of bare IDs plus explicit commodity typing.
 
-Current `bd` state: the commodity identity reset is closed and one follow-up
-issue remains open.
+Current `bd` state: the legacy `v0_2` naming cleanup is now closed and one
+follow-up issue remains open.
 
 ## Current Focus
 
@@ -26,6 +26,10 @@ issue remains open.
 
 ## Recently Completed
 
+- `vedalang-bq3` — removed the remaining active `v0_2` naming from the public
+  0.3 frontend by renaming compiler/viz modules and exports, flattening the
+  versioned example paths into the current catalog, updating tests and active
+  docs/help text, and bumping active package/LSP version markers to `0.3.0`
 - `vedalang-xga` — browser-verified the live RES viewer inspector, fixed the
   broken missing-width preference path that was forcing narrow panes, grouped
   inspector header actions coherently, and reworked nested Object explorer

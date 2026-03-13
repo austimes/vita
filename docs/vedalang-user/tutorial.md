@@ -165,5 +165,5 @@ allocation.
 ## Next Steps
 
 - [DSL + CLI skill](../../skills/vedalang-dsl-cli/SKILL.md)
-- [/Users/gre538/code/vedalang/vedalang/examples/v0_2/mini_space_heat.veda.yaml](/Users/gre538/code/vedalang/vedalang/examples/v0_2/mini_space_heat.veda.yaml)
-- [/Users/gre538/code/vedalang/vedalang/examples/v0_2/toy_heat_network.veda.yaml](/Users/gre538/code/vedalang/vedalang/examples/v0_2/toy_heat_network.veda.yaml)
+- [/Users/gre538/code/vedalang/vedalang/examples/quickstart/mini_space_heat.veda.yaml](/Users/gre538/code/vedalang/vedalang/examples/quickstart/mini_space_heat.veda.yaml)
+- [/Users/gre538/code/vedalang/vedalang/examples/feature_demos/toy_heat_network.veda.yaml](/Users/gre538/code/vedalang/vedalang/examples/feature_demos/toy_heat_network.veda.yaml)

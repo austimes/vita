@@ -1,7 +1,7 @@
-from vedalang.compiler import V0_2Source, parse_v0_2_source
+from vedalang.compiler import SourceDocument, parse_source
 
 
-def valid_v0_2_source() -> dict:
+def valid_public_source() -> dict:
     return {
         "dsl_version": "0.3",
         "imports": [
@@ -185,10 +185,10 @@ def valid_v0_2_source() -> dict:
     }
 
 
-def test_parse_v0_2_source_returns_typed_document() -> None:
-    ast = parse_v0_2_source(valid_v0_2_source())
+def test_parse_public_source_returns_typed_document() -> None:
+    ast = parse_source(valid_public_source())
 
-    assert isinstance(ast, V0_2Source)
+    assert isinstance(ast, SourceDocument)
     assert ast.dsl_version == "0.3"
     assert ast.imports[0].alias == "heat"
     assert ast.commodities[0].id == "natural_gas"
@@ -212,8 +212,8 @@ def test_parse_v0_2_source_returns_typed_document() -> None:
     assert ast.runs[0].region_partition == "regions.toy_states_3"
 
 
-def test_parse_v0_2_source_keeps_structural_source_paths() -> None:
-    ast = parse_v0_2_source(valid_v0_2_source())
+def test_parse_public_source_keeps_structural_source_paths() -> None:
+    ast = parse_source(valid_public_source())
 
     assert ast.imports[0].source_ref.path == "imports[0]"
     assert ast.technologies[0].inputs[0].source_ref.path == "technologies[0].inputs[0]"

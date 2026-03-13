@@ -3,7 +3,7 @@ from pathlib import Path
 import yaml
 from fastapi.testclient import TestClient
 
-from tests.test_v0_2_backend import _v0_2_backend_source
+from tests.test_backend_bridge import _sample_source
 from vedalang.viz.server import create_app
 
 EXAMPLES_DIR = Path(__file__).resolve().parent.parent / "vedalang" / "examples"
@@ -105,7 +105,7 @@ def test_viz_server_health_and_query():
 
 
 def test_viz_server_multi_run_query_uses_selected_run(tmp_path):
-    source = _v0_2_backend_source()
+    source = _sample_source()
     source["runs"].append(
         {
             "id": "toy_states_alt",

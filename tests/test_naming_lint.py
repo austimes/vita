@@ -83,7 +83,7 @@ class TestN011SnakeCasePreferred:
 
 
 class TestLintNamingConventions:
-    def test_lints_v0_2_source(self):
+    def test_lints_public_source(self):
         source = make_source(
             commodities=[{"id": "fuel:natural_gas", "kind": "primary"}],
             technologies=[{"id": "heat-pump", "provides": "space_heat"}],
@@ -92,6 +92,6 @@ class TestLintNamingConventions:
         assert len(diagnostics) == 2
         assert [d.code for d in diagnostics] == ["N001", "N011"]
 
-    def test_ignores_non_v0_2_source(self):
+    def test_ignores_non_public_source(self):
         diagnostics = lint_naming_conventions({"model": {"commodities": []}})
         assert diagnostics == []

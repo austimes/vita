@@ -1,4 +1,4 @@
-"""Typed AST objects for the VedaLang v0.2 public source model."""
+"""Typed AST objects for the VedaLang public source model."""
 
 from __future__ import annotations
 
@@ -331,7 +331,7 @@ class RunDecl:
 
 
 @dataclass(frozen=True)
-class V0_2Source:
+class SourceDocument:
     dsl_version: str | None
     imports: tuple[ImportDecl, ...]
     commodities: tuple[CommodityDecl, ...]
@@ -464,9 +464,9 @@ def _parse_asset_new_build_limits(
     )
 
 
-def parse_v0_2_source(source: dict[str, Any]) -> V0_2Source:
-    """Parse a validated v0.2 source mapping into typed AST objects."""
-    return V0_2Source(
+def parse_source(source: dict[str, Any]) -> SourceDocument:
+    """Parse a validated public source mapping into typed AST objects."""
+    return SourceDocument(
         dsl_version=str(source["dsl_version"]) if source.get("dsl_version") else None,
         imports=tuple(
             ImportDecl(

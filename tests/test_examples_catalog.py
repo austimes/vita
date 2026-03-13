@@ -2,17 +2,18 @@ from pathlib import Path
 
 from vedalang.compiler import compile_vedalang_bundle, load_vedalang
 
-EXAMPLES_DIR = Path(__file__).resolve().parent.parent / "vedalang" / "examples" / "v0_2"
+EXAMPLES_ROOT = Path(__file__).resolve().parent.parent / "vedalang" / "examples"
+FEATURE_DEMOS_DIR = EXAMPLES_ROOT / "feature_demos"
 
 
-def test_flagship_v0_2_examples_compile():
+def test_flagship_public_examples_compile():
     fixtures = {
-        "mini_space_heat.veda.yaml": "toy_region_2025",
-        "toy_heat_network.veda.yaml": "toy_states_2025",
+        EXAMPLES_ROOT / "quickstart" / "mini_space_heat.veda.yaml": "toy_region_2025",
+        FEATURE_DEMOS_DIR / "toy_heat_network.veda.yaml": "toy_states_2025",
     }
 
-    for file_name, run_id in fixtures.items():
-        source = load_vedalang(EXAMPLES_DIR / file_name)
+    for path, run_id in fixtures.items():
+        source = load_vedalang(path)
         bundle = compile_vedalang_bundle(
             source,
             validate=True,
@@ -25,8 +26,8 @@ def test_flagship_v0_2_examples_compile():
         assert bundle.tableir["dsl_version"] == "0.3"
 
 
-def test_quickstart_v0_2_examples_compile():
-    quickstart_dir = EXAMPLES_DIR.parent / "quickstart"
+def test_quickstart_public_examples_compile():
+    quickstart_dir = EXAMPLES_ROOT / "quickstart"
     fixtures = {
         quickstart_dir / "mini_plant.veda.yaml": "reg1_2020",
         quickstart_dir / "mini_plant_shorthand.veda.yaml": "reg1_2020",
@@ -49,7 +50,7 @@ def test_quickstart_v0_2_examples_compile():
 
 
 def test_ported_example_catalog_compiles():
-    example_dir = EXAMPLES_DIR.parent
+    example_dir = EXAMPLES_ROOT
     fixtures = {
         example_dir
         / "design_challenges/dc1_thermal_from_patterns.veda.yaml": "reg1_2020",

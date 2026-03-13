@@ -12,8 +12,8 @@ from pint.errors import DimensionalityError, UndefinedUnitError
 
 from vedalang.versioning import with_dsl_version
 
+from .backend import CompileBundle, compile_source_bundle
 from .registry import VedaLangError, get_registry
-from .v0_2_backend import CompileBundle, compile_v0_2_bundle
 
 SCHEMA_DIR = Path(__file__).parent.parent / "schema"
 
@@ -894,7 +894,7 @@ def load_tableir_schema() -> dict:
 
 
 def validate_vedalang(source: dict) -> None:
-    """Validate VedaLang source against the active v0.2 schema."""
+    """Validate VedaLang source against the active public schema."""
     jsonschema.validate(source, load_vedalang_schema())
 
 
@@ -909,9 +909,9 @@ def compile_vedalang_bundle(
     measure_weights: dict[str, dict[str, float]] | None = None,
     custom_weights: dict[str, dict[str, float]] | None = None,
 ) -> CompileBundle:
-    """Compile a v0.2 source into a normalized bundle."""
+    """Compile a public source into a normalized bundle."""
     del selected_cases
-    bundle = compile_v0_2_bundle(
+    bundle = compile_source_bundle(
         source,
         validate_source=validate_vedalang if validate else None,
         selected_run=selected_run,
@@ -959,7 +959,7 @@ def compile_vedalang_to_tableir(
         SemanticValidationError: If cross-references are invalid
     """
     del selected_cases
-    bundle = compile_v0_2_bundle(
+    bundle = compile_source_bundle(
         source,
         validate_source=validate_vedalang if validate else None,
         selected_run=selected_run,

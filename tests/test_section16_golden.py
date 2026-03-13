@@ -1,12 +1,12 @@
 import json
 
-from vedalang.compiler import parse_v0_2_source
-from vedalang.compiler.v0_2_ir import build_v0_2_artifacts
-from vedalang.compiler.v0_2_resolution import resolve_imports, resolve_run
+from vedalang.compiler import parse_source
+from vedalang.compiler.artifacts import build_run_artifacts
+from vedalang.compiler.resolution import resolve_imports, resolve_run
 
 
 def _section16_packages_and_model():
-    regions = parse_v0_2_source(
+    regions = parse_source(
         {
             "dsl_version": "0.3",
             "spatial_layers": [
@@ -32,7 +32,7 @@ def _section16_packages_and_model():
             ],
         }
     )
-    demo = parse_v0_2_source(
+    demo = parse_source(
         {
             "dsl_version": "0.3",
             "spatial_layers": [
@@ -67,7 +67,7 @@ def _section16_packages_and_model():
             ],
         }
     )
-    heat = parse_v0_2_source(
+    heat = parse_source(
         {
             "dsl_version": "0.3",
             "commodities": [
@@ -159,7 +159,7 @@ def _section16_packages_and_model():
             ],
         }
     )
-    model = parse_v0_2_source(
+    model = parse_source(
         {
             "dsl_version": "0.3",
             "imports": [
@@ -268,7 +268,7 @@ def test_section16_worked_example_matches_normative_stock_rollup():
     graph = resolve_imports(model, packages)
     run = resolve_run(graph, "toy_states_2025")
 
-    artifacts = build_v0_2_artifacts(
+    artifacts = build_run_artifacts(
         graph,
         run,
         site_region_memberships={"gladstone_refinery": "QLD"},
@@ -319,8 +319,8 @@ def test_section16_artifacts_are_byte_stable():
             }
         },
     }
-    first = build_v0_2_artifacts(graph, run, **kwargs)
-    second = build_v0_2_artifacts(graph, run, **kwargs)
+    first = build_run_artifacts(graph, run, **kwargs)
+    second = build_run_artifacts(graph, run, **kwargs)
 
     assert json.dumps(first.csir, sort_keys=True) == json.dumps(
         second.csir,

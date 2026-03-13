@@ -15,9 +15,9 @@ from pygls.lsp.server import LanguageServer
 from pygls.workspace import TextDocument
 from yaml.nodes import MappingNode, Node, SequenceNode
 
+from vedalang.compiler.diagnostics import collect_diagnostics
 from vedalang.compiler.source_maps import attach_source_positions
-from vedalang.compiler.v0_2_diagnostics import collect_v0_2_diagnostics
-from vedalang.versioning import looks_like_v0_2_source
+from vedalang.versioning import looks_like_supported_source
 
 from .schema_docs import SCHEMA_FIELD_DOCS
 
@@ -178,7 +178,7 @@ class VedaLangServer(LanguageServer):
         self.references: dict[str, list[SymbolRef]] = {}
 
 
-server = VedaLangServer("vedalang-lsp", "v0.2.0")
+server = VedaLangServer("vedalang-lsp", "0.3.0")
 
 
 def get_word_at_position(
@@ -700,7 +700,7 @@ def parse_and_index(ls: VedaLangServer, document: TextDocument) -> dict | None:
     facility_defs: dict[str, SymbolDef] = {}
     refs: list[SymbolRef] = []
 
-    if not looks_like_v0_2_source(parsed):
+    if not looks_like_supported_source(parsed):
         ls.symbols.pop(uri, None)
         ls.references.pop(uri, None)
         return parsed
@@ -1249,10 +1249,10 @@ def validate_document(
     parse_and_index(ls, document)
 
     diagnostics.extend(schema_validation_diagnostics(document, parsed))
-    if not looks_like_v0_2_source(parsed):
+    if not looks_like_supported_source(parsed):
         return diagnostics
 
-    raw_diagnostics = collect_v0_2_diagnostics(parsed)
+    raw_diagnostics = collect_diagnostics(parsed)
     attach_source_positions(
         raw_diagnostics,
         source=parsed,

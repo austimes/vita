@@ -59,7 +59,7 @@ def main():
     )
     parser.add_argument(
         "--run",
-        help="Selected v0.2 run when validating VedaLang input",
+        help="Selected run when validating VedaLang input",
     )
     parser.add_argument(
         "--json",

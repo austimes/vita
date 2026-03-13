@@ -5,12 +5,12 @@ from lsprotocol import types
 from tests.test_lsp import MockTextDocument
 from tests.test_vedalang_cli import run_vedalang
 from tools.vedalang_lsp.server.server import server, validate_document
+from vedalang.compiler.diagnostics import collect_diagnostics
 from vedalang.compiler.source_maps import attach_source_positions
-from vedalang.compiler.v0_2_diagnostics import collect_v0_2_diagnostics
 from vedalang.lint.code_categories import run_core
 
 
-def test_v0_2_compile_json_includes_section14_location_metadata(tmp_path):
+def test_public_compile_json_includes_section14_location_metadata(tmp_path):
     src = tmp_path / "bad_service_role.veda.yaml"
     src.write_text(
         "\n".join(
@@ -71,7 +71,7 @@ def test_v0_2_compile_json_includes_section14_location_metadata(tmp_path):
     assert isinstance(payload.get("source_excerpt"), dict)
 
 
-def test_collect_v0_2_diagnostics_emits_prd_warning_codes():
+def test_collect_public_diagnostics_emits_prd_warning_codes():
     source = {
         "dsl_version": "0.3",
         "commodities": [
@@ -196,7 +196,7 @@ def test_collect_v0_2_diagnostics_emits_prd_warning_codes():
         ],
     }
 
-    diagnostics = collect_v0_2_diagnostics(
+    diagnostics = collect_diagnostics(
         source,
         selected_run="toy_run",
         custom_weights={"weights.csv": {"QLD": 1.0}},
@@ -208,7 +208,7 @@ def test_collect_v0_2_diagnostics_emits_prd_warning_codes():
     assert {"W001", "W002", "W003", "W006", "W007", "W009", "W010", "W011"} <= codes
 
 
-def test_collect_v0_2_diagnostics_flags_duplicate_rollout_patterns():
+def test_collect_public_diagnostics_flags_duplicate_rollout_patterns():
     source = {
         "dsl_version": "0.3",
         "commodities": [
@@ -297,13 +297,13 @@ def test_collect_v0_2_diagnostics_flags_duplicate_rollout_patterns():
         ],
     }
 
-    diagnostics = collect_v0_2_diagnostics(source, selected_run="single_2025")
+    diagnostics = collect_diagnostics(source, selected_run="single_2025")
     codes = {diag["code"] for diag in diagnostics}
 
     assert {"W013"} <= codes
 
 
-def test_lsp_validate_document_uses_v0_2_diagnostics():
+def test_lsp_validate_document_uses_diagnostics():
     doc = MockTextDocument(
         "\n".join(
             [
@@ -330,7 +330,7 @@ def test_lsp_validate_document_uses_v0_2_diagnostics():
     assert all("Missing required 'model' key" not in d.message for d in diagnostics)
 
 
-def test_run_core_skips_legacy_xref_checks_for_v0_2_source():
+def test_run_core_skips_legacy_xref_checks_for_public_source():
     source = {
         "dsl_version": "0.3",
         "commodities": [

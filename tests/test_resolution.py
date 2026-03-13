@@ -1,8 +1,8 @@
 import pytest
 
-from vedalang.compiler import parse_v0_2_source
-from vedalang.compiler.v0_2_resolution import (
-    V0_2ResolutionError,
+from vedalang.compiler import parse_source
+from vedalang.compiler.resolution import (
+    ResolutionError,
     allocate_fleet_stock,
     resolve_asset_stock,
     resolve_imports,
@@ -13,7 +13,7 @@ from vedalang.compiler.v0_2_resolution import (
 
 
 def _packages_and_model():
-    regions = parse_v0_2_source(
+    regions = parse_source(
         {
             "dsl_version": "0.3",
             "spatial_layers": [
@@ -47,7 +47,7 @@ def _packages_and_model():
             ],
         }
     )
-    demo = parse_v0_2_source(
+    demo = parse_source(
         {
             "dsl_version": "0.3",
             "spatial_layers": [
@@ -82,7 +82,7 @@ def _packages_and_model():
             ],
         }
     )
-    heat = parse_v0_2_source(
+    heat = parse_source(
         {
             "dsl_version": "0.3",
             "commodities": [
@@ -140,7 +140,7 @@ def _packages_and_model():
             ],
         }
     )
-    model = parse_v0_2_source(
+    model = parse_source(
         {
             "dsl_version": "0.3",
             "imports": [
@@ -284,7 +284,7 @@ def test_resolve_imports_qualifies_aliases_and_dependency_closure():
 
 def test_resolve_imports_detects_missing_object_and_cycle():
     packages, model = _packages_and_model()
-    broken = parse_v0_2_source(
+    broken = parse_source(
         {
             "dsl_version": "0.3",
             "imports": [
@@ -296,10 +296,10 @@ def test_resolve_imports_detects_missing_object_and_cycle():
             ],
         }
     )
-    with pytest.raises(V0_2ResolutionError, match="E003"):
+    with pytest.raises(ResolutionError, match="E003"):
         resolve_imports(broken, packages)
 
-    packages["cycle.a@1"] = parse_v0_2_source(
+    packages["cycle.a@1"] = parse_source(
         {
             "dsl_version": "0.3",
             "imports": [
@@ -308,7 +308,7 @@ def test_resolve_imports_detects_missing_object_and_cycle():
             "commodities": [{"id": "x", "type": "service"}],
         }
     )
-    packages["cycle.b@1"] = parse_v0_2_source(
+    packages["cycle.b@1"] = parse_source(
         {
             "dsl_version": "0.3",
             "imports": [
@@ -317,7 +317,7 @@ def test_resolve_imports_detects_missing_object_and_cycle():
             "commodities": [{"id": "x", "type": "service"}],
         }
     )
-    cyclical = parse_v0_2_source(
+    cyclical = parse_source(
         {
             "dsl_version": "0.3",
             "imports": [
@@ -325,10 +325,10 @@ def test_resolve_imports_detects_missing_object_and_cycle():
             ],
         }
     )
-    with pytest.raises(V0_2ResolutionError, match="import cycle detected"):
+    with pytest.raises(ResolutionError, match="import cycle detected"):
         resolve_imports(cyclical, packages)
 
-    conflicting = parse_v0_2_source(
+    conflicting = parse_source(
         {
             "dsl_version": "0.3",
             "imports": [
@@ -354,7 +354,7 @@ def test_resolve_imports_detects_missing_object_and_cycle():
             ],
         }
     )
-    with pytest.raises(V0_2ResolutionError, match="E001"):
+    with pytest.raises(ResolutionError, match="E001"):
         resolve_imports(conflicting, packages)
 
 
@@ -380,7 +380,7 @@ def test_resolve_run_sites_and_zone_opportunities():
         "heat.residential_space_heat_supply"
     )
 
-    with pytest.raises(V0_2ResolutionError, match="E008"):
+    with pytest.raises(ResolutionError, match="E008"):
         resolve_sites(
             graph,
             run,
@@ -425,7 +425,7 @@ def test_adjust_stock_requires_rule_when_year_differs():
     packages, model = _packages_and_model()
     graph = resolve_imports(model, packages)
     run = resolve_run(graph, "toy_states_2025")
-    broken_fleet = parse_v0_2_source(
+    broken_fleet = parse_source(
         {
             "dsl_version": "0.3",
             "imports": [
@@ -458,7 +458,7 @@ def test_adjust_stock_requires_rule_when_year_differs():
     )
     broken_graph = resolve_imports(broken_fleet, packages)
 
-    with pytest.raises(V0_2ResolutionError, match="E011"):
+    with pytest.raises(ResolutionError, match="E011"):
         resolve_asset_stock(broken_graph.fleets["broken"], graph=broken_graph, run=run)
 
 
@@ -466,7 +466,7 @@ def test_item_level_adjustment_overrides_stock_block_rule():
     packages, model = _packages_and_model()
     graph = resolve_imports(model, packages)
     run = resolve_run(graph, "toy_states_2025")
-    facility = parse_v0_2_source(
+    facility = parse_source(
         {
             "dsl_version": "0.3",
             "imports": [
@@ -525,10 +525,10 @@ def test_allocate_fleet_requires_weights_and_stock_characterization():
     fleet = graph.fleets["residential_space_heat"]
     adjusted = resolve_asset_stock(fleet, graph=graph, run=run)
 
-    with pytest.raises(V0_2ResolutionError, match="E009"):
+    with pytest.raises(ResolutionError, match="E009"):
         allocate_fleet_stock(graph, run, fleet, adjusted, measure_weights={})
 
-    with pytest.raises(V0_2ResolutionError, match="E010"):
+    with pytest.raises(ResolutionError, match="E010"):
         allocate_fleet_stock(
             graph,
             run,
@@ -546,7 +546,7 @@ def test_allocate_fleet_requires_weights_and_stock_characterization():
     graph_without_stock_char = graph.__class__(
         **{**graph.__dict__, "stock_characterizations": {}}
     )
-    with pytest.raises(V0_2ResolutionError, match="E012"):
+    with pytest.raises(ResolutionError, match="E012"):
         allocate_fleet_stock(
             graph_without_stock_char,
             run,
@@ -563,7 +563,7 @@ def test_allocate_fleet_requires_weights_and_stock_characterization():
 
 
 def test_allocate_direct_fleet_defaults_to_single_region_and_copies_stock():
-    source = parse_v0_2_source(
+    source = parse_source(
         {
             "dsl_version": "0.3",
             "commodities": [
@@ -643,7 +643,7 @@ def test_allocate_direct_fleet_requires_targets_for_multi_region_run():
     packages, model = _packages_and_model()
     graph = resolve_imports(model, packages)
     run = resolve_run(graph, "toy_states_2025")
-    direct_fleet = parse_v0_2_source(
+    direct_fleet = parse_source(
         {
             "dsl_version": "0.3",
             "imports": [
@@ -675,5 +675,5 @@ def test_allocate_direct_fleet_requires_targets_for_multi_region_run():
     fleet = broken_graph.fleets["residential_space_heat"]
     adjusted = resolve_asset_stock(fleet, graph=broken_graph, run=run)
 
-    with pytest.raises(V0_2ResolutionError, match="E020"):
+    with pytest.raises(ResolutionError, match="E020"):
         allocate_fleet_stock(broken_graph, run, fleet, adjusted)

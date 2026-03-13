@@ -1,4 +1,4 @@
-"""Backend bridge for the VedaLang v0.2 frontend."""
+"""Backend bridge for the VedaLang public frontend."""
 
 from __future__ import annotations
 
@@ -10,15 +10,15 @@ from typing import Any
 from vedalang.conventions import canonicalize_commodity_id
 from vedalang.versioning import annotate_tableir
 
-from .v0_2_ast import V0_2Source, parse_v0_2_source
-from .v0_2_ir import ResolvedArtifacts, build_v0_2_artifacts
-from .v0_2_resolution import (
+from .artifacts import ResolvedArtifacts, build_run_artifacts
+from .ast import SourceDocument, parse_source
+from .resolution import (
+    ResolutionError,
     ResolvedDefinitionGraph,
-    V0_2ResolutionError,
     parse_quantity,
     resolve_imports,
 )
-from .v0_2_resolution import resolve_run as resolve_selected_run
+from .resolution import resolve_run as resolve_selected_run
 
 DEFAULT_UNITS = {
     "energy": "PJ",
@@ -191,10 +191,10 @@ def _require_selected_run(
         return selected_run
     run_ids = sorted(graph.runs)
     if not run_ids:
-        raise V0_2ResolutionError("E002", "runs", "source defines no runs")
+        raise ResolutionError("E002", "runs", "source defines no runs")
     if len(run_ids) == 1:
         return run_ids[0]
-    raise V0_2ResolutionError(
+    raise ResolutionError(
         "E002",
         "runs",
         "multiple runs defined; select one with --run",
@@ -202,12 +202,12 @@ def _require_selected_run(
 
 
 def _normalize_packages(
-    packages: dict[str, V0_2Source | dict[str, Any]] | None,
-) -> dict[str, V0_2Source]:
-    normalized: dict[str, V0_2Source] = {}
+    packages: dict[str, SourceDocument | dict[str, Any]] | None,
+) -> dict[str, SourceDocument]:
+    normalized: dict[str, SourceDocument] = {}
     for name, package in (packages or {}).items():
         normalized[name] = (
-            parse_v0_2_source(package) if isinstance(package, dict) else package
+            parse_source(package) if isinstance(package, dict) else package
         )
     return normalized
 
@@ -289,13 +289,13 @@ def _trade_link_files(
     return files
 
 
-def lower_v0_2_bundle_to_tableir(
+def lower_bundle_to_tableir(
     *,
     source: dict[str, Any],
     graph: ResolvedDefinitionGraph,
     artifacts: ResolvedArtifacts,
 ) -> dict[str, Any]:
-    """Lower a resolved v0.2 bundle into the existing TableIR backend shape."""
+    """Lower a resolved public bundle into the existing TableIR backend shape."""
     run_id = artifacts.csir["run_id"]
     model_regions = list(artifacts.csir["model_regions"])
     default_region = ",".join(model_regions)
@@ -495,23 +495,23 @@ def lower_v0_2_bundle_to_tableir(
     return tableir
 
 
-def compile_v0_2_bundle(
+def compile_source_bundle(
     source: dict[str, Any],
     *,
     validate_source: callable | None = None,
     selected_run: str | None = None,
-    packages: dict[str, V0_2Source | dict[str, Any]] | None = None,
+    packages: dict[str, SourceDocument | dict[str, Any]] | None = None,
     site_region_memberships: dict[str, str | list[str]] | None = None,
     site_zone_memberships: dict[str, dict[str, str | list[str]]] | None = None,
     measure_weights: dict[str, dict[str, float]] | None = None,
     custom_weights: dict[str, dict[str, float]] | None = None,
 ) -> CompileBundle:
-    """Compile a v0.2 source into TableIR plus CSIR/CPIR/explain artifacts."""
+    """Compile a public source into TableIR plus CSIR/CPIR/explain artifacts."""
     if validate_source is not None:
         validate_source(source)
-    from .v0_2_diagnostics import collect_v0_2_diagnostics
+    from .diagnostics import collect_diagnostics
 
-    diagnostics = collect_v0_2_diagnostics(
+    diagnostics = collect_diagnostics(
         source,
         selected_run=selected_run,
         packages=packages,
@@ -525,10 +525,10 @@ def compile_v0_2_bundle(
         None,
     )
     if first_error is not None:
-        raise V0_2ResolutionError(
+        raise ResolutionError(
             str(first_error.get("code", "E002")),
             str(first_error.get("object_id", "<unknown>")),
-            str(first_error.get("message", "v0.2 compilation failed")),
+            str(first_error.get("message", "public source compilation failed")),
             location=(
                 str(first_error["location"])
                 if first_error.get("location") is not None
@@ -540,10 +540,10 @@ def compile_v0_2_bundle(
                 else None
             ),
         )
-    parsed = parse_v0_2_source(source)
+    parsed = parse_source(source)
     graph = resolve_imports(parsed, _normalize_packages(packages))
     run = resolve_selected_run(graph, _require_selected_run(graph, selected_run))
-    artifacts = build_v0_2_artifacts(
+    artifacts = build_run_artifacts(
         graph,
         run,
         site_region_memberships=site_region_memberships,
@@ -551,7 +551,7 @@ def compile_v0_2_bundle(
         measure_weights=measure_weights,
         custom_weights=custom_weights,
     )
-    tableir = lower_v0_2_bundle_to_tableir(
+    tableir = lower_bundle_to_tableir(
         source=source,
         graph=graph,
         artifacts=artifacts,

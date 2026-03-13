@@ -3,9 +3,9 @@ from pathlib import Path
 
 import jsonschema
 
-from tests.test_v0_2_resolution import _packages_and_model
-from vedalang.compiler.v0_2_ir import build_v0_2_artifacts
-from vedalang.compiler.v0_2_resolution import resolve_imports, resolve_run
+from tests.test_resolution import _packages_and_model
+from vedalang.compiler.artifacts import build_run_artifacts
+from vedalang.compiler.resolution import resolve_imports, resolve_run
 
 PROJECT_ROOT = Path(__file__).parent.parent
 SCHEMA_DIR = PROJECT_ROOT / "vedalang" / "schema"
@@ -16,12 +16,12 @@ def _load_schema(name: str) -> dict:
         return json.load(f)
 
 
-def test_build_v0_2_artifacts_validate_against_schemas():
+def test_build_public_artifacts_validate_against_schemas():
     packages, model = _packages_and_model()
     graph = resolve_imports(model, packages)
     run = resolve_run(graph, "toy_states_2025")
 
-    artifacts = build_v0_2_artifacts(
+    artifacts = build_run_artifacts(
         graph,
         run,
         site_region_memberships={"gladstone_refinery": "QLD"},
@@ -66,8 +66,8 @@ def test_artifacts_are_deterministically_ordered():
         },
     }
 
-    first = build_v0_2_artifacts(graph, run, **kwargs)
-    second = build_v0_2_artifacts(graph, run, **kwargs)
+    first = build_run_artifacts(graph, run, **kwargs)
+    second = build_run_artifacts(graph, run, **kwargs)
 
     assert json.dumps(first.csir, sort_keys=True) == json.dumps(
         second.csir, sort_keys=True
@@ -85,7 +85,7 @@ def test_cpir_contains_transitions_and_network_arcs():
     graph = resolve_imports(model, packages)
     run = resolve_run(graph, "toy_states_2025")
 
-    artifacts = build_v0_2_artifacts(
+    artifacts = build_run_artifacts(
         graph,
         run,
         site_region_memberships={"gladstone_refinery": "QLD"},

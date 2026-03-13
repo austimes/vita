@@ -1,6 +1,6 @@
 # Quickstart Examples
 
-Use this folder for the smallest v0.2 end-to-end examples that introduce the
+Use this folder for the smallest end-to-end examples that introduce the
 current VedaLang object model.
 
 `mini_plant.veda.yaml` is the shortest complete run-scoped example. Read its
@@ -8,7 +8,7 @@ top-level blocks as:
 
 ```yaml
 # Schema version for the example file.
-dsl_version: "0.2"
+dsl_version: "0.3"
 
 # Commodities declare the fuel, carrier, and service namespaces.
 commodities: ...

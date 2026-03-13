@@ -40,7 +40,7 @@ def main():
     )
     pipeline_parser.add_argument(
         "--run",
-        help="Selected v0.2 run when compiling VedaLang input",
+        help="Selected run when compiling VedaLang input",
     )
     pipeline_parser.add_argument(
         "--times-src",
@@ -117,7 +117,7 @@ def main():
     )
     check_parser.add_argument(
         "--run",
-        help="Selected v0.2 run when validating VedaLang input",
+        help="Selected run when validating VedaLang input",
     )
     check_parser.add_argument(
         "--json",

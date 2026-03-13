@@ -47,7 +47,7 @@ def test_export_graph_is_deterministic(toy_buildings_source):
     assert res_graph_to_mermaid(g1) == res_graph_to_mermaid(g2)
 
 
-def test_toy_buildings_graph_exposes_v0_2_roles_and_emissions(toy_buildings_graph):
+def test_toy_buildings_graph_exposes_public_roles_and_emissions(toy_buildings_graph):
     role_ids = {role["id"] for role in toy_buildings_graph["roles"]}
     assert role_ids == {"electricity_supply", "gas_supply", "space_heat_supply"}
 

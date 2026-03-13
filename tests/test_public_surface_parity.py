@@ -6,19 +6,23 @@ from pathlib import Path
 
 import yaml
 
-from tests.test_v0_2_backend import _v0_2_backend_source
+from tests.test_backend_bridge import _sample_source
 from tools.veda_check import run_check
 
 PROJECT_ROOT = Path(__file__).parent.parent
-V0_2_FIXTURE = (
-    PROJECT_ROOT / "vedalang" / "examples" / "v0_2" / "toy_heat_network.veda.yaml"
+PUBLIC_FIXTURE = (
+    PROJECT_ROOT
+    / "vedalang"
+    / "examples"
+    / "feature_demos"
+    / "toy_heat_network.veda.yaml"
 )
 
 
-def test_v0_2_fixture_reaches_xl2times_successfully():
+def test_public_fixture_reaches_xl2times_successfully():
     """The flagship v0.3 fixture should pass compile + xl2times validation."""
     result = run_check(
-        V0_2_FIXTURE,
+        PUBLIC_FIXTURE,
         from_vedalang=True,
         selected_run="toy_states_2025",
     )
@@ -28,7 +32,7 @@ def test_v0_2_fixture_reaches_xl2times_successfully():
     assert result.warnings == 0
 
 
-def test_v0_2_fixture_pipeline_no_solver_succeeds():
+def test_public_fixture_pipeline_no_solver_succeeds():
     """vedalang-dev pipeline should succeed through xl2times for the fixture."""
     completed = subprocess.run(
         [
@@ -36,7 +40,7 @@ def test_v0_2_fixture_pipeline_no_solver_succeeds():
             "run",
             "vedalang-dev",
             "pipeline",
-            str(V0_2_FIXTURE),
+            str(PUBLIC_FIXTURE),
             "--run",
             "toy_states_2025",
             "--no-solver",
@@ -53,11 +57,11 @@ def test_v0_2_fixture_pipeline_no_solver_succeeds():
     assert data["artifacts"]["run_id"] == "toy_states_2025"
 
 
-def test_v0_2_emission_source_reaches_xl2times_successfully(tmp_path):
+def test_public_emission_source_reaches_xl2times_successfully(tmp_path):
     """Emission-bearing v0.3 sources should survive the xl2times path."""
     src = tmp_path / "toy_heat_emissions.veda.yaml"
     src.write_text(
-        yaml.safe_dump(_v0_2_backend_source(include_emissions=True)),
+        yaml.safe_dump(_sample_source(include_emissions=True)),
         encoding="utf-8",
     )
 

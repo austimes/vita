@@ -25,6 +25,6 @@ Hard rules:
 - Use canonical modeling conventions from
   `skills/vedalang-modeling-conventions/references/modeling-conventions.md`.
 - When in doubt, trust `vedalang validate` diagnostics over assumptions.
-- Prefer the v0.2 object families: `commodities`, `technologies`,
+- Prefer the current public object families: `commodities`, `technologies`,
   `technology_roles`, `sites`, `facilities`, `fleets`, `zone_opportunities`,
   `networks`, and `runs`.

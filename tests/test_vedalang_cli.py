@@ -6,7 +6,7 @@ from pathlib import Path
 
 import yaml
 
-from tests.test_v0_2_backend import _v0_2_backend_source
+from tests.test_backend_bridge import _sample_source
 
 EXAMPLES_DIR = Path(__file__).parent.parent / "vedalang" / "examples"
 MINI_PLANT = EXAMPLES_DIR / "quickstart/mini_plant.veda.yaml"
@@ -243,10 +243,10 @@ class TestLint:
 
 
 class TestCompile:
-    def test_vedalang_compile_v0_2_run_outputs_multi_artifacts(self, tmp_path):
+    def test_vedalang_compile_public_run_outputs_multi_artifacts(self, tmp_path):
         """v0.3 compile emits run-scoped CSIR/CPIR/explain artifacts."""
-        src = tmp_path / "toy_v0_2.veda.yaml"
-        src.write_text(yaml.safe_dump(_v0_2_backend_source()), encoding="utf-8")
+        src = tmp_path / "toy_public.veda.yaml"
+        src.write_text(yaml.safe_dump(_sample_source()), encoding="utf-8")
 
         out_dir = tmp_path / "excel_out"
         tableir_path = tmp_path / "toy.tableir.yaml"
@@ -352,10 +352,10 @@ class TestCompile:
 
 
 class TestValidate:
-    def test_vedalang_validate_v0_2_run_json(self, tmp_path):
+    def test_vedalang_validate_public_run_json(self, tmp_path):
         """Validate supports run-scoped v0.3 sources."""
-        src = tmp_path / "toy_v0_2.veda.yaml"
-        src.write_text(yaml.safe_dump(_v0_2_backend_source()), encoding="utf-8")
+        src = tmp_path / "toy_public.veda.yaml"
+        src.write_text(yaml.safe_dump(_sample_source()), encoding="utf-8")
 
         result = run_vedalang(
             "validate",
@@ -421,11 +421,11 @@ class TestValidate:
 
 
 class TestViz:
-    def test_vedalang_viz_mermaid_accepts_run_for_multi_run_v0_2_source(
+    def test_vedalang_viz_mermaid_accepts_run_for_multi_run_public_source(
         self, tmp_path
     ):
-        src = tmp_path / "toy_v0_2_multi_run.veda.yaml"
-        source = _v0_2_backend_source()
+        src = tmp_path / "toy_public_multi_run.veda.yaml"
+        source = _sample_source()
         source["runs"].append(
             {
                 "id": "toy_states_alt",

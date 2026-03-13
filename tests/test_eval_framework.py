@@ -449,7 +449,7 @@ def test_parity_score_uses_error_code_overlap_when_available():
     assert 60.0 <= score <= 70.0
 
 
-def test_deterministic_reference_units_handles_v0_2_component_cases():
+def test_deterministic_reference_units_handles_public_component_cases():
     dataset = load_dataset()
     case = dataset.cases["u02"]
     source_path = case.source

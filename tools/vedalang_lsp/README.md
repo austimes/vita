@@ -19,7 +19,7 @@ Language Server Protocol (LSP) implementation for VedaLang, providing IDE suppor
   - Missing required properties
   - Undefined commodity/technology/technology-role references
   - Duplicate symbol names
-  - v0.2 structural and semantic diagnostics
+  - public-surface structural and semantic diagnostics
 
 - **Code Actions (Quick Fixes)**: For undefined reference errors:
   - Offers valid symbols as replacement suggestions
@@ -62,8 +62,8 @@ bun run compile
 **Option 2: Link for Development**
 
 ```bash
-# Create symlink to VS Code extensions
-ln -s $(pwd)/tools/vedalang_lsp/extension ~/.vscode/extensions/vedalang-0.2.0
+# Create a stable development symlink in the VS Code extensions directory
+ln -s $(pwd)/tools/vedalang_lsp/extension ~/.vscode/extensions/vedalang-dev
 ```
 
 **Option 3: Build a VSIX (so you have something to “Install from VSIX…”)**

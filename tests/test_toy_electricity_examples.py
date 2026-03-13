@@ -10,7 +10,7 @@ def _load_example(filename: str) -> dict:
     return load_vedalang(EXAMPLES_DIR / filename)
 
 
-def test_toy_electricity_examples_compile_as_v0_2_network_models():
+def test_toy_electricity_examples_compile_as_public_network_models():
     fixtures = {
         "toy_sectors/toy_electricity_2ts.veda.yaml": "electricity_2node_2025",
         "toy_sectors/toy_electricity_4ts.veda.yaml": "electricity_4node_2025",

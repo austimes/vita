@@ -11,7 +11,7 @@ import jsonschema
 from tools.veda_check.invariants import check_tableir_invariants
 from tools.veda_emit_excel import emit_excel, load_tableir
 from vedalang.compiler import (
-    V0_2ResolutionError,
+    ResolutionError,
     compile_vedalang_bundle,
     load_vedalang,
 )
@@ -151,7 +151,7 @@ def run_check(
                 }
             ]
         }
-    except V0_2ResolutionError as e:
+    except ResolutionError as e:
         result.errors += 1
         result.error_messages.append(f"{e.code}: {e.message}")
         result.diagnostics = {

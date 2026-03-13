@@ -51,6 +51,6 @@ uv run ruff check .
 
 ## Current Versioning Context
 
-- Active public design target: **VedaLang v0.2**
-- Canonical PRD: `docs/prds/20260307-vedalang-v0.2.prd.txt`
+- Active public design target: **VedaLang v0.3**
+- Canonical PRD: `docs/VEDA2_NL_to_VEDA_PRD_v0_3.txt`
 - Migration stance: **hard cut** under prototype rules
