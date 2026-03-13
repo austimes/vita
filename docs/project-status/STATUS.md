@@ -1,6 +1,6 @@
 # VedaLang Project Status
 
-**Last updated:** 2026-03-13
+**Last updated:** 2026-03-14
 
 ## Summary
 
@@ -11,7 +11,9 @@ prefixes in favor of bare IDs plus explicit commodity typing.
 
 Current `bd` state: the solver-backed known-answer CI program is now active.
 The harness/canonicalization foundation epic is closed, core primitive work is
-in progress, and follow-on capacity/spatial/CI epics remain open.
+in progress, and follow-on capacity/spatial/CI epics remain open. The
+modeler-facing known-answer catalog is now published at
+`docs/vedalang-user/known_answer_catalog.md`.
 
 ## Current Focus
 

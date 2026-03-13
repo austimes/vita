@@ -3,6 +3,9 @@
 This document maps the active **v0.3** source attributes to the compiled
 TIMES/VEDA concepts.
 
+For solver-backed, KA-by-KA examples of these mappings validated from solved
+outputs, see [known_answer_catalog.md](known_answer_catalog.md).
+
 ## Where Attributes Live in v0.3
 
 - `technologies` carry physical inputs, outputs, performance, emissions, and

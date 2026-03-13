@@ -86,6 +86,7 @@ Write `.veda.yaml` files to define energy system models. The compiler handles Ex
 
 - **[skills/vedalang-dsl-cli/SKILL.md](skills/vedalang-dsl-cli/SKILL.md)** — Canonical agent skill for VedaLang DSL + CLI usage
 - **[docs/vedalang-user/modeling-conventions.md](docs/vedalang-user/modeling-conventions.md)** — Canonical modeling conventions guidance
+- **[docs/vedalang-user/known_answer_catalog.md](docs/vedalang-user/known_answer_catalog.md)** — Solver-backed known-answer suite catalog with coverage status and solved-output mappings
 - **[vedalang/examples/](vedalang/examples/)** — Example models
 - **[vedalang/schema/vedalang.schema.json](vedalang/schema/vedalang.schema.json)** — Language schema
 - **[rules/patterns.yaml](rules/patterns.yaml)** — Pattern "standard library"

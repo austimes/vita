@@ -24,6 +24,7 @@ VedaLang Source (.veda.yaml)  →  VEDA Excel (.xlsx)  →  TIMES DD files
 | [tutorial.md](tutorial.md) | Your first VedaLang model |
 | [`skills/vedalang-dsl-cli/SKILL.md`](../../skills/vedalang-dsl-cli/SKILL.md) | LLM skill for authoring + CLI pipeline |
 | [attribute_mapping.md](attribute_mapping.md) | VedaLang → VEDA/TIMES mapping + explicit supported unit strings and capacity/activity rules |
+| [known_answer_catalog.md](known_answer_catalog.md) | Solver-backed known-answer suite catalog with KA-by-KA status and solved-output mappings |
 | [heuristics.md](heuristics.md) | Heuristic checks that catch modeling mistakes |
 | `vedalang/schema/vedalang.schema.json` | Formal language schema |
 | `vedalang/examples/` | Example `.veda.yaml` models |

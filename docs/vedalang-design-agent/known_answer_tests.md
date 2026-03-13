@@ -2,6 +2,10 @@
 
 This document defines the contract for solver-backed known-answer tests.
 
+For the modeler-facing catalog (KA coverage/status plus VedaLang → VEDA/TIMES
+mapping validated by solved outputs), see
+[`docs/vedalang-user/known_answer_catalog.md`](file:///Users/gre538/code/vedalang/docs/vedalang-user/known_answer_catalog.md).
+
 ## Fixture Convention
 
 1. Place known-answer fixtures under `vedalang/examples/known_answer/` as this suite grows.
@@ -29,3 +33,7 @@ This document defines the contract for solver-backed known-answer tests.
 ## Reference Test
 
 1. [`tests/test_known_answer_reference.py`](file:///Users/gre538/code/vedalang/tests/test_known_answer_reference.py) demonstrates harness -> extraction -> semantic assertion in one smoke test.
+
+## Test Catalog
+
+See [`docs/vedalang-user/known_answer_catalog.md`](file:///Users/gre538/code/vedalang/docs/vedalang-user/known_answer_catalog.md) for the per-test catalog with VedaLang→VEDA/TIMES mapping details, assertion summaries, and status tracking.
