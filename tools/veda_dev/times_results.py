@@ -9,6 +9,22 @@ from io import StringIO
 from pathlib import Path
 from typing import Any
 
+VALUE_COLUMNS = ("VAL", "VALUE", "LEVEL", "L")
+PROCESS_COLUMNS = ("P", "PRC", "PROCESS")
+YEAR_COLUMNS = (
+    "ALLYEAR",
+    "ALL_YEAR",
+    "YEAR",
+    "DATAYEAR",
+    "DATA_YEAR",
+    "Y",
+    "YR",
+)
+VINTAGE_COLUMNS = ("T", "VINTAGE", "ALLYEAR", "YEAR", "PASTYEAR")
+REGION_COLUMNS = ("R", "REG", "REGION")
+TIMESLICE_COLUMNS = ("S", "TS", "TIMESLICE", "SLICE")
+COMMODITY_COLUMNS = ("C", "COM", "COMMODITY")
+
 
 @dataclass
 class TimesResults:
@@ -75,12 +91,61 @@ def parse_csv(csv_text: str) -> list[dict[str, str]]:
     return list(reader)
 
 
+def _normalize_header(header: str | None) -> str:
+    if not header:
+        return ""
+    return (
+        header.strip()
+        .strip('"')
+        .replace("-", "_")
+        .replace(" ", "_")
+        .upper()
+    )
+
+
+def _normalize_row(row: dict[str, str]) -> dict[str, str]:
+    normalized: dict[str, str] = {}
+    for key, value in row.items():
+        normalized_key = _normalize_header(key)
+        if not normalized_key:
+            continue
+        normalized[normalized_key] = (value or "").strip().strip('"')
+    return normalized
+
+
+def _get_field(row: dict[str, str], *aliases: str, default: str = "") -> str:
+    for alias in aliases:
+        if alias in row:
+            return row[alias]
+    return default
+
+
+def _parse_float(value: str | None) -> float | None:
+    if value is None:
+        return None
+
+    text = str(value).strip()
+    if not text:
+        return None
+
+    try:
+        return float(text.replace("d", "e").replace("D", "e"))
+    except ValueError:
+        return None
+
+
+def _apply_limit(rows: list[dict[str, Any]], limit: int | None) -> list[dict[str, Any]]:
+    if limit is None or limit <= 0:
+        return rows
+    return rows[:limit]
+
+
 def extract_results(
     gdx_path: Path,
     process_filter: list[str] | None = None,
     year_filter: list[str] | None = None,
     include_flows: bool = False,
-    limit: int = 50,
+    limit: int | None = 50,
 ) -> TimesResults:
     """Extract results from a GDX file."""
     results = TimesResults(gdx_path=gdx_path)
@@ -99,33 +164,37 @@ def extract_results(
     # Extract objective value (OBJZ scalar)
     objz_csv = dump_symbol_csv(gdx_path, "OBJZ", gdxdump)
     if objz_csv:
-        rows = parse_csv(objz_csv)
-        if rows and "Val" in rows[0]:
-            try:
-                results.objective = float(rows[0]["Val"])
-            except ValueError:
-                pass
+        rows = [_normalize_row(row) for row in parse_csv(objz_csv)]
+        for row in rows:
+            value = _parse_float(_get_field(row, *VALUE_COLUMNS))
+            if value is not None:
+                results.objective = value
+                break
 
     # Extract objective breakdown (VAR_OBJ)
     var_obj_csv = dump_symbol_csv(gdx_path, "VAR_OBJ", gdxdump)
     if var_obj_csv:
-        for row in parse_csv(var_obj_csv):
-            if "OBV" in row and "Val" in row:
-                try:
-                    results.objective_breakdown[row["OBV"]] = float(row["Val"])
-                except ValueError:
-                    pass
+        for raw_row in parse_csv(var_obj_csv):
+            row = _normalize_row(raw_row)
+            component = _get_field(row, "OBV", "OBJ", "COMPONENT")
+            value = _parse_float(_get_field(row, *VALUE_COLUMNS))
+            if component and value is not None:
+                results.objective_breakdown[component] = value
 
     # Extract VAR_ACT (process activity)
     var_act_csv = dump_symbol_csv(gdx_path, "VAR_ACT", gdxdump)
     if var_act_csv:
-        for row in parse_csv(var_act_csv):
+        for raw_row in parse_csv(var_act_csv):
+            row = _normalize_row(raw_row)
             try:
-                val = float(row.get("Val", 0))
+                val = _parse_float(_get_field(row, *VALUE_COLUMNS, default="0"))
+                if val is None:
+                    continue
                 if abs(val) < 1e-9:
                     continue
-                process = row.get("P", "")
-                year = row.get("ALLYEAR", "")
+                process = _get_field(row, *PROCESS_COLUMNS)
+                year = _get_field(row, *YEAR_COLUMNS)
+                vintage = _get_field(row, *VINTAGE_COLUMNS, default=year)
 
                 if process_filter and not any(
                     f.lower() in process.lower() for f in process_filter
@@ -136,11 +205,11 @@ def extract_results(
 
                 results.var_act.append(
                     {
-                        "region": row.get("R", ""),
-                        "vintage": row.get("ALLYEAR", ""),
-                        "year": row.get("ALLYEAR", ""),
+                        "region": _get_field(row, *REGION_COLUMNS),
+                        "vintage": vintage,
+                        "year": year,
                         "process": process,
-                        "timeslice": row.get("S", ""),
+                        "timeslice": _get_field(row, *TIMESLICE_COLUMNS),
                         "level": val,
                     }
                 )
@@ -149,18 +218,21 @@ def extract_results(
 
     # Sort by level descending, limit
     results.var_act.sort(key=lambda r: abs(r["level"]), reverse=True)
-    results.var_act = results.var_act[:limit]
+    results.var_act = _apply_limit(results.var_act, limit)
 
     # Extract VAR_NCAP (new capacity)
     var_ncap_csv = dump_symbol_csv(gdx_path, "VAR_NCAP", gdxdump)
     if var_ncap_csv:
-        for row in parse_csv(var_ncap_csv):
+        for raw_row in parse_csv(var_ncap_csv):
+            row = _normalize_row(raw_row)
             try:
-                val = float(row.get("Val", 0))
+                val = _parse_float(_get_field(row, *VALUE_COLUMNS, default="0"))
+                if val is None:
+                    continue
                 if abs(val) < 1e-9:
                     continue
-                process = row.get("P", "")
-                year = row.get("ALLYEAR", "")
+                process = _get_field(row, *PROCESS_COLUMNS)
+                year = _get_field(row, *YEAR_COLUMNS)
 
                 if process_filter and not any(
                     f.lower() in process.lower() for f in process_filter
@@ -171,7 +243,7 @@ def extract_results(
 
                 results.var_ncap.append(
                     {
-                        "region": row.get("R", ""),
+                        "region": _get_field(row, *REGION_COLUMNS),
                         "year": year,
                         "process": process,
                         "level": val,
@@ -181,18 +253,21 @@ def extract_results(
                 pass
 
     results.var_ncap.sort(key=lambda r: abs(r["level"]), reverse=True)
-    results.var_ncap = results.var_ncap[:limit]
+    results.var_ncap = _apply_limit(results.var_ncap, limit)
 
     # Extract VAR_CAP (installed capacity)
     var_cap_csv = dump_symbol_csv(gdx_path, "VAR_CAP", gdxdump)
     if var_cap_csv:
-        for row in parse_csv(var_cap_csv):
+        for raw_row in parse_csv(var_cap_csv):
+            row = _normalize_row(raw_row)
             try:
-                val = float(row.get("Val", 0))
+                val = _parse_float(_get_field(row, *VALUE_COLUMNS, default="0"))
+                if val is None:
+                    continue
                 if abs(val) < 1e-9:
                     continue
-                process = row.get("P", "")
-                year = row.get("ALLYEAR", "")
+                process = _get_field(row, *PROCESS_COLUMNS)
+                year = _get_field(row, *YEAR_COLUMNS)
 
                 if process_filter and not any(
                     f.lower() in process.lower() for f in process_filter
@@ -203,7 +278,7 @@ def extract_results(
 
                 results.var_cap.append(
                     {
-                        "region": row.get("R", ""),
+                        "region": _get_field(row, *REGION_COLUMNS),
                         "year": year,
                         "process": process,
                         "level": val,
@@ -213,19 +288,22 @@ def extract_results(
                 pass
 
     results.var_cap.sort(key=lambda r: (r["year"], -abs(r["level"])))
-    results.var_cap = results.var_cap[:limit]
+    results.var_cap = _apply_limit(results.var_cap, limit)
 
     # Extract VAR_FLO (commodity flows) - optional
     if include_flows:
         var_flo_csv = dump_symbol_csv(gdx_path, "VAR_FLO", gdxdump)
         if var_flo_csv:
-            for row in parse_csv(var_flo_csv):
+            for raw_row in parse_csv(var_flo_csv):
+                row = _normalize_row(raw_row)
                 try:
-                    val = float(row.get("Val", 0))
+                    val = _parse_float(_get_field(row, *VALUE_COLUMNS, default="0"))
+                    if val is None:
+                        continue
                     if abs(val) < 1e-9:
                         continue
-                    process = row.get("P", "")
-                    year = row.get("ALLYEAR", "")
+                    process = _get_field(row, *PROCESS_COLUMNS)
+                    year = _get_field(row, *YEAR_COLUMNS)
 
                     if process_filter and not any(
                         f.lower() in process.lower() for f in process_filter
@@ -236,11 +314,11 @@ def extract_results(
 
                     results.var_flo.append(
                         {
-                            "region": row.get("R", ""),
+                            "region": _get_field(row, *REGION_COLUMNS),
                             "year": year,
                             "process": process,
-                            "commodity": row.get("C", ""),
-                            "timeslice": row.get("S", ""),
+                            "commodity": _get_field(row, *COMMODITY_COLUMNS),
+                            "timeslice": _get_field(row, *TIMESLICE_COLUMNS),
                             "level": val,
                         }
                     )
@@ -248,21 +326,24 @@ def extract_results(
                     pass
 
         results.var_flo.sort(key=lambda r: abs(r["level"]), reverse=True)
-        results.var_flo = results.var_flo[:limit]
+        results.var_flo = _apply_limit(results.var_flo, limit)
 
     # Extract NCAP_PASTI (past investments / existing capacity with vintage)
     # This is INPUT data (parameter), not a result variable
     par_pasti_csv = dump_symbol_csv(gdx_path, "NCAP_PASTI", gdxdump)
     if par_pasti_csv:
-        for row in parse_csv(par_pasti_csv):
+        for raw_row in parse_csv(par_pasti_csv):
+            row = _normalize_row(raw_row)
             try:
-                val = float(row.get("Val", 0))
+                val = _parse_float(_get_field(row, *VALUE_COLUMNS, default="0"))
+                if val is None:
+                    continue
                 if abs(val) < 1e-9:
                     continue
                 # GDX columns: REG, ALLYEAR, PRC, Val
-                process = row.get("PRC", row.get("P", ""))
-                vintage = row.get("ALLYEAR", row.get("PASTYEAR", ""))
-                region = row.get("REG", row.get("R", ""))
+                process = _get_field(row, "PRC", *PROCESS_COLUMNS)
+                vintage = _get_field(row, *VINTAGE_COLUMNS)
+                region = _get_field(row, "REG", *REGION_COLUMNS)
 
                 if process_filter and not any(
                     f.lower() in process.lower() for f in process_filter
@@ -283,21 +364,24 @@ def extract_results(
                 pass
 
     results.par_pasti.sort(key=lambda r: (r.get("vintage", ""), r.get("process", "")))
-    results.par_pasti = results.par_pasti[:limit]
+    results.par_pasti = _apply_limit(results.par_pasti, limit)
 
     # Extract PRC_RESID (residual capacity / stock)
     # This is INPUT data (parameter), not a result variable
     par_resid_csv = dump_symbol_csv(gdx_path, "PRC_RESID", gdxdump)
     if par_resid_csv:
-        for row in parse_csv(par_resid_csv):
+        for raw_row in parse_csv(par_resid_csv):
+            row = _normalize_row(raw_row)
             try:
-                val = float(row.get("Val", 0))
+                val = _parse_float(_get_field(row, *VALUE_COLUMNS, default="0"))
+                if val is None:
+                    continue
                 if abs(val) < 1e-9:
                     continue
                 # GDX columns: REG, ALLYEAR, PRC, Val
-                process = row.get("PRC", row.get("P", ""))
-                year = row.get("ALLYEAR", row.get("DATAYEAR", ""))
-                region = row.get("REG", row.get("R", ""))
+                process = _get_field(row, "PRC", *PROCESS_COLUMNS)
+                year = _get_field(row, *YEAR_COLUMNS)
+                region = _get_field(row, "REG", *REGION_COLUMNS)
 
                 if process_filter and not any(
                     f.lower() in process.lower() for f in process_filter
@@ -318,7 +402,7 @@ def extract_results(
                 pass
 
     results.par_resid.sort(key=lambda r: (r.get("year", ""), r.get("process", "")))
-    results.par_resid = results.par_resid[:limit]
+    results.par_resid = _apply_limit(results.par_resid, limit)
 
     return results
 

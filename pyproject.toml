@@ -70,3 +70,6 @@ select = ["E", "W", "F", "I", "UP"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-s --tb=short"
+markers = [
+  "solver: tests that require full TIMES/GAMS solver execution",
+]

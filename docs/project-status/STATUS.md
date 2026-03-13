@@ -9,8 +9,9 @@ backend parity, diagnostics, tooling, and supported example catalog remain
 landed, and the commodity identity reset has now removed authored namespace
 prefixes in favor of bare IDs plus explicit commodity typing.
 
-Current `bd` state: the legacy `v0_2` naming cleanup is now closed and one
-follow-up issue remains open.
+Current `bd` state: the solver-backed known-answer CI program is now active.
+The harness/canonicalization foundation epic is closed, core primitive work is
+in progress, and follow-on capacity/spatial/CI epics remain open.
 
 ## Current Focus
 
@@ -20,12 +21,24 @@ follow-up issue remains open.
 
 ## Open Work
 
+- `vedalang-rh9` — known-answer end-to-end solver CI program
+- `vedalang-rh9.2.2` — add KA03 emissions and KA04 merit-order solve tests
+- `vedalang-rh9.3` — capacity and constraint known-answer suite
+- `vedalang-rh9.4` — spatial and run semantics solve suite
+- `vedalang-rh9.5` — CI orchestration and reliability for solve tests
 - `vedalang-bit` — require authored descriptions for RES object-explorer types
   so facilities, fleets, zone opportunities, technology roles, and
   technologies all carry user-facing explanatory copy in the viewer
 
 ## Recently Completed
 
+- `vedalang-rh9.1` — delivered solver-test foundation with reusable harness,
+  robust times-results extraction, semantic assertion helpers, and reference
+  documentation/tests
+- `vedalang-rh9.2.1` — added KA01/KA02 known-answer solver fixtures and
+  deterministic activity assertions in `tests/test_known_answer_core.py`
+- `vedalang-rh9.2.3` — added paired-variant parameter-delta behavior assertion
+  (2x gas-supply activity) over the KA01/KA02 fixtures
 - `vedalang-bq3` — removed the remaining active `v0_2` naming from the public
   0.3 frontend by renaming compiler/viz modules and exports, flattening the
   versioned example paths into the current catalog, updating tests and active

@@ -189,10 +189,24 @@ SYNTAX ERROR in file "model.gms" line 42
         """Test parsing empty content."""
         diag = parse_gams_listing("")
 
-        assert diag["summary"]["ok"] is True
+        assert diag["summary"]["ok"] is False
+        assert diag["summary"]["problem_type"] == "solver_not_run"
         assert diag["execution"]["ran_solver"] is False
         assert diag["execution"]["model_status"]["code"] is None
         assert diag["execution"]["solve_status"]["code"] is None
+
+    def test_no_status_lines_is_not_success(self):
+        """Listings without solver/model status must not be treated as solved."""
+        content = """
+GAMS 48.6.0   Copyright (C) 1987-2025 GAMS Development
+Input      /tmp/scenario.run
+Output     /tmp/scenario.lst
+"""
+        diag = parse_gams_listing(content)
+
+        assert diag["summary"]["ok"] is False
+        assert diag["summary"]["problem_type"] == "solver_not_run"
+        assert diag["execution"]["ran_solver"] is False
 
     def test_multiple_errors(self):
         """Test parsing multiple error lines."""
@@ -205,6 +219,26 @@ SYNTAX ERROR in file "model.gms" line 42
 
         assert len(diag["compilation"]["errors"]) == 3
         assert len(diag["messages"]["errors"]) == 3
+
+    def test_numeric_gams_errors_mark_compilation_failure(self):
+        """Numeric GAMS error codes (e.g. 109) are parsed as errors."""
+        content = """
+**** 109  Identifier/Element too long
+**** 343  Abort triggered by above statement
+"""
+        diag = parse_gams_listing(content)
+
+        assert diag["compilation"]["ok"] is False
+        assert diag["summary"]["ok"] is False
+        assert diag["summary"]["problem_type"] == "compilation_error"
+        assert any(
+            "109 Identifier/Element too long" in e
+            for e in diag["compilation"]["errors"]
+        )
+        assert any(
+            "343 Abort triggered by above statement" in e
+            for e in diag["compilation"]["errors"]
+        )
 
     def test_warnings_parsed(self):
         """Test parsing warning lines."""

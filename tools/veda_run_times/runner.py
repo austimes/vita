@@ -26,6 +26,7 @@ OBJECTIVE_VALUE_RE = re.compile(
     re.MULTILINE,
 )
 ERROR_LINE_RE = re.compile(r"^\s*\*{4}\s+(ERROR[^\n]*?)\s*$", re.MULTILINE)
+NUMERIC_ERROR_RE = re.compile(r"^\s*\*{4}\s+(\d+)\s+([^\n]+?)\s*$", re.MULTILINE)
 WARNING_LINE_RE = re.compile(r"^\s*\*{3}\s+(WARNING[^\n]*?)\s*$", re.MULTILINE)
 SYNTAX_ERROR_RE = re.compile(r"SYNTAX ERROR", re.IGNORECASE)
 DOMAIN_VIOLATION_RE = re.compile(r"DOMAIN VIOLATION", re.IGNORECASE)
@@ -244,10 +245,18 @@ def parse_gams_listing(content: str) -> dict[str, Any]:
 
     # Parse compilation errors
     error_matches = ERROR_LINE_RE.findall(content)
-    if error_matches:
+    numeric_errors: list[str] = []
+    for code, message in NUMERIC_ERROR_RE.findall(content):
+        normalized = message.strip()
+        if normalized.upper().startswith("LINE "):
+            continue
+        numeric_errors.append(f"{code} {normalized}")
+
+    all_errors = [*error_matches, *numeric_errors]
+    if all_errors:
         diag["compilation"]["ok"] = False
-        diag["compilation"]["errors"] = error_matches[:20]
-        diag["messages"]["errors"].extend(error_matches[:20])
+        diag["compilation"]["errors"] = all_errors[:20]
+        diag["messages"]["errors"].extend(all_errors[:20])
 
     # Parse warnings
     warning_matches = WARNING_LINE_RE.findall(content)
@@ -326,10 +335,12 @@ def parse_gams_listing(content: str) -> dict[str, Any]:
     # Build summary
     model_cat = diag["execution"]["model_status"]["category"]
     solver_cat = diag["execution"]["solve_status"]["category"]
+    ran_solver = bool(diag["execution"].get("ran_solver"))
 
     # Determine overall OK status
     is_ok = (
         diag["compilation"]["ok"]
+        and ran_solver
         and model_cat in ("optimal", "solved", "solved_unique", None)
         and solver_cat in ("ok", None)
         and not any(
@@ -367,6 +378,11 @@ def parse_gams_listing(content: str) -> dict[str, Any]:
     elif not diag["compilation"]["ok"]:
         diag["summary"]["problem_type"] = "compilation_error"
         diag["summary"]["message"] = "GAMS compilation failed"
+    elif not ran_solver:
+        diag["summary"]["problem_type"] = "solver_not_run"
+        diag["summary"]["message"] = (
+            "Solver status lines not found in listing; solver may not have run"
+        )
     elif is_ok:
         diag["summary"]["problem_type"] = None
         obj_val = diag["execution"]["objective"]["value"]

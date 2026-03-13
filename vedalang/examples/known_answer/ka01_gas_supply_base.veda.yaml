@@ -1,0 +1,89 @@
+dsl_version: "0.3"
+commodities:
+  - id: natural_gas
+    type: energy
+    energy_form: primary
+  - id: electricity
+    type: energy
+    energy_form: secondary
+  - id: electricity_generation
+    type: service
+  - id: gas_supply
+    type: service
+technologies:
+  - id: ccgt
+    inputs:
+      - commodity: natural_gas
+        basis: HHV
+    outputs:
+      - commodity: electricity
+    lifetime: 30 year
+    performance:
+      kind: efficiency
+      value: 0.55
+    provides: electricity_generation
+  - id: gas_import
+    outputs:
+      - commodity: natural_gas
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: gas_supply
+technology_roles:
+  - id: electricity_generation
+    primary_service: electricity_generation
+    technologies:
+      - ccgt
+  - id: gas_supply
+    primary_service: gas_supply
+    technologies:
+      - gas_import
+spatial_layers:
+  - id: geo.demo
+    geometry_file: data/regions.geojson
+    key: region_id
+    kind: polygon
+region_partitions:
+  - id: reg1_partition
+    layer: geo.demo
+    mapping:
+      kind: constant
+      value: REG1
+    members:
+      - REG1
+sites:
+  - id: reg1_energy_hub
+    location:
+      point:
+        lat: -33.87
+        lon: 151.21
+    membership_overrides:
+      region_partitions:
+        reg1_partition: REG1
+facilities:
+  - id: reg1_ccgt
+    site: reg1_energy_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 12 MW
+            year: 2020
+          technology: ccgt
+    technology_role: electricity_generation
+  - id: reg1_gas_supply
+    site: reg1_energy_hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 100 MW
+            year: 2020
+          technology: gas_import
+    technology_role: gas_supply
+runs:
+  - id: reg1_2020
+    base_year: 2020
+    currency_year: 2024
+    region_partition: reg1_partition

@@ -249,7 +249,7 @@ def main():
         "--limit",
         type=int,
         default=20,
-        help="Max rows per table (default: 20)",
+        help="Max rows per table (default: 20, use 0 for no limit)",
     )
     results_parser.add_argument(
         "--flows",
