@@ -1,4 +1,4 @@
-"""Core solver-backed known-answer tests (KA01-KA07, KA10-KA12, KA14)."""
+"""Core solver-backed known-answer tests (KA01-KA12, KA14)."""
 
 from __future__ import annotations
 
