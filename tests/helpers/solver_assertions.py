@@ -93,6 +93,22 @@ def flow_level(
     )
 
 
+def new_capacity_level(
+    results: TimesResults,
+    *,
+    process: str,
+    year: str | None = None,
+    region: str | None = None,
+) -> float:
+    """Return total new capacity level for a process in the requested scope."""
+    return _sum_levels(
+        results.var_ncap,
+        process=process,
+        year=year,
+        region=region,
+    )
+
+
 def assert_activity_at_least(
     results: TimesResults,
     *,
@@ -141,6 +157,53 @@ def assert_activity_near_zero(
         raise AssertionError(
             "Expected process "
             f"'{process}' activity near zero (±{atol}) in {scope}, got {actual}"
+        )
+
+
+def assert_new_capacity_at_least(
+    results: TimesResults,
+    *,
+    process: str,
+    min_level: float,
+    year: str | None = None,
+    region: str | None = None,
+    atol: float = 1e-6,
+) -> None:
+    """Assert solved new capacity is present above a minimum threshold."""
+    actual = new_capacity_level(
+        results,
+        process=process,
+        year=year,
+        region=region,
+    )
+    if actual + atol < min_level:
+        scope = _scope_text(year=year, region=region, timeslice=None)
+        raise AssertionError(
+            "Expected process "
+            f"'{process}' new capacity >= {min_level} in {scope}, got {actual}"
+        )
+
+
+def assert_new_capacity_near_zero(
+    results: TimesResults,
+    *,
+    process: str,
+    year: str | None = None,
+    region: str | None = None,
+    atol: float = 1e-6,
+) -> None:
+    """Assert process new-capacity decision is effectively zero."""
+    actual = new_capacity_level(
+        results,
+        process=process,
+        year=year,
+        region=region,
+    )
+    if abs(actual) > atol:
+        scope = _scope_text(year=year, region=region, timeslice=None)
+        raise AssertionError(
+            "Expected process "
+            f"'{process}' new capacity near zero (±{atol}) in {scope}, got {actual}"
         )
 
 

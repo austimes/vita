@@ -1,0 +1,103 @@
+dsl_version: "0.3"
+
+commodities:
+  - id: elec
+    type: energy
+    energy_form: secondary
+
+  - id: srv_sup
+    type: service
+
+  - id: srv_dem
+    type: service
+
+technologies:
+  - id: imp
+    outputs:
+      - commodity: elec
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: srv_sup
+    variable_om: 10 MUSD24/PJ
+
+  - id: dev
+    inputs:
+      - commodity: elec
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: srv_dem
+    variable_om: -10 MUSD24/PJ
+
+technology_roles:
+  - id: sup
+    primary_service: srv_sup
+    technologies:
+      - imp
+
+  - id: dem
+    primary_service: srv_dem
+    technologies:
+      - dev
+
+spatial_layers:
+  - id: geo.demo
+    geometry_file: data/regions.geojson
+    key: region_id
+    kind: polygon
+
+region_partitions:
+  - id: reg1_partition
+    layer: geo.demo
+    mapping:
+      kind: constant
+      value: REG1
+    members:
+      - REG1
+
+sites:
+  - id: hub
+    location:
+      point:
+        lat: -33.87
+        lon: 151.21
+    membership_overrides:
+      region_partitions:
+        reg1_partition: REG1
+
+facilities:
+  - id: fsup
+    site: hub
+    available_technologies:
+      - imp
+    new_build_limits:
+      - technology: imp
+        max_new_capacity: 80 MW
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 30 MW
+            year: 2020
+          technology: imp
+    technology_role: sup
+
+  - id: fdem
+    site: hub
+    stock:
+      items:
+        - metric: annual_activity
+          observed:
+            value: 1.20 PJ/year
+            year: 2020
+          technology: dev
+    technology_role: dem
+
+runs:
+  - id: reg1_2020
+    base_year: 2020
+    currency_year: 2024
+    region_partition: reg1_partition

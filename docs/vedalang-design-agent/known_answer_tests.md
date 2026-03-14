@@ -11,12 +11,14 @@ mapping validated by solved outputs), see
 1. Place known-answer fixtures under `vedalang/examples/known_answer/` as this suite grows.
 2. Keep fixtures intentionally small and deterministic.
 3. Prefer clean arithmetic (for example, `0.5`, `2.0`) and large cost gaps to avoid tie-driven flakiness.
+4. For run-selection coverage, prefer one fixture with multiple `runs` entries and deterministic expected deltas between run IDs.
 
 ## Harness API
 
 1. Use [`tests/helpers/solver_harness.py`](file:///Users/gre538/code/vedalang/tests/helpers/solver_harness.py) for full pipeline execution and stable artifact discovery.
 2. Use `detect_solver_prerequisites()` to decide whether to skip solver-backed tests when prerequisites are unavailable.
 3. Use `run_solver_pipeline_fixture()` to run `.veda.yaml` sources through the full solver path and retrieve GDX/diagnostics artifacts.
+4. For fleet-weighting coverage, pass deterministic compile-time `measure_weights`/`custom_weights` through `run_solver_pipeline_fixture()` instead of writing ad-hoc compile wrappers inside tests.
 
 ## Results Extraction
 
@@ -27,8 +29,11 @@ mapping validated by solved outputs), see
 ## Semantic Assertions
 
 1. Use [`tests/helpers/solver_assertions.py`](file:///Users/gre538/code/vedalang/tests/helpers/solver_assertions.py) instead of ad-hoc numeric checks.
-2. Available helpers include activity thresholds, near-zero checks, flow ratios, and process-share checks.
+2. Available helpers include activity/new-capacity thresholds, near-zero checks, flow ratios, and process-share checks.
 3. Assertion failures are expected to include process/year/region context.
+4. For temporal-growth and run-selection tests, assert solved-level ratios/deltas directly from extracted `VAR_ACT` values.
+5. Keep KA03 emissions-flow ratio caveats documented when `VAR_FLO` extraction limitations block strict solved-flow assertions.
+6. For network-direction known-answer tests (KA10), use region-scoped process assertions so directional dispatch flips are validated from solved `VAR_ACT` rows.
 
 ## Reference Test
 

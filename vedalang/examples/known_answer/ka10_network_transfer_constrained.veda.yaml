@@ -1,0 +1,118 @@
+dsl_version: "0.3"
+
+commodities:
+  - id: natural_gas
+    type: energy
+    energy_form: primary
+
+  - id: gas_supply
+    type: service
+
+technologies:
+  - id: ga
+    outputs:
+      - commodity: natural_gas
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: gas_supply
+    variable_om: 0 MUSD24/PJ
+
+  - id: gb
+    outputs:
+      - commodity: natural_gas
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: gas_supply
+    variable_om: 0 MUSD24/PJ
+
+technology_roles:
+  - id: gas_supply
+    primary_service: gas_supply
+    technologies:
+      - ga
+      - gb
+
+spatial_layers:
+  - id: geo.demo
+    geometry_file: data/regions.geojson
+    key: region_id
+    kind: polygon
+
+region_partitions:
+  - id: p2
+    layer: geo.demo
+    mapping:
+      kind: constant
+      value: A
+    members:
+      - A
+      - B
+
+sites:
+  - id: sa
+    location:
+      point:
+        lat: -33.87
+        lon: 151.21
+    membership_overrides:
+      region_partitions:
+        p2: A
+
+  - id: sb
+    location:
+      point:
+        lat: -37.81
+        lon: 144.96
+    membership_overrides:
+      region_partitions:
+        p2: B
+
+facilities:
+  - id: a_g
+    site: sa
+    available_technologies:
+      - ga
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 200 MW
+            year: 2020
+          technology: ga
+    technology_role: gas_supply
+
+  - id: b_g
+    site: sb
+    available_technologies:
+      - gb
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 200 MW
+            year: 2020
+          technology: gb
+    technology_role: gas_supply
+
+networks:
+  - id: n1
+    kind: pipeline
+    links:
+      - id: x12
+        commodity: natural_gas
+        existing_transfer_capacity: 400 MW
+        from: A
+        to: B
+    node_basis:
+      kind: region_partition
+      ref: p2
+
+runs:
+  - id: ab_2020
+    base_year: 2020
+    currency_year: 2024
+    region_partition: p2

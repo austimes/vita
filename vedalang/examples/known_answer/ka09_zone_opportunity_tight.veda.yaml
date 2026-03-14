@@ -1,0 +1,115 @@
+dsl_version: "0.3"
+
+commodities:
+  - id: dem
+    type: service
+
+  - id: el
+    type: energy
+    energy_form: secondary
+
+  - id: sup
+    type: service
+
+technologies:
+  - id: dv
+    inputs:
+      - commodity: el
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: dem
+    variable_om: -10 MUSD24/PJ
+
+  - id: ic
+    outputs:
+      - commodity: el
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: sup
+    variable_om: 0 MUSD24/PJ
+
+  - id: ifb
+    outputs:
+      - commodity: el
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: sup
+    variable_om: 10 MUSD24/PJ
+
+technology_roles:
+  - id: rd
+    primary_service: dem
+    technologies:
+      - dv
+
+  - id: rs
+    primary_service: sup
+    technologies:
+      - ic
+      - ifb
+
+spatial_layers:
+  - id: geo
+    geometry_file: data/regions.geojson
+    key: region_id
+    kind: polygon
+
+region_partitions:
+  - id: rp
+    layer: geo
+    mapping:
+      kind: constant
+      value: R1
+    members:
+      - R1
+
+sites:
+  - id: s1
+    location:
+      point:
+        lat: -33.87
+        lon: 151.21
+    membership_overrides:
+      region_partitions:
+        rp: R1
+
+facilities:
+  - id: fd
+    site: s1
+    stock:
+      items:
+        - metric: annual_activity
+          observed:
+            value: 8 PJ/year
+            year: 2020
+          technology: dv
+    technology_role: rd
+
+  - id: fs
+    site: s1
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 100 MW
+            year: 2020
+          technology: ic
+
+        - metric: installed_capacity
+          observed:
+            value: 0 MW
+            year: 2020
+          technology: ifb
+    technology_role: rs
+
+runs:
+  - id: r2020
+    base_year: 2020
+    currency_year: 2024
+    region_partition: rp

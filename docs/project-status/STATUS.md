@@ -10,10 +10,11 @@ landed, and the commodity identity reset has now removed authored namespace
 prefixes in favor of bare IDs plus explicit commodity typing.
 
 Current `bd` state: the solver-backed known-answer CI program is now active.
-The harness/canonicalization foundation epic is closed, core primitive work is
-in progress, and follow-on capacity/spatial/CI epics remain open. The
+The harness/canonicalization foundation epic and core primitive suite are closed, and
+follow-on capacity and CI epics remain open. The
 modeler-facing known-answer catalog is now published at
 `docs/vedalang-user/known_answer_catalog.md`.
+Capacity suite KA06/KA07/KA08/KA09 and spatial/run KA10/KA11/KA12/KA14 solved known-answer coverage are now implemented.
 
 ## Current Focus
 
@@ -24,9 +25,7 @@ modeler-facing known-answer catalog is now published at
 ## Open Work
 
 - `vedalang-rh9` — known-answer end-to-end solver CI program
-- `vedalang-rh9.2.2` — add KA03 emissions and KA04 merit-order solve tests
 - `vedalang-rh9.3` — capacity and constraint known-answer suite
-- `vedalang-rh9.4` — spatial and run semantics solve suite
 - `vedalang-rh9.5` — CI orchestration and reliability for solve tests
 - `vedalang-bit` — require authored descriptions for RES object-explorer types
   so facilities, fleets, zone opportunities, technology roles, and
@@ -41,6 +40,14 @@ modeler-facing known-answer catalog is now published at
   deterministic activity assertions in `tests/test_known_answer_core.py`
 - `vedalang-rh9.2.3` — added paired-variant parameter-delta behavior assertion
   (2x gas-supply activity) over the KA01/KA02 fixtures
+- `vedalang-rh9.2` — completed core primitive known-answer suite coverage (KA01-KA05) with solver-backed deterministic assertions
+- `vedalang-rh9.2.2` — added KA03 emissions-factor mapping and KA04 merit-order dispatch known-answer fixtures/tests with deterministic solver-backed assertions
+- `vedalang-rh9.3.1` — added KA06/KA07 stock-sufficient and demand-spike known-answer fixtures/tests with deterministic activity-delta plus solved `VAR_NCAP` trigger assertions
+- `vedalang-rh9.3.2` — added KA08/KA09 build-limit and zone-opportunity known-answer fixture pairs with solved backup-suppression and process-class-shift assertions
+- `vedalang-rh9.4.1` — added KA10 two-region network transfer-direction known-answer fixture pair with solved regional dispatch-flip assertions
+- `vedalang-rh9.4.2` — added KA11 fleet weighted-distribution baseline/stress known-answer fixtures/tests with solved regional ratio/share assertions and stress-directional checks
+- `vedalang-rh9.4.3` — added KA12 temporal-growth and KA14 run-selection known-answer fixtures/tests with deterministic cross-run solved-output ratio/difference assertions
+- `vedalang-rh9.4` — completed the spatial/run known-answer epic with KA10/KA11/KA12/KA14 solver-backed coverage and integrated suite validation
 - `vedalang-bq3` — removed the remaining active `v0_2` naming from the public
   0.3 frontend by renaming compiler/viz modules and exports, flattening the
   versioned example paths into the current catalog, updating tests and active

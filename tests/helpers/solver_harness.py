@@ -91,6 +91,8 @@ def run_solver_pipeline_fixture(
     gams_binary: str = "gams",
     solver: str = "CPLEX",
     work_dir: Path | None = None,
+    measure_weights: dict[str, dict[str, float]] | None = None,
+    custom_weights: dict[str, dict[str, float]] | None = None,
     require_success: bool = True,
     verbose: bool = False,
 ) -> SolverPipelineArtifacts:
@@ -115,6 +117,8 @@ def run_solver_pipeline_fixture(
         keep_workdir=True,
         no_solver=False,
         no_sankey=True,
+        measure_weights=measure_weights,
+        custom_weights=custom_weights,
         verbose=verbose,
     )
 

@@ -179,6 +179,8 @@ def run_pipeline(
     keep_workdir: bool = False,
     no_solver: bool = False,
     no_sankey: bool = False,
+    measure_weights: dict[str, dict[str, float]] | None = None,
+    custom_weights: dict[str, dict[str, float]] | None = None,
     verbose: bool = False,
 ) -> PipelineResult:
     """Run the full VedaLang -> TIMES pipeline.
@@ -265,6 +267,8 @@ def run_pipeline(
                     source,
                     validate=True,
                     selected_run=run_id,
+                    measure_weights=measure_weights,
+                    custom_weights=custom_weights,
                 )
                 tableir = bundle.tableir
 

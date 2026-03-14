@@ -11,8 +11,11 @@ from tests.helpers.solver_assertions import (
     assert_activity_at_least,
     assert_activity_near_zero,
     assert_flow_ratio,
+    assert_new_capacity_at_least,
+    assert_new_capacity_near_zero,
     assert_process_share_at_least,
     flow_level,
+    new_capacity_level,
 )
 from tools.veda_dev.times_results import TimesResults
 
@@ -53,6 +56,14 @@ def _sample_results() -> TimesResults:
             "level": 40.0,
         },
     ]
+    results.var_ncap = [
+        {
+            "region": "R1",
+            "year": "2030",
+            "process": "gas",
+            "level": 2.5,
+        }
+    ]
     return results
 
 
@@ -72,6 +83,12 @@ def test_activity_and_flow_level_helpers() -> None:
         year="2030",
         region="R1",
     ) == pytest.approx(80.0)
+    assert new_capacity_level(
+        results,
+        process="gas",
+        year="2030",
+        region="R1",
+    ) == pytest.approx(2.5)
 
 
 def test_assertion_helpers_success_paths() -> None:
@@ -107,6 +124,19 @@ def test_assertion_helpers_success_paths() -> None:
         year="2030",
         region="R1",
     )
+    assert_new_capacity_at_least(
+        results,
+        process="gas",
+        min_level=2.0,
+        year="2030",
+        region="R1",
+    )
+    assert_new_capacity_near_zero(
+        results,
+        process="wind",
+        year="2030",
+        region="R1",
+    )
 
 
 def test_assertion_helpers_emit_context_on_failure() -> None:
@@ -128,6 +158,15 @@ def test_assertion_helpers_emit_context_on_failure() -> None:
             numerator_commodity="natural_gas",
             denominator_commodity="electricity",
             expected_ratio=1.0,
+            year="2030",
+            region="R1",
+        )
+
+    with pytest.raises(AssertionError, match="new capacity >= 3.0"):
+        assert_new_capacity_at_least(
+            results,
+            process="gas",
+            min_level=3.0,
             year="2030",
             region="R1",
         )
