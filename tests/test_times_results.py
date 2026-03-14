@@ -96,6 +96,83 @@ def test_extract_results_handles_header_variants(
             "level": 120.0,
         }
     ]
+    assert results.var_flo_source == "VAR_FLO"
+
+
+@patch("tools.veda_dev.times_results.dump_symbol_csv")
+@patch("tools.veda_dev.times_results.find_gdxdump")
+def test_extract_results_flows_fall_back_to_par_flo_when_var_flo_is_empty(
+    mock_find,
+    mock_dump,
+    tmp_path,
+):
+    """Flow extraction deterministically falls back from VAR_FLO to PAR_FLO."""
+    mock_find.return_value = "/usr/bin/gdxdump"
+
+    symbol_csv = {
+        "VAR_FLO": '"R","ALLYEAR","P","C","S","Val"\n',
+        "PAR_FLO": (
+            '"R","ALLYEAR","P","C","S","Val"\n'
+            '"REG1","2020","P_GAS","COM_PRIMARY_NATURAL_GAS","ANNUAL",3.1536'
+        ),
+    }
+
+    def _mock_dump(_gdx_path, symbol, _gdxdump):
+        return symbol_csv.get(symbol)
+
+    mock_dump.side_effect = _mock_dump
+
+    gdx_path = tmp_path / "scenario.gdx"
+    gdx_path.touch()
+
+    results = extract_results(gdx_path, include_flows=True, limit=0)
+
+    assert results.var_flo_source == "PAR_FLO"
+    assert results.var_flo == [
+        {
+            "region": "REG1",
+            "year": "2020",
+            "process": "P_GAS",
+            "commodity": "COM_PRIMARY_NATURAL_GAS",
+            "timeslice": "ANNUAL",
+            "level": 3.1536,
+        }
+    ]
+
+
+@patch("tools.veda_dev.times_results.dump_symbol_csv")
+@patch("tools.veda_dev.times_results.find_gdxdump")
+def test_extract_results_flows_prefer_var_flo_over_par_flo(
+    mock_find,
+    mock_dump,
+    tmp_path,
+):
+    """When both symbols have rows, extraction keeps VAR_FLO as the source."""
+    mock_find.return_value = "/usr/bin/gdxdump"
+
+    symbol_csv = {
+        "VAR_FLO": (
+            '"R","ALLYEAR","P","C","S","Val"\n'
+            '"REG1","2020","P_VAR","COM_A","ANNUAL",2.0'
+        ),
+        "PAR_FLO": (
+            '"R","ALLYEAR","P","C","S","Val"\n'
+            '"REG1","2020","P_PAR","COM_B","ANNUAL",9.0'
+        ),
+    }
+
+    def _mock_dump(_gdx_path, symbol, _gdxdump):
+        return symbol_csv.get(symbol)
+
+    mock_dump.side_effect = _mock_dump
+
+    gdx_path = tmp_path / "scenario.gdx"
+    gdx_path.touch()
+
+    results = extract_results(gdx_path, include_flows=True, limit=0)
+
+    assert results.var_flo_source == "VAR_FLO"
+    assert [row["process"] for row in results.var_flo] == ["P_VAR"]
 
 
 @patch("tools.veda_dev.times_results.dump_symbol_csv")

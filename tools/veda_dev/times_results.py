@@ -24,6 +24,7 @@ VINTAGE_COLUMNS = ("T", "VINTAGE", "ALLYEAR", "YEAR", "PASTYEAR")
 REGION_COLUMNS = ("R", "REG", "REGION")
 TIMESLICE_COLUMNS = ("S", "TS", "TIMESLICE", "SLICE")
 COMMODITY_COLUMNS = ("C", "COM", "COMMODITY")
+FLOW_SYMBOL_PREFERENCE = ("VAR_FLO", "PAR_FLO")
 
 
 @dataclass
@@ -37,6 +38,7 @@ class TimesResults:
     var_ncap: list[dict[str, Any]] = field(default_factory=list)
     var_cap: list[dict[str, Any]] = field(default_factory=list)
     var_flo: list[dict[str, Any]] = field(default_factory=list)
+    var_flo_source: str | None = None
     par_pasti: list[dict[str, Any]] = field(default_factory=list)  # NCAP_PASTI input
     par_resid: list[dict[str, Any]] = field(default_factory=list)  # PRC_RESID input
     errors: list[str] = field(default_factory=list)
@@ -50,6 +52,7 @@ class TimesResults:
             "var_ncap": self.var_ncap,
             "var_cap": self.var_cap,
             "var_flo": self.var_flo,
+            "var_flo_source": self.var_flo_source,
             "par_pasti": self.par_pasti,
             "par_resid": self.par_resid,
             "errors": self.errors,
@@ -138,6 +141,65 @@ def _apply_limit(rows: list[dict[str, Any]], limit: int | None) -> list[dict[str
     if limit is None or limit <= 0:
         return rows
     return rows[:limit]
+
+
+def _extract_flow_rows(
+    *,
+    gdx_path: Path,
+    gdxdump: str,
+    process_filter: list[str] | None,
+    year_filter: list[str] | None,
+    limit: int | None,
+) -> tuple[str | None, list[dict[str, Any]]]:
+    """Extract solved flow rows using a deterministic symbol fallback order.
+
+    Preferred contract: use `VAR_FLO` first, then `PAR_FLO` for tiny fixture
+    shapes where solved `VAR_FLO` is empty.
+    """
+    for symbol in FLOW_SYMBOL_PREFERENCE:
+        symbol_csv = dump_symbol_csv(gdx_path, symbol, gdxdump)
+        if not symbol_csv:
+            continue
+
+        flow_rows: list[dict[str, Any]] = []
+        for raw_row in parse_csv(symbol_csv):
+            row = _normalize_row(raw_row)
+            try:
+                val = _parse_float(_get_field(row, *VALUE_COLUMNS, default="0"))
+                if val is None:
+                    continue
+                if abs(val) < 1e-9:
+                    continue
+
+                process = _get_field(row, *PROCESS_COLUMNS)
+                year = _get_field(row, *YEAR_COLUMNS)
+
+                if process_filter and not any(
+                    candidate.lower() in process.lower()
+                    for candidate in process_filter
+                ):
+                    continue
+                if year_filter and year not in year_filter:
+                    continue
+
+                flow_rows.append(
+                    {
+                        "region": _get_field(row, *REGION_COLUMNS),
+                        "year": year,
+                        "process": process,
+                        "commodity": _get_field(row, *COMMODITY_COLUMNS),
+                        "timeslice": _get_field(row, *TIMESLICE_COLUMNS),
+                        "level": val,
+                    }
+                )
+            except (ValueError, KeyError):
+                continue
+
+        if flow_rows:
+            flow_rows.sort(key=lambda row: abs(row["level"]), reverse=True)
+            return symbol, _apply_limit(flow_rows, limit)
+
+    return None, []
 
 
 def extract_results(
@@ -290,43 +352,18 @@ def extract_results(
     results.var_cap.sort(key=lambda r: (r["year"], -abs(r["level"])))
     results.var_cap = _apply_limit(results.var_cap, limit)
 
-    # Extract VAR_FLO (commodity flows) - optional
+    # Extract deterministic commodity-flow evidence - optional
     if include_flows:
-        var_flo_csv = dump_symbol_csv(gdx_path, "VAR_FLO", gdxdump)
-        if var_flo_csv:
-            for raw_row in parse_csv(var_flo_csv):
-                row = _normalize_row(raw_row)
-                try:
-                    val = _parse_float(_get_field(row, *VALUE_COLUMNS, default="0"))
-                    if val is None:
-                        continue
-                    if abs(val) < 1e-9:
-                        continue
-                    process = _get_field(row, *PROCESS_COLUMNS)
-                    year = _get_field(row, *YEAR_COLUMNS)
-
-                    if process_filter and not any(
-                        f.lower() in process.lower() for f in process_filter
-                    ):
-                        continue
-                    if year_filter and year not in year_filter:
-                        continue
-
-                    results.var_flo.append(
-                        {
-                            "region": _get_field(row, *REGION_COLUMNS),
-                            "year": year,
-                            "process": process,
-                            "commodity": _get_field(row, *COMMODITY_COLUMNS),
-                            "timeslice": _get_field(row, *TIMESLICE_COLUMNS),
-                            "level": val,
-                        }
-                    )
-                except (ValueError, KeyError):
-                    pass
-
-        results.var_flo.sort(key=lambda r: abs(r["level"]), reverse=True)
-        results.var_flo = _apply_limit(results.var_flo, limit)
+        (
+            results.var_flo_source,
+            results.var_flo,
+        ) = _extract_flow_rows(
+            gdx_path=gdx_path,
+            gdxdump=gdxdump,
+            process_filter=process_filter,
+            year_filter=year_filter,
+            limit=limit,
+        )
 
     # Extract NCAP_PASTI (past investments / existing capacity with vintage)
     # This is INPUT data (parameter), not a result variable
@@ -502,11 +539,12 @@ def format_results_console(results: TimesResults, limit: int = 20) -> str:
     )
     lines.append("")
 
-    # VAR_FLO (if present)
+    # Commodity flows (if present)
     if results.var_flo:
+        flow_symbol = results.var_flo_source or "VAR_FLO"
         lines.append(
             format_table(
-                "Commodity Flows (VAR_FLO)",
+                f"Commodity Flows ({flow_symbol})",
                 results.var_flo,
                 ["year", "process", "commodity", "level"],
                 limit,
@@ -573,6 +611,7 @@ def save_results(
                     "gdx_path": str(results.gdx_path),
                     "objective": results.objective,
                     "objective_breakdown": results.objective_breakdown,
+                    "var_flo_source": results.var_flo_source,
                 },
                 f,
                 indent=2,
