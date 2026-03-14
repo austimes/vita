@@ -11,8 +11,9 @@ prefixes in favor of bare IDs plus explicit commodity typing.
 
 Current `bd` state: the solver-backed known-answer CI program has now fully
 landed. Harness/canonicalization, core primitive, capacity/constraint,
-spatial/run, and CI reliability epics are all closed. The
-modeler-facing known-answer catalog is now published at
+spatial/run, and CI reliability epics are all closed, with one targeted
+follow-up task open for KA03 solved emissions-flow observability.
+The modeler-facing known-answer catalog is now published at
 `docs/vedalang-user/known_answer_catalog.md`.
 Capacity suite KA06/KA07/KA08/KA09 plus KA13 diagnostics coverage and
 spatial/run KA10/KA11/KA12/KA14 solved known-answer coverage are implemented,
@@ -29,6 +30,9 @@ with fast/full solver-tier CI wiring in place.
 - `vedalang-bit` — require authored descriptions for RES object-explorer types
   so facilities, fleets, zone opportunities, technology roles, and
   technologies all carry user-facing explanatory copy in the viewer
+- `vedalang-wvu` — close the KA03 solved emissions-flow observability gap so
+  known-answer coverage can assert emissions-flow behavior from extracted solved
+  outputs instead of compile-only coefficients
 
 ## Recently Completed
 

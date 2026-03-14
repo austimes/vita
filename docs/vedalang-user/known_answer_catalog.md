@@ -134,7 +134,7 @@ The suite validates model semantics through the full path:
 
 ## Current Caveat
 
-1. A strict solved emissions-flow ratio check for KA03 remains blocked by solved-symbol extraction limits (`VAR_FLO` coverage) and is tracked as follow-on known-answer work.
+1. A strict solved emissions-flow ratio check for KA03 remains blocked by solved-symbol extraction limits (`VAR_FLO` coverage) and is tracked as follow-on known-answer work in `vedalang-wvu`.
 
 ## Where To Find The Code
 

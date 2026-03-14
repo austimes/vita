@@ -41,7 +41,7 @@ mapping validated by solved outputs), see
 2. Available helpers include activity/new-capacity thresholds, near-zero checks, flow ratios, and process-share checks.
 3. Assertion failures are expected to include process/year/region context.
 4. For temporal-growth and run-selection tests, assert solved-level ratios/deltas directly from extracted `VAR_ACT` values.
-5. Keep KA03 emissions-flow ratio caveats documented when `VAR_FLO` extraction limitations block strict solved-flow assertions.
+5. Keep KA03 emissions-flow ratio caveats documented when `VAR_FLO` extraction limitations block strict solved-flow assertions (tracked by `vedalang-wvu`).
 6. For network-direction known-answer tests (KA10), use region-scoped process assertions so directional dispatch flips are validated from solved `VAR_ACT` rows.
 7. For constraint-edge diagnostics tests, include artifact references (`diagnostics_json`, `lst_file`, `work_dir`) in assertion context so failures are actionable in CI logs.
 
@@ -50,7 +50,7 @@ mapping validated by solved outputs), see
 1. Prefer directional solved-behavior assertions (ratios, dominance flips, near-zero suppression) over objective-value equality checks.
 2. Use strict `pytest.approx` checks only for intentionally deterministic known-answer anchor values (for example KA01/KA02/KA12/KA14 activity anchors).
 3. Keep near-zero checks explicit (`assert_activity_near_zero`, `assert_new_capacity_near_zero`) with small absolute tolerances (`1e-6` unless model semantics require looser bounds).
-4. Avoid fragile assertions on symbols known to be extraction-limited (`VAR_FLO` caveat for KA03 emissions ratio).
+4. Avoid fragile assertions on symbols known to be extraction-limited (`VAR_FLO` caveat for KA03 emissions ratio; follow-up tracked by `vedalang-wvu`).
 5. When adding fixtures, keep arithmetic simple and cost deltas large to avoid tie-driven nondeterminism.
 6. When solver runs fail, rely on captured diagnostics artifacts (`*_gams_diagnostics.json`, `.lst`, pipeline result JSON) before changing tolerances.
 
