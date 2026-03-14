@@ -89,3 +89,38 @@ def record_failure(
         )
 
     return output_path
+
+
+def pytest_collection_modifyitems(
+    config: pytest.Config,
+    items: list[pytest.Item],
+) -> None:
+    """Ensure solver tests are classified into the known-answer tier markers."""
+    del config  # Unused hook arg.
+
+    missing_full_tier: list[str] = []
+    fast_without_full: list[str] = []
+
+    for item in items:
+        keywords = set(item.keywords)
+        if "solver" not in keywords:
+            continue
+        if "solver_full" not in keywords:
+            missing_full_tier.append(item.nodeid)
+        if "solver_fast" in keywords and "solver_full" not in keywords:
+            fast_without_full.append(item.nodeid)
+
+    if missing_full_tier:
+        details = "\n".join(f"  - {nodeid}" for nodeid in missing_full_tier)
+        raise pytest.UsageError(
+            "Solver tests must include pytest.mark.solver_full so CI "
+            "full-tier selection "
+            f"is stable:\n{details}"
+        )
+
+    if fast_without_full:
+        details = "\n".join(f"  - {nodeid}" for nodeid in fast_without_full)
+        raise pytest.UsageError(
+            "pytest.mark.solver_fast tests must also carry pytest.mark.solver_full:\n"
+            f"{details}"
+        )

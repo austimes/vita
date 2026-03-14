@@ -19,6 +19,15 @@ mapping validated by solved outputs), see
 2. Use `detect_solver_prerequisites()` to decide whether to skip solver-backed tests when prerequisites are unavailable.
 3. Use `run_solver_pipeline_fixture()` to run `.veda.yaml` sources through the full solver path and retrieve GDX/diagnostics artifacts.
 4. For fleet-weighting coverage, pass deterministic compile-time `measure_weights`/`custom_weights` through `run_solver_pipeline_fixture()` instead of writing ad-hoc compile wrappers inside tests.
+5. For CI artifact bundles, set `VEDALANG_SOLVER_ARTIFACTS_DIR` so the harness copies each pipeline `work_dir` plus `summary.json`/`pipeline_result.json` into a stable upload path.
+
+## Pytest Tiering
+
+1. All solver-backed tests carry `@pytest.mark.solver` and `@pytest.mark.solver_full`.
+2. PR-fast tests add `@pytest.mark.solver_fast` on top of `solver_full`.
+3. Fast tier command: `uv run pytest -m "solver and solver_fast" tests/test_known_answer_core.py tests/test_known_answer_reference.py tests/test_solver_harness.py`.
+4. Full tier command: `uv run pytest -m "solver and solver_full" tests/test_known_answer_core.py tests/test_known_answer_reference.py tests/test_solver_harness.py`.
+5. Collection guardrails in [`tests/conftest.py`](file:///Users/gre538/code/vedalang/tests/conftest.py) enforce that every `solver` test is at least `solver_full` classified.
 
 ## Results Extraction
 
@@ -34,6 +43,16 @@ mapping validated by solved outputs), see
 4. For temporal-growth and run-selection tests, assert solved-level ratios/deltas directly from extracted `VAR_ACT` values.
 5. Keep KA03 emissions-flow ratio caveats documented when `VAR_FLO` extraction limitations block strict solved-flow assertions.
 6. For network-direction known-answer tests (KA10), use region-scoped process assertions so directional dispatch flips are validated from solved `VAR_ACT` rows.
+7. For constraint-edge diagnostics tests, include artifact references (`diagnostics_json`, `lst_file`, `work_dir`) in assertion context so failures are actionable in CI logs.
+
+## Tolerance And Determinism Policy
+
+1. Prefer directional solved-behavior assertions (ratios, dominance flips, near-zero suppression) over objective-value equality checks.
+2. Use strict `pytest.approx` checks only for intentionally deterministic known-answer anchor values (for example KA01/KA02/KA12/KA14 activity anchors).
+3. Keep near-zero checks explicit (`assert_activity_near_zero`, `assert_new_capacity_near_zero`) with small absolute tolerances (`1e-6` unless model semantics require looser bounds).
+4. Avoid fragile assertions on symbols known to be extraction-limited (`VAR_FLO` caveat for KA03 emissions ratio).
+5. When adding fixtures, keep arithmetic simple and cost deltas large to avoid tie-driven nondeterminism.
+6. When solver runs fail, rely on captured diagnostics artifacts (`*_gams_diagnostics.json`, `.lst`, pipeline result JSON) before changing tolerances.
 
 ## Reference Test
 

@@ -69,7 +69,9 @@ select = ["E", "W", "F", "I", "UP"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-s --tb=short"
+addopts = "-s --tb=short --strict-markers -ra"
 markers = [
   "solver: tests that require full TIMES/GAMS solver execution",
+  "solver_fast: deterministic solver-backed subset for PR fast-tier CI",
+  "solver_full: complete solver-backed suite for scheduled/manual CI",
 ]

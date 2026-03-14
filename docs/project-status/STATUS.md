@@ -1,6 +1,6 @@
 # VedaLang Project Status
 
-**Last updated:** 2026-03-14
+**Last updated:** 2026-03-15
 
 ## Summary
 
@@ -9,12 +9,14 @@ backend parity, diagnostics, tooling, and supported example catalog remain
 landed, and the commodity identity reset has now removed authored namespace
 prefixes in favor of bare IDs plus explicit commodity typing.
 
-Current `bd` state: the solver-backed known-answer CI program is now active.
-The harness/canonicalization foundation epic and core primitive suite are closed, and
-follow-on capacity and CI epics remain open. The
+Current `bd` state: the solver-backed known-answer CI program has now fully
+landed. Harness/canonicalization, core primitive, capacity/constraint,
+spatial/run, and CI reliability epics are all closed. The
 modeler-facing known-answer catalog is now published at
 `docs/vedalang-user/known_answer_catalog.md`.
-Capacity suite KA06/KA07/KA08/KA09 and spatial/run KA10/KA11/KA12/KA14 solved known-answer coverage are now implemented.
+Capacity suite KA06/KA07/KA08/KA09 plus KA13 diagnostics coverage and
+spatial/run KA10/KA11/KA12/KA14 solved known-answer coverage are implemented,
+with fast/full solver-tier CI wiring in place.
 
 ## Current Focus
 
@@ -24,15 +26,28 @@ Capacity suite KA06/KA07/KA08/KA09 and spatial/run KA10/KA11/KA12/KA14 solved kn
 
 ## Open Work
 
-- `vedalang-rh9` — known-answer end-to-end solver CI program
-- `vedalang-rh9.3` — capacity and constraint known-answer suite
-- `vedalang-rh9.5` — CI orchestration and reliability for solve tests
 - `vedalang-bit` — require authored descriptions for RES object-explorer types
   so facilities, fleets, zone opportunities, technology roles, and
   technologies all carry user-facing explanatory copy in the viewer
 
 ## Recently Completed
 
+- `vedalang-rh9` — completed the known-answer end-to-end solver CI program
+  with all epics closed (`rh9.1` through `rh9.5`)
+- `vedalang-rh9.5` — completed CI orchestration/reliability for solve tests
+  with marker tiering, workflow wiring, artifact capture, and determinism
+  guidance
+- `vedalang-rh9.5.3` — published solver tolerance/determinism policy and
+  contributor guidance in `docs/vedalang-design-agent/known_answer_tests.md`
+- `vedalang-rh9.5.2` — added `.github/workflows/solver-known-answer.yml`
+  with PR fast tier, scheduled/manual full tier, solver preflight checks, and
+  failure artifact uploads
+- `vedalang-rh9.5.1` — implemented pytest solve-tier taxonomy
+  (`solver_fast`/`solver_full`), test classification, and marker guardrails
+- `vedalang-rh9.3` — completed capacity/constraint known-answer epic
+  (KA06/KA07/KA08/KA09 + KA13 diagnostics)
+- `vedalang-rh9.3.3` — added KA13 constraint-edge diagnostics coverage with
+  artifact-path assertions for actionable solver-failure debugging
 - `vedalang-rh9.1` — delivered solver-test foundation with reusable harness,
   robust times-results extraction, semantic assertion helpers, and reference
   documentation/tests

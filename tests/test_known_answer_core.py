@@ -1,4 +1,4 @@
-"""Core solver-backed known-answer tests (KA01-KA12, KA14)."""
+"""Core solver-backed known-answer tests (KA01-KA14) with KA05 traceability."""
 
 from __future__ import annotations
 
@@ -16,10 +16,13 @@ from tests.helpers.solver_assertions import (
     new_capacity_level,
 )
 from tests.helpers.solver_harness import (
+    SolverPipelineArtifacts,
     detect_solver_prerequisites,
     run_solver_pipeline_fixture,
 )
 from tools.veda_dev.times_results import TimesResults, extract_results
+
+pytestmark = pytest.mark.solver_full
 
 KNOWN_ANSWER_DIR = (
     Path(__file__).parent.parent / "vedalang" / "examples" / "known_answer"
@@ -135,28 +138,48 @@ def _residual_capacity_for_token(
 
 
 def _tableir_env_act_factor(*, work_dir: Path, process_token: str) -> float:
+    return _tableir_attribute_value(
+        work_dir=work_dir,
+        process_token=process_token,
+        attribute="ENV_ACT",
+    )
+
+
+def _tableir_attribute_value(
+    *,
+    work_dir: Path,
+    process_token: str,
+    attribute: str,
+) -> float:
     tableir_path = work_dir / "model.tableir.yaml"
     tableir = yaml.safe_load(tableir_path.read_text())
 
     for file_entry in tableir.get("files", []):
         for sheet in file_entry.get("sheets", []):
             for table in sheet.get("tables", []):
-                if table.get("tag") != "~FI_T":
-                    continue
                 for row in table.get("rows", []):
                     process = str(row.get("process", ""))
                     if process_token not in process:
                         continue
-                    if row.get("attribute") != "ENV_ACT":
+                    if row.get("attribute") != attribute:
+                        continue
+                    if "value" not in row:
                         continue
                     return float(row.get("value", 0.0))
 
     raise AssertionError(
-        f"Expected ENV_ACT row for process token '{process_token}' in compiled TableIR"
+        "Expected "
+        f"{attribute} row for process token '{process_token}' "
+        "in compiled TableIR"
     )
 
 
+def _artifact_context(run: SolverPipelineArtifacts) -> str:
+    return run.debug_artifact_hint
+
+
 @pytest.mark.solver
+@pytest.mark.solver_fast
 def test_ka01_base_activity_is_stable(tmp_path: Path) -> None:
     prereqs = detect_solver_prerequisites(gams_binary="gams")
     if not prereqs.ready:
@@ -220,6 +243,7 @@ def test_ka02_double_capacity_doubles_supply_activity(tmp_path: Path) -> None:
 
 
 @pytest.mark.solver
+@pytest.mark.solver_fast
 def test_ka03_emissions_fixture_preserves_supply_activity(tmp_path: Path) -> None:
     prereqs = detect_solver_prerequisites(gams_binary="gams")
     if not prereqs.ready:
@@ -256,6 +280,7 @@ def test_ka03_emissions_fixture_preserves_supply_activity(tmp_path: Path) -> Non
 
 
 @pytest.mark.solver
+@pytest.mark.solver_fast
 def test_ka04_merit_order_prefers_zero_cost_supply(tmp_path: Path) -> None:
     prereqs = detect_solver_prerequisites(gams_binary="gams")
     if not prereqs.ready:
@@ -290,6 +315,7 @@ def test_ka04_merit_order_prefers_zero_cost_supply(tmp_path: Path) -> None:
 
 
 @pytest.mark.solver
+@pytest.mark.solver_fast
 def test_ka06_stock_sufficient_keeps_new_capacity_near_zero(tmp_path: Path) -> None:
     prereqs = detect_solver_prerequisites(gams_binary="gams")
     if not prereqs.ready:
@@ -397,6 +423,7 @@ def test_ka07_demand_spike_triggers_positive_new_capacity(
 
 
 @pytest.mark.solver
+@pytest.mark.solver_fast
 def test_ka08_build_limit_tight_suppresses_backup_build(tmp_path: Path) -> None:
     prereqs = detect_solver_prerequisites(gams_binary="gams")
     if not prereqs.ready:
@@ -453,6 +480,64 @@ def test_ka08_build_limit_tight_suppresses_backup_build(tmp_path: Path) -> None:
     assert loose_new_capacity == pytest.approx(153.678335870117, rel=1e-6, abs=1e-6)
     assert loose_new_capacity >= 150.0
     assert tight_new_capacity == pytest.approx(0.0, abs=1e-6)
+
+
+@pytest.mark.solver
+@pytest.mark.solver_fast
+def test_ka13_constraint_edge_exposes_actionable_solver_diagnostics(
+    tmp_path: Path,
+) -> None:
+    prereqs = detect_solver_prerequisites(gams_binary="gams")
+    if not prereqs.ready:
+        pytest.skip(prereqs.skip_reason())
+
+    run = run_solver_pipeline_fixture(
+        KA08_TIGHT,
+        run_id="r2020",
+        times_src=prereqs.times_src,
+        gams_binary=prereqs.gams_binary,
+        solver="CPLEX",
+        work_dir=tmp_path / "ka13_constraint_diag",
+        case="ka13diag",
+    )
+
+    assert run.primary_gdx is not None, _artifact_context(run)
+    assert run.diagnostics is not None, _artifact_context(run)
+    assert run.diagnostics_file is not None and run.diagnostics_file.exists(), (
+        _artifact_context(run)
+    )
+
+    run_times_step = run.pipeline_result.steps.get("run_times")
+    assert run_times_step is not None and not run_times_step.skipped, (
+        _artifact_context(run)
+    )
+
+    diagnostics = run.diagnostics
+    summary = diagnostics.get("summary", {})
+    execution = diagnostics.get("execution", {})
+    model_status = execution.get("model_status", {})
+    solve_status = execution.get("solve_status", {})
+
+    assert summary.get("ok") is True, _artifact_context(run)
+    assert model_status.get("code") == 1, _artifact_context(run)
+    assert solve_status.get("code") == 1, _artifact_context(run)
+    assert run_times_step.artifacts.get("gams_command"), _artifact_context(run)
+    assert run_times_step.artifacts.get("lst_file"), _artifact_context(run)
+    assert run_times_step.artifacts.get("gams_diagnostics_file"), _artifact_context(
+        run
+    )
+
+    results = extract_results(run.primary_gdx, limit=0)
+    backup_process, _ = _activity_for_token(results, "IFB")
+    backup_residual = _residual_capacity_for_token(
+        results,
+        "IFB",
+        year="2020",
+        region="R1",
+    )
+
+    assert backup_residual == pytest.approx(100.0, rel=1e-9, abs=1e-9)
+    assert_activity_near_zero(results, process=backup_process, year="2020")
 
 
 @pytest.mark.solver
@@ -516,6 +601,7 @@ def test_ka09_zone_opportunity_shift_changes_active_process_class(
 
 
 @pytest.mark.solver
+@pytest.mark.solver_fast
 def test_ka10_network_transfer_flip_shifts_active_region(tmp_path: Path) -> None:
     prereqs = detect_solver_prerequisites(gams_binary="gams")
     if not prereqs.ready:
@@ -736,6 +822,7 @@ def test_ka11_fleet_distribution_respects_weighted_allocation(tmp_path: Path) ->
 
 
 @pytest.mark.solver
+@pytest.mark.solver_fast
 def test_ka12_temporal_growth_scales_supply_activity(tmp_path: Path) -> None:
     prereqs = detect_solver_prerequisites(gams_binary="gams")
     if not prereqs.ready:
@@ -766,6 +853,7 @@ def test_ka12_temporal_growth_scales_supply_activity(tmp_path: Path) -> None:
 
 
 @pytest.mark.solver
+@pytest.mark.solver_fast
 def test_ka14_run_selection_changes_solved_activity(tmp_path: Path) -> None:
     prereqs = detect_solver_prerequisites(gams_binary="gams")
     if not prereqs.ready:

@@ -1,0 +1,115 @@
+name: solver-known-answer
+
+on:
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 5 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  solver-fast:
+    if: github.event_name == 'pull_request'
+    runs-on: [self-hosted, linux, solver]
+    timeout-minutes: 45
+    env:
+      VEDALANG_SOLVER_ARTIFACTS_DIR: .pytest_tmp_fast/solver-artifacts
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install Dependencies
+        run: uv sync
+
+      - name: Solver Preflight
+        run: |
+          uv run python - <<'PY'
+          from tests.helpers.solver_harness import detect_solver_prerequisites
+
+          prereqs = detect_solver_prerequisites(gams_binary="gams")
+          if not prereqs.ready:
+              raise SystemExit(prereqs.skip_reason())
+          print(f"TIMES_SRC={prereqs.times_src}")
+          print(f"GAMS_BINARY={prereqs.gams_binary}")
+          PY
+
+      - name: Run Fast Solver Tier
+        run: |
+          uv run pytest \
+            --basetemp=.pytest_tmp_fast \
+            -m "solver and solver_fast" \
+            tests/test_known_answer_core.py \
+            tests/test_known_answer_reference.py \
+            tests/test_solver_harness.py
+
+      - name: Upload Solver Artifacts (Failure)
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: solver-fast-artifacts-${{ github.run_id }}
+          path: .pytest_tmp_fast
+          if-no-files-found: warn
+          retention-days: 7
+
+  solver-full:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: [self-hosted, linux, solver]
+    timeout-minutes: 120
+    env:
+      VEDALANG_SOLVER_ARTIFACTS_DIR: .pytest_tmp_full/solver-artifacts
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install Dependencies
+        run: uv sync
+
+      - name: Solver Preflight
+        run: |
+          uv run python - <<'PY'
+          from tests.helpers.solver_harness import detect_solver_prerequisites
+
+          prereqs = detect_solver_prerequisites(gams_binary="gams")
+          if not prereqs.ready:
+              raise SystemExit(prereqs.skip_reason())
+          print(f"TIMES_SRC={prereqs.times_src}")
+          print(f"GAMS_BINARY={prereqs.gams_binary}")
+          PY
+
+      - name: Run Full Solver Tier
+        run: |
+          uv run pytest \
+            --basetemp=.pytest_tmp_full \
+            -m "solver and solver_full" \
+            tests/test_known_answer_core.py \
+            tests/test_known_answer_reference.py \
+            tests/test_solver_harness.py
+
+      - name: Upload Solver Artifacts (Failure)
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: solver-full-artifacts-${{ github.run_id }}
+          path: .pytest_tmp_full
+          if-no-files-found: warn
+          retention-days: 14

@@ -14,7 +14,10 @@ from tests.helpers.solver_harness import (
 )
 from tools.veda_dev.times_results import extract_results
 
+pytestmark = [pytest.mark.solver, pytest.mark.solver_full]
 
+
+@pytest.mark.solver_fast
 def test_known_answer_reference_smoke(tmp_path: Path) -> None:
     """Demonstrate harness -> GDX extraction -> semantic assertion flow."""
     prereqs = detect_solver_prerequisites(gams_binary="gams")

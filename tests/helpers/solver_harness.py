@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import os
+import re
 import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -12,6 +14,7 @@ from tools.veda_dev.pipeline import PipelineResult, format_result_table, run_pip
 from tools.veda_run_times.runner import find_times_source
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+SOLVER_ARTIFACTS_ENV = "VEDALANG_SOLVER_ARTIFACTS_DIR"
 SMOKE_FIXTURE = (
     PROJECT_ROOT
     / "vedalang"
@@ -48,6 +51,7 @@ class SolverPipelineArtifacts:
     gdx_files: list[Path] = field(default_factory=list)
     diagnostics_file: Path | None = None
     diagnostics: dict[str, Any] | None = None
+    artifact_bundle_dir: Path | None = None
 
     @property
     def primary_gdx(self) -> Path | None:
@@ -55,6 +59,20 @@ class SolverPipelineArtifacts:
         if not self.gdx_files:
             return None
         return sorted(self.gdx_files, key=_gdx_preference_key)[0]
+
+    @property
+    def debug_artifact_hint(self) -> str:
+        """One-line summary of useful diagnostics artifact paths."""
+        hints: list[str] = [f"work_dir={self.work_dir}"]
+        if self.times_work_dir is not None:
+            hints.append(f"times_work_dir={self.times_work_dir}")
+        if self.primary_gdx is not None:
+            hints.append(f"primary_gdx={self.primary_gdx}")
+        if self.diagnostics_file is not None:
+            hints.append(f"diagnostics_json={self.diagnostics_file}")
+        if self.artifact_bundle_dir is not None:
+            hints.append(f"artifact_bundle_dir={self.artifact_bundle_dir}")
+        return "; ".join(hints)
 
 
 def detect_solver_prerequisites(gams_binary: str = "gams") -> SolverPrerequisites:
@@ -123,6 +141,11 @@ def run_solver_pipeline_fixture(
     )
 
     discovered = discover_solver_artifacts(result, fixture_path=fixture)
+    discovered.artifact_bundle_dir = _capture_solver_artifacts(
+        discovered,
+        case=case,
+        run_id=run_id,
+    )
 
     if require_success and not result.success:
         raise AssertionError(format_result_table(result))
@@ -198,3 +221,68 @@ def _gdx_preference_key(path: Path) -> tuple[bool, str]:
     """Prefer solution GDX files over `~Data` intermediates."""
     name = path.name.upper()
     return ("~DATA" in name, str(path))
+
+
+def _capture_solver_artifacts(
+    artifacts: SolverPipelineArtifacts,
+    *,
+    case: str,
+    run_id: str | None,
+) -> Path | None:
+    """Persist a copy of solver artifacts when CI artifact capture is enabled."""
+    artifact_root = os.environ.get(SOLVER_ARTIFACTS_ENV)
+    if not artifact_root:
+        return None
+
+    root_dir = Path(artifact_root).expanduser().resolve()
+    root_dir.mkdir(parents=True, exist_ok=True)
+
+    slug_parts = [artifacts.fixture_path.stem, case]
+    if run_id:
+        slug_parts.append(run_id)
+    base_dir = root_dir / _slugify("__".join(slug_parts))
+    bundle_dir = _unique_bundle_dir(base_dir)
+    bundle_dir.mkdir(parents=True, exist_ok=False)
+
+    copied_work_dir = bundle_dir / "pipeline_work_dir"
+    shutil.copytree(artifacts.work_dir, copied_work_dir)
+
+    payload = {
+        "fixture_path": str(artifacts.fixture_path),
+        "case": case,
+        "run_id": run_id,
+        "pipeline_success": artifacts.pipeline_result.success,
+        "work_dir": str(artifacts.work_dir),
+        "times_work_dir": (
+            str(artifacts.times_work_dir) if artifacts.times_work_dir else None
+        ),
+        "diagnostics_file": (
+            str(artifacts.diagnostics_file) if artifacts.diagnostics_file else None
+        ),
+        "primary_gdx": str(artifacts.primary_gdx) if artifacts.primary_gdx else None,
+        "gdx_files": [str(path) for path in artifacts.gdx_files],
+        "copied_work_dir": str(copied_work_dir),
+    }
+    (bundle_dir / "summary.json").write_text(json.dumps(payload, indent=2))
+    (bundle_dir / "pipeline_result.json").write_text(
+        json.dumps(artifacts.pipeline_result.to_dict(), indent=2)
+    )
+    return bundle_dir
+
+
+def _slugify(value: str) -> str:
+    normalized = re.sub(r"[^A-Za-z0-9._-]+", "-", value).strip("-")
+    return normalized or "solver-run"
+
+
+def _unique_bundle_dir(base_dir: Path) -> Path:
+    """Return a unique artifact bundle directory path."""
+    if not base_dir.exists():
+        return base_dir
+
+    index = 2
+    while True:
+        candidate = base_dir.parent / f"{base_dir.name}-{index}"
+        if not candidate.exists():
+            return candidate
+        index += 1
