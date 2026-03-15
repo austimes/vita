@@ -12,7 +12,7 @@ Status values below reflect current `bd` state as of 2026-03-15.
 |---|---|---|---|---|---|
 | KA01 | `test_ka01_base_activity_is_stable` | `ka01_gas_supply_base.veda.yaml` | Baseline gas-supply activity from authored stock in a single-region run | `VAR_ACT` level for process containing `GAS_SUPPLY` at `year=2020` is `3.1536` (`pytest.approx`) and `>= 3.0` | Implemented (`vedalang-rh9.2.1` closed) |
 | KA02 | `test_ka02_double_capacity_doubles_supply_activity` | `ka01_gas_supply_base.veda.yaml` + `ka02_gas_supply_double.veda.yaml` | Doubling gas-supply stock doubles solved supply activity | KA02 variant `VAR_ACT` level for `GAS_SUPPLY` is `6.3072` (`pytest.approx`), and `(KA02 / KA01) == 2.0` | Implemented (`vedalang-rh9.2.1` + `vedalang-rh9.2.3` closed) |
-| KA03 | `test_ka03_emissions_fixture_preserves_supply_activity` | `ka03_emissions_factor.veda.yaml` | Emission-factor authoring survives lowering while the fixture still produces deterministic solved activity | Solved `VAR_ACT` for `GAS_SUPPLY` remains `3.1536`; compiled `~FI_T` `ENV_ACT` coefficient for same process is `0.056` | Implemented (`vedalang-rh9.2.2`) |
+| KA03 | `test_ka03_emissions_fixture_preserves_supply_activity` | `ka03_emissions_factor.veda.yaml` | Emission-factor authoring survives lowering while the fixture still produces deterministic solved activity and solved flow observability | Solved `VAR_ACT(GAS_SUPPLY,2020)` remains `3.1536`; solved natural-gas flow/activity ratio is `1.0` (flow source `VAR_FLO` or `PAR_FLO`); implied emissions from solved flow match `activity * 0.056`; compiled `~FI_T` `ENV_ACT` remains `0.056` | Implemented (`vedalang-rh9.2.2`, upgraded by `vedalang-wvu.2`) |
 | KA04 | `test_ka04_merit_order_prefers_zero_cost_supply` | `ka04_merit_order_dispatch.veda.yaml` | Costed fallback gas supply is suppressed while zero-cost supply carries dispatch | `GAS_CHEAP` activity `>= 3.0`; `GAS_EXP` is near zero; cheap share across `{GAS_CHEAP, GAS_EXP}` is `>= 0.99` | Implemented (`vedalang-rh9.2.2`) |
 | KA05 | `test_ka02_double_capacity_doubles_supply_activity` | `ka01_gas_supply_base.veda.yaml` + `ka02_gas_supply_double.veda.yaml` | Parameter-flip directional behavior is validated through the KA01/KA02 paired fixture delta (no standalone KA05 fixture file) | `(KA02 / KA01) == 2.0` on solved `VAR_ACT(GAS_SUPPLY)` confirms deterministic flip magnitude | Implemented (`vedalang-rh9.2.3` closed; traceability is carried by the KA02 paired-variant test) |
 | KA06 | `test_ka06_stock_sufficient_keeps_new_capacity_near_zero` | `ka06_stock_sufficient.veda.yaml` | Stock-sufficient supply case meets the authored demand-proxy activity level without investment expansion | `VAR_ACT(FSUP,2020)` and `VAR_ACT(FDEM,2020)` are `0.8` (`>= 0.79`) and `VAR_NCAP(FSUP,2020)` remains near zero | Implemented (`vedalang-rh9.3.1`) |
@@ -35,7 +35,7 @@ The suite validates model semantics through the full path:
 |---|---|---|
 | `commodities[*]` with `type` + `energy_form` | `syssettings.xlsx` `~FI_COMM` rows with canonical `csets` membership (`NRG`, `DEM`, `ENV`) | `VAR_ACT` activity rows for process behavior, plus compiled-table checks for `ENV_ACT` where applicable |
 | `technology_roles[*]` + `technologies[*]` | `vt_*` `~FI_PROCESS` process definitions and `~FI_T` conversion rows (`commodity-in`, `commodity-out`, `eff`, `ncap_tlife`, `act_cost`) | `VAR_ACT` for dispatched process activity and share calculations |
-| `technologies[*].emissions[*].factor` | `~FI_T` rows with `attribute: ENV_ACT` and emission commodity symbol | KA03 asserts the emitted `ENV_ACT` coefficient value and a non-zero solved activity on the same process |
+| `technologies[*].emissions[*].factor` | `~FI_T` rows with `attribute: ENV_ACT` and emission commodity symbol | KA03 asserts solved natural-gas flow/activity behavior (with `VAR_FLO`/`PAR_FLO` fallback), checks implied solved emissions consistency, and verifies emitted `ENV_ACT` coefficient value |
 | `fleets[*].distribution` with `method: proportional` + `weight_by` | Region-specific `~TFM_INS` `PRC_RESID` rows for allocated fleet stock | KA11 asserts region-scoped `VAR_ACT` ratio/share and stress-directional scaling |
 | `facilities[*].stock.items[*]` with `metric: installed_capacity` | `vt_*` `~TFM_INS` rows with `attribute: PRC_RESID` at run base-year after adjustment | `VAR_ACT` behavior under deterministic known-answer fixture conditions |
 | `facilities[*].new_build_limits[*].max_new_capacity` | `vt_*` `~TFM_INS` rows with `attribute: NCAP_BND` on the instantiated supply process | KA06 validates no-build (`VAR_NCAP ~= 0`), KA07 validates positive-build trigger (`VAR_NCAP > 0`) under demand spike, and KA08/KA13 validate tight-bound suppression and diagnostics traceability |
@@ -64,7 +64,8 @@ The suite validates model semantics through the full path:
 
 1. KA03 adds `co2` as an `emission` commodity and an authored `emissions.factor` on `gas_import`.
 2. Compiler lowers this into `~FI_T` as `ENV_ACT` for the gas-supply process.
-3. Test asserts the emitted `ENV_ACT` coefficient equals the authored factor while solved gas-supply activity remains non-zero and deterministic.
+3. Test extracts solved flows (`include_flows=True`) and asserts natural-gas flow/activity ratio consistency on the same solved process.
+4. Test accepts deterministic `VAR_FLO`/`PAR_FLO` flow-source fallback, then confirms implied solved emissions (`flow * ENV_ACT`) match activity-scaled expectations while emitted `ENV_ACT` remains exactly authored.
 
 ### KA04 Merit-Order Dispatch Suppression
 
@@ -134,7 +135,7 @@ The suite validates model semantics through the full path:
 
 ## Current Caveat
 
-1. A strict solved emissions-flow ratio check for KA03 remains blocked by solved-symbol extraction limits (`VAR_FLO` coverage) and is tracked as follow-on known-answer work in `vedalang-wvu`.
+1. No open KA03 solved-emissions observability caveat remains; flow extraction variability is handled in-test via explicit `VAR_FLO`/`PAR_FLO` source acceptance and solved-ratio assertions.
 
 ## Where To Find The Code
 

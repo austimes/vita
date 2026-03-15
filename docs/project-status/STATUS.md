@@ -11,13 +11,14 @@ prefixes in favor of bare IDs plus explicit commodity typing.
 
 Current `bd` state: the solver-backed known-answer CI program has now fully
 landed. Harness/canonicalization, core primitive, capacity/constraint,
-spatial/run, and CI reliability epics are all closed, with one targeted
-follow-up task open for KA03 solved emissions-flow observability.
+spatial/run, and CI reliability epics are all closed, and the targeted KA03
+solved emissions-flow observability follow-up (`vedalang-wvu`) is now landed.
 The modeler-facing known-answer catalog is now published at
 `docs/vedalang-user/known_answer_catalog.md`.
 Capacity suite KA06/KA07/KA08/KA09 plus KA13 diagnostics coverage and
 spatial/run KA10/KA11/KA12/KA14 solved known-answer coverage are implemented,
-with fast/full solver-tier CI wiring in place.
+with fast/full solver-tier CI wiring in place, including solved-flow KA03
+assertions.
 
 ## Current Focus
 
@@ -30,12 +31,15 @@ with fast/full solver-tier CI wiring in place.
 - `vedalang-bit` — require authored descriptions for RES object-explorer types
   so facilities, fleets, zone opportunities, technology roles, and
   technologies all carry user-facing explanatory copy in the viewer
-- `vedalang-wvu` — close the KA03 solved emissions-flow observability gap so
-  known-answer coverage can assert emissions-flow behavior from extracted solved
-  outputs instead of compile-only coefficients
 
 ## Recently Completed
 
+- `vedalang-wvu` — closed the KA03 solved emissions-flow observability gap with
+  deterministic solved-flow extraction fallback, KA03 solved flow/activity
+  assertions, and docs/status alignment plus fast/full solver-tier verification
+- `vedalang-wvu.3` — updated known-answer harness/catalog docs and project
+  status text to reflect KA03 solved-output behavior, then re-ran fast/full
+  solver-known-answer tiers successfully
 - `vedalang-rh9` — completed the known-answer end-to-end solver CI program
   with all epics closed (`rh9.1` through `rh9.5`)
 - `vedalang-rh9.5` — completed CI orchestration/reliability for solve tests
