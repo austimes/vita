@@ -93,6 +93,31 @@ def flow_level(
     )
 
 
+def flow_level_for_commodity_token(
+    results: TimesResults,
+    *,
+    process: str,
+    commodity_token: str,
+    year: str | None = None,
+    region: str | None = None,
+    timeslice: str | None = None,
+) -> float:
+    """Return total flow where commodity contains the requested token."""
+    token_upper = commodity_token.upper()
+    return sum(
+        float(row.get("level", 0.0))
+        for row in results.var_flo
+        if _matches(
+            row,
+            process=process,
+            year=year,
+            region=region,
+            timeslice=timeslice,
+        )
+        and token_upper in str(row.get("commodity", "")).upper()
+    )
+
+
 def new_capacity_level(
     results: TimesResults,
     *,
@@ -251,6 +276,58 @@ def assert_flow_ratio(
             f"Expected flow ratio {numerator_commodity}/{denominator_commodity} "
             "for process "
             f"'{process}' in {scope} to be {expected_ratio}, got {actual_ratio}"
+        )
+
+
+def assert_flow_activity_ratio_for_commodity_token(
+    results: TimesResults,
+    *,
+    process: str,
+    commodity_token: str,
+    expected_ratio: float,
+    year: str | None = None,
+    region: str | None = None,
+    timeslice: str | None = None,
+    rel_tol: float = 1e-6,
+    abs_tol: float = 1e-6,
+) -> None:
+    """Assert commodity-token flow/activity ratio for a process."""
+    flow = flow_level_for_commodity_token(
+        results,
+        process=process,
+        commodity_token=commodity_token,
+        year=year,
+        region=region,
+        timeslice=timeslice,
+    )
+    scope = _scope_text(year=year, region=region, timeslice=timeslice)
+    source = results.var_flo_source or "none"
+    if abs(flow) <= abs_tol:
+        raise AssertionError(
+            "Expected non-zero flow for process "
+            f"'{process}' commodity token '{commodity_token}' in {scope}, "
+            f"got {flow} (flow_source={source})"
+        )
+
+    activity = activity_level(
+        results,
+        process=process,
+        year=year,
+        region=region,
+        timeslice=timeslice,
+    )
+    if abs(activity) <= abs_tol:
+        raise AssertionError(
+            "Cannot compute flow/activity ratio for process "
+            f"'{process}' in {scope}: activity is {activity}"
+        )
+
+    actual_ratio = flow / activity
+    if not isclose(actual_ratio, expected_ratio, rel_tol=rel_tol, abs_tol=abs_tol):
+        raise AssertionError(
+            "Expected flow/activity ratio for process "
+            f"'{process}' commodity token '{commodity_token}' in {scope} "
+            f"to be {expected_ratio}, got {actual_ratio} (flow_source={source})"
         )
 
 

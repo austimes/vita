@@ -11,8 +11,10 @@ from tests.helpers.solver_assertions import (
     activity_level,
     assert_activity_at_least,
     assert_activity_near_zero,
+    assert_flow_activity_ratio_for_commodity_token,
     assert_new_capacity_near_zero,
     assert_process_share_at_least,
+    flow_level_for_commodity_token,
     new_capacity_level,
 )
 from tests.helpers.solver_harness import (
@@ -260,11 +262,19 @@ def test_ka03_emissions_fixture_preserves_supply_activity(tmp_path: Path) -> Non
     )
 
     assert run.primary_gdx is not None
-    results = extract_results(run.primary_gdx, limit=0)
+    results = extract_results(run.primary_gdx, include_flows=True, limit=0)
     process, level = _gas_supply_activity(results)
 
     assert_activity_at_least(results, process=process, min_level=3.0, year="2020")
     assert level == pytest.approx(3.1536, rel=1e-5, abs=1e-6)
+    assert results.var_flo_source in {"VAR_FLO", "PAR_FLO"}, _artifact_context(run)
+    assert_flow_activity_ratio_for_commodity_token(
+        results,
+        process=process,
+        commodity_token="NATURAL_GAS",
+        expected_ratio=1.0,
+        year="2020",
+    )
 
     expected_factor = 0.056
     env_act_factor = _tableir_env_act_factor(
@@ -274,6 +284,18 @@ def test_ka03_emissions_fixture_preserves_supply_activity(tmp_path: Path) -> Non
     assert env_act_factor == pytest.approx(expected_factor, rel=1e-6, abs=1e-8)
     assert (env_act_factor / expected_factor) == pytest.approx(
         1.0,
+        rel=1e-6,
+        abs=1e-8,
+    )
+    solved_fuel_flow = flow_level_for_commodity_token(
+        results,
+        process=process,
+        commodity_token="NATURAL_GAS",
+        year="2020",
+    )
+    implied_emissions = solved_fuel_flow * env_act_factor
+    assert implied_emissions == pytest.approx(
+        level * expected_factor,
         rel=1e-6,
         abs=1e-8,
     )
