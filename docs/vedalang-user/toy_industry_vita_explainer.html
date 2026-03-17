@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Toy Industry Vita Experiment Summary</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f8f6f2;
+      --surface: #fffdf9;
+      --surface-strong: #f1ece3;
+      --border: #d7cec0;
+      --text: #2f261d;
+      --text-dim: #665949;
+      --accent: #1f5f5b;
+      --accent-strong: #a34b20;
+      --ok: #2f7a44;
+      --warn: #a34b20;
+      --shadow: 0 18px 42px rgba(47, 38, 29, 0.08);
+      --font-display: "Instrument Serif", Georgia, serif;
+      --font-body: "IBM Plex Mono", Menlo, Monaco, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at 80% 20%, rgba(31, 95, 91, 0.12), transparent 45%),
+        radial-gradient(circle at 20% 80%, rgba(163, 75, 32, 0.12), transparent 40%),
+        var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      line-height: 1.45;
+    }
+
+    main {
+      scroll-snap-type: y mandatory;
+    }
+
+    section {
+      min-height: 100vh;
+      scroll-snap-align: start;
+      padding: 3.5rem 2rem;
+      display: grid;
+      place-items: center;
+    }
+
+    .panel {
+      width: min(980px, 100%);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      padding: 2rem;
+    }
+
+    h1,
+    h2 {
+      margin: 0 0 1rem;
+      font-family: var(--font-display);
+      font-weight: 400;
+      letter-spacing: 0.01em;
+      line-height: 1.08;
+    }
+
+    h1 {
+      font-size: clamp(2.3rem, 4.4vw, 4rem);
+    }
+
+    h2 {
+      font-size: clamp(1.9rem, 3.6vw, 3rem);
+    }
+
+    p,
+    li {
+      color: var(--text-dim);
+      font-size: 0.98rem;
+    }
+
+    .lede {
+      margin-bottom: 1.2rem;
+      font-size: 1.05rem;
+      color: var(--text);
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      margin-top: 1rem;
+    }
+
+    .chip {
+      border: 1px solid var(--border);
+      background: var(--surface-strong);
+      border-radius: 999px;
+      padding: 0.35rem 0.75rem;
+      color: var(--text);
+      font-size: 0.82rem;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 0.75rem;
+      font-size: 0.9rem;
+    }
+
+    th,
+    td {
+      text-align: left;
+      padding: 0.65rem 0.5rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    th {
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    td:nth-child(2),
+    td:nth-child(3) {
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 0.9rem;
+      margin-top: 1rem;
+    }
+
+    .kpi {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 0.9rem;
+      background: var(--surface-strong);
+      min-width: 0;
+    }
+
+    .kpi-label {
+      margin: 0 0 0.35rem;
+      font-size: 0.78rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .kpi-value {
+      margin: 0;
+      color: var(--text);
+      font-size: 1.3rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .status-ok {
+      color: var(--ok);
+    }
+
+    .status-warn {
+      color: var(--warn);
+    }
+
+    code {
+      color: var(--accent);
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section>
+      <article class="panel">
+        <h1>Toy Industry With Vita</h1>
+        <p class="lede">Run objective: demonstrate baseline-vs-variant comparison with reproducible artifacts and switching-table diffs for the industry toy model.</p>
+        <p>Executed with <code>uv run vita run ... --no-sankey</code> and compared via <code>uv run vita diff ... --json</code> using artifacts under <code>runs/toy_industry/</code>.</p>
+        <div class="chips">
+          <span class="chip">Baseline: <code>single_2025</code></span>
+          <span class="chip">Control: <code>s25_co2_cap</code></span>
+          <span class="chip">Variant: high gas capex</span>
+          <span class="chip">Variant: high H2 capex</span>
+          <span class="chip">Flow extraction source: <code>PAR_FLOM</code></span>
+        </div>
+      </article>
+    </section>
+
+    <section>
+      <article class="panel">
+        <h2>Measured Results</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Diff Pair</th>
+              <th>Δ Objective</th>
+              <th>% Δ</th>
+              <th>Interpretation</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>baseline_vs_co2_cap.json</code></td>
+              <td>+0.0000</td>
+              <td>+0.00%</td>
+              <td><span class="status-ok">Control unchanged</span> in current model wiring.</td>
+            </tr>
+            <tr>
+              <td><code>baseline_vs_high_h2_capex.json</code></td>
+              <td>+46.3243</td>
+              <td>+23.68%</td>
+              <td><span class="status-warn">Moderate cost lift</span> plus a capacity shift in <code>var_ncap</code>/<code>var_cap</code> for H2 boiler.</td>
+            </tr>
+            <tr>
+              <td><code>baseline_vs_high_gas_capex.json</code></td>
+              <td>+257.3573</td>
+              <td>+131.58%</td>
+              <td><span class="status-warn">Large cost lift</span> from gas-boiler capex assumption, with no row-level switching-table delta.</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="kpi-row">
+          <div class="kpi">
+            <p class="kpi-label">Baseline Objective</p>
+            <p class="kpi-value">195.5915</p>
+          </div>
+          <div class="kpi">
+            <p class="kpi-label">Largest Delta</p>
+            <p class="kpi-value">+257.3573</p>
+          </div>
+          <div class="kpi">
+            <p class="kpi-label">Solver Status</p>
+            <p class="kpi-value status-ok">optimal</p>
+          </div>
+          <div class="kpi">
+            <p class="kpi-label">Switching Rows Changed</p>
+            <p class="kpi-value">1 (high H2 capex)</p>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section>
+      <article class="panel">
+        <h2>Switching-Level Readout</h2>
+        <p class="lede">`results.json` now materializes switching tables for this toy run set: <code>var_act=3</code>, <code>var_ncap=2</code>, <code>var_cap=2</code>, and <code>var_flo=3</code> rows per run.</p>
+        <ul>
+          <li><code>runs/toy_industry/baseline</code>, <code>co2_cap</code>, <code>high_gas_capex</code>, and <code>high_h2_capex</code> are fully materialized run directories.</li>
+          <li>Diff payloads are stored in <code>runs/toy_industry/diffs/</code> and cross-referenced in <code>docs/vedalang-user/toy_industry_experiment_notes.md</code>.</li>
+          <li><code>baseline_vs_high_h2_capex.json</code> shows one changed process row in both <code>var_ncap</code> and <code>var_cap</code>: <code>PRC_P_ROLE_INSTANCE_HEAT_SUP_FLEET_SINGLE_H2_BOIL_1CE78447</code> moves from <code>100.0</code> to <code>280.0</code> (<code>+180.0 MW</code>, <code>+180%</code>).</li>
+          <li><code>baseline_vs_co2_cap.json</code> and <code>baseline_vs_high_gas_capex.json</code> have objective deltas but zero row-level deltas across <code>var_act</code>/<code>var_ncap</code>/<code>var_cap</code>/<code>var_flo</code>.</li>
+        </ul>
+        <p>Objective movement is still concentrated in <code>objective_breakdown.OBJINV</code> for all runs.</p>
+        <p>Presentation artifact path: <code>docs/vedalang-user/toy_industry_vita_explainer.html</code>.</p>
+      </article>
+    </section>
+  </main>
+</body>
+</html>

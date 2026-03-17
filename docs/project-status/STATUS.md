@@ -1,6 +1,6 @@
 # VedaLang Project Status
 
-**Last updated:** 2026-03-15
+**Last updated:** 2026-03-17
 
 ## Summary
 
@@ -28,11 +28,29 @@ assertions.
 
 ## Open Work
 
-- `vedalang-bit` — require authored descriptions for RES object-explorer types
-  so facilities, fleets, zone opportunities, technology roles, and
-  technologies all carry user-facing explanatory copy in the viewer
+No open issues. All 274 bd issues are closed as of 2026-03-18.
 
 ## Recently Completed
+
+- `vedalang-xp5` — repository hygiene audit — 2026-03: synced STATUS.md with bd
+  tracker, fixed Ruff F821 regression, removed machine-local paths, deduplicated
+  GDX helpers, resolved veda_run_times CLI residue, added run-aware example
+  compile checks
+
+
+- `vedalang-uet` — completed the first 2026-03 repository hygiene follow-up: fixed
+  failing LLM lint tests and the ka11 standalone compile regression, removed
+  stale test residue, and triaged commented-block and CLI-splitting hygiene
+  items with explicit close rationale
+
+- `vedalang-50e` — completed repo hygiene sweep after vita split: moved vita
+  handler functions out of veda_dev CLI, updated README project structure,
+  fixed ka11 fleet distribution regression, removed stale v0_2 cache, fixed
+  dist-info and ruff violations, and added HISTORY.md post-split entry
+
+- `vedalang-bit` — required authored descriptions for RES object-explorer types
+  so facilities, fleets, zone opportunities, technology roles, and
+  technologies all carry user-facing explanatory copy in the viewer
 
 - `vedalang-wvu` — closed the KA03 solved emissions-flow observability gap with
   deterministic solved-flow extraction fallback, KA03 solved flow/activity
@@ -57,7 +75,7 @@ assertions.
 - `vedalang-rh9.3.3` — added KA13 constraint-edge diagnostics coverage with
   artifact-path assertions for actionable solver-failure debugging
 - `vedalang-rh9.1` — delivered solver-test foundation with reusable harness,
-  robust times-results extraction, semantic assertion helpers, and reference
+  robust Vita results extraction, semantic assertion helpers, and reference
   documentation/tests
 - `vedalang-rh9.2.1` — added KA01/KA02 known-answer solver fixtures and
   deterministic activity assertions in `tests/test_known_answer_core.py`
