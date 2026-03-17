@@ -37,7 +37,7 @@ rows.append({
 - Ensure 'year' is a row index column, not a data column
 
 ### 3. Move demand projections to base file
-- Demand projections should emit to VT_* base file, not Scen_* files
+- Demand projections should emit to `vt_*` base files, not `scen_*` files
 - ~FI_T is only valid in Base and SubRES files
 
 ## Validation

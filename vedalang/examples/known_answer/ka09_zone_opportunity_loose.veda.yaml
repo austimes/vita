@@ -13,6 +13,7 @@ commodities:
 
 technologies:
   - id: dv
+    description: dv provides dem by transforming el.
     inputs:
       - commodity: el
     lifetime: 100 year
@@ -23,6 +24,7 @@ technologies:
     variable_om: -10 MUSD24/PJ
 
   - id: ic
+    description: ic provides sup as a primary supply or conversion technology.
     outputs:
       - commodity: el
     lifetime: 100 year
@@ -33,6 +35,7 @@ technologies:
     variable_om: 0 MUSD24/PJ
 
   - id: ifb
+    description: ifb provides sup as a primary supply or conversion technology.
     outputs:
       - commodity: el
     lifetime: 100 year
@@ -44,11 +47,13 @@ technologies:
 
 technology_roles:
   - id: rd
+    description: "rd groups technologies that deliver dem: dv."
     primary_service: dem
     technologies:
       - dv
 
   - id: rs
+    description: "rs groups technologies that deliver sup: ic and ifb."
     primary_service: sup
     technologies:
       - ic
@@ -89,6 +94,7 @@ sites:
 
 facilities:
   - id: fd
+    description: fd instantiates role rd at site s1.
     site: s1
     stock:
       items:
@@ -100,6 +106,7 @@ facilities:
     technology_role: rd
 
   - id: fs
+    description: fs instantiates role rs at site s1.
     site: s1
     stock:
       items:
@@ -118,6 +125,7 @@ facilities:
 
 zone_opportunities:
   - id: zo2
+    description: zo2 allows up to 1 MW of new ifb capacity for role rs in zone z1.reg1_rez.
     max_new_capacity: 1 MW
     technology: ifb
     technology_role: rs

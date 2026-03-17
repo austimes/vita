@@ -17,6 +17,7 @@ commodities:
 
 technologies:
   - id: ccgt
+    description: ccgt provides el_gen by transforming ng.
     inputs:
       - commodity: ng
         basis: HHV
@@ -29,6 +30,7 @@ technologies:
     provides: el_gen
 
   - id: gas_imp
+    description: gas_imp provides gas_srv as a primary supply or conversion technology.
     outputs:
       - commodity: ng
     lifetime: 100 year
@@ -39,11 +41,13 @@ technologies:
 
 technology_roles:
   - id: el_gen
+    description: "el_gen groups technologies that deliver el_gen: ccgt."
     primary_service: el_gen
     technologies:
       - ccgt
 
   - id: gas_srv
+    description: "gas_srv groups technologies that deliver gas_srv: gas_imp."
     primary_service: gas_srv
     technologies:
       - gas_imp
@@ -95,6 +99,7 @@ sites:
 
 facilities:
   - id: nth_ccgt
+    description: nth_ccgt instantiates role el_gen at site nth_hub.
     site: nth_hub
     stock:
       items:
@@ -106,6 +111,7 @@ facilities:
     technology_role: el_gen
 
   - id: sth_ccgt
+    description: sth_ccgt instantiates role el_gen at site sth_hub.
     site: sth_hub
     stock:
       items:
@@ -118,6 +124,9 @@ facilities:
 
 fleets:
   - id: gas_flt
+    description:
+      gas_flt represents distributed assets for role gas_srv using proportional
+      allocation.
     distribution:
       method: proportional
       weight_by: ka11_pop

@@ -54,6 +54,7 @@ technologies:
     lifetime: 18 year
 technology_roles:
   - id: space_heat_supply
+    description: Space heating supply role
     primary_service: space_heat
     technologies: [heat_pump]
 sites:
@@ -67,6 +68,7 @@ sites:
         reg1_partition: REG1
 facilities:
   - id: reg1_heat
+    description: Regional heat facility
     site: reg1_home
     technology_role: space_heat_supply
     stock:

@@ -140,7 +140,7 @@ def _load_cache(path: Path) -> dict[str, Any]:
         return {}
     try:
         return json.loads(path.read_text(encoding="utf-8"))
-    except Exception:
+    except Exception:  # noqa: BLE001 — corrupt cache is non-fatal; start fresh
         return {}
 
 

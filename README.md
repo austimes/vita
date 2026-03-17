@@ -46,6 +46,18 @@ This separation distinguishes between:
 
 ---
 
+## Three CLI Tools
+
+This repository provides three CLI tools with distinct roles:
+
+| CLI | Role | Audience |
+|-----|------|----------|
+| **`vedalang`** | The language — author, lint, compile, validate models | Model developers |
+| **`vita`** | The engine — run, analyze, and explain TIMES experiments | Anyone running models |
+| **`vedalang-dev`** | Internal R&D — pattern experimentation, evals, emit-excel | Language designers |
+
+**Rule of thumb:** Use `vedalang` to *write* models, `vita` to *run and analyze* them, and `vedalang-dev` only for language design work.
+
 ## Two Ways to Use This Repository
 
 | Goal | You are a... | Start here |
@@ -112,8 +124,28 @@ uv run vedalang lint model.veda.yaml
 uv run vedalang compile model.veda.yaml --run <run_id> --out output/
 
 # Run full pipeline (VedaLang → Excel → DD → TIMES)
-uv run vedalang-dev pipeline model.veda.yaml --no-solver
+uv run vita run model.veda.yaml --run <run_id> --json
+
+# Run without solver (useful when GAMS unavailable)
+uv run vita run model.veda.yaml --run <run_id> --no-solver --json
 ```
+
+### Running Toy Examples With Vita
+
+Toy-sector examples live in `vedalang/examples/toy_sectors/`. Keep `vedalang`
+for authoring/validation, and use `vita` to execute and compare runs.
+
+```bash
+# Run a toy example (recommended default for toy-sector runs: keep --no-sankey)
+uv run vita run vedalang/examples/toy_sectors/<toy_model>.veda.yaml --run <run_id> --no-sankey --out runs/<study>/<case> --json
+
+# Compare baseline vs variant artifacts
+uv run vita diff runs/<study>/baseline runs/<study>/<variant> --json
+```
+
+For a concrete reproducible loop, see
+`vedalang/examples/toy_sectors/README.md` and
+`docs/vedalang-user/toy_industry_experiment_notes.md`.
 
 ### Explicit Quantities and Basis
 
@@ -136,6 +168,8 @@ for supported quantity strings and backend attribute mapping details.
 - `uv run vedalang lint <model>.veda.yaml`: semantic/modeling diagnostics
 - `uv run vedalang compile <model>.veda.yaml --run <run_id> --out <dir>`: run-scoped compilation
 - `uv run vedalang validate <model>.veda.yaml --run <run_id>`: full compile + oracle validation
+- `uv run vita run <model>.veda.yaml --run <run_id> [--json]`: solve/execution and artifact generation
+- `uv run vita diff <baseline_run_dir> <variant_run_dir> --json`: run-to-run comparison and deltas
 
 ### Minimal Example
 
@@ -311,21 +345,31 @@ Then set `TIMES_SRC` in your `.env` file to point to this directory.
 ## Project Structure
 
 ```
-veda-devtools/
-├── vedalang/              # VedaLang compiler and schema
+vedalang/
+├── vedalang/              # VedaLang compiler, schema, examples
 │   ├── compiler/          # VedaLang → TableIR compiler
 │   ├── schema/            # JSON Schema definitions
-│   └── examples/          # Example VedaLang models
+│   ├── examples/          # Example VedaLang models
+│   ├── heuristics/        # Pre-compilation checks
+│   ├── identity/          # Process/commodity identity system
+│   ├── lint/              # LLM-based structural assessment
+│   └── viz/               # RES graph visualization and inspector
+├── vita/                  # Vita engine CLI (run, results, sankey, diff)
 ├── tools/
-│   ├── vedalang_cli/      # User CLI (vedalang lint/compile/validate)
-│   ├── vedalang_dev_cli/  # Design agent CLI (vedalang-dev)
-│   └── emit_excel/        # TableIR → Excel emitter
+│   ├── veda_dev/          # Design agent CLI (vedalang-dev)
+│   ├── veda_emit_excel/   # TableIR → Excel emitter
+│   ├── veda_check/        # Model validation utilities
+│   ├── veda_patterns/     # Pattern library tools
+│   ├── veda_run_times/    # Internal TIMES solver runner used by vita
+│   └── vedalang_lsp/      # Language server protocol
 ├── xl2times/              # Local fork of xl2times (Excel → DD)
 ├── rules/                 # Pattern library
+├── skills/                # Agent skills (DSL, modeling, experiments)
 ├── docs/
 │   ├── vedalang-user/     # Documentation for model authors
 │   └── vedalang-design-agent/  # Documentation for language designers
-└── tests/                 # Test suite
+├── tests/                 # Test suite
+└── fixtures/              # Golden test fixtures
 ```
 
 ---

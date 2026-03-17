@@ -186,7 +186,7 @@ def _coerce_amount(value: Any) -> float | None:
     if isinstance(value, str):
         try:
             return parse_quantity(value).value
-        except Exception:
+        except Exception:  # noqa: BLE001 — fall back to plain float parse
             try:
                 return float(value)
             except ValueError:

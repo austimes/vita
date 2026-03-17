@@ -5,24 +5,15 @@ commodities:
     type: energy
     energy_form: secondary
 
-  - id: srv_sup
-    type: service
-
   - id: srv_dem
     type: service
 
-technologies:
-  - id: imp
-    outputs:
-      - commodity: elec
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: srv_sup
-    variable_om: 10 MUSD24/PJ
+  - id: srv_sup
+    type: service
 
+technologies:
   - id: dev
+    description: dev provides srv_dem by transforming elec.
     inputs:
       - commodity: elec
     lifetime: 100 year
@@ -32,16 +23,29 @@ technologies:
     provides: srv_dem
     variable_om: -10 MUSD24/PJ
 
-technology_roles:
-  - id: sup
-    primary_service: srv_sup
-    technologies:
-      - imp
+  - id: imp
+    description: imp provides srv_sup as a primary supply or conversion technology.
+    outputs:
+      - commodity: elec
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: srv_sup
+    variable_om: 10 MUSD24/PJ
 
+technology_roles:
   - id: dem
+    description: "dem groups technologies that deliver srv_dem: dev."
     primary_service: srv_dem
     technologies:
       - dev
+
+  - id: sup
+    description: "sup groups technologies that deliver srv_sup: imp."
+    primary_service: srv_sup
+    technologies:
+      - imp
 
 spatial_layers:
   - id: geo.demo
@@ -69,23 +73,8 @@ sites:
         reg1_partition: REG1
 
 facilities:
-  - id: fsup
-    site: hub
-    available_technologies:
-      - imp
-    new_build_limits:
-      - technology: imp
-        max_new_capacity: 80 MW
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 30 MW
-            year: 2020
-          technology: imp
-    technology_role: sup
-
   - id: fdem
+    description: fdem instantiates role dem at site hub.
     site: hub
     stock:
       items:
@@ -95,6 +84,23 @@ facilities:
             year: 2020
           technology: dev
     technology_role: dem
+
+  - id: fsup
+    description: fsup instantiates role sup at site hub.
+    available_technologies:
+      - imp
+    new_build_limits:
+      - max_new_capacity: 80 MW
+        technology: imp
+    site: hub
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 30 MW
+            year: 2020
+          technology: imp
+    technology_role: sup
 
 runs:
   - id: reg1_2020

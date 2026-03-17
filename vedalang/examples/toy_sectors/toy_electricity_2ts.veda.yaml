@@ -1,25 +1,35 @@
 dsl_version: "0.3"
+
 commodities:
   - id: co2
     type: emission
-  - id: solar_irradiance
-    type: material
-  - id: wind_resource
-    type: material
-  - id: natural_gas
-    type: energy
-    energy_form: primary
+
   - id: electricity
     type: energy
     energy_form: secondary
+
   - id: electricity_generation
     type: service
+
   - id: electricity_service
     type: service
+
   - id: gas_supply
     type: service
+
+  - id: natural_gas
+    type: energy
+    energy_form: primary
+
+  - id: solar_irradiance
+    type: material
+
+  - id: wind_resource
+    type: material
+
 technologies:
   - id: ccgt
+    description: ccgt provides electricity_generation by transforming natural_gas.
     inputs:
       - commodity: natural_gas
         basis: HHV
@@ -33,7 +43,9 @@ technologies:
       kind: efficiency
       value: 0.55
     provides: electricity_generation
+
   - id: direct_electric
+    description: direct_electric provides electricity_service by transforming electricity.
     inputs:
       - commodity: electricity
     lifetime: 100 year
@@ -41,7 +53,9 @@ technologies:
       kind: efficiency
       value: 1.0
     provides: electricity_service
+
   - id: gas_import
+    description: gas_import provides gas_supply as a primary supply or conversion technology.
     outputs:
       - commodity: natural_gas
     lifetime: 100 year
@@ -49,7 +63,11 @@ technologies:
       kind: efficiency
       value: 1.0
     provides: gas_supply
+
   - id: solar_pv
+    description:
+      solar_pv provides electricity_generation as a primary supply or conversion
+      technology.
     outputs:
       - commodity: electricity
     lifetime: 25 year
@@ -57,25 +75,37 @@ technologies:
       kind: efficiency
       value: 1.0
     provides: electricity_generation
+
 technology_roles:
   - id: electricity_generation
+    description:
+      "electricity_generation groups technologies that deliver electricity_generation:
+      ccgt and solar_pv."
     primary_service: electricity_generation
     technologies:
       - ccgt
       - solar_pv
+
   - id: electricity_service
+    description:
+      "electricity_service groups technologies that deliver electricity_service:
+      direct_electric."
     primary_service: electricity_service
     technologies:
       - direct_electric
+
   - id: gas_supply
+    description: "gas_supply groups technologies that deliver gas_supply: gas_import."
     primary_service: gas_supply
     technologies:
       - gas_import
+
 spatial_layers:
   - id: geo.demo
     geometry_file: data/regions.geojson
     key: region_id
     kind: polygon
+
 region_partitions:
   - id: electricity_2node
     layer: geo.demo
@@ -85,6 +115,7 @@ region_partitions:
     members:
       - D
       - N
+
 sites:
   - id: day_hub
     location:
@@ -94,6 +125,7 @@ sites:
     membership_overrides:
       region_partitions:
         electricity_2node: D
+
   - id: night_hub
     location:
       point:
@@ -102,8 +134,10 @@ sites:
     membership_overrides:
       region_partitions:
         electricity_2node: N
+
 facilities:
   - id: day_generation
+    description: day_generation instantiates role electricity_generation at site day_hub.
     available_technologies:
       - ccgt
       - solar_pv
@@ -116,7 +150,9 @@ facilities:
             year: 2025
           technology: ccgt
     technology_role: electricity_generation
+
   - id: day_service
+    description: day_service instantiates role electricity_service at site day_hub.
     site: day_hub
     stock:
       items:
@@ -126,7 +162,9 @@ facilities:
             year: 2025
           technology: direct_electric
     technology_role: electricity_service
+
   - id: day_supply
+    description: day_supply instantiates role gas_supply at site day_hub.
     site: day_hub
     stock:
       items:
@@ -136,7 +174,9 @@ facilities:
             year: 2025
           technology: gas_import
     technology_role: gas_supply
+
   - id: night_generation
+    description: night_generation instantiates role electricity_generation at site night_hub.
     available_technologies:
       - ccgt
       - solar_pv
@@ -149,7 +189,9 @@ facilities:
             year: 2025
           technology: solar_pv
     technology_role: electricity_generation
+
   - id: night_service
+    description: night_service instantiates role electricity_service at site night_hub.
     site: night_hub
     stock:
       items:
@@ -159,7 +201,9 @@ facilities:
             year: 2025
           technology: direct_electric
     technology_role: electricity_service
+
   - id: night_supply
+    description: night_supply instantiates role gas_supply at site night_hub.
     site: night_hub
     stock:
       items:
@@ -169,6 +213,7 @@ facilities:
             year: 2025
           technology: gas_import
     technology_role: gas_supply
+
 networks:
   - id: day_night_link
     kind: transmission
@@ -181,6 +226,7 @@ networks:
     node_basis:
       kind: region_partition
       ref: electricity_2node
+
 runs:
   - id: electricity_2node_2025
     base_year: 2025

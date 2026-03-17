@@ -4,7 +4,7 @@ This document defines the contract for solver-backed known-answer tests.
 
 For the modeler-facing catalog (KA coverage/status plus VedaLang → VEDA/TIMES
 mapping validated by solved outputs), see
-[`docs/vedalang-user/known_answer_catalog.md`](file:///Users/gre538/code/vedalang/docs/vedalang-user/known_answer_catalog.md).
+[`docs/vedalang-user/known_answer_catalog.md`](../vedalang-user/known_answer_catalog.md).
 
 ## Fixture Convention
 
@@ -15,7 +15,7 @@ mapping validated by solved outputs), see
 
 ## Harness API
 
-1. Use [`tests/helpers/solver_harness.py`](file:///Users/gre538/code/vedalang/tests/helpers/solver_harness.py) for full pipeline execution and stable artifact discovery.
+1. Use [`tests/helpers/solver_harness.py`](../../tests/helpers/solver_harness.py) for full pipeline execution and stable artifact discovery.
 2. Use `detect_solver_prerequisites()` to decide whether to skip solver-backed tests when prerequisites are unavailable.
 3. Use `run_solver_pipeline_fixture()` to run `.veda.yaml` sources through the full solver path and retrieve GDX/diagnostics artifacts.
 4. For fleet-weighting coverage, pass deterministic compile-time `measure_weights`/`custom_weights` through `run_solver_pipeline_fixture()` instead of writing ad-hoc compile wrappers inside tests.
@@ -27,17 +27,17 @@ mapping validated by solved outputs), see
 2. PR-fast tests add `@pytest.mark.solver_fast` on top of `solver_full`.
 3. Fast tier command: `uv run pytest -m "solver and solver_fast" tests/test_known_answer_core.py tests/test_known_answer_reference.py tests/test_solver_harness.py`.
 4. Full tier command: `uv run pytest -m "solver and solver_full" tests/test_known_answer_core.py tests/test_known_answer_reference.py tests/test_solver_harness.py`.
-5. Collection guardrails in [`tests/conftest.py`](file:///Users/gre538/code/vedalang/tests/conftest.py) enforce that every `solver` test is at least `solver_full` classified.
+5. Collection guardrails in [`tests/conftest.py`](../../tests/conftest.py) enforce that every `solver` test is at least `solver_full` classified.
 
 ## Results Extraction
 
-1. Use [`tools/veda_dev/times_results.py`](file:///Users/gre538/code/vedalang/tools/veda_dev/times_results.py) for GDX extraction.
+1. Use [`tools/veda_dev/times_results.py`](../../tools/veda_dev/times_results.py) for GDX extraction.
 2. Pass `limit=0` to disable truncation for deterministic test assertions.
 3. Use `include_flows=True` when tests assert efficiency or commodity-ratio behavior.
 
 ## Semantic Assertions
 
-1. Use [`tests/helpers/solver_assertions.py`](file:///Users/gre538/code/vedalang/tests/helpers/solver_assertions.py) instead of ad-hoc numeric checks.
+1. Use [`tests/helpers/solver_assertions.py`](../../tests/helpers/solver_assertions.py) instead of ad-hoc numeric checks.
 2. Available helpers include activity/new-capacity thresholds, near-zero checks, flow ratios, and process-share checks.
 3. Assertion failures are expected to include process/year/region context.
 4. For temporal-growth and run-selection tests, assert solved-level ratios/deltas directly from extracted `VAR_ACT` values.
@@ -56,8 +56,8 @@ mapping validated by solved outputs), see
 
 ## Reference Test
 
-1. [`tests/test_known_answer_reference.py`](file:///Users/gre538/code/vedalang/tests/test_known_answer_reference.py) demonstrates harness -> extraction -> semantic assertion in one smoke test.
+1. [`tests/test_known_answer_reference.py`](../../tests/test_known_answer_reference.py) demonstrates harness -> extraction -> semantic assertion in one smoke test.
 
 ## Test Catalog
 
-See [`docs/vedalang-user/known_answer_catalog.md`](file:///Users/gre538/code/vedalang/docs/vedalang-user/known_answer_catalog.md) for the per-test catalog with VedaLang→VEDA/TIMES mapping details, assertion summaries, and status tracking.
+See [`docs/vedalang-user/known_answer_catalog.md`](../vedalang-user/known_answer_catalog.md) for the per-test catalog with VedaLang→VEDA/TIMES mapping details, assertion summaries, and status tracking.

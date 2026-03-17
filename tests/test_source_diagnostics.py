@@ -22,9 +22,11 @@ def test_public_compile_json_includes_section14_location_metadata(tmp_path):
                 "    energy_form: secondary",
                 "technologies:",
                 "  - id: gas_heater",
+                "    description: Diagnostic fixture gas heater technology.",
                 "    provides: electricity",
                 "technology_roles:",
                 "  - id: gas_boiler_role",
+                "    description: Diagnostic fixture role for electricity service.",
                 "    primary_service: electricity",
                 "    technologies: [gas_heater]",
                 "runs:",
@@ -71,6 +73,75 @@ def test_public_compile_json_includes_section14_location_metadata(tmp_path):
     assert isinstance(payload.get("source_excerpt"), dict)
 
 
+def test_lint_and_validate_emit_e020_for_missing_required_description(tmp_path):
+    src = tmp_path / "missing_description.veda.yaml"
+    src.write_text(
+        "\n".join(
+            [
+                'dsl_version: "0.3"',
+                "commodities:",
+                "  - id: electricity",
+                "    type: energy",
+                "    energy_form: secondary",
+                "  - id: space_heat",
+                "    type: service",
+                "technologies:",
+                "  - id: gas_heater",
+                "    provides: space_heat",
+                "technology_roles:",
+                "  - id: heat_supply",
+                "    description: Role fixture description.",
+                "    primary_service: space_heat",
+                "    technologies: [gas_heater]",
+                "spatial_layers:",
+                "  - id: geo.demo",
+                "    kind: polygon",
+                "    key: region_id",
+                "    geometry_file: data/regions.geojson",
+                "region_partitions:",
+                "  - id: toy_partition",
+                "    layer: geo.demo",
+                "    members: [QLD]",
+                "    mapping:",
+                "      kind: constant",
+                "      value: QLD",
+                "sites:",
+                "  - id: home",
+                "    location:",
+                "      point: {lat: -27.4, lon: 153.0}",
+                "facilities:",
+                "  - id: home_heat",
+                "    description: Facility fixture description.",
+                "    site: home",
+                "    technology_role: heat_supply",
+                "runs:",
+                "  - id: toy_run",
+                "    base_year: 2025",
+                "    currency_year: 2024",
+                "    region_partition: toy_partition",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    lint_result = run_vedalang("lint", str(src), "--json")
+    assert lint_result.returncode == 2
+    lint_payload = json.loads(lint_result.stdout)
+    lint_diag = lint_payload["diagnostics"][0]
+    assert lint_diag["code"] == "E020"
+    assert lint_diag["location"] == "technologies[0]"
+    assert lint_diag["object_id"] == "gas_heater"
+
+    validate_result = run_vedalang("validate", str(src), "--json")
+    assert validate_result.returncode == 2
+    validate_payload = json.loads(validate_result.stdout)
+    validate_diag = validate_payload["diagnostics"]["diagnostics"][0]
+    assert validate_diag["code"] == "E020"
+    assert validate_diag["location"] == "technologies[0]"
+    assert validate_diag["object_id"] == "gas_heater"
+
+
 def test_collect_public_diagnostics_emits_prd_warning_codes():
     source = {
         "dsl_version": "0.3",
@@ -81,6 +152,7 @@ def test_collect_public_diagnostics_emits_prd_warning_codes():
         "technologies": [
             {
                 "id": "gas_heater",
+                "description": "Gas-heater fixture for diagnostics.",
                 "provides": "space_heat",
                 "inputs": [{"commodity": "natural_gas", "basis": "HHV"}],
                 "performance": {"kind": "efficiency", "value": 0.9},
@@ -88,6 +160,7 @@ def test_collect_public_diagnostics_emits_prd_warning_codes():
             },
             {
                 "id": "heat_pump",
+                "description": "Heat-pump transition option fixture.",
                 "provides": "space_heat",
                 "performance": {"kind": "cop", "value": 3.0},
             },
@@ -95,6 +168,7 @@ def test_collect_public_diagnostics_emits_prd_warning_codes():
         "technology_roles": [
             {
                 "id": "gas_heat_pump",
+                "description": "Space-heat role fixture.",
                 "primary_service": "space_heat",
                 "technologies": ["gas_heater", "heat_pump"],
             }
@@ -167,6 +241,7 @@ def test_collect_public_diagnostics_emits_prd_warning_codes():
         "fleets": [
             {
                 "id": "heat_fleet",
+                "description": "Fleet fixture for distributed heat assets.",
                 "technology_role": "gas_heat_pump",
                 "stock": {
                     "adjust_to_base_year": {
@@ -218,11 +293,13 @@ def test_collect_public_diagnostics_flags_duplicate_rollout_patterns():
         "technologies": [
             {
                 "id": "gas_heater",
+                "description": "Gas-heater rollout-pattern fixture.",
                 "provides": "space_heat",
                 "performance": {"kind": "efficiency", "value": 0.9},
             },
             {
                 "id": "heat_pump",
+                "description": "Heat-pump retrofit destination fixture.",
                 "provides": "space_heat",
                 "inputs": [{"commodity": "electricity"}],
                 "performance": {"kind": "cop", "value": 3.0},
@@ -231,6 +308,7 @@ def test_collect_public_diagnostics_flags_duplicate_rollout_patterns():
         "technology_roles": [
             {
                 "id": "space_heat_supply",
+                "description": "Space-heat supply role fixture.",
                 "primary_service": "space_heat",
                 "technologies": ["gas_heater", "heat_pump"],
                 "transitions": [
@@ -270,6 +348,7 @@ def test_collect_public_diagnostics_flags_duplicate_rollout_patterns():
         "facilities": [
             {
                 "id": "residential_heat",
+                "description": "Residential heat facility fixture.",
                 "site": "single_site",
                 "technology_role": "space_heat_supply",
                 "available_technologies": ["gas_heater", "heat_pump"],
@@ -303,6 +382,117 @@ def test_collect_public_diagnostics_flags_duplicate_rollout_patterns():
     assert {"W013"} <= codes
 
 
+def test_collect_public_diagnostics_flags_missing_res_explorer_descriptions():
+    source = {
+        "dsl_version": "0.3",
+        "commodities": [
+            {"id": "electricity", "type": "energy", "energy_form": "secondary"},
+            {"id": "space_heat", "type": "service"},
+        ],
+        "technologies": [
+            {
+                "id": "gas_heater",
+                "provides": "space_heat",
+                "inputs": [{"commodity": "electricity"}],
+                "performance": {"kind": "efficiency", "value": 0.9},
+            }
+        ],
+        "technology_roles": [
+            {
+                "id": "heat_supply",
+                "primary_service": "space_heat",
+                "technologies": ["gas_heater"],
+            }
+        ],
+        "spatial_layers": [
+            {
+                "id": "geo.demo",
+                "kind": "polygon",
+                "key": "region_id",
+                "geometry_file": "data/regions.geojson",
+            }
+        ],
+        "region_partitions": [
+            {
+                "id": "toy_partition",
+                "layer": "geo.demo",
+                "members": ["QLD"],
+                "mapping": {"kind": "constant", "value": "QLD"},
+            }
+        ],
+        "zone_overlays": [
+            {
+                "id": "zones.demo",
+                "layer": "geo.demo",
+                "key": "zone_id",
+                "geometry_file": "data/zones.geojson",
+            }
+        ],
+        "sites": [
+            {
+                "id": "home",
+                "location": {"point": {"lat": -27.4, "lon": 153.0}},
+                "membership_overrides": {
+                    "region_partitions": {"toy_partition": "QLD"},
+                    "zone_overlays": {"zones.demo": "qld_rez"},
+                },
+            }
+        ],
+        "facilities": [
+            {
+                "id": "home_heat",
+                "site": "home",
+                "technology_role": "heat_supply",
+                "stock": {
+                    "items": [
+                        {
+                            "technology": "gas_heater",
+                            "metric": "installed_capacity",
+                            "observed": {"value": "12 kW", "year": 2025},
+                        }
+                    ]
+                },
+            }
+        ],
+        "fleets": [
+            {
+                "id": "heat_fleet",
+                "technology_role": "heat_supply",
+                "distribution": {"method": "direct", "target_regions": ["QLD"]},
+            }
+        ],
+        "zone_opportunities": [
+            {
+                "id": "qld_rez_new_build",
+                "technology_role": "heat_supply",
+                "technology": "gas_heater",
+                "zone": "zones.demo.qld_rez",
+                "max_new_capacity": "10 MW",
+            }
+        ],
+        "runs": [
+            {
+                "id": "toy_run",
+                "base_year": 2025,
+                "currency_year": 2024,
+                "region_partition": "toy_partition",
+            }
+        ],
+    }
+
+    diagnostics = collect_diagnostics(source, selected_run="toy_run")
+    missing_description_diags = [d for d in diagnostics if d["code"] == "E020"]
+
+    assert [d["object_id"] for d in missing_description_diags] == [
+        "gas_heater",
+        "heat_fleet",
+        "heat_supply",
+        "home_heat",
+        "qld_rez_new_build",
+    ]
+    assert all(d["severity"] == "error" for d in missing_description_diags)
+
+
 def test_lsp_validate_document_uses_diagnostics():
     doc = MockTextDocument(
         "\n".join(
@@ -314,9 +504,11 @@ def test_lsp_validate_document_uses_diagnostics():
                 "    energy_form: secondary",
                 "technologies:",
                 "  - id: gas_heater",
+                "    description: LSP fixture gas-heater technology.",
                 "    provides: electricity",
                 "technology_roles:",
                 "  - id: gas_heater",
+                "    description: LSP fixture role for electricity service.",
                 "    primary_service: electricity",
                 "    technologies: [gas_heater]",
             ]
@@ -340,6 +532,7 @@ def test_run_core_skips_legacy_xref_checks_for_public_source():
         "technologies": [
             {
                 "id": "gas_heater",
+                "description": "Gas-heater fixture for run_core tests.",
                 "provides": "space_heat",
                 "inputs": [{"commodity": "natural_gas", "basis": "HHV"}],
                 "performance": {"kind": "efficiency", "value": 0.9},
@@ -348,6 +541,7 @@ def test_run_core_skips_legacy_xref_checks_for_public_source():
         "technology_roles": [
             {
                 "id": "space_heat_supply",
+                "description": "Space-heat role fixture for xref tests.",
                 "primary_service": "space_heat",
                 "technologies": ["gas_heater"],
             }
@@ -380,6 +574,7 @@ def test_run_core_skips_legacy_xref_checks_for_public_source():
         "facilities": [
             {
                 "id": "home_heat",
+                "description": "Household heat facility fixture.",
                 "site": "home",
                 "technology_role": "space_heat_supply",
                 "stock": {

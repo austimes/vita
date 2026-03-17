@@ -26,7 +26,11 @@ where an object supports a human-readable label.
 **Type**: string
 **Used in**: v0.3 objects that support human-readable documentation
 
-Optional human-readable description to document the purpose of the object.
+Human-readable object documentation.
+
+Required for RES object-explorer target kinds: `technology`, `technology_role`,
+`facility`, `fleet`, and `zone_opportunity`.
+For other kinds, `description` remains optional unless stated by schema rules.
 
 **Example**:
 ```yaml

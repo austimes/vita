@@ -1,19 +1,26 @@
 dsl_version: "0.3"
+
 commodities:
-  - id: natural_gas
-    type: energy
-    energy_form: primary
   - id: electricity
     type: energy
     energy_form: secondary
+
   - id: electricity_generation
     type: service
+
   - id: gas_supply
     type: service
+
+  - id: natural_gas
+    type: energy
+    energy_form: primary
+
   - id: residential_electricity
     type: service
+
 technologies:
   - id: ccgt
+    description: ccgt provides electricity_generation by transforming natural_gas.
     inputs:
       - commodity: natural_gas
         basis: HHV
@@ -27,7 +34,9 @@ technologies:
       value: 0.55
     provides: electricity_generation
     variable_om: 2 MUSD24/PJ
+
   - id: gas_import
+    description: gas_import provides gas_supply as a primary supply or conversion technology.
     outputs:
       - commodity: natural_gas
     lifetime: 100 year
@@ -36,7 +45,9 @@ technologies:
       value: 1.0
     provides: gas_supply
     variable_om: 5 MUSD24/PJ
+
   - id: ocgt
+    description: ocgt provides electricity_generation by transforming natural_gas.
     inputs:
       - commodity: natural_gas
         basis: HHV
@@ -50,7 +61,10 @@ technologies:
       value: 0.38
     provides: electricity_generation
     variable_om: 4 MUSD24/PJ
+
   - id: residential_device
+    description: residential_device provides residential_electricity by transforming
+      electricity.
     inputs:
       - commodity: electricity
     lifetime: 100 year
@@ -58,25 +72,37 @@ technologies:
       kind: efficiency
       value: 1.0
     provides: residential_electricity
+
 technology_roles:
   - id: electricity_generation
+    description:
+      "electricity_generation groups technologies that deliver electricity_generation:
+      ccgt and ocgt."
     primary_service: electricity_generation
     technologies:
       - ccgt
       - ocgt
+
   - id: gas_supply
+    description: "gas_supply groups technologies that deliver gas_supply: gas_import."
     primary_service: gas_supply
     technologies:
       - gas_import
+
   - id: residential_delivery
+    description:
+      "residential_delivery groups technologies that deliver residential_electricity:
+      residential_device."
     primary_service: residential_electricity
     technologies:
       - residential_device
+
 spatial_layers:
   - id: geo.demo
     geometry_file: data/regions.geojson
     key: region_id
     kind: polygon
+
 region_partitions:
   - id: reg1_partition
     layer: geo.demo
@@ -85,6 +111,7 @@ region_partitions:
       value: REG1
     members:
       - REG1
+
 sites:
   - id: reg1_energy_hub
     location:
@@ -94,8 +121,10 @@ sites:
     membership_overrides:
       region_partitions:
         reg1_partition: REG1
+
 facilities:
   - id: reg1_gas_supply
+    description: reg1_gas_supply instantiates role gas_supply at site reg1_energy_hub.
     site: reg1_energy_hub
     stock:
       items:
@@ -105,13 +134,16 @@ facilities:
             year: 2020
           technology: gas_import
     technology_role: gas_supply
+
   - id: reg1_generation
+    description: reg1_generation instantiates role electricity_generation at site reg1_energy_hub.
     available_technologies:
       - ccgt
       - ocgt
     new_build_limits:
       - max_new_capacity: 500 MW
         technology: ccgt
+
       - max_new_capacity: 300 MW
         technology: ocgt
     site: reg1_energy_hub
@@ -123,7 +155,10 @@ facilities:
             year: 2020
           technology: ccgt
     technology_role: electricity_generation
+
   - id: reg1_residential_delivery
+    description: reg1_residential_delivery instantiates role residential_delivery at
+      site reg1_energy_hub.
     site: reg1_energy_hub
     stock:
       items:
@@ -133,6 +168,7 @@ facilities:
             year: 2020
           technology: residential_device
     technology_role: residential_delivery
+
 runs:
   - id: reg1_2020
     base_year: 2020

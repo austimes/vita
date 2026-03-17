@@ -2,6 +2,20 @@ Use 'bd' for task tracking
 
 ---
 
+# Three-Layer CLI Architecture
+
+This repository provides **three CLI tools**, each with a distinct role:
+
+| CLI | Role | Audience |
+|-----|------|----------|
+| **`vedalang`** | The language — author, lint, compile, validate models | Model developers (User Agent) |
+| **`vita`** | The engine — run, analyze, and explain TIMES experiments | Anyone running models |
+| **`vedalang-dev`** | Internal R&D — pattern experimentation, evals, emit-excel | Language designers (Design Agent) |
+
+**Rule of thumb:** Use `vedalang` to *write* models, `vita` to *run and analyze* them, and `vedalang-dev` only for language design work.
+
+---
+
 # Two Distinct Personas
 
 This repository serves **two distinct AI personas** — understanding this distinction is critical:
@@ -17,6 +31,7 @@ An AI agent that **uses VedaLang** to create `.veda.yaml` models for energy syst
 - Reads the VedaLang schema and examples
 - Writes valid VedaLang source files
 - Uses `vedalang fmt`, `vedalang lint`, and `vedalang validate` to check models
+- Uses `vita run` and `vita results` to run and inspect solver output
 - Does NOT modify the language, compiler, or schema
 
 **User agent documentation:**
@@ -135,14 +150,14 @@ These category names are currently a compiler/runtime convention for
 public DSL surface.
 
 **Key distinctions:**
-- **Model architecture** (VT_* files): processes, commodities, topology — the Reference Energy System
-- **Scenario instantiation** (Scen_{case}_{category}.xlsx): demands, prices, policies that instantiate the RES
+- **Model architecture** (`vt_*` files): processes, commodities, topology — the Reference Energy System
+- **Scenario instantiation** (`scen_{case}_{category}.xlsx`): demands, prices, policies that instantiate the RES
 
-**File naming convention:** `Scen_{case}_{category}.xlsx`
-- Example: `Scen_baseline_demands.xlsx`, `Scen_ambitious_policies.xlsx`
+**File naming convention:** `scen_{case}_{category}.xlsx`
+- Example: `scen_baseline_demands.xlsx`, `scen_ambitious_policies.xlsx`
 
 This terminology maps to VEDA concepts:
-- "Scenario file" (Scen_*.xlsx) → contains scenario parameters grouped by case and category
+- "Scenario file" (`scen_*.xlsx`) → contains scenario parameters grouped by case and category
 - "High-level scenario" → **case** (a specific combination of scenario parameters)
 - "Study" → collection of cases for comparison
 
@@ -167,7 +182,7 @@ CPIR (Canonical Process IR)
     ▼
 TableIR  ──►  VEDA Excel (.xlsx)  ──►  xl2times  ──►  TIMES DD files
                                                      │
-                                                     │  (5) vedalang-dev run-times
+                                                     │  (5) vita run --from dd
                                                      ▼
                                               GAMS/TIMES Solution (.gdx)
 ```
@@ -185,8 +200,8 @@ Tools needed for an agent to **design VedaLang itself**:
 | **T1** | `xl2times` + JSON outputs | Validation oracle — "Is this valid VEDA?" |
 | **T2** | `vedalang-dev emit-excel` | Existing backend emitter (TableIR → Excel) |
 | **T3** | `vedalang` compiler | Active frontend under reset: source → CSIR/CPIR → backend path |
-| **T4** | `vedalang validate` | Orchestration wrapper with unified diagnostics |
-| **T5** | `vedalang-dev run-times` | Run DD files through GAMS/TIMES solver |
+| **T4** | `vedalang validate` | Compile + xl2times oracle validation (no solver) |
+| **T5** | `vita run` | Run full pipeline or DD files through GAMS/TIMES solver |
 
 ## Key Principle: Agent-Designed Language
 
@@ -315,7 +330,7 @@ vedalang/
 │   ├── veda_emit_excel/         # TableIR → Excel emitter
 │   ├── veda_check/              # Model validation utilities
 │   ├── veda_patterns/           # Pattern library tools
-│   ├── veda_run_times/          # TIMES solver runner
+│   ├── veda_run_times/          # Internal TIMES solver runner used by vita
 │   └── vedalang_lsp/            # Language server protocol
 ├── rules/
 │   ├── patterns.yaml            # Concept → VedaLang templates
@@ -328,31 +343,64 @@ vedalang/
 
 ## CLI Tools
 
-The Design Agent has access to the following CLI tools:
+The Design Agent has access to three CLI layers:
 
-### Primary Tool: `vedalang-dev` (Design Agent Hub)
+### `vedalang` — The Language CLI
 
-The unified CLI for VedaLang design iteration. Use this for most workflows.
+Author, lint, compile, and validate VedaLang models.
 
 ```bash
-# Full pipeline: VedaLang → TableIR → Excel → DD (preferred workflow)
-vedalang-dev pipeline model.veda.yaml --no-solver --json
-
-# Full pipeline with TIMES solver
-vedalang-dev pipeline model.veda.yaml --times-src ~/TIMES_model --case base --json
-
 # Validate VedaLang source
+vedalang validate model.veda.yaml --run <run_id>
+
+# Compile to Excel
+vedalang compile model.veda.yaml --run <run_id> --out output/
+
+# Lint for heuristic issues
+vedalang lint model.veda.yaml
+
+# Format YAML
+vedalang fmt model.veda.yaml
+```
+
+### `vita` — The Engine CLI
+
+Run, analyze, and explain TIMES experiments.
+
+```bash
+# Full pipeline: VedaLang → Excel → DD → TIMES (preferred workflow)
+vita run model.veda.yaml --run <run_id> --json
+
+# Full pipeline without solver (useful when GAMS unavailable)
+vita run model.veda.yaml --run <run_id> --no-solver --json
+
+# Run TIMES solver on DD files only
+vita run dd_dir/ --from dd --times-src ~/TIMES_model --json
+
+# Extract results from GDX
+vita results --gdx tmp/gams/scenario.gdx --json
+
+# Generate Sankey diagram
+vita sankey --gdx tmp/gams/scenario.gdx
+```
+
+### `vedalang-dev` — Internal R&D CLI
+
+Design agent tooling for pattern experimentation and evals. Not for user-facing workflows.
+
+```bash
+# Validate VedaLang source (wraps veda_check)
 vedalang-dev check model.veda.yaml --json
 
 # Emit Excel from TableIR (for pattern experimentation)
 vedalang-dev emit-excel tables.yaml --out output/
 
-# Run TIMES solver on DD files
-vedalang-dev run-times dd_dir/ --times-src ~/TIMES_model --json
-
 # Pattern library utilities
 vedalang-dev pattern list --json
 vedalang-dev pattern show thermal_plant --json
+
+# LLM lint evals
+vedalang-dev eval run --profile quick --json
 ```
 
 **Key flags:**
@@ -363,17 +411,13 @@ vedalang-dev pattern show thermal_plant --json
 
 ### Standalone Tools
 
-These remain available for users and external tooling:
+These remain available for validation:
 
 | Tool | Purpose |
 |------|---------|
-| `vedalang compile` | VedaLang → TableIR/Excel compiler |
 | `xl2times` | Excel → DD files (validation oracle) |
 
 ```bash
-# Compile VedaLang to Excel
-vedalang compile src/ --out model.xlsx
-
 # Validate Excel through xl2times
 xl2times model.xlsx --case base --diagnostics-json diag.json
 ```
@@ -503,13 +547,16 @@ The agent iteratively designs VedaLang through a structured feedback loop:
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**Preferred workflow:** Use `vedalang validate` for the full pipeline:
+**Preferred workflow:** Use `vedalang validate` for compile + oracle validation, and `vita run` for execution/analyze:
 ```bash
-# Validate VedaLang source end-to-end
+# Validate VedaLang source end-to-end (lint + compile + xl2times; no solver)
 uv run vedalang validate vedalang/examples/quickstart/mini_plant.veda.yaml
 
-# Validate TableIR directly
-uv run vedalang-dev validate-tableir tables.yaml
+# Check TableIR directly
+uv run vedalang-dev check tables.yaml --from-tableir --json
+
+# Run the full pipeline through the solver
+uv run vita run model.veda.yaml --run <run_id> --json
 ```
 
 ---
@@ -549,7 +596,7 @@ The older P4 ideas still exist as secondary backlog after the reset:
 ### P0: Validate Toolchain (DONE)
 - ✅ `vedalang compile` works
 - ✅ `vedalang-dev emit-excel` emits valid Excel
-- ✅ `vedalang validate` orchestrates pipeline
+- ✅ `vedalang validate` performs compile + oracle validation
 - ✅ xl2times emits structured diagnostics (not crashes)
 - ✅ `quickstart/mini_plant.veda.yaml` passes VedaLang compilation
 
@@ -702,8 +749,11 @@ bun run format:veda:check
 uv run pytest tests/
 uv run ruff check .
 
-# Full validation
+# Full validation (compile + xl2times; no solver)
 uv run vedalang validate vedalang/examples/quickstart/mini_plant.veda.yaml
+
+# Run full pipeline (VedaLang → Excel → DD → TIMES)
+uv run vita run model.veda.yaml --run <run_id> --json
 ```
 
 ---

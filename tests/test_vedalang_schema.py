@@ -37,6 +37,7 @@ def valid_public_source() -> dict:
         "technologies": [
             {
                 "id": "heat.gas_heater",
+                "description": "Gas heater providing space heat.",
                 "provides": "space_heat",
                 "inputs": [
                     {
@@ -56,6 +57,7 @@ def valid_public_source() -> dict:
             },
             {
                 "id": "heat.heat_pump",
+                "description": "Heat pump providing space heat.",
                 "provides": "space_heat",
                 "inputs": [{"commodity": "electricity"}],
                 "performance": {"kind": "cop", "value": 3.2},
@@ -66,6 +68,7 @@ def valid_public_source() -> dict:
         "technology_roles": [
             {
                 "id": "heat.residential_space_heat_supply",
+                "description": "Residential space-heat supply role.",
                 "primary_service": "space_heat",
                 "technologies": ["heat.gas_heater", "heat.heat_pump"],
                 "transitions": [
@@ -158,6 +161,7 @@ def valid_public_source() -> dict:
         "facilities": [
             {
                 "id": "gladstone_steam",
+                "description": "Gladstone facility instance.",
                 "site": "gladstone_refinery",
                 "technology_role": "heat.residential_space_heat_supply",
                 "available_technologies": ["heat.gas_heater", "heat.heat_pump"],
@@ -178,6 +182,7 @@ def valid_public_source() -> dict:
         "fleets": [
             {
                 "id": "residential_space_heat",
+                "description": "Distributed residential space-heat fleet.",
                 "technology_role": "heat.residential_space_heat_supply",
                 "stock": {
                     "adjust_to_base_year": {
@@ -204,6 +209,7 @@ def valid_public_source() -> dict:
         "zone_opportunities": [
             {
                 "id": "qld_central_rez_wind_class_1",
+                "description": "Zone opportunity for QLD central REZ.",
                 "technology_role": "heat.residential_space_heat_supply",
                 "technology": "heat.heat_pump",
                 "zone": "regions.aemo_rez_2024.qld_central_rez",
@@ -324,6 +330,26 @@ def test_stock_characterization_requires_conversions() -> None:
 def test_asset_new_build_limits_require_technology_and_capacity() -> None:
     data = valid_public_source()
     data["facilities"][0]["new_build_limits"] = [{"technology": "heat.gas_heater"}]
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(data, load_schema())
+
+
+@pytest.mark.parametrize(
+    ("family", "index"),
+    [
+        ("technologies", 0),
+        ("technology_roles", 0),
+        ("facilities", 0),
+        ("fleets", 0),
+        ("zone_opportunities", 0),
+    ],
+)
+def test_res_explorer_targets_require_descriptions(
+    family: str,
+    index: int,
+) -> None:
+    data = valid_public_source()
+    data[family][index].pop("description")
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(data, load_schema())
 

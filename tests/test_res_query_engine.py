@@ -77,6 +77,23 @@ INSTANCE_ZONE_WIND_LABEL = (
     "[reg1_new_wind, zone opportunity]"
 )
 
+REQUIRED_DESCRIPTION_OBJECT_KINDS = {
+    "technology",
+    "technology_role",
+    "facility",
+    "fleet",
+    "zone_opportunity",
+}
+
+
+def _assert_required_description(item: dict) -> None:
+    if item.get("kind") not in REQUIRED_DESCRIPTION_OBJECT_KINDS:
+        return
+    attributes = item.get("attributes") or {}
+    description = attributes.get("description")
+    assert isinstance(description, str)
+    assert description.strip()
+
 
 def _write_multi_run_source(path: Path) -> None:
     source = _sample_source()
@@ -106,6 +123,7 @@ def _emission_contract_source() -> dict:
         "technologies": [
             {
                 "id": "gas_heater",
+                "description": "Gas-heater converting gas to heat.",
                 "provides": "space_heat",
                 "inputs": [{"commodity": "natural_gas", "basis": "HHV"}],
                 "performance": {"kind": "efficiency", "value": 0.9},
@@ -113,6 +131,7 @@ def _emission_contract_source() -> dict:
             },
             {
                 "id": "heat_pump",
+                "description": "Heat-pump supplying heat from electricity.",
                 "provides": "space_heat",
                 "inputs": [{"commodity": "electricity"}],
                 "performance": {"kind": "cop", "value": 3.2},
@@ -120,6 +139,7 @@ def _emission_contract_source() -> dict:
             },
             {
                 "id": "dac_unit",
+                "description": "DAC co-producing captured CO2 with heat.",
                 "provides": "space_heat",
                 "inputs": [{"commodity": "electricity"}],
                 "outputs": [
@@ -131,6 +151,7 @@ def _emission_contract_source() -> dict:
             },
             {
                 "id": "methane_heater",
+                "description": "Methane-emitting heater fixture.",
                 "provides": "space_heat",
                 "inputs": [{"commodity": "natural_gas", "basis": "HHV"}],
                 "performance": {"kind": "efficiency", "value": 0.85},
@@ -141,6 +162,7 @@ def _emission_contract_source() -> dict:
             },
             {
                 "id": "sf6_unit",
+                "description": "SF6-emitting heat unit fixture.",
                 "provides": "space_heat",
                 "inputs": [{"commodity": "electricity"}],
                 "performance": {"kind": "efficiency", "value": 1.0},
@@ -150,21 +172,25 @@ def _emission_contract_source() -> dict:
         "technology_roles": [
             {
                 "id": "space_heat_supply",
+                "description": "Space-heat supply role fixture.",
                 "primary_service": "space_heat",
                 "technologies": ["gas_heater", "heat_pump"],
             },
             {
                 "id": "carbon_removal_service",
+                "description": "Carbon-removal role fixture.",
                 "primary_service": "space_heat",
                 "technologies": ["dac_unit"],
             },
             {
                 "id": "methane_heat_service",
+                "description": "Methane heat-service role fixture.",
                 "primary_service": "space_heat",
                 "technologies": ["methane_heater"],
             },
             {
                 "id": "sf6_heat_service",
+                "description": "SF6 heat-service role fixture.",
                 "primary_service": "space_heat",
                 "technologies": ["sf6_unit"],
             },
@@ -197,6 +223,7 @@ def _emission_contract_source() -> dict:
         "facilities": [
             {
                 "id": "base_heat",
+                "description": "Base heat facility fixture.",
                 "site": "single_site",
                 "technology_role": "space_heat_supply",
                 "available_technologies": ["gas_heater", "heat_pump"],
@@ -212,6 +239,7 @@ def _emission_contract_source() -> dict:
             },
             {
                 "id": "dac_capture",
+                "description": "DAC capture facility fixture.",
                 "site": "single_site",
                 "technology_role": "carbon_removal_service",
                 "available_technologies": ["dac_unit"],
@@ -227,6 +255,7 @@ def _emission_contract_source() -> dict:
             },
             {
                 "id": "methane_heat",
+                "description": "Methane-heat facility fixture.",
                 "site": "single_site",
                 "technology_role": "methane_heat_service",
                 "available_technologies": ["methane_heater"],
@@ -242,6 +271,7 @@ def _emission_contract_source() -> dict:
             },
             {
                 "id": "sf6_heat",
+                "description": "SF6-heat facility fixture.",
                 "site": "single_site",
                 "technology_role": "sf6_heat_service",
                 "available_technologies": ["sf6_unit"],
@@ -581,6 +611,7 @@ def test_role_ledger_emissions_classify_mixed_state():
     source["technology_roles"].append(
         {
             "id": "mixed_heat_service",
+            "description": "Mixed heat-service role fixture.",
             "primary_service": "space_heat",
             "technologies": ["gas_heater", "dac_unit"],
         }
@@ -588,6 +619,7 @@ def test_role_ledger_emissions_classify_mixed_state():
     source["facilities"].append(
         {
             "id": "mixed_heat",
+            "description": "Mixed heat facility fixture.",
             "site": "single_site",
             "technology_role": "mixed_heat_service",
             "available_technologies": ["gas_heater", "dac_unit"],
@@ -919,6 +951,7 @@ def test_collapse_scope_inspector_tracks_all_underlying_commodities(tmp_path):
         "technologies": [
             {
                 "id": "res_hp",
+                "description": "Residential heat-pump fixture.",
                 "provides": "space_heat@RES",
                 "inputs": [{"commodity": "electricity"}],
                 "performance": {"kind": "cop", "value": 3.0},
@@ -926,6 +959,7 @@ def test_collapse_scope_inspector_tracks_all_underlying_commodities(tmp_path):
             },
             {
                 "id": "com_hp",
+                "description": "Commercial heat-pump fixture.",
                 "provides": "space_heat@COM",
                 "inputs": [{"commodity": "electricity"}],
                 "performance": {"kind": "cop", "value": 3.0},
@@ -935,11 +969,13 @@ def test_collapse_scope_inspector_tracks_all_underlying_commodities(tmp_path):
         "technology_roles": [
             {
                 "id": "res_space_heat",
+                "description": "Residential space-heat role fixture.",
                 "primary_service": "space_heat@RES",
                 "technologies": ["res_hp"],
             },
             {
                 "id": "com_space_heat",
+                "description": "Commercial space-heat role fixture.",
                 "primary_service": "space_heat@COM",
                 "technologies": ["com_hp"],
             },
@@ -972,6 +1008,7 @@ def test_collapse_scope_inspector_tracks_all_underlying_commodities(tmp_path):
         "facilities": [
             {
                 "id": "res_heat",
+                "description": "Residential heat facility fixture.",
                 "site": "single_site",
                 "technology_role": "res_space_heat",
                 "available_technologies": ["res_hp"],
@@ -987,6 +1024,7 @@ def test_collapse_scope_inspector_tracks_all_underlying_commodities(tmp_path):
             },
             {
                 "id": "com_heat",
+                "description": "Commercial heat facility fixture.",
                 "site": "single_site",
                 "technology_role": "com_space_heat",
                 "available_technologies": ["com_hp"],
@@ -1283,6 +1321,37 @@ def test_asset_backed_role_object_explorer_nests_facility_role_technology():
     assert technology["presentation"]["render"] == "object_card"
     assert _compact_hidden_attributes(technology) == ["id"]
 
+    _assert_required_description(fleet)
+    _assert_required_description(role)
+    _assert_required_description(technology)
+
+
+def test_object_explorer_required_description_kinds_expose_authored_descriptions():
+    source_file = EXAMPLES_DIR / "toy_sectors/toy_agriculture.veda.yaml"
+
+    response = query_res_graph(
+        {
+            "version": "1",
+            "file": str(source_file),
+            "mode": "compiled",
+            "granularity": "role",
+            "lens": "system",
+            "filters": {"regions": [], "case": None, "sectors": [], "scopes": []},
+            "compiled": {"truth": "auto", "cache": True, "allow_partial": True},
+        }
+    )
+
+    node_id = "role:asset:fleets.farm_input_supply"
+    inspector = response["details"]["nodes"][node_id]["inspector"]
+    dsl_items = _flatten_dsl_items(_section_by_key(inspector, "dsl")["items"])
+
+    required_items = [
+        item for item in dsl_items if item["kind"] in REQUIRED_DESCRIPTION_OBJECT_KINDS
+    ]
+    assert required_items
+    for item in required_items:
+        _assert_required_description(item)
+
 
 def test_object_explorer_source_blocks_use_exact_yaml_item_lines():
     source_file = EXAMPLES_DIR / "toy_sectors/toy_agriculture.veda.yaml"
@@ -1305,8 +1374,8 @@ def test_object_explorer_source_blocks_use_exact_yaml_item_lines():
     role_item = next(item for item in dsl_items if item["kind"] == "technology_role")
     tech_item = next(item for item in dsl_items if item["kind"] == "technology")
 
-    assert role_item["source_location"]["start_line"] == 117
-    assert role_item["source_location"]["end_line"] == 120
+    assert role_item["source_location"]["start_line"] == 160
+    assert role_item["source_location"]["end_line"] == 165
     assert (
         role_item["source_location"]["lines"][0]["text"]
         == "  - id: farm_input_supply"
@@ -1317,7 +1386,7 @@ def test_object_explorer_source_blocks_use_exact_yaml_item_lines():
     )
     assert "excerpt" not in role_item["source_location"]
 
-    assert tech_item["source_location"]["start_line"] == 18
+    assert tech_item["source_location"]["start_line"] == 26
     assert (
         tech_item["source_location"]["lines"][0]["text"]
         == "  - id: farm_input_import"
@@ -1447,6 +1516,10 @@ def test_object_explorer_zone_opportunity_nests_role_then_technology():
     assert _compact_hidden_attributes(technology) == ["id"]
     assert [child["kind"] for child in role["children"]] == ["technology"]
     assert role["children"][0]["id"] == "onshore_wind_turbine"
+
+    _assert_required_description(opportunity)
+    _assert_required_description(role)
+    _assert_required_description(technology)
 
 
 def test_multi_run_public_query_requires_explicit_run_and_exposes_facets(tmp_path):

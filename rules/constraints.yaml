@@ -1,5 +1,5 @@
 # VEDA Tag and Field Constraints
-# Defines valid combinations of tags, files, and required fields.
+# Defines valid combinations of tags and required fields.
 # Used for validation and guidance during model construction.
 
 tag_constraints:
@@ -9,9 +9,6 @@ tag_constraints:
   
   "~FI_COMM":
     description: Define commodities
-    valid_files:
-      - "SysSettings/*.xlsx"
-      - "BY_Trans/*.xlsx"
     required_fields:
       - Csets
       - CommName
@@ -27,9 +24,6 @@ tag_constraints:
   
   "~FI_PROCESS":
     description: Define processes/technologies
-    valid_files:
-      - "SubRES_*/*.xlsx"
-      - "BY_Trans/*.xlsx"
     required_fields:
       - TechName
       - Sets
@@ -46,9 +40,6 @@ tag_constraints:
   
   "~FI_T":
     description: Define process topology (inputs, outputs, efficiency) or commodity attributes
-    valid_files:
-      - "SubRES_*/*.xlsx"
-      - "BY_Trans/*.xlsx"
     # FI_T supports two formats:
     # 1. Long format: Process + Attribute + Value columns (process topology)
     # 2. Wide-in-attribute: Process or Commodity + attribute as column headers (e.g., COM_PROJ, EFF)
@@ -78,9 +69,6 @@ tag_constraints:
   
   "~TFM_INS":
     description: Insert/update data for existing processes or system parameters
-    valid_files:
-      - "Scen_*/*.xlsx"
-      - "SysSettings/*.xlsx"
     required_fields:
       - Attribute
     # Note: TechName is NOT required - system-level parameters (like YRFR, Discount)
@@ -93,8 +81,6 @@ tag_constraints:
 
   "~TFM_INS-TS":
     description: Insert time-series data
-    valid_files:
-      - "Scen_*/*.xlsx"
     required_fields:
       - YEAR
     note: Used for time-varying parameters like prices, demands

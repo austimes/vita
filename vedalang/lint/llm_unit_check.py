@@ -73,7 +73,7 @@ def _schema_unit_reference() -> dict[str, list[str]]:
     try:
         with open(schema_path, encoding="utf-8") as f:
             schema = json.load(f)
-    except Exception:
+    except Exception:  # noqa: BLE001 — optional schema lookup; fall back to empty
         return {}
 
     defs = schema.get("$defs", {})

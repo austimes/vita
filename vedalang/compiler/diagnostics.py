@@ -228,6 +228,38 @@ def _validate_unresolved_formulas(graph: ResolvedDefinitionGraph) -> None:
                 )
 
 
+def _error_missing_required_descriptions(
+    graph: ResolvedDefinitionGraph,
+) -> list[dict[str, Any]]:
+    diagnostics: list[dict[str, Any]] = []
+    required_collections = (
+        ("technology", graph.technologies.values()),
+        ("technology_role", graph.technology_roles.values()),
+        ("facility", graph.facilities.values()),
+        ("fleet", graph.fleets.values()),
+        ("zone_opportunity", graph.zone_opportunities.values()),
+    )
+    for object_kind, objects in required_collections:
+        for obj in objects:
+            description = getattr(obj, "description", None)
+            if isinstance(description, str) and description.strip():
+                continue
+            diagnostics.append(
+                _diagnostic(
+                    "E020",
+                    "error",
+                    (
+                        f"{object_kind} requires an authored `description` "
+                        "for RES explorer output"
+                    ),
+                    object_id=str(getattr(obj, "id", "<unknown>")),
+                    location=_location_of(obj),
+                    suggestion="Add a non-empty `description` field.",
+                )
+            )
+    return diagnostics
+
+
 def _role_name(role: TechnologyRoleDecl) -> str:
     return role.id.lower()
 
@@ -552,6 +584,7 @@ def collect_diagnostics(
         _validate_unresolved_formulas(graph)
 
         diagnostics: list[dict[str, Any]] = []
+        diagnostics.extend(_error_missing_required_descriptions(graph))
         for role in graph.technology_roles.values():
             diagnostics.extend(_warn_role_identity(role, graph))
         for asset in (*graph.facilities.values(), *graph.fleets.values()):
@@ -560,14 +593,19 @@ def collect_diagnostics(
 
         run_id = selected_run or _infer_run_id(source)
         run: RunContext | None = None
+        effective_mw = measure_weights
         if run_id is not None:
             run = resolve_run(graph, run_id)
+            if effective_mw is None:
+                from .backend import _synthesize_uniform_measure_weights
+
+                effective_mw = _synthesize_uniform_measure_weights(graph, run)
             build_run_artifacts(
                 graph,
                 run,
                 site_region_memberships=site_region_memberships,
                 site_zone_memberships=site_zone_memberships,
-                measure_weights=measure_weights,
+                measure_weights=effective_mw,
                 custom_weights=custom_weights,
             )
         diagnostics.extend(
@@ -576,7 +614,7 @@ def collect_diagnostics(
                 run,
                 site_region_memberships=site_region_memberships,
                 site_zone_memberships=site_zone_memberships,
-                measure_weights=measure_weights,
+                measure_weights=effective_mw,
                 custom_weights=custom_weights,
             )
         )

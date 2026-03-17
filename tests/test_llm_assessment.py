@@ -32,6 +32,7 @@ MINIMAL_SOURCE = {
     "technologies": [
         {
             "id": "heat_pump",
+            "description": "Electric heat pump",
             "provides": "space_heat",
             "inputs": [{"commodity": "electricity"}],
         },
@@ -39,6 +40,7 @@ MINIMAL_SOURCE = {
     "technology_roles": [
         {
             "id": "space_heat_supply",
+            "description": "Space heat supply",
             "primary_service": "space_heat",
             "technologies": ["heat_pump"],
         },

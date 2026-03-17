@@ -268,7 +268,7 @@ The compiler maps VedaLang namespace prefixes to VEDA Csets (`primary:`/`seconda
 
 ```yaml
 files:
-  - path: "SysSettings/SysSettings.xlsx"
+  - path: "syssettings.xlsx"
     sheets:
       - name: "Commodities"
         tables:
@@ -277,7 +277,7 @@ files:
               - { region: "REG1", csets: "NRG", commname: "ELC", unit: "PJ" }
               - { region: "REG1", csets: "ENV", commname: "CO2", unit: "Mt" }
 
-  - path: "Scen_CO2Price/Scen_CO2Price.xlsx"
+  - path: "scen_baseline_prices.xlsx"
     sheets:
       - name: "Scenario"
         tables:

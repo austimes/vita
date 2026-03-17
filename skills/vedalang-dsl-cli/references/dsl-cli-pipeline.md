@@ -34,9 +34,19 @@ uv run vedalang validate model.veda.yaml --run <run_id>
 # Compile only
 uv run vedalang compile model.veda.yaml --run <run_id> --out output/
 
-# Design-agent full pipeline (no solver)
-uv run vedalang-dev pipeline model.veda.yaml --no-solver
+# Full pipeline without solver
+uv run vita run model.veda.yaml --run <run_id> --no-solver --json
+
+# Compare baseline vs variant run artifacts
+uv run vita diff runs/<study>/baseline runs/<study>/variant --json
 ```
+
+## CLI Boundary
+
+- Use `vedalang` for author/lint/compile/validate actions on `.veda.yaml`.
+- Use `vita` for run execution, solver outputs, experiment diffs, and results narratives.
+- For toy-sector workflows, keep `--no-sankey` on `vita run` unless Sankey
+  support is explicitly confirmed.
 
 ## Reliability Rules
 

@@ -1,19 +1,26 @@
 dsl_version: "0.3"
+
 commodities:
-  - id: natural_gas
-    type: energy
-    energy_form: primary
   - id: electricity
     type: energy
     energy_form: secondary
+
   - id: electricity_generation
     type: service
+
   - id: gas_supply
     type: service
+
+  - id: natural_gas
+    type: energy
+    energy_form: primary
+
   - id: residential_demand
     type: service
+
 technologies:
   - id: ccgt
+    description: ccgt provides electricity_generation by transforming natural_gas.
     inputs:
       - commodity: natural_gas
         basis: HHV
@@ -26,7 +33,10 @@ technologies:
       kind: efficiency
       value: 0.55
     provides: electricity_generation
+
   - id: pipeline_import
+    description: pipeline_import provides gas_supply as a primary supply or conversion
+      technology.
     outputs:
       - commodity: natural_gas
     lifetime: 100 year
@@ -34,7 +44,9 @@ technologies:
       kind: efficiency
       value: 1.0
     provides: gas_supply
+
   - id: residential_device
+    description: residential_device provides residential_demand by transforming electricity.
     inputs:
       - commodity: electricity
     lifetime: 100 year
@@ -42,24 +54,36 @@ technologies:
       kind: efficiency
       value: 1.0
     provides: residential_demand
+
 technology_roles:
   - id: electricity_generation
+    description:
+      "electricity_generation groups technologies that deliver electricity_generation:
+      ccgt."
     primary_service: electricity_generation
     technologies:
       - ccgt
+
   - id: gas_supply
+    description: "gas_supply groups technologies that deliver gas_supply: pipeline_import."
     primary_service: gas_supply
     technologies:
       - pipeline_import
+
   - id: residential_service
+    description:
+      "residential_service groups technologies that deliver residential_demand:
+      residential_device."
     primary_service: residential_demand
     technologies:
       - residential_device
+
 spatial_layers:
   - id: geo.demo
     geometry_file: data/regions.geojson
     key: region_id
     kind: polygon
+
 region_partitions:
   - id: trade_regions
     layer: geo.demo
@@ -69,6 +93,7 @@ region_partitions:
     members:
       - REG1
       - REG2
+
 sites:
   - id: reg1_hub
     location:
@@ -78,6 +103,7 @@ sites:
     membership_overrides:
       region_partitions:
         trade_regions: REG1
+
   - id: reg2_hub
     location:
       point:
@@ -86,8 +112,10 @@ sites:
     membership_overrides:
       region_partitions:
         trade_regions: REG2
+
 facilities:
   - id: reg1_gas_supply
+    description: reg1_gas_supply instantiates role gas_supply at site reg1_hub.
     site: reg1_hub
     stock:
       items:
@@ -97,7 +125,9 @@ facilities:
             year: 2025
           technology: pipeline_import
     technology_role: gas_supply
+
   - id: reg1_generation
+    description: reg1_generation instantiates role electricity_generation at site reg1_hub.
     site: reg1_hub
     stock:
       items:
@@ -107,7 +137,10 @@ facilities:
             year: 2025
           technology: ccgt
     technology_role: electricity_generation
+
   - id: reg1_residential_service
+    description: reg1_residential_service instantiates role residential_service at site
+      reg1_hub.
     site: reg1_hub
     stock:
       items:
@@ -117,7 +150,9 @@ facilities:
             year: 2025
           technology: residential_device
     technology_role: residential_service
+
   - id: reg2_gas_supply
+    description: reg2_gas_supply instantiates role gas_supply at site reg2_hub.
     site: reg2_hub
     stock:
       items:
@@ -127,7 +162,9 @@ facilities:
             year: 2025
           technology: pipeline_import
     technology_role: gas_supply
+
   - id: reg2_generation
+    description: reg2_generation instantiates role electricity_generation at site reg2_hub.
     site: reg2_hub
     stock:
       items:
@@ -137,7 +174,10 @@ facilities:
             year: 2025
           technology: ccgt
     technology_role: electricity_generation
+
   - id: reg2_residential_service
+    description: reg2_residential_service instantiates role residential_service at site
+      reg2_hub.
     site: reg2_hub
     stock:
       items:
@@ -147,6 +187,7 @@ facilities:
             year: 2025
           technology: residential_device
     technology_role: residential_service
+
 networks:
   - id: gas_pipeline
     kind: pipeline
@@ -160,6 +201,7 @@ networks:
     node_basis:
       kind: region_partition
       ref: trade_regions
+
   - id: interconnector
     kind: transmission
     links:
@@ -172,6 +214,7 @@ networks:
     node_basis:
       kind: region_partition
       ref: trade_regions
+
 runs:
   - id: trade_regions_2025
     base_year: 2025

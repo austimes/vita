@@ -9,15 +9,17 @@ repo so conventions updates do not require hunting across duplicate docs.
 2. **Runtime enum/mapping accessors:** `vedalang/conventions.py`
 3. **Modeling convention guidance truth:** `docs/vedalang-user/modeling-conventions.md`
 4. **User-agent operation truth:** `skills/vedalang-dsl-cli/SKILL.md`
-5. **Design-agent execution truth:** `AGENTS.md`
-6. **Skills are wrappers where possible:** keep heavy prose in dedicated references
-7. **Generated enum snippets:** maintained by `tools/sync_conventions.py`
+5. **Experiment execution + diff truth:** `skills/vita-experiment-loop/SKILL.md`
+6. **Design-agent execution truth:** `AGENTS.md`
+7. **Skills are wrappers where possible:** keep heavy prose in dedicated references
+8. **Generated enum snippets:** maintained by `tools/sync_conventions.py`
 
 ## LLM-Facing Surface Inventory
 
 | Artifact | Audience | Purpose | Keep / Combine Decision |
 |----------|----------|---------|-------------------------|
 | `skills/vedalang-dsl-cli/SKILL.md` (+ `references/`) | VedaLang User Agent | Authoring workflow and CLI pipeline operation | **Keep** as canonical user-agent skill |
+| `skills/vita-experiment-loop/SKILL.md` (+ `references/`) | VedaLang User Agent | Canonical experiment execution, diff interpretation, and narrative output loop | **Keep** as the canonical run/analyze skill |
 | `docs/vedalang-user/modeling-conventions.md` | VedaLang User Agent + LLM lint | Canonical modeling conventions narrative (non-binding) | **Keep** as the single conventions narrative source |
 | `skills/vedalang-modeling-conventions/SKILL.md` | Skill-enabled agents | Thin pointer to conventions document | **Keep** as a wrapper only; no duplicated convention prose |
 | `.agents/skills` (symlink) | Skill-enabled agents | Compatibility path for agents expecting `.agents/skills/*` | **Keep** as symlink to `skills/` |

@@ -109,11 +109,12 @@ class TestPublicSchemaContract:
     def test_required_fields_for_core_public_objects(self) -> None:
         defs = self.schema["$defs"]
         assert defs["commodity"]["required"] == ["id", "type"]
-        assert defs["technology"]["required"] == ["id", "provides"]
+        assert defs["technology"]["required"] == ["id", "provides", "description"]
         assert defs["technology_role"]["required"] == [
             "id",
             "primary_service",
             "technologies",
+            "description",
         ]
         assert defs["flow_spec"]["required"] == ["commodity"]
         assert defs["run"]["required"] == [
@@ -126,14 +127,20 @@ class TestPublicSchemaContract:
     def test_required_fields_for_spatial_and_asset_objects(self) -> None:
         defs = self.schema["$defs"]
         assert defs["site"]["required"] == ["id", "location"]
-        assert defs["facility"]["required"] == ["id", "site", "technology_role"]
-        assert defs["fleet"]["required"] == ["id", "technology_role", "distribution"]
+        assert defs["facility"]["required"] == [
+            "id", "site", "technology_role", "description",
+        ]
+        assert defs["fleet"]["required"] == [
+            "id", "technology_role", "distribution",
+            "description",
+        ]
         assert defs["zone_opportunity"]["required"] == [
             "id",
             "technology_role",
             "technology",
             "zone",
             "max_new_capacity",
+            "description",
         ]
         assert defs["network"]["required"] == ["id", "kind", "node_basis", "links"]
         assert defs["distribution_block"]["properties"]["method"]["enum"] == [

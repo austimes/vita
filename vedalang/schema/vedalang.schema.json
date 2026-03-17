@@ -425,7 +425,8 @@
       "additionalProperties": false,
       "required": [
         "id",
-        "provides"
+        "provides",
+        "description"
       ],
       "properties": {
         "id": {
@@ -511,7 +512,8 @@
       "required": [
         "id",
         "primary_service",
-        "technologies"
+        "technologies",
+        "description"
       ],
       "properties": {
         "id": {
@@ -1063,7 +1065,8 @@
       "required": [
         "id",
         "site",
-        "technology_role"
+        "technology_role",
+        "description"
       ],
       "properties": {
         "id": {
@@ -1165,7 +1168,8 @@
       "required": [
         "id",
         "technology_role",
-        "distribution"
+        "distribution",
+        "description"
       ],
       "properties": {
         "id": {
@@ -1223,7 +1227,8 @@
         "technology_role",
         "technology",
         "zone",
-        "max_new_capacity"
+        "max_new_capacity",
+        "description"
       ],
       "properties": {
         "id": {

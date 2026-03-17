@@ -53,6 +53,12 @@ uv run vedalang validate your_model.veda.yaml --run your_run_id
 # Compile only
 uv run vedalang compile your_model.veda.yaml --run your_run_id --out out/
 
+# Execute/solve a run and write machine-readable artifacts
+uv run vita run your_model.veda.yaml --run your_run_id --json
+
+# Compare two completed run artifacts
+uv run vita diff runs/<study>/baseline runs/<study>/variant --json
+
 # Lint all deterministic categories
 uv run vedalang lint your_model.veda.yaml
 
@@ -67,20 +73,22 @@ uv run vedalang llm-lint your_model.veda.yaml --category units
 # LLM lint runtime controls
 uv run vedalang llm-lint your_model.veda.yaml --category structure --model gpt-5-nano --reasoning-effort low --prompt-version v1
 uv run vedalang llm-lint your_model.veda.yaml --category units --model gpt-5-mini --model gpt-5-nano --reasoning-effort low --request-timeout-sec 180
-
-# Eval harness (model/effort leaderboard)
-uv run vedalang-dev eval catalog
-uv run vedalang-dev eval run --profile ci --prompt-version all
-uv run vedalang-dev eval compare tmp/evals/run_a.json tmp/evals/run_b.json
-uv run vedalang-dev eval report tmp/evals/run_b.json
 ```
+
+`vedalang-dev eval ...` is design-agent R&D tooling and intentionally excluded
+from user-authoring workflows.
 
 Command responsibilities:
 
 - `fmt`: formatting only (style/layout)
 - `lint`: semantic/modeling checks
 - `compile`: v0.3 run-scoped artifact, TableIR, and Excel emission
-- `validate`: full pipeline validation through xl2times for the selected run
+- `validate`: compile + xl2times validation for the selected run
+- `vita run`: solver execution + run artifact generation for analysis
+- `vita diff`: baseline-vs-variant delta comparison across run artifacts
+
+For toy-sector examples (`vedalang/examples/toy_sectors/*.veda.yaml`), keep
+`--no-sankey` on `vita run` unless Sankey support is explicitly confirmed.
 
 ## Lint Taxonomy
 

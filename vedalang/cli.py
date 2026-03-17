@@ -32,6 +32,7 @@ from vedalang.compiler.compiler import (
     validate_vedalang,
 )
 from vedalang.compiler.resolution import ResolutionError
+from vedalang.compiler.schema_diagnostics import required_description_diagnostic
 from vedalang.lint.code_categories import (
     CATEGORY_RUNNERS as CODE_CATEGORY_RUNNERS,
 )
@@ -267,8 +268,8 @@ def _add_fmt_parser(subparsers):
 def _add_validate_parser(subparsers):
     p = subparsers.add_parser(
         "validate",
-        help="Validate through full pipeline",
-        description="Compile and run through xl2times for complete validation.",
+        help="Compile and validate with xl2times",
+        description="Compile and run xl2times validation for the selected run.",
     )
     p.add_argument("file", type=Path, help="Path to VedaLang source (.veda.yaml)")
     p.add_argument(
@@ -545,15 +546,17 @@ def cmd_lint(args) -> int:
     try:
         validate_vedalang(source)
     except jsonschema.ValidationError as e:
-        path_str = _format_location_path(list(e.absolute_path))
+        normalized = required_description_diagnostic(e)
+        if normalized is None:
+            normalized = {
+                "code": "SCHEMA_ERROR",
+                "severity": "error",
+                "message": e.message,
+                "location": _format_location_path(list(e.absolute_path)),
+            }
         diagnostics.append(
             with_meta(
-                {
-                    "code": "SCHEMA_ERROR",
-                    "severity": "error",
-                    "message": e.message,
-                    "location": path_str,
-                },
+                normalized,
                 category="core",
                 engine="code",
                 check_id="code.core.schema_xref",
@@ -975,7 +978,7 @@ def _attach_source_positions(
 
     try:
         source_text = file_path.read_text(encoding="utf-8")
-    except Exception:
+    except Exception:  # noqa: BLE001 — file unreadable; skip position enrichment
         return
 
     try:
@@ -1948,7 +1951,7 @@ def cmd_compile(args) -> int:
 
 
 def cmd_validate(args) -> int:
-    """Run validate command: full pipeline via veda_check."""
+    """Run validate command: compile + xl2times validation via veda_check."""
     file_path: Path = args.file
     output_json: bool = args.json
     keep_workdir: bool = args.keep_workdir

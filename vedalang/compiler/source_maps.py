@@ -284,6 +284,6 @@ def attach_source_positions_from_file(
     """Attach source positions by reading the YAML text from a file."""
     try:
         source_text = file_path.read_text(encoding="utf-8")
-    except Exception:
+    except Exception:  # noqa: BLE001 — file unreadable; skip position enrichment
         return
     attach_source_positions(diagnostics, source=source, source_text=source_text)

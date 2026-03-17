@@ -1,0 +1,309 @@
+dsl_version: "0.3"
+
+commodities:
+  - id: co2
+    type: emission
+
+  - id: elc
+    type: energy
+    energy_form: secondary
+
+  - id: elc_sup
+    type: service
+
+  - id: h2
+    type: energy
+    energy_form: secondary
+
+  - id: h2_sup
+    type: service
+
+  - id: heat_dem
+    type: service
+
+  - id: ind_heat
+    type: service
+
+  - id: ng
+    type: energy
+    energy_form: primary
+
+  - id: ng_sup
+    type: service
+
+technologies:
+  - id: e_heat
+    description: e_heat provides ind_heat by transforming elc.
+    inputs:
+      - commodity: elc
+    investment_cost: 80 AUD2024/kW
+    lifetime: 30 year
+    performance:
+      kind: efficiency
+      value: 0.95
+    provides: ind_heat
+
+  - id: gas_boil
+    description: gas_boil provides ind_heat by transforming ng.
+    inputs:
+      - commodity: ng
+        basis: HHV
+    emissions:
+      - commodity: co2
+        factor: 0.056 t/GJ
+    investment_cost: 150 AUD2024/kW
+    lifetime: 30 year
+    performance:
+      kind: efficiency
+      value: 0.9
+    provides: ind_heat
+
+  - id: grid_elc
+    description: grid_elc provides elc_sup as a primary supply or conversion technology.
+    outputs:
+      - commodity: elc
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: elc_sup
+    variable_om: 25 AUD2024/MWh
+
+  - id: h2_boil
+    description: h2_boil provides ind_heat by transforming h2.
+    inputs:
+      - commodity: h2
+        basis: HHV
+    investment_cost: 100 AUD2024/kW
+    lifetime: 30 year
+    performance:
+      kind: efficiency
+      value: 0.85
+    provides: ind_heat
+
+  - id: ht_sink
+    description: ht_sink provides heat_dem by transforming ind_heat.
+    inputs:
+      - commodity: ind_heat
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: heat_dem
+
+  - id: pipe_h2
+    description: pipe_h2 provides h2_sup as a primary supply or conversion technology.
+    outputs:
+      - commodity: h2
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: h2_sup
+    variable_om: 18 AUD2024/MWh
+
+  - id: pipe_ng
+    description: pipe_ng provides ng_sup as a primary supply or conversion technology.
+    outputs:
+      - commodity: ng
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: ng_sup
+    variable_om: 8 AUD2024/MWh
+
+technology_roles:
+  - id: elc_sup
+    description: "elc_sup groups technologies that deliver elc_sup: grid_elc."
+    primary_service: elc_sup
+    technologies:
+      - grid_elc
+
+  - id: h2_sup
+    description: "h2_sup groups technologies that deliver h2_sup: pipe_h2."
+    primary_service: h2_sup
+    technologies:
+      - pipe_h2
+
+  - id: heat_dem
+    description: "heat_dem groups technologies that deliver heat_dem: ht_sink."
+    primary_service: heat_dem
+    technologies:
+      - ht_sink
+
+  - id: heat_sup
+    description: "heat_sup groups technologies that deliver ind_heat: gas_boil, e_heat,
+      and h2_boil."
+    primary_service: ind_heat
+    technologies:
+      - gas_boil
+      - e_heat
+      - h2_boil
+    transitions:
+      - cost: 15 AUD2024/kW
+        from: gas_boil
+        kind: retrofit
+        to: e_heat
+
+      - cost: 25 AUD2024/kW
+        from: gas_boil
+        kind: retrofit
+        to: h2_boil
+
+  - id: ng_sup
+    description: "ng_sup groups technologies that deliver ng_sup: pipe_ng."
+    primary_service: ng_sup
+    technologies:
+      - pipe_ng
+
+spatial_layers:
+  - id: geo.demo
+    geometry_file: data/regions.geojson
+    key: region_id
+    kind: polygon
+
+temporal_index_series:
+  - id: co2_cap_idx
+    unit: index
+    values:
+      "2025": 1.0
+      "2030": 0.8
+      "2035": 0.6
+    base_year: 2025
+
+  - id: heat_dem_idx
+    unit: index
+    values:
+      "2020": 1.0
+      "2025": 1.15
+      "2030": 1.3
+    base_year: 2020
+
+region_partitions:
+  - id: single_region
+    layer: geo.demo
+    mapping:
+      kind: constant
+      value: SINGLE
+    members:
+      - SINGLE
+
+fleets:
+  - id: elc_sup
+    description: elc_sup represents distributed assets for role elc_sup using direct
+      allocation.
+    distribution:
+      method: direct
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 120 MW
+            year: 2025
+          technology: grid_elc
+    technology_role: elc_sup
+
+  - id: h2_sup
+    description: h2_sup represents distributed assets for role h2_sup using direct allocation.
+    distribution:
+      method: direct
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 60 MW
+            year: 2025
+          technology: pipe_h2
+    technology_role: h2_sup
+
+  - id: heat_dem
+    description: heat_dem represents distributed assets for role heat_dem using direct
+      allocation.
+    distribution:
+      method: direct
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 8 MW
+            year: 2025
+          technology: ht_sink
+
+        - adjust_to_base_year:
+            using: heat_dem_idx
+          metric: annual_activity
+          observed:
+            value: 30 GWh/year
+            year: 2020
+          technology: ht_sink
+    technology_role: heat_dem
+
+  - id: heat_sup_fleet
+    description: heat_sup_fleet represents distributed assets for role heat_sup using
+      direct allocation.
+    available_technologies:
+      - gas_boil
+      - e_heat
+      - h2_boil
+    distribution:
+      method: direct
+    new_build_limits:
+      - max_new_capacity: 15 MW
+        technology: e_heat
+
+      - max_new_capacity: 12 MW
+        technology: h2_boil
+    policies:
+      - co2_cap
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 5 MW
+            year: 2025
+          technology: gas_boil
+
+        - metric: installed_capacity
+          observed:
+            value: 1 MW
+            year: 2025
+          technology: e_heat
+
+        - metric: installed_capacity
+          observed:
+            value: 0.5 MW
+            year: 2025
+          technology: h2_boil
+    technology_role: heat_sup
+
+  - id: ng_sup
+    description: ng_sup represents distributed assets for role ng_sup using direct allocation.
+    distribution:
+      method: direct
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 120 MW
+            year: 2025
+          technology: pipe_ng
+    technology_role: ng_sup
+
+runs:
+  - id: s25_co2_cap
+    base_year: 2025
+    currency_year: 2024
+    enable_policies:
+      - co2_cap
+    include_cases:
+      - dem_base
+      - co2_cap_case
+    region_partition: single_region
+
+  - id: single_2025
+    base_year: 2025
+    currency_year: 2024
+    include_cases:
+      - dem_base
+    region_partition: single_region

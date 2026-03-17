@@ -32,14 +32,14 @@ def test_public_fixture_reaches_xl2times_successfully():
     assert result.warnings == 0
 
 
-def test_public_fixture_pipeline_no_solver_succeeds():
-    """vedalang-dev pipeline should succeed through xl2times for the fixture."""
+def test_public_fixture_vita_run_no_solver_succeeds():
+    """vita run --no-solver succeeds through xl2times on the flagship fixture."""
     completed = subprocess.run(
         [
             "uv",
             "run",
-            "vedalang-dev",
-            "pipeline",
+            "vita",
+            "run",
             str(PUBLIC_FIXTURE),
             "--run",
             "toy_states_2025",

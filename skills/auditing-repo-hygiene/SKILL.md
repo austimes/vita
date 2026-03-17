@@ -11,7 +11,7 @@ Performs a comprehensive audit of the vedalang repository and creates actionable
 
 **Audit these directories:**
 - `vedalang/` — core language, compiler, schema, examples, heuristics
-- `tools/` — dev CLI, emitter, check, patterns, LSP, run-times
+- `tools/` — dev CLI, emitter, check, patterns, LSP, and Vita command handlers
 - `tests/` — all test files and fixtures
 - `experiments/` — design agent experiment outputs
 - `fixtures/` — golden test fixtures
@@ -77,7 +77,7 @@ Experiments in `experiments/` are design agent outputs from Phase 1. For each:
 
 ### 5. Code Quality
 
-- Run `uv run ruff check . --exclude xl2times --exclude times` and note any findings
+- Run `uv run ruff check .` and note any findings
 - Check for TODO/FIXME/HACK comments that should be tracked as issues:
   ```bash
   grep -rn 'TODO\|FIXME\|HACK\|XXX' vedalang/ tools/ tests/ --include='*.py'
@@ -90,10 +90,12 @@ Experiments in `experiments/` are design agent outputs from Phase 1. For each:
 
 - Do all examples in `vedalang/examples/` compile successfully?
   ```bash
-  for f in $(find vedalang/examples -type f -name '*.veda.yaml' | sort); do
-    uv run vedalang compile "$f" --out /tmp/test_out 2>&1 || echo "FAIL: $f"
-  done
+  uv run python tools/repo_hygiene/check_examples_compile.py --json
   ```
+  - The sweep is run-aware: for multi-run models it records the expected
+    `E002` run-selection response when compiled without `--run`, then compiles
+    each declared run ID explicitly.
+  - Treat only entries in `failures` as true compile failures.
 - Are fixtures in `fixtures/` still referenced by tests?
 - Are there output directories (`output/`, `output_invalid/`, `tmp/`) with stale artifacts?
 

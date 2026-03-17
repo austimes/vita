@@ -7,7 +7,7 @@ Epic to fix all table format issues preventing VedaOnline sync.
 ### vedalang-nm6: Fix ~FI_T table format
 - Use attribute as column header (e.g., DEMAND), year as row index
 - No 'value' column - FI_T doesn't support it
-- Move demand projections to base VT_* file
+- Move demand projections to base `vt_*` file
 
 ### vedalang-9mh: Use ~TFM_DINS-AT for scenarios  
 - Commodity price scenarios use TFM_DINS-AT (attributes as columns)
@@ -20,7 +20,7 @@ Epic to fix all table format issues preventing VedaOnline sync.
 - No 'value' column
 
 ### vedalang-9hq: Remove ~FI_T from ScenTrade files
-- Trade topology belongs in base VT_* file only
+- Trade topology belongs in base `vt_*` file only
 - ScenTrade files only contain ~TRADELINKS matrix
 
 ## Validation

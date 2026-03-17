@@ -1,25 +1,35 @@
 dsl_version: "0.3"
+
 commodities:
   - id: co2
     type: emission
-  - id: wind_resource
-    type: material
-  - id: natural_gas
-    type: energy
-    energy_form: primary
+
   - id: electricity
     type: energy
     energy_form: secondary
+
   - id: electricity_generation
     type: service
+
   - id: gas_supply
     type: service
+
+  - id: natural_gas
+    type: energy
+    energy_form: primary
+
   - id: residential_demand
     type: service
+
+  - id: wind_resource
+    type: material
+
   - id: wind_supply
     type: service
+
 technologies:
   - id: ccgt
+    description: ccgt provides electricity_generation by transforming natural_gas.
     inputs:
       - commodity: natural_gas
         basis: HHV
@@ -36,7 +46,9 @@ technologies:
       value: 0.55
     provides: electricity_generation
     variable_om: 2 AUD2024/MWh
+
   - id: electric_enduse
+    description: electric_enduse provides residential_demand by transforming electricity.
     inputs:
       - commodity: electricity
     lifetime: 100 year
@@ -44,7 +56,10 @@ technologies:
       kind: efficiency
       value: 1.0
     provides: residential_demand
+
   - id: lng_terminal
+    description: lng_terminal provides gas_supply as a primary supply or conversion
+      technology.
     outputs:
       - commodity: natural_gas
     lifetime: 100 year
@@ -52,7 +67,11 @@ technologies:
       kind: efficiency
       value: 1.0
     provides: gas_supply
+
   - id: onshore_wind_supply
+    description:
+      onshore_wind_supply provides wind_supply as a primary supply or conversion
+      technology.
     outputs:
       - commodity: wind_resource
     lifetime: 100 year
@@ -60,7 +79,9 @@ technologies:
       kind: efficiency
       value: 1.0
     provides: wind_supply
+
   - id: wind
+    description: wind provides electricity_generation by transforming wind_resource.
     inputs:
       - commodity: wind_resource
     outputs:
@@ -72,29 +93,43 @@ technologies:
       kind: efficiency
       value: 1.0
     provides: electricity_generation
+
 technology_roles:
   - id: electricity_generation
+    description:
+      "electricity_generation groups technologies that deliver electricity_generation:
+      ccgt and wind."
     primary_service: electricity_generation
     technologies:
       - ccgt
       - wind
+
   - id: gas_supply
+    description: "gas_supply groups technologies that deliver gas_supply: lng_terminal."
     primary_service: gas_supply
     technologies:
       - lng_terminal
+
   - id: residential_service
+    description:
+      "residential_service groups technologies that deliver residential_demand:
+      electric_enduse."
     primary_service: residential_demand
     technologies:
       - electric_enduse
+
   - id: wind_supply
+    description: "wind_supply groups technologies that deliver wind_supply: onshore_wind_supply."
     primary_service: wind_supply
     technologies:
       - onshore_wind_supply
+
 spatial_layers:
   - id: geo.demo
     geometry_file: data/regions.geojson
     key: region_id
     kind: polygon
+
 region_partitions:
   - id: single_region
     layer: geo.demo
@@ -103,6 +138,7 @@ region_partitions:
       value: SINGLE
     members:
       - SINGLE
+
 sites:
   - id: single_hub
     location:
@@ -112,8 +148,10 @@ sites:
     membership_overrides:
       region_partitions:
         single_region: SINGLE
+
 facilities:
   - id: gas_supply_facility
+    description: gas_supply_facility instantiates role gas_supply at site single_hub.
     site: single_hub
     stock:
       items:
@@ -123,7 +161,10 @@ facilities:
             year: 2025
           technology: lng_terminal
     technology_role: gas_supply
+
   - id: generation_facility
+    description: generation_facility instantiates role electricity_generation at site
+      single_hub.
     available_technologies:
       - ccgt
       - wind
@@ -138,13 +179,17 @@ facilities:
             value: 2 MW
             year: 2025
           technology: ccgt
+
         - metric: installed_capacity
           observed:
             value: 1 MW
             year: 2025
           technology: wind
     technology_role: electricity_generation
+
   - id: residential_service_facility
+    description: residential_service_facility instantiates role residential_service
+      at site single_hub.
     site: single_hub
     stock:
       items:
@@ -154,7 +199,9 @@ facilities:
             year: 2025
           technology: electric_enduse
     technology_role: residential_service
+
   - id: wind_supply_facility
+    description: wind_supply_facility instantiates role wind_supply at site single_hub.
     site: single_hub
     stock:
       items:
@@ -164,6 +211,7 @@ facilities:
             year: 2025
           technology: onshore_wind_supply
     technology_role: wind_supply
+
 runs:
   - id: single_2025
     base_year: 2025

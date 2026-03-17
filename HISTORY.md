@@ -2,6 +2,17 @@
 
 Chronological record of the current repository state.
 
+## 2026-03-17
+
+- Completed the vita/vedalang CLI surface split (`vedalang-yda` epic).
+- Removed deprecated `vedalang-dev` run/analyze subcommands: `pipeline`,
+  `run-times`, `times-results`, `sankey`.
+- Created the `vita` CLI as the dedicated run/results/sankey/diff surface.
+- Tests rewritten to enforce vita-only run/analyze CLI paths.
+- Docs swept for split command drift and wording mismatches; user-facing role
+  boundaries aligned between skills and docs.
+- Created post-split hygiene audit (`vedalang-50e`) to track remaining cleanup.
+
 ## 2026-03-12
 
 - Simplified the RES viewer Object explorer attribute presentation again so

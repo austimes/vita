@@ -41,7 +41,7 @@ You can validate VedaLang models without GAMS/TIMES installed:
 uv run vedalang validate vedalang/examples/quickstart/mini_plant.veda.yaml
 ```
 
-This runs the full pipeline up to DD file generation, checking that your model compiles correctly.
+This runs compile + oracle validation (xl2times), checking that your model compiles correctly.
 
 ## Full Pipeline with Solver (Requires GAMS/TIMES)
 
@@ -53,9 +53,9 @@ To run models through the TIMES solver:
    # Edit .env and set TIMES_SRC=/path/to/your/TIMES_model
    ```
 
-2. Run the full pipeline:
+2. Run solver execution with Vita:
    ```bash
-   uv run vedalang-dev pipeline vedalang/examples/quickstart/mini_plant.veda.yaml --case base
+   uv run vita run vedalang/examples/quickstart/mini_plant.veda.yaml --run toy_region_2025 --json
    ```
 
 ## Project Structure
@@ -65,7 +65,7 @@ To run models through the TIMES solver:
 | `vedalang/` | Core compiler, schema, and examples |
 | `vedalang/examples/` | Example VedaLang models |
 | `vedalang/schema/` | JSON Schema definitions |
-| `tools/` | CLI tools (`vedalang`, `vedalang-dev`) |
+| `tools/` | CLI tools (`vedalang`, `vita`, `vedalang-dev`) |
 | `tests/` | Test suite |
 | `docs/vedalang-user/` | User documentation |
 | `fixtures/` | Test fixtures and reference models |

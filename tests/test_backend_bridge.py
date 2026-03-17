@@ -18,6 +18,7 @@ def _sample_source(
         "technologies": [
             {
                 "id": "gas_heater",
+                "description": "Gas-heater converting gas to heat.",
                 "provides": "space_heat",
                 "inputs": [
                     {
@@ -34,6 +35,7 @@ def _sample_source(
             },
             {
                 "id": "heat_pump",
+                "description": "Heat-pump supplying heat from electricity.",
                 "provides": "space_heat",
                 "inputs": [{"commodity": "electricity"}],
                 "performance": {"kind": "cop", "value": 3.2},
@@ -45,6 +47,7 @@ def _sample_source(
         "technology_roles": [
             {
                 "id": "space_heat_supply",
+                "description": "Space-heat supply role fixture.",
                 "primary_service": "space_heat",
                 "technologies": ["gas_heater", "heat_pump"],
                 "transitions": [
@@ -104,6 +107,7 @@ def _sample_source(
         "facilities": [
             {
                 "id": "brisbane_heat",
+                "description": "Brisbane heat facility fixture.",
                 "site": "brisbane_site",
                 "technology_role": "space_heat_supply",
                 "available_technologies": ["gas_heater", "heat_pump"],
@@ -155,6 +159,7 @@ def _sample_source(
         source["fleets"] = [
             {
                 "id": "residential_heat",
+                "description": "Residential heat fleet fixture.",
                 "technology_role": "space_heat_supply",
                 "stock": {
                     "items": [

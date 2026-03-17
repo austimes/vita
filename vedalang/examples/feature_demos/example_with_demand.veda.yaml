@@ -1,14 +1,21 @@
 dsl_version: "0.3"
+
 commodities:
   - id: electricity
     type: energy
     energy_form: secondary
+
   - id: electricity_supply
     type: service
+
   - id: residential_electric_service
     type: service
+
 technologies:
   - id: generic_supply
+    description:
+      generic_supply provides electricity_supply as a primary supply or conversion
+      technology.
     outputs:
       - commodity: electricity
     lifetime: 100 year
@@ -16,7 +23,11 @@ technologies:
       kind: efficiency
       value: 1.0
     provides: electricity_supply
+
   - id: residential_device
+    description:
+      residential_device provides residential_electric_service by transforming
+      electricity.
     inputs:
       - commodity: electricity
     lifetime: 100 year
@@ -24,20 +35,30 @@ technologies:
       kind: efficiency
       value: 1.0
     provides: residential_electric_service
+
 technology_roles:
   - id: electricity_supply
+    description:
+      "electricity_supply groups technologies that deliver electricity_supply:
+      generic_supply."
     primary_service: electricity_supply
     technologies:
       - generic_supply
+
   - id: residential_service
+    description:
+      "residential_service groups technologies that deliver residential_electric_service:
+      residential_device."
     primary_service: residential_electric_service
     technologies:
       - residential_device
+
 spatial_layers:
   - id: geo.demo
     geometry_file: data/regions.geojson
     key: region_id
     kind: polygon
+
 temporal_index_series:
   - id: residential_service_index
     unit: index
@@ -48,6 +69,7 @@ temporal_index_series:
       "2050": 1.6
       "2060": 1.8
     base_year: 2020
+
 region_partitions:
   - id: reg1_partition
     layer: geo.demo
@@ -56,6 +78,7 @@ region_partitions:
       value: REG1
     members:
       - REG1
+
 sites:
   - id: reg1_hub
     location:
@@ -65,8 +88,11 @@ sites:
     membership_overrides:
       region_partitions:
         reg1_partition: REG1
+
 facilities:
   - id: reg1_residential_service
+    description: reg1_residential_service instantiates role residential_service at site
+      reg1_hub.
     site: reg1_hub
     stock:
       items:
@@ -78,7 +104,9 @@ facilities:
             year: 2020
           technology: residential_device
     technology_role: residential_service
+
   - id: reg1_supply
+    description: reg1_supply instantiates role electricity_supply at site reg1_hub.
     site: reg1_hub
     stock:
       items:
@@ -90,6 +118,7 @@ facilities:
             year: 2020
           technology: generic_supply
     technology_role: electricity_supply
+
 runs:
   - id: reg1_2020
     base_year: 2020

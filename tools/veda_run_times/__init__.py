@@ -1,4 +1,4 @@
-"""veda_run_times - Run TIMES models through GAMS."""
+"""Internal TIMES solver runner used by the Vita pipeline."""
 
 from .runner import RunResult, run_times
 

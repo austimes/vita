@@ -1,21 +1,30 @@
 dsl_version: "0.3"
+
 commodities:
   - id: co2
     type: emission
-  - id: petrol
-    type: energy
-    energy_form: primary
+
   - id: electricity
     type: energy
     energy_form: secondary
+
   - id: electricity_supply
     type: service
+
   - id: passenger_km
     type: service
+
+  - id: petrol
+    type: energy
+    energy_form: primary
+
   - id: petrol_supply
     type: service
+
 technologies:
   - id: electricity_import
+    description: electricity_import provides electricity_supply as a primary supply
+      or conversion technology.
     outputs:
       - commodity: electricity
     lifetime: 100 year
@@ -24,7 +33,9 @@ technologies:
       value: 1.0
     provides: electricity_supply
     variable_om: 6.94 AUD2024/MWh
+
   - id: ev_car
+    description: ev_car provides passenger_km by transforming electricity.
     inputs:
       - commodity: electricity
     investment_cost: 100 AUD2024/kW
@@ -34,7 +45,9 @@ technologies:
       value: 1.0
     provides: passenger_km
     variable_om: 20 AUD2024/MWh
+
   - id: ice_car
+    description: ice_car provides passenger_km by transforming petrol.
     inputs:
       - commodity: petrol
         basis: HHV
@@ -47,7 +60,10 @@ technologies:
       value: 1.0
     provides: passenger_km
     variable_om: 50 AUD2024/MWh
+
   - id: petrol_import
+    description: petrol_import provides petrol_supply as a primary supply or conversion
+      technology.
     outputs:
       - commodity: petrol
     lifetime: 100 year
@@ -56,12 +72,19 @@ technologies:
       value: 1.0
     provides: petrol_supply
     variable_om: 15 AUD2024/MWh
+
 technology_roles:
   - id: electricity_supply
+    description:
+      "electricity_supply groups technologies that deliver electricity_supply:
+      electricity_import."
     primary_service: electricity_supply
     technologies:
       - electricity_import
+
   - id: passenger_mobility
+    description: "passenger_mobility groups technologies that deliver passenger_km:
+      ice_car and ev_car."
     primary_service: passenger_km
     technologies:
       - ice_car
@@ -71,15 +94,19 @@ technology_roles:
         from: ice_car
         kind: retrofit
         to: ev_car
+
   - id: petrol_supply
+    description: "petrol_supply groups technologies that deliver petrol_supply: petrol_import."
     primary_service: petrol_supply
     technologies:
       - petrol_import
+
 spatial_layers:
   - id: geo.demo
     geometry_file: data/regions.geojson
     key: region_id
     kind: polygon
+
 region_partitions:
   - id: single_region
     layer: geo.demo
@@ -88,8 +115,12 @@ region_partitions:
       value: SINGLE
     members:
       - SINGLE
+
 fleets:
   - id: electricity_supply
+    description:
+      electricity_supply represents distributed assets for role electricity_supply
+      using direct allocation.
     distribution:
       method: direct
     stock:
@@ -100,7 +131,11 @@ fleets:
             year: 2025
           technology: electricity_import
     technology_role: electricity_supply
+
   - id: passenger_transport
+    description:
+      passenger_transport represents distributed assets for role passenger_mobility
+      using direct allocation.
     available_technologies:
       - ice_car
       - ev_car
@@ -116,13 +151,17 @@ fleets:
             value: 200 MW
             year: 2025
           technology: ice_car
+
         - metric: installed_capacity
           observed:
             value: 10 MW
             year: 2025
           technology: ev_car
     technology_role: passenger_mobility
+
   - id: petrol_supply
+    description: petrol_supply represents distributed assets for role petrol_supply
+      using direct allocation.
     distribution:
       method: direct
     stock:
@@ -133,6 +172,7 @@ fleets:
             year: 2025
           technology: petrol_import
     technology_role: petrol_supply
+
 runs:
   - id: single_2025
     base_year: 2025

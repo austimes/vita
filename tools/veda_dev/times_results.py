@@ -2,12 +2,12 @@
 
 import csv
 import json
-import os
-import subprocess
 from dataclasses import dataclass, field
 from io import StringIO
 from pathlib import Path
 from typing import Any
+
+from .gdx_utils import dump_symbol_csv, find_gdxdump
 
 VALUE_COLUMNS = ("VAL", "VALUE", "LEVEL", "L")
 PROCESS_COLUMNS = ("P", "PRC", "PROCESS")
@@ -19,12 +19,18 @@ YEAR_COLUMNS = (
     "DATA_YEAR",
     "Y",
     "YR",
+    "LL",
 )
-VINTAGE_COLUMNS = ("T", "VINTAGE", "ALLYEAR", "YEAR", "PASTYEAR")
+VINTAGE_COLUMNS = ("T", "VINTAGE", "ALLYEAR", "YEAR", "PASTYEAR", "LL")
 REGION_COLUMNS = ("R", "REG", "REGION")
 TIMESLICE_COLUMNS = ("S", "TS", "TIMESLICE", "SLICE")
 COMMODITY_COLUMNS = ("C", "COM", "COMMODITY")
-FLOW_SYMBOL_PREFERENCE = ("VAR_FLO", "PAR_FLO")
+ACTIVITY_SYMBOL_PREFERENCE = ("VAR_ACT", "PAR_ACTM", "PAR_ACT")
+NEW_CAPACITY_SYMBOL_PREFERENCE = ("VAR_NCAP", "PAR_NCAPM", "PAR_NCAP")
+INSTALLED_CAPACITY_SYMBOL_PREFERENCE = ("VAR_CAP", "PAR_CAPM", "PAR_NCAPM")
+FLOW_SYMBOL_PREFERENCE = ("VAR_FLO", "PAR_FLO", "PAR_FLOM")
+
+ParsedSymbolRow = tuple[dict[str, str], float, str, str]
 
 
 @dataclass
@@ -57,33 +63,6 @@ class TimesResults:
             "par_resid": self.par_resid,
             "errors": self.errors,
         }
-
-
-def find_gdxdump() -> str | None:
-    """Find gdxdump executable."""
-    default_path = "/Library/Frameworks/GAMS.framework/Resources/gdxdump"
-    if os.path.exists(default_path):
-        return default_path
-
-    env_path = os.environ.get("GDXDUMP")
-    if env_path and os.path.exists(env_path):
-        return env_path
-
-    import shutil
-
-    return shutil.which("gdxdump")
-
-
-def dump_symbol_csv(gdx_path: Path, symbol: str, gdxdump: str) -> str | None:
-    """Dump a symbol from GDX to CSV format."""
-    cmd = [gdxdump, str(gdx_path), f"Symb={symbol}", "Format=csv", "EpsOut=0"]
-    try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
-        if proc.returncode == 0:
-            return proc.stdout
-        return None
-    except Exception:
-        return None
 
 
 def parse_csv(csv_text: str) -> list[dict[str, str]]:
@@ -143,6 +122,47 @@ def _apply_limit(rows: list[dict[str, Any]], limit: int | None) -> list[dict[str
     return rows[:limit]
 
 
+def _extract_nonzero_rows_from_symbols(
+    *,
+    gdx_path: Path,
+    gdxdump: str,
+    symbol_preference: tuple[str, ...],
+    process_filter: list[str] | None,
+    year_filter: list[str] | None,
+) -> tuple[str | None, list[ParsedSymbolRow]]:
+    """Return first preferred symbol with non-zero rows that pass filters."""
+    for symbol in symbol_preference:
+        symbol_csv = dump_symbol_csv(gdx_path, symbol, gdxdump)
+        if not symbol_csv:
+            continue
+
+        rows: list[ParsedSymbolRow] = []
+        for raw_row in parse_csv(symbol_csv):
+            row = _normalize_row(raw_row)
+            val = _parse_float(_get_field(row, *VALUE_COLUMNS, default="0"))
+            if val is None:
+                continue
+            if abs(val) < 1e-9:
+                continue
+
+            process = _get_field(row, *PROCESS_COLUMNS)
+            year = _get_field(row, *YEAR_COLUMNS)
+
+            if process_filter and not any(
+                candidate.lower() in process.lower() for candidate in process_filter
+            ):
+                continue
+            if year_filter and year not in year_filter:
+                continue
+
+            rows.append((row, val, process, year))
+
+        if rows:
+            return symbol, rows
+
+    return None, []
+
+
 def _extract_flow_rows(
     *,
     gdx_path: Path,
@@ -153,53 +173,32 @@ def _extract_flow_rows(
 ) -> tuple[str | None, list[dict[str, Any]]]:
     """Extract solved flow rows using a deterministic symbol fallback order.
 
-    Preferred contract: use `VAR_FLO` first, then `PAR_FLO` for tiny fixture
-    shapes where solved `VAR_FLO` is empty.
+    Preferred contract: use `VAR_FLO` first, then `PAR_FLO` and `PAR_FLOM`
+    for tiny fixture/model shapes where solved `VAR_FLO` is empty.
     """
-    for symbol in FLOW_SYMBOL_PREFERENCE:
-        symbol_csv = dump_symbol_csv(gdx_path, symbol, gdxdump)
-        if not symbol_csv:
-            continue
+    symbol, source_rows = _extract_nonzero_rows_from_symbols(
+        gdx_path=gdx_path,
+        gdxdump=gdxdump,
+        symbol_preference=FLOW_SYMBOL_PREFERENCE,
+        process_filter=process_filter,
+        year_filter=year_filter,
+    )
+    if symbol is None:
+        return None, []
 
-        flow_rows: list[dict[str, Any]] = []
-        for raw_row in parse_csv(symbol_csv):
-            row = _normalize_row(raw_row)
-            try:
-                val = _parse_float(_get_field(row, *VALUE_COLUMNS, default="0"))
-                if val is None:
-                    continue
-                if abs(val) < 1e-9:
-                    continue
-
-                process = _get_field(row, *PROCESS_COLUMNS)
-                year = _get_field(row, *YEAR_COLUMNS)
-
-                if process_filter and not any(
-                    candidate.lower() in process.lower()
-                    for candidate in process_filter
-                ):
-                    continue
-                if year_filter and year not in year_filter:
-                    continue
-
-                flow_rows.append(
-                    {
-                        "region": _get_field(row, *REGION_COLUMNS),
-                        "year": year,
-                        "process": process,
-                        "commodity": _get_field(row, *COMMODITY_COLUMNS),
-                        "timeslice": _get_field(row, *TIMESLICE_COLUMNS),
-                        "level": val,
-                    }
-                )
-            except (ValueError, KeyError):
-                continue
-
-        if flow_rows:
-            flow_rows.sort(key=lambda row: abs(row["level"]), reverse=True)
-            return symbol, _apply_limit(flow_rows, limit)
-
-    return None, []
+    flow_rows = [
+        {
+            "region": _get_field(row, *REGION_COLUMNS),
+            "year": year,
+            "process": process,
+            "commodity": _get_field(row, *COMMODITY_COLUMNS),
+            "timeslice": _get_field(row, *TIMESLICE_COLUMNS),
+            "level": val,
+        }
+        for row, val, process, year in source_rows
+    ]
+    flow_rows.sort(key=lambda extracted: abs(extracted["level"]), reverse=True)
+    return symbol, _apply_limit(flow_rows, limit)
 
 
 def extract_results(
@@ -243,111 +242,69 @@ def extract_results(
             if component and value is not None:
                 results.objective_breakdown[component] = value
 
-    # Extract VAR_ACT (process activity)
-    var_act_csv = dump_symbol_csv(gdx_path, "VAR_ACT", gdxdump)
-    if var_act_csv:
-        for raw_row in parse_csv(var_act_csv):
-            row = _normalize_row(raw_row)
-            try:
-                val = _parse_float(_get_field(row, *VALUE_COLUMNS, default="0"))
-                if val is None:
-                    continue
-                if abs(val) < 1e-9:
-                    continue
-                process = _get_field(row, *PROCESS_COLUMNS)
-                year = _get_field(row, *YEAR_COLUMNS)
-                vintage = _get_field(row, *VINTAGE_COLUMNS, default=year)
-
-                if process_filter and not any(
-                    f.lower() in process.lower() for f in process_filter
-                ):
-                    continue
-                if year_filter and year not in year_filter:
-                    continue
-
-                results.var_act.append(
-                    {
-                        "region": _get_field(row, *REGION_COLUMNS),
-                        "vintage": vintage,
-                        "year": year,
-                        "process": process,
-                        "timeslice": _get_field(row, *TIMESLICE_COLUMNS),
-                        "level": val,
-                    }
-                )
-            except (ValueError, KeyError):
-                pass
+    # Extract process activity with fallback for toy-model PAR_* symbols.
+    _, activity_rows = _extract_nonzero_rows_from_symbols(
+        gdx_path=gdx_path,
+        gdxdump=gdxdump,
+        symbol_preference=ACTIVITY_SYMBOL_PREFERENCE,
+        process_filter=process_filter,
+        year_filter=year_filter,
+    )
+    for row, val, process, year in activity_rows:
+        results.var_act.append(
+            {
+                "region": _get_field(row, *REGION_COLUMNS),
+                "vintage": _get_field(row, *VINTAGE_COLUMNS, default=year),
+                "year": year,
+                "process": process,
+                "timeslice": _get_field(row, *TIMESLICE_COLUMNS),
+                "level": val,
+            }
+        )
 
     # Sort by level descending, limit
     results.var_act.sort(key=lambda r: abs(r["level"]), reverse=True)
     results.var_act = _apply_limit(results.var_act, limit)
 
-    # Extract VAR_NCAP (new capacity)
-    var_ncap_csv = dump_symbol_csv(gdx_path, "VAR_NCAP", gdxdump)
-    if var_ncap_csv:
-        for raw_row in parse_csv(var_ncap_csv):
-            row = _normalize_row(raw_row)
-            try:
-                val = _parse_float(_get_field(row, *VALUE_COLUMNS, default="0"))
-                if val is None:
-                    continue
-                if abs(val) < 1e-9:
-                    continue
-                process = _get_field(row, *PROCESS_COLUMNS)
-                year = _get_field(row, *YEAR_COLUMNS)
-
-                if process_filter and not any(
-                    f.lower() in process.lower() for f in process_filter
-                ):
-                    continue
-                if year_filter and year not in year_filter:
-                    continue
-
-                results.var_ncap.append(
-                    {
-                        "region": _get_field(row, *REGION_COLUMNS),
-                        "year": year,
-                        "process": process,
-                        "level": val,
-                    }
-                )
-            except (ValueError, KeyError):
-                pass
+    # Extract new capacity with fallback for toy-model PAR_* symbols.
+    _, new_capacity_rows = _extract_nonzero_rows_from_symbols(
+        gdx_path=gdx_path,
+        gdxdump=gdxdump,
+        symbol_preference=NEW_CAPACITY_SYMBOL_PREFERENCE,
+        process_filter=process_filter,
+        year_filter=year_filter,
+    )
+    for row, val, process, year in new_capacity_rows:
+        results.var_ncap.append(
+            {
+                "region": _get_field(row, *REGION_COLUMNS),
+                "year": year,
+                "process": process,
+                "level": val,
+            }
+        )
 
     results.var_ncap.sort(key=lambda r: abs(r["level"]), reverse=True)
     results.var_ncap = _apply_limit(results.var_ncap, limit)
 
-    # Extract VAR_CAP (installed capacity)
-    var_cap_csv = dump_symbol_csv(gdx_path, "VAR_CAP", gdxdump)
-    if var_cap_csv:
-        for raw_row in parse_csv(var_cap_csv):
-            row = _normalize_row(raw_row)
-            try:
-                val = _parse_float(_get_field(row, *VALUE_COLUMNS, default="0"))
-                if val is None:
-                    continue
-                if abs(val) < 1e-9:
-                    continue
-                process = _get_field(row, *PROCESS_COLUMNS)
-                year = _get_field(row, *YEAR_COLUMNS)
-
-                if process_filter and not any(
-                    f.lower() in process.lower() for f in process_filter
-                ):
-                    continue
-                if year_filter and year not in year_filter:
-                    continue
-
-                results.var_cap.append(
-                    {
-                        "region": _get_field(row, *REGION_COLUMNS),
-                        "year": year,
-                        "process": process,
-                        "level": val,
-                    }
-                )
-            except (ValueError, KeyError):
-                pass
+    # Extract installed capacity; PAR_NCAPM is the final fallback for toy models
+    # where VAR_CAP/PAR_CAPM are structurally empty.
+    _, installed_capacity_rows = _extract_nonzero_rows_from_symbols(
+        gdx_path=gdx_path,
+        gdxdump=gdxdump,
+        symbol_preference=INSTALLED_CAPACITY_SYMBOL_PREFERENCE,
+        process_filter=process_filter,
+        year_filter=year_filter,
+    )
+    for row, val, process, year in installed_capacity_rows:
+        results.var_cap.append(
+            {
+                "region": _get_field(row, *REGION_COLUMNS),
+                "year": year,
+                "process": process,
+                "level": val,
+            }
+        )
 
     results.var_cap.sort(key=lambda r: (r["year"], -abs(r["level"])))
     results.var_cap = _apply_limit(results.var_cap, limit)

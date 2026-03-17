@@ -1,21 +1,29 @@
 dsl_version: "0.3"
+
 commodities:
   - id: co2
     type: emission
-  - id: natural_gas
-    type: energy
-    energy_form: primary
+
   - id: electricity
     type: energy
     energy_form: secondary
+
   - id: electricity_generation
     type: service
+
   - id: electricity_service
     type: service
+
   - id: gas_supply
     type: service
+
+  - id: natural_gas
+    type: energy
+    energy_form: primary
+
 technologies:
   - id: ccgt
+    description: ccgt provides electricity_generation by transforming natural_gas.
     inputs:
       - commodity: natural_gas
         basis: HHV
@@ -29,7 +37,9 @@ technologies:
       kind: efficiency
       value: 0.55
     provides: electricity_generation
+
   - id: direct_electric
+    description: direct_electric provides electricity_service by transforming electricity.
     inputs:
       - commodity: electricity
     lifetime: 100 year
@@ -37,7 +47,9 @@ technologies:
       kind: efficiency
       value: 1.0
     provides: electricity_service
+
   - id: gas_import
+    description: gas_import provides gas_supply as a primary supply or conversion technology.
     outputs:
       - commodity: natural_gas
     lifetime: 100 year
@@ -45,7 +57,9 @@ technologies:
       kind: efficiency
       value: 1.0
     provides: gas_supply
+
   - id: ocgt
+    description: ocgt provides electricity_generation by transforming natural_gas.
     inputs:
       - commodity: natural_gas
         basis: HHV
@@ -59,25 +73,37 @@ technologies:
       kind: efficiency
       value: 0.35
     provides: electricity_generation
+
 technology_roles:
   - id: electricity_generation
+    description:
+      "electricity_generation groups technologies that deliver electricity_generation:
+      ccgt and ocgt."
     primary_service: electricity_generation
     technologies:
       - ccgt
       - ocgt
+
   - id: electricity_service
+    description:
+      "electricity_service groups technologies that deliver electricity_service:
+      direct_electric."
     primary_service: electricity_service
     technologies:
       - direct_electric
+
   - id: gas_supply
+    description: "gas_supply groups technologies that deliver gas_supply: gas_import."
     primary_service: gas_supply
     technologies:
       - gas_import
+
 spatial_layers:
   - id: geo.demo
     geometry_file: data/regions.geojson
     key: region_id
     kind: polygon
+
 region_partitions:
   - id: electricity_4node
     layer: geo.demo
@@ -89,6 +115,7 @@ region_partitions:
       - SN
       - WD
       - WN
+
 sites:
   - id: sd_hub
     location:
@@ -98,6 +125,7 @@ sites:
     membership_overrides:
       region_partitions:
         electricity_4node: SD
+
   - id: sn_hub
     location:
       point:
@@ -106,6 +134,7 @@ sites:
     membership_overrides:
       region_partitions:
         electricity_4node: SN
+
   - id: wd_hub
     location:
       point:
@@ -114,6 +143,7 @@ sites:
     membership_overrides:
       region_partitions:
         electricity_4node: WD
+
   - id: wn_hub
     location:
       point:
@@ -122,8 +152,10 @@ sites:
     membership_overrides:
       region_partitions:
         electricity_4node: WN
+
 facilities:
   - id: sd_generation
+    description: sd_generation instantiates role electricity_generation at site sd_hub.
     available_technologies:
       - ccgt
       - ocgt
@@ -136,7 +168,9 @@ facilities:
             year: 2025
           technology: ccgt
     technology_role: electricity_generation
+
   - id: sd_service
+    description: sd_service instantiates role electricity_service at site sd_hub.
     site: sd_hub
     stock:
       items:
@@ -146,7 +180,9 @@ facilities:
             year: 2025
           technology: direct_electric
     technology_role: electricity_service
+
   - id: sn_generation
+    description: sn_generation instantiates role electricity_generation at site sn_hub.
     available_technologies:
       - ccgt
       - ocgt
@@ -159,7 +195,9 @@ facilities:
             year: 2025
           technology: ocgt
     technology_role: electricity_generation
+
   - id: sn_service
+    description: sn_service instantiates role electricity_service at site sn_hub.
     site: sn_hub
     stock:
       items:
@@ -169,7 +207,9 @@ facilities:
             year: 2025
           technology: direct_electric
     technology_role: electricity_service
+
   - id: wd_generation
+    description: wd_generation instantiates role electricity_generation at site wd_hub.
     available_technologies:
       - ccgt
       - ocgt
@@ -182,7 +222,9 @@ facilities:
             year: 2025
           technology: ccgt
     technology_role: electricity_generation
+
   - id: wd_service
+    description: wd_service instantiates role electricity_service at site wd_hub.
     site: wd_hub
     stock:
       items:
@@ -192,7 +234,9 @@ facilities:
             year: 2025
           technology: direct_electric
     technology_role: electricity_service
+
   - id: wn_generation
+    description: wn_generation instantiates role electricity_generation at site wn_hub.
     available_technologies:
       - ccgt
       - ocgt
@@ -205,7 +249,9 @@ facilities:
             year: 2025
           technology: ocgt
     technology_role: electricity_generation
+
   - id: wn_service
+    description: wn_service instantiates role electricity_service at site wn_hub.
     site: wn_hub
     stock:
       items:
@@ -215,6 +261,7 @@ facilities:
             year: 2025
           technology: direct_electric
     technology_role: electricity_service
+
 networks:
   - id: electricity_4node_links
     kind: transmission
@@ -224,16 +271,19 @@ networks:
         existing_transfer_capacity: 40 MW
         from: SD
         to: SN
+
       - id: sd_wd
         commodity: electricity
         existing_transfer_capacity: 40 MW
         from: SD
         to: WD
+
       - id: sn_wn
         commodity: electricity
         existing_transfer_capacity: 40 MW
         from: SN
         to: WN
+
       - id: wd_wn
         commodity: electricity
         existing_transfer_capacity: 40 MW
@@ -242,6 +292,7 @@ networks:
     node_basis:
       kind: region_partition
       ref: electricity_4node
+
 runs:
   - id: electricity_4node_2025
     base_year: 2025

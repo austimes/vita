@@ -20,6 +20,9 @@ Then execute with this order:
 4. Full validation: `uv run vedalang validate <model>.veda.yaml --run <run_id>`
 5. If needed, compile only: `uv run vedalang compile <model>.veda.yaml --run <run_id> --out <dir>`
 
+For experiment execution, comparative analysis, and narrative output, switch to
+the `vita-experiment-loop` skill.
+
 Hard rules:
 - Treat schema as authoritative for valid syntax.
 - Use canonical modeling conventions from

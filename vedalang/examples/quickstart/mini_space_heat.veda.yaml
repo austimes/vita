@@ -1,12 +1,16 @@
 dsl_version: "0.3"
+
 commodities:
   - id: natural_gas
     type: energy
     energy_form: primary
+
   - id: space_heat
     type: service
+
 technologies:
   - id: gas_heater
+    description: gas_heater provides space_heat by transforming natural_gas.
     inputs:
       - commodity: natural_gas
         basis: HHV
@@ -17,16 +21,20 @@ technologies:
       kind: efficiency
       value: 0.9
     provides: space_heat
+
 technology_roles:
   - id: space_heat_supply
+    description: "space_heat_supply groups technologies that deliver space_heat: gas_heater."
     primary_service: space_heat
     technologies:
       - gas_heater
+
 spatial_layers:
   - id: geo.demo
     geometry_file: data/regions.geojson
     key: region_id
     kind: polygon
+
 region_partitions:
   - id: toy_region
     layer: geo.demo
@@ -35,6 +43,7 @@ region_partitions:
       value: QLD
     members:
       - QLD
+
 sites:
   - id: brisbane_home
     location:
@@ -44,8 +53,10 @@ sites:
     membership_overrides:
       region_partitions:
         toy_region: QLD
+
 facilities:
   - id: brisbane_space_heat
+    description: brisbane_space_heat instantiates role space_heat_supply at site brisbane_home.
     site: brisbane_home
     stock:
       items:
@@ -55,6 +66,7 @@ facilities:
             year: 2025
           technology: gas_heater
     technology_role: space_heat_supply
+
 runs:
   - id: toy_region_2025
     base_year: 2025

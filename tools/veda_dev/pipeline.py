@@ -633,7 +633,7 @@ def run_pipeline(
             try:
                 shutil.rmtree(work_dir)
                 result.work_dir = "(cleaned up)"
-            except Exception:
+            except Exception:  # noqa: BLE001 — cleanup failure is non-fatal
                 pass
 
     return result

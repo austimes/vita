@@ -281,14 +281,14 @@ class TestExtractSankeyMulti:
 
 
 class TestSankeyCLI:
-    """Test sankey CLI subcommand."""
+    """Test Vita sankey CLI subcommand."""
 
     def test_sankey_help(self):
         """Sankey --help works."""
         import subprocess
 
         result = subprocess.run(
-            ["uv", "run", "python", "-m", "tools.veda_dev.cli", "sankey", "--help"],
+            ["uv", "run", "vita", "sankey", "--help"],
             capture_output=True,
             text=True,
             cwd=Path(__file__).parent.parent,
@@ -306,9 +306,7 @@ class TestSankeyCLI:
             [
                 "uv",
                 "run",
-                "python",
-                "-m",
-                "tools.veda_dev.cli",
+                "vita",
                 "sankey",
                 "--gdx",
                 str(tmp_path / "nonexistent.gdx"),

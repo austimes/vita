@@ -28,13 +28,19 @@ def test_build_source_block_returns_exact_yaml_list_item():
     )
 
     assert block == {
-        "start_line": 117,
-        "end_line": 120,
+        "start_line": 160,
+        "end_line": 165,
         "lines": [
-            {"line": 117, "text": "  - id: farm_input_supply"},
-            {"line": 118, "text": "    primary_service: farm_input_supply"},
-            {"line": 119, "text": "    technologies:"},
-            {"line": 120, "text": "      - farm_input_import"},
+            {"line": 160, "text": "  - id: farm_input_supply"},
+            {"line": 161, "text": (
+                '    description: "farm_input_supply'
+                " groups technologies that deliver"
+                " farm_input_supply:"
+            )},
+            {"line": 162, "text": '      farm_input_import."'},
+            {"line": 163, "text": "    primary_service: farm_input_supply"},
+            {"line": 164, "text": "    technologies:"},
+            {"line": 165, "text": "      - farm_input_import"},
         ],
     }
 

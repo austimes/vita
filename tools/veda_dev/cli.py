@@ -16,85 +16,6 @@ def main():
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    # pipeline subcommand
-    pipeline_parser = subparsers.add_parser(
-        "pipeline",
-        help="Run full VedaLang -> TIMES pipeline",
-    )
-    pipeline_parser.add_argument(
-        "input",
-        type=Path,
-        help="Input file or directory",
-    )
-    pipeline_parser.add_argument(
-        "--from",
-        dest="input_kind",
-        choices=["vedalang", "tableir", "excel", "dd"],
-        help="Input type (auto-detected if not specified)",
-    )
-    pipeline_parser.add_argument(
-        "--case",
-        "-c",
-        default="scenario",
-        help="Case/scenario name (default: scenario)",
-    )
-    pipeline_parser.add_argument(
-        "--run",
-        help="Selected run when compiling VedaLang input",
-    )
-    pipeline_parser.add_argument(
-        "--times-src",
-        type=Path,
-        help="Path to TIMES source code",
-    )
-    pipeline_parser.add_argument(
-        "--gams-binary",
-        default="gams",
-        help="Path to GAMS executable (default: gams)",
-    )
-    pipeline_parser.add_argument(
-        "--solver",
-        default="CBC",
-        help="LP solver (default: CBC)",
-    )
-    pipeline_parser.add_argument(
-        "--work-dir",
-        type=Path,
-        help="Working directory (default: create temp dir)",
-    )
-    pipeline_parser.add_argument(
-        "--keep-workdir",
-        action="store_true",
-        help="Keep working directory after run",
-    )
-    pipeline_parser.add_argument(
-        "--no-solver",
-        action="store_true",
-        help="Stop before running TIMES solver",
-    )
-    pipeline_parser.add_argument(
-        "--no-sankey",
-        action="store_true",
-        help="Skip Sankey diagram generation",
-    )
-    pipeline_parser.add_argument(
-        "--process-results-only",
-        action="store_true",
-        help="Skip pipeline, just process existing GDX results",
-    )
-    pipeline_parser.add_argument(
-        "--json",
-        action="store_true",
-        dest="json_output",
-        help="Output results as JSON",
-    )
-    pipeline_parser.add_argument(
-        "--verbose",
-        "-v",
-        action="store_true",
-        help="Verbose output",
-    )
-
     # check subcommand (wraps veda_check)
     check_parser = subparsers.add_parser(
         "check",
@@ -155,60 +76,6 @@ def main():
         help="Skip schema validation",
     )
 
-    # run-times subcommand (wraps veda_run_times)
-    run_times_parser = subparsers.add_parser(
-        "run-times",
-        help="Run TIMES solver (wraps veda_run_times)",
-    )
-    run_times_parser.add_argument(
-        "dd_dir",
-        type=Path,
-        help="Directory containing DD files",
-    )
-    run_times_parser.add_argument(
-        "--case",
-        "-c",
-        default="scenario",
-        help="Case name",
-    )
-    run_times_parser.add_argument(
-        "--times-src",
-        type=Path,
-        help="Path to TIMES source",
-    )
-    run_times_parser.add_argument(
-        "--gams-binary",
-        default="gams",
-        help="GAMS executable",
-    )
-    run_times_parser.add_argument(
-        "--solver",
-        default="CBC",
-        help="LP solver",
-    )
-    run_times_parser.add_argument(
-        "--work-dir",
-        type=Path,
-        help="Working directory",
-    )
-    run_times_parser.add_argument(
-        "--keep-workdir",
-        action="store_true",
-        help="Keep working directory",
-    )
-    run_times_parser.add_argument(
-        "--json",
-        action="store_true",
-        dest="json_output",
-        help="JSON output",
-    )
-    run_times_parser.add_argument(
-        "--verbose",
-        "-v",
-        action="store_true",
-        help="Verbose output",
-    )
-
     # pattern subcommand (wraps veda_pattern)
     pattern_parser = subparsers.add_parser(
         "pattern",
@@ -222,112 +89,6 @@ def main():
     pattern_show = pattern_subparsers.add_parser("show", help="Show pattern details")
     pattern_show.add_argument("name", help="Pattern name")
     pattern_show.add_argument("--json", action="store_true", dest="json_output")
-
-    # times-results subcommand
-    results_parser = subparsers.add_parser(
-        "times-results",
-        help="Extract and display TIMES results from GDX",
-    )
-    results_parser.add_argument(
-        "--gdx",
-        type=Path,
-        default=Path("tmp/gams/scenario.gdx"),
-        help="Path to GDX file (default: tmp/gams/scenario.gdx)",
-    )
-    results_parser.add_argument(
-        "--process",
-        action="append",
-        dest="process_filter",
-        help="Filter to processes containing pattern (can repeat)",
-    )
-    results_parser.add_argument(
-        "--year",
-        dest="year_filter",
-        help="Filter to years (comma-separated, e.g. 2030,2040)",
-    )
-    results_parser.add_argument(
-        "--limit",
-        type=int,
-        default=20,
-        help="Max rows per table (default: 20, use 0 for no limit)",
-    )
-    results_parser.add_argument(
-        "--flows",
-        action="store_true",
-        help="Include VAR_FLO (commodity flows)",
-    )
-    results_parser.add_argument(
-        "--save",
-        type=Path,
-        help="Save results to file/directory (JSON or CSV)",
-    )
-    results_parser.add_argument(
-        "--json",
-        action="store_true",
-        dest="json_output",
-        help="Output as JSON",
-    )
-    results_parser.add_argument(
-        "--quiet",
-        action="store_true",
-        help="Suppress console output (use with --save)",
-    )
-
-    # sankey subcommand
-    sankey_parser = subparsers.add_parser(
-        "sankey",
-        help="Generate Sankey diagram from TIMES results",
-    )
-    sankey_parser.add_argument(
-        "--gdx",
-        type=Path,
-        default=Path("tmp/gams/scenario.gdx"),
-        help="Path to GDX file (default: tmp/gams/scenario.gdx)",
-    )
-    sankey_parser.add_argument(
-        "--year",
-        "-y",
-        help="Year to visualize (default: first available)",
-    )
-    sankey_parser.add_argument(
-        "--region",
-        "-r",
-        help="Region to visualize (default: first available)",
-    )
-    sankey_parser.add_argument(
-        "--min-flow",
-        type=float,
-        default=0.01,
-        help="Minimum flow value to include (default: 0.01)",
-    )
-    sankey_parser.add_argument(
-        "--format",
-        "-f",
-        choices=["html", "json", "mermaid"],
-        default="html",
-        help="Output format (default: html)",
-    )
-    sankey_parser.add_argument(
-        "--output",
-        "-o",
-        type=Path,
-        help="Output file (default: stdout for json/mermaid, sankey.html for html)",
-    )
-    sankey_parser.add_argument(
-        "--list-years",
-        action="store_true",
-        help="List available years and exit",
-    )
-    sankey_parser.add_argument(
-        "--list-regions",
-        action="store_true",
-        help="List available regions and exit",
-    )
-    sankey_parser.add_argument(
-        "--static",
-        action="store_true",
-        help="Generate static HTML (single year/region) instead of interactive",
-    )
 
     # eval subcommand
     eval_parser = subparsers.add_parser(
@@ -454,75 +215,14 @@ def main():
 
     args = parser.parse_args()
 
-    if args.command == "pipeline":
-        run_pipeline_command(args)
-    elif args.command == "check":
+    if args.command == "check":
         run_check_command(args)
     elif args.command == "emit-excel":
         run_emit_excel_command(args)
-    elif args.command == "run-times":
-        run_run_times_command(args)
     elif args.command == "pattern":
         run_pattern_command(args)
-    elif args.command == "times-results":
-        run_times_results_command(args)
-    elif args.command == "sankey":
-        run_sankey_command(args)
     elif args.command == "eval":
         run_eval_command(args)
-
-
-def run_pipeline_command(args):
-    """Run the pipeline command."""
-    from .pipeline import format_result_table, run_pipeline
-    from .times_results import extract_results, format_results_console
-
-    # Handle --process-results-only mode
-    if args.process_results_only:
-        work_dir = args.work_dir or Path("tmp")
-        gdx_path = work_dir / "gams" / f"{args.case}.gdx"
-
-        if not gdx_path.exists():
-            print(f"Error: GDX file not found: {gdx_path}", file=sys.stderr)
-            sys.exit(2)
-
-        results = extract_results(gdx_path=gdx_path)
-
-        if args.json_output:
-            print(json.dumps(results.to_dict(), indent=2))
-        else:
-            print(format_results_console(results))
-
-        sys.exit(0 if not results.errors else 2)
-
-    if not args.input.exists():
-        print(f"Error: Input not found: {args.input}", file=sys.stderr)
-        sys.exit(2)
-
-    # Suppress verbose output when JSON is requested (to keep stdout clean)
-    verbose = args.verbose and not args.json_output
-
-    result = run_pipeline(
-        input_path=args.input,
-        input_kind=args.input_kind,
-        run_id=args.run,
-        case=args.case,
-        times_src=args.times_src,
-        gams_binary=args.gams_binary,
-        solver=args.solver,
-        work_dir=args.work_dir,
-        keep_workdir=args.keep_workdir,
-        no_solver=args.no_solver,
-        no_sankey=args.no_sankey,
-        verbose=verbose,
-    )
-
-    if args.json_output:
-        print(json.dumps(result.to_dict(), indent=2))
-    else:
-        print(format_result_table(result))
-
-    sys.exit(0 if result.success else 2)
 
 
 def run_check_command(args):
@@ -585,54 +285,6 @@ def run_emit_excel_command(args):
         sys.exit(1)
 
 
-def run_run_times_command(args):
-    """Run run-times command (wraps veda_run_times)."""
-    from tools.veda_run_times.cli import format_result_table
-    from tools.veda_run_times.runner import find_times_source, run_times
-
-    if not args.dd_dir.exists():
-        print(f"Error: DD directory not found: {args.dd_dir}", file=sys.stderr)
-        sys.exit(2)
-
-    times_src = args.times_src
-    if times_src is None:
-        times_src = find_times_source()
-        if times_src is None:
-            print(
-                "Error: TIMES source not found. Set TIMES_SRC or use --times-src",
-                file=sys.stderr,
-            )
-            sys.exit(2)
-
-    result = run_times(
-        dd_dir=args.dd_dir,
-        case=args.case,
-        times_src=times_src,
-        gams_binary=args.gams_binary,
-        solver=args.solver,
-        work_dir=args.work_dir,
-        keep_workdir=args.keep_workdir,
-        verbose=args.verbose,
-    )
-
-    if args.json_output:
-        output = {
-            "success": result.success,
-            "case": result.case,
-            "work_dir": str(result.work_dir),
-            "gams_return_code": result.return_code,
-            "model_status": result.model_status,
-            "solve_status": result.solve_status,
-            "objective": result.objective,
-            "errors": result.errors,
-        }
-        print(json.dumps(output, indent=2))
-    else:
-        print(format_result_table(result))
-
-    sys.exit(0 if result.success else 2)
-
-
 def run_pattern_command(args):
     """Run pattern command (wraps veda_pattern)."""
     try:
@@ -660,146 +312,6 @@ def run_pattern_command(args):
         print("Usage: vedalang-dev pattern {list|show} ...")
         sys.exit(1)
 
-
-def run_times_results_command(args):
-    """Run times-results command."""
-    from .times_results import (
-        extract_results,
-        format_results_console,
-        save_results,
-    )
-
-    year_filter = None
-    if args.year_filter:
-        year_filter = [y.strip() for y in args.year_filter.split(",")]
-
-    results = extract_results(
-        gdx_path=args.gdx,
-        process_filter=args.process_filter,
-        year_filter=year_filter,
-        include_flows=args.flows,
-        limit=args.limit,
-    )
-
-    if results.errors:
-        for err in results.errors:
-            print(f"Error: {err}", file=sys.stderr)
-        sys.exit(2)
-
-    if args.save:
-        created = save_results(results, args.save)
-        if not args.quiet:
-            print(f"Saved results to: {', '.join(str(p) for p in created)}")
-
-    if not args.quiet:
-        if args.json_output:
-            print(json.dumps(results.to_dict(), indent=2))
-        else:
-            print(format_results_console(results, limit=args.limit))
-
-    sys.exit(0)
-
-
-def run_sankey_command(args):
-    """Run the sankey command."""
-    from .sankey import (
-        extract_sankey,
-        extract_sankey_multi,
-        get_available_regions,
-        get_available_years,
-    )
-
-    if not args.gdx.exists():
-        print(f"Error: GDX file not found: {args.gdx}", file=sys.stderr)
-        sys.exit(2)
-
-    # Handle list options
-    if args.list_years:
-        years = get_available_years(args.gdx)
-        if years:
-            print("Available years:", ", ".join(years))
-        else:
-            print("No flow data found in GDX file")
-        sys.exit(0)
-
-    if args.list_regions:
-        regions = get_available_regions(args.gdx)
-        if regions:
-            print("Available regions:", ", ".join(regions))
-        else:
-            print("No flow data found in GDX file")
-        sys.exit(0)
-
-    # For HTML format, use interactive mode by default (unless --static)
-    use_interactive = args.format == "html" and not args.static
-
-    if use_interactive:
-        # Extract all years/regions for interactive visualization
-        sankey = extract_sankey_multi(
-            gdx_path=args.gdx,
-            min_flow=args.min_flow,
-        )
-
-        if sankey.errors:
-            for err in sankey.errors:
-                print(f"Error: {err}", file=sys.stderr)
-            sys.exit(2)
-
-        if not sankey.years or not sankey.regions:
-            print("Warning: No flow data found in GDX file", file=sys.stderr)
-            sys.exit(1)
-
-        output = sankey.to_html_interactive()
-        output_path = args.output or Path("sankey.html")
-        output_path.write_text(output)
-        print(f"Saved interactive HTML to: {output_path}")
-        print(f"  Years: {len(sankey.years)} ({sankey.years[0]} - {sankey.years[-1]})")
-        print(f"  Regions: {len(sankey.regions)} ({', '.join(sankey.regions)})")
-        print(f"Open in browser: file://{output_path.absolute()}")
-        sys.exit(0)
-
-    # Static mode: single year/region
-    sankey = extract_sankey(
-        gdx_path=args.gdx,
-        year=args.year,
-        region=args.region,
-        min_flow=args.min_flow,
-    )
-
-    if sankey.errors:
-        for err in sankey.errors:
-            print(f"Error: {err}", file=sys.stderr)
-        sys.exit(2)
-
-    if not sankey.links:
-        print("Warning: No flow data found for specified year/region", file=sys.stderr)
-        sys.exit(1)
-
-    # Generate output
-    if args.format == "json":
-        output = json.dumps(sankey.to_dict(), indent=2)
-        if args.output:
-            args.output.write_text(output)
-            print(f"Saved JSON to: {args.output}")
-        else:
-            print(output)
-
-    elif args.format == "mermaid":
-        output = sankey.to_mermaid()
-        if args.output:
-            args.output.write_text(output)
-            print(f"Saved Mermaid to: {args.output}")
-        else:
-            print(output)
-
-    elif args.format == "html":
-        output = sankey.to_html()
-        output_path = args.output or Path("sankey.html")
-        output_path.write_text(output)
-        print(f"Saved static HTML to: {output_path}")
-        print(f"Open in browser: file://{output_path.absolute()}")
-
-    sys.exit(0)
 
 def run_eval_command(args):
     """Run eval command family."""
@@ -933,6 +445,7 @@ def run_eval_command(args):
         )
         progress_callback = None
         if emit_progress:
+
             def progress_callback(event: dict[str, object]) -> None:
                 print(_format_progress(event), file=sys.stderr, flush=True)
 
@@ -977,8 +490,7 @@ def run_eval_command(args):
             print(f"Compare: {diff['old_run_id']} -> {diff['new_run_id']}")
             for row in diff["deltas"][:20]:
                 print(
-                    f"  - {row['candidate_id']}: "
-                    f"delta_rank={row['delta_rank_score']}"
+                    f"  - {row['candidate_id']}: delta_rank={row['delta_rank_score']}"
                 )
         sys.exit(0)
 

@@ -1,15 +1,20 @@
 dsl_version: "0.3"
+
 commodities:
-  - id: natural_gas
-    type: energy
-    energy_form: primary
   - id: electricity
     type: energy
     energy_form: secondary
+
+  - id: natural_gas
+    type: energy
+    energy_form: primary
+
   - id: space_heat
     type: service
+
 technologies:
   - id: gas_heater
+    description: gas_heater provides space_heat by transforming natural_gas.
     inputs:
       - commodity: natural_gas
         basis: HHV
@@ -20,7 +25,9 @@ technologies:
       kind: efficiency
       value: 0.9
     provides: space_heat
+
   - id: heat_pump
+    description: heat_pump provides space_heat by transforming electricity.
     inputs:
       - commodity: electricity
     fixed_om: 12 AUD2024/kW/year
@@ -30,8 +37,12 @@ technologies:
       kind: cop
       value: 3.2
     provides: space_heat
+
 technology_roles:
   - id: space_heat_supply
+    description:
+      "space_heat_supply groups technologies that deliver space_heat: gas_heater
+      and heat_pump."
     primary_service: space_heat
     technologies:
       - gas_heater
@@ -41,11 +52,13 @@ technology_roles:
         from: gas_heater
         kind: retrofit
         to: heat_pump
+
 spatial_layers:
   - id: geo.demo
     geometry_file: data/regions.geojson
     key: region_id
     kind: polygon
+
 region_partitions:
   - id: toy_states
     layer: geo.demo
@@ -55,6 +68,7 @@ region_partitions:
     members:
       - NSW
       - QLD
+
 sites:
   - id: brisbane_site
     location:
@@ -64,8 +78,10 @@ sites:
     membership_overrides:
       region_partitions:
         toy_states: QLD
+
 facilities:
   - id: brisbane_heat
+    description: brisbane_heat instantiates role space_heat_supply at site brisbane_site.
     available_technologies:
       - gas_heater
       - heat_pump
@@ -81,6 +97,7 @@ facilities:
             year: 2025
           technology: gas_heater
     technology_role: space_heat_supply
+
 networks:
   - id: east_coast_power
     kind: transmission
@@ -93,6 +110,7 @@ networks:
     node_basis:
       kind: region_partition
       ref: toy_states
+
 runs:
   - id: toy_states_2025
     base_year: 2025

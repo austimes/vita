@@ -15,9 +15,38 @@ from vedalang.compiler import (
     compile_vedalang_bundle,
     load_vedalang,
 )
+from vedalang.compiler.schema_diagnostics import required_description_diagnostic
 from vedalang.versioning import CHECK_OUTPUT_VERSION, DSL_VERSION
 
 SCHEMA_DIR = Path(__file__).parent.parent.parent / "vedalang" / "schema"
+
+
+def _synthesize_measure_weights(source: dict) -> dict[str, dict[str, float]]:
+    """Synthesize uniform measure weights from source spatial declarations.
+
+    When no external measure_weights are provided, derive equal weights for
+    each measure across the region partition members so that fleet proportional
+    distribution can proceed.
+    """
+    weights: dict[str, dict[str, float]] = {}
+    measure_sets = source.get("spatial_measure_sets") or []
+    partitions = {rp["id"]: rp for rp in (source.get("region_partitions") or [])}
+    runs = source.get("runs") or []
+    if not runs or not measure_sets:
+        return weights
+    run_partition_id = runs[0].get("region_partition")
+    partition = partitions.get(run_partition_id or "")
+    if partition is None:
+        return weights
+    members = partition.get("members") or []
+    if not members:
+        return weights
+    for ms in measure_sets:
+        for measure in ms.get("measures") or []:
+            measure_id = measure.get("id")
+            if measure_id:
+                weights[measure_id] = {m: 1.0 for m in members}
+    return weights
 
 
 @dataclass
@@ -65,10 +94,17 @@ def run_check(
         # Step 1: Get TableIR
         if from_vedalang:
             source = load_vedalang(input_path)
+            effective_run = selected_run
+            if effective_run is None:
+                runs = source.get("runs") or []
+                if len(runs) > 1:
+                    effective_run = runs[0]["id"]
+            measure_weights = _synthesize_measure_weights(source)
             bundle = compile_vedalang_bundle(
                 source,
                 selected_cases=selected_cases,
-                selected_run=selected_run,
+                selected_run=effective_run,
+                measure_weights=measure_weights or None,
             )
             tableir = bundle.tableir
             result.dsl_version = source.get("dsl_version", DSL_VERSION)
@@ -141,14 +177,17 @@ def run_check(
 
     except jsonschema.ValidationError as e:
         result.errors += 1
-        result.error_messages.append(e.message)
+        normalized = required_description_diagnostic(e)
+        if normalized is None:
+            normalized = {
+                "severity": "error",
+                "code": "SCHEMA_ERROR",
+                "message": e.message,
+            }
+        result.error_messages.append(str(normalized["message"]))
         result.diagnostics = {
             "diagnostics": [
-                {
-                    "severity": "error",
-                    "code": "SCHEMA_ERROR",
-                    "message": e.message,
-                }
+                normalized
             ]
         }
     except ResolutionError as e:
@@ -164,9 +203,6 @@ def run_check(
                 }
             ]
         }
-    except jsonschema.ValidationError as e:
-        result.errors += 1
-        result.error_messages.append(f"Schema validation: {e.message}")
     except Exception as e:
         result.errors += 1
         result.error_messages.append(str(e))

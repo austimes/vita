@@ -17,6 +17,7 @@ commodities:
 
 technologies:
   - id: ccgt
+    description: ccgt provides electricity_generation by transforming natural_gas.
     inputs:
       - commodity: natural_gas
         basis: HHV
@@ -29,6 +30,7 @@ technologies:
     provides: electricity_generation
 
   - id: gas_cheap
+    description: gas_cheap provides gas_supply as a primary supply or conversion technology.
     outputs:
       - commodity: natural_gas
     lifetime: 100 year
@@ -39,6 +41,7 @@ technologies:
     variable_om: 0 MUSD24/PJ
 
   - id: gas_exp
+    description: gas_exp provides gas_supply as a primary supply or conversion technology.
     outputs:
       - commodity: natural_gas
     lifetime: 100 year
@@ -50,11 +53,16 @@ technologies:
 
 technology_roles:
   - id: electricity_generation
+    description:
+      "electricity_generation groups technologies that deliver electricity_generation:
+      ccgt."
     primary_service: electricity_generation
     technologies:
       - ccgt
 
   - id: gas_supply
+    description: "gas_supply groups technologies that deliver gas_supply: gas_cheap
+      and gas_exp."
     primary_service: gas_supply
     technologies:
       - gas_cheap
@@ -87,6 +95,7 @@ sites:
 
 facilities:
   - id: reg1_ccgt
+    description: reg1_ccgt instantiates role electricity_generation at site reg1_energy_hub.
     site: reg1_energy_hub
     stock:
       items:
@@ -98,6 +107,7 @@ facilities:
     technology_role: electricity_generation
 
   - id: reg1_gas_supply
+    description: reg1_gas_supply instantiates role gas_supply at site reg1_energy_hub.
     site: reg1_energy_hub
     stock:
       items:

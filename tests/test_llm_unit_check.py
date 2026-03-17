@@ -17,6 +17,7 @@ SOURCE = {
     "technologies": [
         {
             "id": "ccgt",
+            "description": "Combined cycle gas turbine",
             "provides": "electricity",
             "inputs": [
                 {
@@ -32,6 +33,7 @@ SOURCE = {
     "technology_roles": [
         {
             "id": "electricity_supply",
+            "description": "Electricity supply",
             "primary_service": "electricity",
             "technologies": ["ccgt"],
         }
@@ -62,6 +64,7 @@ SOURCE = {
     "facilities": [
         {
             "id": "grid_supply",
+            "description": "Grid supply facility",
             "site": "hub",
             "technology_role": "electricity_supply",
             "stock": {
@@ -93,6 +96,7 @@ SOURCE_WITH_MONETARY = {
     "technologies": [
         {
             "id": "grid_import",
+            "description": "Grid electricity import",
             "provides": "electricity",
             "outputs": [{"commodity": "electricity"}],
             "variable_om": "6.944444 MAUD24/MWh",
@@ -101,6 +105,7 @@ SOURCE_WITH_MONETARY = {
     "technology_roles": [
         {
             "id": "power_supply",
+            "description": "Power supply",
             "primary_service": "electricity",
             "technologies": ["grid_import"],
         }

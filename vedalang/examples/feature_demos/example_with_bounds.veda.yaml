@@ -1,24 +1,33 @@
 dsl_version: "0.3"
+
 commodities:
-  - id: natural_gas
-    type: energy
-    energy_form: primary
-  - id: wind_resource
-    type: energy
-    energy_form: resource
   - id: electricity
     type: energy
     energy_form: secondary
+
   - id: electricity_generation
     type: service
+
   - id: gas_supply
     type: service
+
+  - id: natural_gas
+    type: energy
+    energy_form: primary
+
   - id: residential_energy_services
     type: service
+
+  - id: wind_resource
+    type: energy
+    energy_form: resource
+
   - id: wind_resource_supply
     type: service
+
 technologies:
   - id: ccgt
+    description: ccgt provides electricity_generation by transforming natural_gas.
     inputs:
       - commodity: natural_gas
         basis: HHV
@@ -31,7 +40,10 @@ technologies:
       kind: efficiency
       value: 0.55
     provides: electricity_generation
+
   - id: existing_gas_steam
+    description: existing_gas_steam provides electricity_generation by transforming
+      natural_gas.
     inputs:
       - commodity: natural_gas
         basis: HHV
@@ -42,7 +54,10 @@ technologies:
       kind: efficiency
       value: 0.4
     provides: electricity_generation
+
   - id: onshore_wind_resource
+    description: onshore_wind_resource provides wind_resource_supply as a primary supply
+      or conversion technology.
     outputs:
       - commodity: wind_resource
     lifetime: 100 year
@@ -50,7 +65,10 @@ technologies:
       kind: efficiency
       value: 1.0
     provides: wind_resource_supply
+
   - id: onshore_wind_turbine
+    description: onshore_wind_turbine provides electricity_generation by transforming
+      wind_resource.
     inputs:
       - commodity: wind_resource
     outputs:
@@ -62,7 +80,10 @@ technologies:
       kind: efficiency
       value: 1.0
     provides: electricity_generation
+
   - id: pipeline_import
+    description: pipeline_import provides gas_supply as a primary supply or conversion
+      technology.
     outputs:
       - commodity: natural_gas
     lifetime: 100 year
@@ -70,7 +91,10 @@ technologies:
       kind: efficiency
       value: 1.0
     provides: gas_supply
+
   - id: residential_electric_service
+    description: residential_electric_service provides residential_energy_services by
+      transforming electricity.
     inputs:
       - commodity: electricity
     lifetime: 100 year
@@ -78,30 +102,46 @@ technologies:
       kind: efficiency
       value: 1.0
     provides: residential_energy_services
+
 technology_roles:
   - id: electricity_generation
+    description:
+      "electricity_generation groups technologies that deliver electricity_generation:
+      existing_gas_steam, ccgt, and onshore_wind_turbine."
     primary_service: electricity_generation
     technologies:
       - existing_gas_steam
       - ccgt
       - onshore_wind_turbine
+
   - id: gas_supply
+    description: "gas_supply groups technologies that deliver gas_supply: pipeline_import."
     primary_service: gas_supply
     technologies:
       - pipeline_import
+
   - id: residential_energy_services
+    description:
+      "residential_energy_services groups technologies that deliver residential_energy_services:
+      residential_electric_service."
     primary_service: residential_energy_services
     technologies:
       - residential_electric_service
+
   - id: wind_resource_supply
+    description:
+      "wind_resource_supply groups technologies that deliver wind_resource_supply:
+      onshore_wind_resource."
     primary_service: wind_resource_supply
     technologies:
       - onshore_wind_resource
+
 spatial_layers:
   - id: geo.demo
     geometry_file: data/regions.geojson
     key: region_id
     kind: polygon
+
 region_partitions:
   - id: reg1_partition
     layer: geo.demo
@@ -110,11 +150,13 @@ region_partitions:
       value: REG1
     members:
       - REG1
+
 zone_overlays:
   - id: reg1_build_zones
-    layer: geo.demo
-    key: build_zone
     geometry_file: data/build_zones.geojson
+    key: build_zone
+    layer: geo.demo
+
 sites:
   - id: reg1_energy_hub
     location:
@@ -126,8 +168,10 @@ sites:
         reg1_partition: REG1
       zone_overlays:
         reg1_build_zones: reg1_rez
+
 facilities:
   - id: reg1_gas_supply
+    description: reg1_gas_supply instantiates role gas_supply at site reg1_energy_hub.
     site: reg1_energy_hub
     stock:
       items:
@@ -137,7 +181,9 @@ facilities:
             year: 2025
           technology: pipeline_import
     technology_role: gas_supply
+
   - id: reg1_generation
+    description: reg1_generation instantiates role electricity_generation at site reg1_energy_hub.
     available_technologies:
       - existing_gas_steam
       - ccgt
@@ -150,18 +196,24 @@ facilities:
             value: 3 MW
             year: 2025
           technology: existing_gas_steam
+
         - metric: installed_capacity
           observed:
             value: 2 MW
             year: 2025
           technology: ccgt
+
         - metric: installed_capacity
           observed:
             value: 5 MW
             year: 2025
           technology: onshore_wind_turbine
     technology_role: electricity_generation
+
   - id: reg1_residential_energy_services
+    description:
+      reg1_residential_energy_services instantiates role residential_energy_services
+      at site reg1_energy_hub.
     site: reg1_energy_hub
     stock:
       items:
@@ -171,7 +223,9 @@ facilities:
             year: 2025
           technology: residential_electric_service
     technology_role: residential_energy_services
+
   - id: reg1_wind_resource
+    description: reg1_wind_resource instantiates role wind_resource_supply at site reg1_energy_hub.
     site: reg1_energy_hub
     stock:
       items:
@@ -181,17 +235,25 @@ facilities:
             year: 2025
           technology: onshore_wind_resource
     technology_role: wind_resource_supply
+
 zone_opportunities:
   - id: reg1_new_ccgt
-    technology_role: electricity_generation
-    technology: ccgt
-    zone: reg1_build_zones.reg1_rez
+    description:
+      reg1_new_ccgt allows up to 2 MW of new ccgt capacity for role electricity_generation
+      in zone reg1_build_zones.reg1_rez.
     max_new_capacity: 2 MW
-  - id: reg1_new_wind
+    technology: ccgt
     technology_role: electricity_generation
-    technology: onshore_wind_turbine
     zone: reg1_build_zones.reg1_rez
+
+  - id: reg1_new_wind
+    description: reg1_new_wind allows up to 50 MW of new onshore_wind_turbine capacity
+      for role electricity_generation in zone reg1_build_zones.reg1_rez.
     max_new_capacity: 50 MW
+    technology: onshore_wind_turbine
+    technology_role: electricity_generation
+    zone: reg1_build_zones.reg1_rez
+
 runs:
   - id: reg1_2025
     base_year: 2025

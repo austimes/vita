@@ -1,20 +1,27 @@
 dsl_version: "0.3"
+
 commodities:
+  - id: alumina_output
+    type: service
+
   - id: co2
     type: emission
+
   - id: coal
     type: energy
     energy_form: primary
+
   - id: hydrogen
     type: energy
     energy_form: primary
+
   - id: natural_gas
     type: energy
     energy_form: primary
-  - id: alumina_output
-    type: service
+
 technologies:
   - id: coal_calciner
+    description: coal_calciner provides alumina_output by transforming coal.
     inputs:
       - commodity: coal
         basis: HHV
@@ -26,7 +33,9 @@ technologies:
       kind: efficiency
       value: 0.9
     provides: alumina_output
+
   - id: gas_calciner
+    description: gas_calciner provides alumina_output by transforming natural_gas.
     inputs:
       - commodity: natural_gas
         basis: HHV
@@ -38,7 +47,9 @@ technologies:
       kind: efficiency
       value: 0.95
     provides: alumina_output
+
   - id: hydrogen_calciner
+    description: hydrogen_calciner provides alumina_output by transforming hydrogen.
     inputs:
       - commodity: hydrogen
         basis: HHV
@@ -50,8 +61,11 @@ technologies:
       kind: efficiency
       value: 0.98
     provides: alumina_output
+
 technology_roles:
   - id: alumina_calcination
+    description: "alumina_calcination groups technologies that deliver alumina_output:
+      coal_calciner, gas_calciner, and hydrogen_calciner."
     primary_service: alumina_output
     technologies:
       - coal_calciner
@@ -62,15 +76,18 @@ technology_roles:
         from: coal_calciner
         kind: retrofit
         to: gas_calciner
+
       - cost: 2500 AUD2024/kW
         from: gas_calciner
         kind: retrofit
         to: hydrogen_calciner
+
 spatial_layers:
   - id: geo.demo
     geometry_file: data/regions.geojson
     key: region_id
     kind: polygon
+
 region_partitions:
   - id: au_states
     layer: geo.demo
@@ -80,6 +97,7 @@ region_partitions:
     members:
       - NSW
       - QLD
+
 sites:
   - id: gladstone_refinery
     location:
@@ -89,6 +107,7 @@ sites:
     membership_overrides:
       region_partitions:
         au_states: QLD
+
   - id: newcastle_refinery
     location:
       point:
@@ -97,8 +116,10 @@ sites:
     membership_overrides:
       region_partitions:
         au_states: NSW
+
 facilities:
   - id: gladstone_alumina
+    description: gladstone_alumina instantiates role alumina_calcination at site gladstone_refinery.
     available_technologies:
       - coal_calciner
       - gas_calciner
@@ -115,7 +136,9 @@ facilities:
             year: 2025
           technology: coal_calciner
     technology_role: alumina_calcination
+
   - id: newcastle_alumina
+    description: newcastle_alumina instantiates role alumina_calcination at site newcastle_refinery.
     available_technologies:
       - coal_calciner
       - gas_calciner
@@ -132,6 +155,7 @@ facilities:
             year: 2025
           technology: coal_calciner
     technology_role: alumina_calcination
+
 runs:
   - id: au_states_2025
     base_year: 2025

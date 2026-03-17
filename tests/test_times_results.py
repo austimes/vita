@@ -177,6 +177,60 @@ def test_extract_results_flows_prefer_var_flo_over_par_flo(
 
 @patch("tools.veda_dev.times_results.dump_symbol_csv")
 @patch("tools.veda_dev.times_results.find_gdxdump")
+def test_extract_results_switching_tables_fall_back_to_toy_par_symbols(
+    mock_find,
+    mock_dump,
+    tmp_path,
+):
+    """Toy PAR_* fallback should populate switching tables when VAR_* is empty."""
+    mock_find.return_value = "/usr/bin/gdxdump"
+
+    symbol_csv = {
+        "VAR_ACT": (
+            '"R","ALLYEAR","ALLYEAR","P","S","Val"\n'
+            '"R1","2030","2030","P_ELC","ANNUAL",0'
+        ),
+        "PAR_ACTM": (
+            '"R","LL","LL","P","S","Val"\n'
+            '"R1","2030","2030","P_H2","ANNUAL",18'
+        ),
+        "VAR_NCAP": (
+            '"R","ALLYEAR","P","Val"\n'
+            '"R1","2030","P_H2",0'
+        ),
+        "PAR_NCAPM": (
+            '"R","ALLYEAR","P","Val"\n'
+            '"R1","2030","P_H2",280'
+        ),
+        "VAR_CAP": '"R","ALLYEAR","P","Val"\n',
+        "PAR_CAPM": '"R","ALLYEAR","P","Val"\n',
+        "VAR_FLO": '"R","ALLYEAR","P","C","S","Val"\n',
+        "PAR_FLO": '"R","ALLYEAR","P","C","S","Val"\n',
+        "PAR_FLOM": (
+            '"R","ALLYEAR","P","C","S","Val"\n'
+            '"R1","2030","P_H2","COM_H2","ANNUAL",145.9'
+        ),
+    }
+
+    def _mock_dump(_gdx_path, symbol, _gdxdump):
+        return symbol_csv.get(symbol)
+
+    mock_dump.side_effect = _mock_dump
+
+    gdx_path = tmp_path / "scenario.gdx"
+    gdx_path.touch()
+
+    results = extract_results(gdx_path, include_flows=True, limit=0)
+
+    assert [row["process"] for row in results.var_act] == ["P_H2"]
+    assert [row["process"] for row in results.var_ncap] == ["P_H2"]
+    assert [row["process"] for row in results.var_cap] == ["P_H2"]
+    assert [row["process"] for row in results.var_flo] == ["P_H2"]
+    assert results.var_flo_source == "PAR_FLOM"
+
+
+@patch("tools.veda_dev.times_results.dump_symbol_csv")
+@patch("tools.veda_dev.times_results.find_gdxdump")
 def test_extract_results_limit_zero_disables_truncation(
     mock_find,
     mock_dump,

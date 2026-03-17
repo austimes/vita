@@ -15,6 +15,7 @@ from .ast import SourceDocument, parse_source
 from .resolution import (
     ResolutionError,
     ResolvedDefinitionGraph,
+    RunContext,
     parse_quantity,
     resolve_imports,
 )
@@ -199,6 +200,27 @@ def _require_selected_run(
         "runs",
         "multiple runs defined; select one with --run",
     )
+
+
+def _synthesize_uniform_measure_weights(
+    graph: ResolvedDefinitionGraph,
+    run: RunContext,
+) -> dict[str, dict[str, float]] | None:
+    """Synthesize uniform measure_weights for proportional fleets when none provided.
+
+    When spatial data files are unavailable (e.g. standalone CLI compilation),
+    fall back to equal weight per model region for each referenced measure.
+    """
+    needed: set[str] = set()
+    for fleet in graph.fleets.values():
+        if fleet.distribution.method == "proportional" and fleet.distribution.weight_by:
+            needed.add(fleet.distribution.weight_by)
+    if not needed:
+        return None
+    uniform: dict[str, dict[str, float]] = {}
+    for measure_id in needed:
+        uniform[measure_id] = {region: 1.0 for region in run.model_regions}
+    return uniform
 
 
 def _normalize_packages(
@@ -543,12 +565,15 @@ def compile_source_bundle(
     parsed = parse_source(source)
     graph = resolve_imports(parsed, _normalize_packages(packages))
     run = resolve_selected_run(graph, _require_selected_run(graph, selected_run))
+    effective_measure_weights = measure_weights or _synthesize_uniform_measure_weights(
+        graph, run
+    )
     artifacts = build_run_artifacts(
         graph,
         run,
         site_region_memberships=site_region_memberships,
         site_zone_memberships=site_zone_memberships,
-        measure_weights=measure_weights,
+        measure_weights=effective_measure_weights,
         custom_weights=custom_weights,
     )
     tableir = lower_bundle_to_tableir(

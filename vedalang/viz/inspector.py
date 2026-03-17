@@ -400,6 +400,24 @@ DSL_OBJECT_CARD_KINDS = {
     "transition",
 }
 
+REQUIRED_DESCRIPTION_DSL_KINDS = {
+    "technology",
+    "technology_role",
+    "facility",
+    "fleet",
+    "zone_opportunity",
+}
+
+
+def _has_required_description(kind: str, attributes: Any) -> bool:
+    if kind not in REQUIRED_DESCRIPTION_DSL_KINDS:
+        return True
+    normalized = _normalize_json(attributes)
+    if not isinstance(normalized, dict):
+        return False
+    description = normalized.get("description")
+    return isinstance(description, str) and bool(description.strip())
+
 
 def _dsl_object_presentation(
     kind: str,
@@ -450,6 +468,7 @@ def _local_or_resolved_item(
     if local is not None:
         source_path = getattr(getattr(local, "source_ref", None), "path", None)
         source_location = locator.locate(source_path)
+        missing_required_description = not _has_required_description(kind, local)
         return (
             _item(
                 label=label,
@@ -459,7 +478,7 @@ def _local_or_resolved_item(
                 source_location=source_location,
                 presentation=_dsl_object_presentation(kind),
             ),
-            source_location is None,
+            source_location is None or missing_required_description,
         )
     resolved = resolved_maps.get(map_key, {}).get(object_id)
     if resolved is None:
