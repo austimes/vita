@@ -2,42 +2,25 @@
   "name": "vedalang",
   "displayName": "VedaLang",
   "description": "Language support for VedaLang - a typed DSL for TIMES energy models",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "publisher": "austimes",
   "repository": {
     "type": "git",
     "url": "https://github.com/austimes/vedalang"
   },
-  "categories": [
-    "Programming Languages",
-    "Linters"
-  ],
-  "keywords": [
-    "vedalang",
-    "veda",
-    "times",
-    "energy",
-    "yaml"
-  ],
+  "categories": ["Programming Languages", "Linters"],
+  "keywords": ["vedalang", "veda", "times", "energy", "yaml"],
   "engines": {
     "vscode": "^1.85.0"
   },
-  "activationEvents": [
-    "onLanguage:vedalang",
-    "workspaceContains:**/*.veda.yaml"
-  ],
+  "activationEvents": ["onLanguage:vedalang", "workspaceContains:**/*.veda.yaml"],
   "main": "./out/extension.js",
   "contributes": {
     "languages": [
       {
         "id": "vedalang",
-        "aliases": [
-          "VedaLang",
-          "vedalang"
-        ],
-        "extensions": [
-          ".veda.yaml"
-        ],
+        "aliases": ["VedaLang", "vedalang"],
+        "extensions": [".veda.yaml"],
         "configuration": "./language-configuration.json"
       }
     ],
@@ -82,11 +65,7 @@
         },
         "vedalang.trace.server": {
           "type": "string",
-          "enum": [
-            "off",
-            "messages",
-            "verbose"
-          ],
+          "enum": ["off", "messages", "verbose"],
           "default": "off",
           "description": "Trace communication between VS Code and the language server"
         }

@@ -43,6 +43,8 @@ def load_vedalang_schema() -> dict:
         with open(path) as f:
             return json.load(f)
     return {}
+
+
 ATTR_MASTER = load_attribute_master()
 VEDALANG_SCHEMA = load_vedalang_schema()
 SCHEMA_VALIDATOR = Draft7Validator(VEDALANG_SCHEMA) if VEDALANG_SCHEMA else None
@@ -61,9 +63,7 @@ def refresh_schema_cache() -> None:
     current_mtime = VEDALANG_SCHEMA_PATH.stat().st_mtime
     if SCHEMA_MTIME is None or current_mtime != SCHEMA_MTIME:
         VEDALANG_SCHEMA = load_vedalang_schema()
-        SCHEMA_VALIDATOR = (
-            Draft7Validator(VEDALANG_SCHEMA) if VEDALANG_SCHEMA else None
-        )
+        SCHEMA_VALIDATOR = Draft7Validator(VEDALANG_SCHEMA) if VEDALANG_SCHEMA else None
         SCHEMA_MTIME = current_mtime
 
 
@@ -84,6 +84,7 @@ def _resolve_schema_ref_in_root(schema_node: dict, schema_root: dict) -> dict:
             return current
         current = target
     return current if isinstance(current, dict) else {}
+
 
 # VedaLang semantic attribute → TIMES attribute mapping
 SEMANTIC_TO_TIMES = {
@@ -148,9 +149,11 @@ TECHNOLOGY_ROLE_KEYWORDS = [
     "description",
 ]
 
+
 @dataclass
 class SymbolDef:
     """Definition of a commodity, process, or set in the model."""
+
     kind: str  # "commodity" | "process" | "set"
     name: str
     uri: str
@@ -161,6 +164,7 @@ class SymbolDef:
 @dataclass
 class SymbolRef:
     """Reference to a commodity, process, or set."""
+
     kind: str  # "commodity" | "process" | "set"
     name: str
     uri: str
@@ -178,7 +182,7 @@ class VedaLangServer(LanguageServer):
         self.references: dict[str, list[SymbolRef]] = {}
 
 
-server = VedaLangServer("vedalang-lsp", "0.3.1")
+server = VedaLangServer("vedalang-lsp", "0.4.0")
 
 
 def get_word_at_position(
@@ -348,13 +352,11 @@ def _position_in_node(node: Node, position: types.Position) -> bool:
     """Return whether the position falls inside a YAML node."""
     start = node.start_mark
     end = node.end_mark
-    before_end = (
-        position.line < end.line
-        or (position.line == end.line and position.character <= end.column)
+    before_end = position.line < end.line or (
+        position.line == end.line and position.character <= end.column
     )
-    after_start = (
-        position.line > start.line
-        or (position.line == start.line and position.character >= start.column)
+    after_start = position.line > start.line or (
+        position.line == start.line and position.character >= start.column
     )
     return after_start and before_end
 
@@ -599,9 +601,7 @@ def schema_validation_diagnostics(
     return diagnostics
 
 
-def find_definition_range(
-    document: TextDocument, kind: str, name: str
-) -> types.Range:
+def find_definition_range(document: TextDocument, kind: str, name: str) -> types.Range:
     """Find the line range where a definition occurs."""
     section_by_kind = {
         "commodity": "commodities",
@@ -728,27 +728,39 @@ def parse_and_index(ls: VedaLangServer, document: TextDocument) -> dict | None:
                 cname = flow.get("commodity")
                 if not cname:
                     continue
-                refs.append(SymbolRef(
-                    kind="commodity", name=cname, uri=uri,
-                    range=find_reference_range(document, cname, "commodity"),
-                    context=f"technology.{technology_id}.{key}.commodity"
-                ))
+                refs.append(
+                    SymbolRef(
+                        kind="commodity",
+                        name=cname,
+                        uri=uri,
+                        range=find_reference_range(document, cname, "commodity"),
+                        context=f"technology.{technology_id}.{key}.commodity",
+                    )
+                )
         provides = t.get("provides")
         if provides:
-            refs.append(SymbolRef(
-                kind="commodity", name=provides, uri=uri,
-                range=find_reference_range(document, provides, "provides"),
-                context=f"technology.{technology_id}.provides"
-            ))
+            refs.append(
+                SymbolRef(
+                    kind="commodity",
+                    name=provides,
+                    uri=uri,
+                    range=find_reference_range(document, provides, "provides"),
+                    context=f"technology.{technology_id}.provides",
+                )
+            )
         for emission in t.get("emissions", []) or []:
             cname = emission.get("commodity")
             if not cname:
                 continue
-            refs.append(SymbolRef(
-                kind="commodity", name=cname, uri=uri,
-                range=find_reference_range(document, cname, "commodity"),
-                context=f"technology.{technology_id}.emissions.commodity"
-            ))
+            refs.append(
+                SymbolRef(
+                    kind="commodity",
+                    name=cname,
+                    uri=uri,
+                    range=find_reference_range(document, cname, "commodity"),
+                    context=f"technology.{technology_id}.emissions.commodity",
+                )
+            )
 
     for role in parsed.get("technology_roles", []) or []:
         role_id = role.get("id")
@@ -774,11 +786,15 @@ def parse_and_index(ls: VedaLangServer, document: TextDocument) -> dict | None:
                 )
             )
         for technology_id in role.get("technologies", []) or []:
-            refs.append(SymbolRef(
-                kind="technology", name=technology_id, uri=uri,
-                range=find_reference_range(document, technology_id, "technologies"),
-                context=f"technology_role.{role_id}.technologies"
-            ))
+            refs.append(
+                SymbolRef(
+                    kind="technology",
+                    name=technology_id,
+                    uri=uri,
+                    range=find_reference_range(document, technology_id, "technologies"),
+                    context=f"technology_role.{role_id}.technologies",
+                )
+            )
 
     for site in parsed.get("sites", []) or []:
         site_id = site.get("id")
@@ -805,28 +821,40 @@ def parse_and_index(ls: VedaLangServer, document: TextDocument) -> dict | None:
         )
         site_id = facility.get("site")
         if site_id:
-            refs.append(SymbolRef(
-                kind="site", name=site_id, uri=uri,
-                range=find_reference_range(document, site_id, "site"),
-                context=f"facility.{facility_id}.site"
-            ))
+            refs.append(
+                SymbolRef(
+                    kind="site",
+                    name=site_id,
+                    uri=uri,
+                    range=find_reference_range(document, site_id, "site"),
+                    context=f"facility.{facility_id}.site",
+                )
+            )
         role_id = facility.get("technology_role")
         if role_id:
-            refs.append(SymbolRef(
-                kind="technology_role", name=role_id, uri=uri,
-                range=find_reference_range(document, role_id, "technology_role"),
-                context=f"facility.{facility_id}.technology_role"
-            ))
+            refs.append(
+                SymbolRef(
+                    kind="technology_role",
+                    name=role_id,
+                    uri=uri,
+                    range=find_reference_range(document, role_id, "technology_role"),
+                    context=f"facility.{facility_id}.technology_role",
+                )
+            )
         stock = facility.get("stock", {}) or {}
         for item in stock.get("items", []) or []:
             technology_id = item.get("technology")
             if not technology_id:
                 continue
-            refs.append(SymbolRef(
-                kind="technology", name=technology_id, uri=uri,
-                range=find_reference_range(document, technology_id, "technology"),
-                context=f"facility.{facility_id}.stock.technology"
-            ))
+            refs.append(
+                SymbolRef(
+                    kind="technology",
+                    name=technology_id,
+                    uri=uri,
+                    range=find_reference_range(document, technology_id, "technology"),
+                    context=f"facility.{facility_id}.stock.technology",
+                )
+            )
 
     ls.symbols[uri] = {
         "commodity": commodity_defs,
@@ -888,8 +916,7 @@ def format_vedalang_attribute_hover(vedalang_attr: str) -> str | None:
     attr_data = ATTR_MASTER.get(times_attr)
     if not attr_data:
         return (
-            f"## VedaLang: `{vedalang_attr}`\n\n"
-            f"Maps to TIMES attribute: `{times_attr}`"
+            f"## VedaLang: `{vedalang_attr}`\n\nMaps to TIMES attribute: `{times_attr}`"
         )
 
     lines = [
@@ -1009,9 +1036,7 @@ def hover(ls: VedaLangServer, params: types.HoverParams) -> types.Hover | None:
         # Check TIMES-mapped attributes first
         if md := format_vedalang_attribute_hover(key):
             return types.Hover(
-                contents=types.MarkupContent(
-                    kind=types.MarkupKind.Markdown, value=md
-                )
+                contents=types.MarkupContent(kind=types.MarkupKind.Markdown, value=md)
             )
         # Prefer schema-aware docs so shared key names
         # (e.g. `kind`) are context-correct.
@@ -1352,11 +1377,7 @@ def code_action(
 
         for sym in valid_symbols[:10]:
             edit = types.WorkspaceEdit(
-                changes={
-                    uri: [
-                        types.TextEdit(range=diag.range, new_text=sym)
-                    ]
-                }
+                changes={uri: [types.TextEdit(range=diag.range, new_text=sym)]}
             )
             action = types.CodeAction(
                 title=f"Replace with '{sym}'",
