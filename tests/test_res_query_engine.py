@@ -197,7 +197,7 @@ def _emission_contract_source() -> dict:
         ],
         "spatial_layers": [
             {
-                "id": "geo.demo",
+                "id": "geo_demo",
                 "kind": "polygon",
                 "key": "region_id",
                 "geometry_file": "data/regions.geojson",
@@ -206,7 +206,7 @@ def _emission_contract_source() -> dict:
         "region_partitions": [
             {
                 "id": "single_partition",
-                "layer": "geo.demo",
+                "layer": "geo_demo",
                 "members": ["SINGLE"],
                 "mapping": {"kind": "constant", "value": "SINGLE"},
             }
@@ -940,152 +940,90 @@ def test_source_mode_inspector_marks_veda_section_partial_without_manifest():
     _assert_table_row_ref_contract(veda["items"][0]["attributes"]["fi_process_rows"][0])
 
 
-def test_collapse_scope_inspector_tracks_all_underlying_commodities(tmp_path):
-    source = {
-        "dsl_version": "0.3",
-        "commodities": [
-            {"id": "electricity", "type": "energy", "energy_form": "secondary"},
-            {"id": "space_heat@RES", "type": "service"},
-            {"id": "space_heat@COM", "type": "service"},
-        ],
-        "technologies": [
-            {
-                "id": "res_hp",
-                "description": "Residential heat-pump fixture.",
-                "provides": "space_heat@RES",
-                "inputs": [{"commodity": "electricity"}],
-                "performance": {"kind": "cop", "value": 3.0},
-                "emissions": [],
-            },
-            {
-                "id": "com_hp",
-                "description": "Commercial heat-pump fixture.",
-                "provides": "space_heat@COM",
-                "inputs": [{"commodity": "electricity"}],
-                "performance": {"kind": "cop", "value": 3.0},
-                "emissions": [],
-            },
-        ],
-        "technology_roles": [
-            {
-                "id": "res_space_heat",
-                "description": "Residential space-heat role fixture.",
-                "primary_service": "space_heat@RES",
-                "technologies": ["res_hp"],
-            },
-            {
-                "id": "com_space_heat",
-                "description": "Commercial space-heat role fixture.",
-                "primary_service": "space_heat@COM",
-                "technologies": ["com_hp"],
-            },
-        ],
-        "spatial_layers": [
-            {
-                "id": "geo.demo",
-                "kind": "polygon",
-                "key": "region_id",
-                "geometry_file": "data/regions.geojson",
-            }
-        ],
-        "region_partitions": [
-            {
-                "id": "single_partition",
-                "layer": "geo.demo",
-                "members": ["SINGLE"],
-                "mapping": {"kind": "constant", "value": "SINGLE"},
-            }
-        ],
-        "sites": [
-            {
-                "id": "single_site",
-                "location": {"point": {"lat": 0.0, "lon": 0.0}},
-                "membership_overrides": {
-                    "region_partitions": {"single_partition": "SINGLE"}
+def test_collapse_scope_graph_tracks_all_underlying_commodities():
+    built = build_system_graph(
+        csir={
+            "model_regions": ["SINGLE"],
+            "commodities": [
+                {"id": "electricity", "type": "energy", "energy_form": "secondary"},
+                {"id": "space_heat@RES", "type": "service"},
+                {"id": "space_heat@COM", "type": "service"},
+            ],
+            "technology_roles": [
+                {"id": "res_space_heat", "technologies": ["res_hp"]},
+                {"id": "com_space_heat", "technologies": ["com_hp"]},
+            ],
+            "technology_role_instances": [
+                {
+                    "id": "role_instance.res_heat@SINGLE",
+                    "source_asset": "facilities.res_heat",
+                    "available_technologies": ["res_hp"],
                 },
-            }
-        ],
-        "facilities": [
-            {
-                "id": "res_heat",
-                "description": "Residential heat facility fixture.",
-                "site": "single_site",
-                "technology_role": "res_space_heat",
-                "available_technologies": ["res_hp"],
-                "stock": {
-                    "items": [
+                {
+                    "id": "role_instance.com_heat@SINGLE",
+                    "source_asset": "facilities.com_heat",
+                    "available_technologies": ["com_hp"],
+                },
+            ],
+        },
+        cpir={
+            "processes": [
+                {
+                    "id": "P::role_instance.res_heat@SINGLE::res_hp",
+                    "model_region": "SINGLE",
+                    "technology": "res_hp",
+                    "source_role_instance": "role_instance.res_heat@SINGLE",
+                    "flows": [
                         {
-                            "technology": "res_hp",
-                            "metric": "installed_capacity",
-                            "observed": {"value": "10 MW", "year": 2025},
-                        }
-                    ]
-                },
-            },
-            {
-                "id": "com_heat",
-                "description": "Commercial heat facility fixture.",
-                "site": "single_site",
-                "technology_role": "com_space_heat",
-                "available_technologies": ["com_hp"],
-                "stock": {
-                    "items": [
+                            "direction": "in",
+                            "commodity": "electricity",
+                            "coefficient": {"amount": 1.0, "unit": ""},
+                        },
                         {
-                            "technology": "com_hp",
-                            "metric": "installed_capacity",
-                            "observed": {"value": "12 MW", "year": 2025},
-                        }
-                    ]
+                            "direction": "out",
+                            "commodity": "space_heat@RES",
+                            "coefficient": {"amount": 1.0, "unit": ""},
+                        },
+                    ],
                 },
-            },
-        ],
-        "runs": [
-            {
-                "id": "single_run",
-                "base_year": 2025,
-                "currency_year": 2024,
-                "region_partition": "single_partition",
-            }
-        ],
-    }
-    source_file = tmp_path / "scoped.veda.yaml"
-    source_file.write_text(yaml.safe_dump(source), encoding="utf-8")
-
-    response = query_res_graph(
-        {
-            "version": "1",
-            "file": str(source_file),
-            "run": "single_run",
-            "mode": "source",
-            "granularity": "instance",
-            "lens": "system",
-            "commodity_view": "collapse_scope",
-            "filters": {"regions": [], "case": None, "sectors": [], "scopes": []},
-            "compiled": {"truth": "auto", "cache": True, "allow_partial": True},
-        }
+                {
+                    "id": "P::role_instance.com_heat@SINGLE::com_hp",
+                    "model_region": "SINGLE",
+                    "technology": "com_hp",
+                    "source_role_instance": "role_instance.com_heat@SINGLE",
+                    "flows": [
+                        {
+                            "direction": "in",
+                            "commodity": "electricity",
+                            "coefficient": {"amount": 1.0, "unit": ""},
+                        },
+                        {
+                            "direction": "out",
+                            "commodity": "space_heat@COM",
+                            "coefficient": {"amount": 1.0, "unit": ""},
+                        },
+                    ],
+                },
+            ]
+        },
+        granularity="instance",
+        commodity_view="collapse_scope",
+        filters=FilterSpec(regions={"SINGLE"}, sectors=set(), scopes=set()),
     )
 
     commodity_node = next(
         node
-        for node in response["graph"]["nodes"]
+        for node in built["graph"]["nodes"]
         if node["type"] == "commodity" and node["label"] == "space_heat"
     )
-    details = response["details"]["nodes"][commodity_node["id"]]
-    assert details["commodity_ids"] == [
-        "space_heat@COM",
-        "space_heat@RES",
-    ]
-    inspector = details["inspector"]
-    assert inspector["summary"]["commodity_view_members"] == [
+    details = built["details"]["nodes"][commodity_node["id"]]
+    assert details["commodity_ids"] == ["space_heat@COM", "space_heat@RES"]
+    assert details["identity"]["commodity_view_members"] == [
         "space_heat@COM",
         "space_heat@RES",
     ]
     assert details["scopes"]["regions"] == ["SINGLE"]
-    lowered = _section_by_key(inspector, "lowered")
-    produced = sorted(
-        item["attributes"]["produced_by"][0] for item in lowered["items"]
-    )
-    assert produced == [
+    assert details["member_process_ids"] == [
         "P::role_instance.com_heat@SINGLE::com_hp",
         "P::role_instance.res_heat@SINGLE::res_hp",
     ]

@@ -164,7 +164,7 @@ def _make_valid_interpretation() -> dict:
             "answer": _LONG_TEXT_32,
             "confidence": "high",
             "evidence_refs": ["E1"],
-            "supporting_step_ids": ["baseline_vs_variant_a.R1"],
+            "supporting_step_ids": ["baseline_vs_variant_a_r1"],
         },
         "evidence_index": [
             {
@@ -191,7 +191,7 @@ def _make_valid_interpretation() -> dict:
                 "confidence": "high",
                 "uncertainty": "None significant",
                 "evidence_refs": ["E1"],
-                "supporting_step_ids": ["baseline_vs_variant_a.R3"],
+                "supporting_step_ids": ["baseline_vs_variant_a_r3"],
             },
             {
                 "question_id": "A",
@@ -202,7 +202,7 @@ def _make_valid_interpretation() -> dict:
                 "confidence": "medium",
                 "uncertainty": "Some uncertainty remains",
                 "evidence_refs": ["E2"],
-                "supporting_step_ids": ["baseline_vs_variant_a.R3"],
+                "supporting_step_ids": ["baseline_vs_variant_a_r3"],
             },
         ],
         "comparison_interpretations": [
@@ -216,25 +216,25 @@ def _make_valid_interpretation() -> dict:
                 "key_evidence_refs": ["E1", "E2"],
                 "reasoning_steps": [
                     {
-                        "id": "baseline_vs_variant_a.R1",
+                        "id": "baseline_vs_variant_a_r1",
                         "kind": "observation",
                         "statement": _LONG_TEXT_32,
                         "evidence_refs": ["E1"],
                         "depends_on": [],
                     },
                     {
-                        "id": "baseline_vs_variant_a.R2",
+                        "id": "baseline_vs_variant_a_r2",
                         "kind": "mechanism",
                         "statement": _LONG_TEXT_32,
                         "evidence_refs": ["E2"],
-                        "depends_on": ["baseline_vs_variant_a.R1"],
+                        "depends_on": ["baseline_vs_variant_a_r1"],
                     },
                     {
-                        "id": "baseline_vs_variant_a.R3",
+                        "id": "baseline_vs_variant_a_r3",
                         "kind": "conclusion",
                         "statement": _LONG_TEXT_32,
                         "evidence_refs": ["E1", "E2"],
-                        "depends_on": ["baseline_vs_variant_a.R2"],
+                        "depends_on": ["baseline_vs_variant_a_r2"],
                     },
                 ],
                 "primary_mechanism": _LONG_TEXT_32,
@@ -477,14 +477,14 @@ class TestInterpretationValidation:
         # Make conclusion depend on nothing (and not reachable from observation)
         ci["reasoning_steps"] = [
             {
-                "id": "baseline_vs_variant_a.R1",
+                "id": "baseline_vs_variant_a_r1",
                 "kind": "observation",
                 "statement": _LONG_TEXT_32,
                 "evidence_refs": ["E1"],
                 "depends_on": [],
             },
             {
-                "id": "baseline_vs_variant_a.R3",
+                "id": "baseline_vs_variant_a_r3",
                 "kind": "conclusion",
                 "statement": _LONG_TEXT_32,
                 "evidence_refs": ["E1"],

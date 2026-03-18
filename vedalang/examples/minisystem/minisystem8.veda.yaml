@@ -211,14 +211,14 @@ technology_roles:
       - transport_device
 
 spatial_layers:
-  - id: geo.demo
+  - id: geo_demo
     geometry_file: data/regions.geojson
     key: region_id
     kind: polygon
 
 region_partitions:
   - id: australian_regions
-    layer: geo.demo
+    layer: geo_demo
     mapping:
       kind: constant
       value: NEM_EAST

@@ -53,14 +53,14 @@ technology_roles:
       - gas_imp
 
 spatial_layers:
-  - id: geo.demo
+  - id: geo_demo
     geometry_file: data/regions.geojson
     key: region_id
     kind: polygon
 
 spatial_measure_sets:
   - id: ka11_demo
-    layer: geo.demo
+    layer: geo_demo
     measures:
       - id: ka11_pop
         unit: people
@@ -70,7 +70,7 @@ spatial_measure_sets:
 
 region_partitions:
   - id: ka11_regions
-    layer: geo.demo
+    layer: geo_demo
     mapping:
       kind: constant
       value: NTH

@@ -21,7 +21,7 @@ def valid_public_source() -> dict:
         ],
         "technologies": [
             {
-                "id": "heat.gas_heater",
+                "id": "heat_gas_heater",
                 "provides": "space_heat",
                 "inputs": [
                     {
@@ -34,13 +34,13 @@ def valid_public_source() -> dict:
         ],
         "technology_roles": [
             {
-                "id": "heat.residential_space_heat_supply",
+                "id": "heat_residential_space_heat_supply",
                 "primary_service": "space_heat",
-                "technologies": ["heat.gas_heater"],
+                "technologies": ["heat_gas_heater"],
                 "transitions": [
                     {
-                        "from": "heat.gas_heater",
-                        "to": "heat.gas_heater",
+                        "from": "heat_gas_heater",
+                        "to": "heat_gas_heater",
                         "kind": "retrofit",
                     }
                 ],
@@ -48,8 +48,8 @@ def valid_public_source() -> dict:
         ],
         "stock_characterizations": [
             {
-                "id": "heat.res_gas_heater_default",
-                "applies_to": ["heat.gas_heater"],
+                "id": "heat_res_gas_heater_default",
+                "applies_to": ["heat_gas_heater"],
                 "conversions": [
                     {
                         "from_metric": "asset_count",
@@ -61,7 +61,7 @@ def valid_public_source() -> dict:
         ],
         "spatial_layers": [
             {
-                "id": "geo.sa2_2021",
+                "id": "geo_sa2_2021",
                 "kind": "polygon",
                 "key": "sa2_code",
                 "geometry_file": "data/sa2_2021.geojson",
@@ -69,8 +69,8 @@ def valid_public_source() -> dict:
         ],
         "spatial_measure_sets": [
             {
-                "id": "demo.abs_demography",
-                "layer": "geo.sa2_2021",
+                "id": "demo_abs_demography",
+                "layer": "geo_sa2_2021",
                 "measures": [
                     {
                         "id": "dwelling_stock",
@@ -84,15 +84,15 @@ def valid_public_source() -> dict:
         ],
         "temporal_index_series": [
             {
-                "id": "demo.national_dwelling_stock_index",
+                "id": "demo_national_dwelling_stock_index",
                 "unit": "index",
                 "values": {"2023": 1.0, "2025": 1.04},
             }
         ],
         "region_partitions": [
             {
-                "id": "regions.toy_states_3",
-                "layer": "geo.sa2_2021",
+                "id": "regions_toy_states_3",
+                "layer": "geo_sa2_2021",
                 "mapping": {
                     "kind": "file",
                     "file": "data/sa2_to_state.csv",
@@ -103,8 +103,8 @@ def valid_public_source() -> dict:
         ],
         "zone_overlays": [
             {
-                "id": "regions.aemo_rez_2024",
-                "layer": "geo.sa2_2021",
+                "id": "regions_aemo_rez_2024",
+                "layer": "geo_sa2_2021",
                 "key": "rez_id",
                 "geometry_file": "data/rez.geojson",
             }
@@ -119,17 +119,17 @@ def valid_public_source() -> dict:
             {
                 "id": "gladstone_steam",
                 "site": "gladstone_refinery",
-                "technology_role": "heat.residential_space_heat_supply",
+                "technology_role": "heat_residential_space_heat_supply",
                 "new_build_limits": [
                     {
-                        "technology": "heat.heat_pump",
+                        "technology": "heat_heat_pump",
                         "max_new_capacity": "150 MW",
                     }
                 ],
                 "stock": {
                     "items": [
                         {
-                            "technology": "heat.gas_heater",
+                            "technology": "heat_gas_heater",
                             "metric": "installed_capacity",
                             "observed": {"value": "600 MWth", "year": 2023},
                         }
@@ -140,19 +140,19 @@ def valid_public_source() -> dict:
         "fleets": [
             {
                 "id": "residential_space_heat",
-                "technology_role": "heat.residential_space_heat_supply",
+                "technology_role": "heat_residential_space_heat_supply",
                 "distribution": {
                     "method": "proportional",
-                    "weight_by": "demo.abs_demography.dwelling_stock",
+                    "weight_by": "demo_abs_demography.dwelling_stock",
                 },
             }
         ],
         "zone_opportunities": [
             {
                 "id": "qld_central_rez_wind_class_1",
-                "technology_role": "heat.residential_space_heat_supply",
-                "technology": "heat.gas_heater",
-                "zone": "regions.aemo_rez_2024.qld_central_rez",
+                "technology_role": "heat_residential_space_heat_supply",
+                "technology": "heat_gas_heater",
+                "zone": "regions_aemo_rez_2024.qld_central_rez",
                 "max_new_capacity": "1500 MW",
             }
         ],
@@ -162,7 +162,7 @@ def valid_public_source() -> dict:
                 "kind": "transmission",
                 "node_basis": {
                     "kind": "region_partition",
-                    "ref": "regions.toy_states_3",
+                    "ref": "regions_toy_states_3",
                 },
                 "links": [
                     {
@@ -179,7 +179,7 @@ def valid_public_source() -> dict:
                 "id": "toy_states_2025",
                 "base_year": 2025,
                 "currency_year": 2024,
-                "region_partition": "regions.toy_states_3",
+                "region_partition": "regions_toy_states_3",
             }
         ],
     }
@@ -200,16 +200,16 @@ def test_parse_public_source_returns_typed_document() -> None:
     )
     assert ast.sites[0].location.point == {"lat": -23.842, "lon": 151.248}
     assert ast.facilities[0].stock.items[0].metric == "installed_capacity"
-    assert ast.facilities[0].new_build_limits[0].technology == "heat.heat_pump"
-    assert ast.fleets[0].distribution.weight_by == "demo.abs_demography.dwelling_stock"
+    assert ast.facilities[0].new_build_limits[0].technology == "heat_heat_pump"
+    assert ast.fleets[0].distribution.weight_by == "demo_abs_demography.dwelling_stock"
     assert ast.fleets[0].distribution.target_regions == ()
     assert (
         ast.zone_opportunities[0].technology_role
-        == "heat.residential_space_heat_supply"
+        == "heat_residential_space_heat_supply"
     )
-    assert ast.zone_opportunities[0].zone == "regions.aemo_rez_2024.qld_central_rez"
+    assert ast.zone_opportunities[0].zone == "regions_aemo_rez_2024.qld_central_rez"
     assert ast.networks[0].links[0].from_node == "QLD"
-    assert ast.runs[0].region_partition == "regions.toy_states_3"
+    assert ast.runs[0].region_partition == "regions_toy_states_3"
 
 
 def test_parse_public_source_keeps_structural_source_paths() -> None:

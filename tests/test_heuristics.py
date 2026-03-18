@@ -50,14 +50,14 @@ def make_source(**overrides) -> dict:
         "region_partitions": [
             {
                 "id": "reg1_partition",
-                "layer": "geo.demo",
+                "layer": "geo_demo",
                 "members": ["REG1"],
                 "mapping": {"kind": "constant", "value": "REG1"},
             }
         ],
         "spatial_layers": [
             {
-                "id": "geo.demo",
+                "id": "geo_demo",
                 "kind": "polygon",
                 "key": "region_id",
                 "geometry_file": "data/regions.geojson",

@@ -377,16 +377,16 @@ Example:
 - The compiler MUST automatically pull dependency closure for selected objects.
 - Imported objects are immutable within the importing model.
 - Local objects MUST NOT override imported object IDs.
-- Imported references SHOULD be alias-qualified, e.g. `demo.abs_demography`.
+- Imported references SHOULD be alias-qualified, e.g. `demo_abs_demography`.
 
 7.5 Example dependency closure
 
 If a model imports:
-- technology_role `heat.residential_space_heat_supply`
+- technology_role `heat_residential_space_heat_supply`
 
 and that role references:
-- `heat.gas_heater`
-- `heat.heat_pump`
+- `heat_gas_heater`
+- `heat_heat_pump`
 
 then the compiler MUST include those technologies in the resolved package graph
 even if they were not explicitly named in the importing model.
@@ -662,8 +662,8 @@ Rules:
 Example:
 
   stock_characterizations:
-    - id: heat.res_gas_heater_default
-      applies_to: [heat.gas_heater]
+    - id: heat_res_gas_heater_default
+      applies_to: [heat_gas_heater]
       counted_asset_label: heater_system
       conversions:
         - from_metric: asset_count
@@ -687,7 +687,7 @@ Fields:
 Example:
 
   spatial_layers:
-    - id: geo.sa2_2021
+    - id: geo_sa2_2021
       kind: polygon
       key: sa2_code
       geometry_file: data/sa2_2021.geojson
@@ -713,8 +713,8 @@ Spatial measure:
 Example:
 
   spatial_measure_sets:
-    - id: demo.abs_demography
-      layer: geo.sa2_2021
+    - id: demo_abs_demography
+      layer: geo_sa2_2021
       measures:
         - id: dwelling_stock
           observed_year: 2021
@@ -744,7 +744,7 @@ Fields:
 Example:
 
   temporal_index_series:
-    - id: demo.national_dwelling_stock_index
+    - id: demo_national_dwelling_stock_index
       unit: index
       base_year: 2023
       values:
@@ -778,7 +778,7 @@ Example:
 
   region_partitions:
     - id: regions.aus_states
-      layer: geo.sa2_2021
+      layer: geo_sa2_2021
       members: [NSW, VIC, QLD, SA, WA, TAS, NT, ACT]
       mapping:
         kind: file
@@ -807,8 +807,8 @@ Fields:
 Example:
 
   zone_overlays:
-    - id: regions.aemo_rez_2024
-      layer: geo.sa2_2021
+    - id: regions_aemo_rez_2024
+      layer: geo_sa2_2021
       key: rez_id
       geometry_file: data/aemo_rez_2024.geojson
 
@@ -925,20 +925,20 @@ Example:
 
   fleets:
     - id: residential_space_heat
-      technology_role: heat.residential_space_heat_supply
+      technology_role: heat_residential_space_heat_supply
       stock:
         adjust_to_base_year:
-          using: demo.national_dwelling_stock_index
+          using: demo_national_dwelling_stock_index
           elasticity: 1.0
         items:
-          - technology: heat.gas_heater
+          - technology: heat_gas_heater
             metric: asset_count
             observed:
               value: 1200000 assets
               year: 2023
       distribution:
         method: proportional
-        weight_by: demo.abs_demography.dwelling_stock
+        weight_by: demo_abs_demography.dwelling_stock
 
 Asset new build limit:
 - technology: Ref<technology>
@@ -1026,7 +1026,7 @@ Example:
     - id: qld_central_rez_wind_class_1
       technology: vre.wind_onshore
       siting:
-        zone: regions.aemo_rez_2024.qld_central_rez
+        zone: regions_aemo_rez_2024.qld_central_rez
       max_new_capacity: 1500 MW
 
 9.15 network
@@ -1474,12 +1474,12 @@ E. Lowering traces
     "role_instance.residential_space_heat@NSW": {
       "public_origin": {
         "fleet": "residential_space_heat",
-        "technology_role": "heat.residential_space_heat_supply"
+        "technology_role": "heat_residential_space_heat_supply"
       },
       "resolved_model_region": "NSW",
       "initial_stock": [
         {
-          "technology": "heat.gas_heater",
+          "technology": "heat_gas_heater",
           "declared_metric": "asset_count",
           "stock_views": {
             "asset_count": {"amount": 499200, "unit": "assets"},
@@ -1574,7 +1574,7 @@ Example:
   Object: fleets.residential_space_heat.stock.items[0]
   Source: model.yaml:42:9
   The selected lowering target requires installed_capacity, but technology
-  heat.gas_heater does not resolve to a stock_characterization that can convert
+  heat_gas_heater does not resolve to a stock_characterization that can convert
   from asset_count to installed_capacity.
 
 ===============================================================================
@@ -1616,28 +1616,28 @@ This example is normative enough to guide implementation and testing.
 
 Assume imported libraries define:
 
-- regions.toy_states_3 as a region_partition with members:
+- regions_toy_states_3 as a region_partition with members:
   [NSW, VIC, QLD]
 
-- demo.abs_demography.dwelling_stock aggregated to toy_states_3 yields shares:
+- demo_abs_demography.dwelling_stock aggregated to toy_states_3 yields shares:
   NSW = 0.40
   VIC = 0.35
   QLD = 0.25
 
-- demo.national_dwelling_stock_index:
+- demo_national_dwelling_stock_index:
   2023 = 1.000
   2024 = 1.020
   2025 = 1.040
 
-- heat.res_gas_heater_default:
+- heat_res_gas_heater_default:
   counted_asset_label = heater_system
   asset_count -> installed_capacity = 8 kWth/assets
   asset_count -> annual_activity = 10 MWh_heat/assets/year
 
 - heat.gas_boiler efficiency = 0.85
 - heat.electric_boiler efficiency = 0.98
-- heat.gas_heater efficiency = 0.90
-- heat.heat_pump COP = 3.2
+- heat_gas_heater efficiency = 0.90
+- heat_heat_pump COP = 3.2
 
 16.2 Authored DSL
 
@@ -1691,26 +1691,26 @@ Assume imported libraries define:
 
   fleets:
     - id: residential_space_heat
-      technology_role: heat.residential_space_heat_supply
+      technology_role: heat_residential_space_heat_supply
       stock:
         adjust_to_base_year:
-          using: demo.national_dwelling_stock_index
+          using: demo_national_dwelling_stock_index
           elasticity: 1.0
         items:
-          - technology: heat.gas_heater
+          - technology: heat_gas_heater
             metric: asset_count
             observed:
               value: 1200000 assets
               year: 2023
       distribution:
         method: proportional
-        weight_by: demo.abs_demography.dwelling_stock
+        weight_by: demo_abs_demography.dwelling_stock
 
   runs:
     - id: toy_states_2025
       base_year: 2025
       currency_year: 2024
-      region_partition: regions.toy_states_3
+      region_partition: regions_toy_states_3
 
 16.3 Expected compilation logic
 
@@ -1743,7 +1743,7 @@ Derived stock views using stock_characterization:
     run_id: toy_states_2025
     base_year: 2025
     currency_year: 2024
-    region_partition: regions.toy_states_3
+    region_partition: regions_toy_states_3
     model_regions: [NSW, VIC, QLD]
 
     sites:
@@ -1770,13 +1770,13 @@ Derived stock views using stock_characterization:
 
       - id: role_instance.residential_space_heat@NSW
         source_asset: fleets.residential_space_heat
-        technology_role: heat.residential_space_heat_supply
+        technology_role: heat_residential_space_heat_supply
         model_region: NSW
         available_technologies:
-          - heat.gas_heater
-          - heat.heat_pump
+          - heat_gas_heater
+          - heat_heat_pump
         initial_stock:
-          - technology: heat.gas_heater
+          - technology: heat_gas_heater
             declared_metric: asset_count
             stock_views:
               asset_count: 499200 assets
@@ -1789,13 +1789,13 @@ Derived stock views using stock_characterization:
 
       - id: role_instance.residential_space_heat@VIC
         source_asset: fleets.residential_space_heat
-        technology_role: heat.residential_space_heat_supply
+        technology_role: heat_residential_space_heat_supply
         model_region: VIC
         available_technologies:
-          - heat.gas_heater
-          - heat.heat_pump
+          - heat_gas_heater
+          - heat_heat_pump
         initial_stock:
-          - technology: heat.gas_heater
+          - technology: heat_gas_heater
             declared_metric: asset_count
             stock_views:
               asset_count: 436800 assets
@@ -1808,13 +1808,13 @@ Derived stock views using stock_characterization:
 
       - id: role_instance.residential_space_heat@QLD
         source_asset: fleets.residential_space_heat
-        technology_role: heat.residential_space_heat_supply
+        technology_role: heat_residential_space_heat_supply
         model_region: QLD
         available_technologies:
-          - heat.gas_heater
-          - heat.heat_pump
+          - heat_gas_heater
+          - heat_heat_pump
         initial_stock:
-          - technology: heat.gas_heater
+          - technology: heat_gas_heater
             declared_metric: asset_count
             stock_views:
               asset_count: 312000 assets
@@ -1862,9 +1862,9 @@ Derived stock views using stock_characterization:
             commodity: service:steam
             coefficient: 1.0 GJ_steam/GJ_steam
 
-      - id: P::role_instance.residential_space_heat@NSW::heat.gas_heater
+      - id: P::role_instance.residential_space_heat@NSW::heat_gas_heater
         source_role_instance: role_instance.residential_space_heat@NSW
-        technology: heat.gas_heater
+        technology: heat_gas_heater
         model_region: NSW
         model_stock_metric: installed_capacity
         initial_stock: 3993.6 MWth
@@ -1878,9 +1878,9 @@ Derived stock views using stock_characterization:
           - emission: emission:co2
             factor: 0.056 t/GJ_fuel
 
-      - id: P::role_instance.residential_space_heat@NSW::heat.heat_pump
+      - id: P::role_instance.residential_space_heat@NSW::heat_heat_pump
         source_role_instance: role_instance.residential_space_heat@NSW
-        technology: heat.heat_pump
+        technology: heat_heat_pump
         model_region: NSW
         model_stock_metric: installed_capacity
         initial_stock: 0.0 MWth
@@ -1892,30 +1892,30 @@ Derived stock views using stock_characterization:
             commodity: service:space_heat
             coefficient: 1.0 GJ_heat/GJ_heat
 
-      - id: P::role_instance.residential_space_heat@VIC::heat.gas_heater
+      - id: P::role_instance.residential_space_heat@VIC::heat_gas_heater
         source_role_instance: role_instance.residential_space_heat@VIC
-        technology: heat.gas_heater
+        technology: heat_gas_heater
         model_region: VIC
         model_stock_metric: installed_capacity
         initial_stock: 3494.4 MWth
 
-      - id: P::role_instance.residential_space_heat@VIC::heat.heat_pump
+      - id: P::role_instance.residential_space_heat@VIC::heat_heat_pump
         source_role_instance: role_instance.residential_space_heat@VIC
-        technology: heat.heat_pump
+        technology: heat_heat_pump
         model_region: VIC
         model_stock_metric: installed_capacity
         initial_stock: 0.0 MWth
 
-      - id: P::role_instance.residential_space_heat@QLD::heat.gas_heater
+      - id: P::role_instance.residential_space_heat@QLD::heat_gas_heater
         source_role_instance: role_instance.residential_space_heat@QLD
-        technology: heat.gas_heater
+        technology: heat_gas_heater
         model_region: QLD
         model_stock_metric: installed_capacity
         initial_stock: 2496.0 MWth
 
-      - id: P::role_instance.residential_space_heat@QLD::heat.heat_pump
+      - id: P::role_instance.residential_space_heat@QLD::heat_heat_pump
         source_role_instance: role_instance.residential_space_heat@QLD
-        technology: heat.heat_pump
+        technology: heat_heat_pump
         model_region: QLD
         model_stock_metric: installed_capacity
         initial_stock: 0.0 MWth
@@ -1928,24 +1928,24 @@ Derived stock views using stock_characterization:
         kind: retrofit
         cost: 70 AUD2024/kW
 
-      - id: R::role_instance.residential_space_heat@NSW::heat.gas_heater->heat.heat_pump
+      - id: R::role_instance.residential_space_heat@NSW::heat_gas_heater->heat_heat_pump
         source_role_instance: role_instance.residential_space_heat@NSW
-        from_process: P::role_instance.residential_space_heat@NSW::heat.gas_heater
-        to_process: P::role_instance.residential_space_heat@NSW::heat.heat_pump
+        from_process: P::role_instance.residential_space_heat@NSW::heat_gas_heater
+        to_process: P::role_instance.residential_space_heat@NSW::heat_heat_pump
         kind: retrofit
         cost: 25 AUD2024/kW
 
-      - id: R::role_instance.residential_space_heat@VIC::heat.gas_heater->heat.heat_pump
+      - id: R::role_instance.residential_space_heat@VIC::heat_gas_heater->heat_heat_pump
         source_role_instance: role_instance.residential_space_heat@VIC
-        from_process: P::role_instance.residential_space_heat@VIC::heat.gas_heater
-        to_process: P::role_instance.residential_space_heat@VIC::heat.heat_pump
+        from_process: P::role_instance.residential_space_heat@VIC::heat_gas_heater
+        to_process: P::role_instance.residential_space_heat@VIC::heat_heat_pump
         kind: retrofit
         cost: 25 AUD2024/kW
 
-      - id: R::role_instance.residential_space_heat@QLD::heat.gas_heater->heat.heat_pump
+      - id: R::role_instance.residential_space_heat@QLD::heat_gas_heater->heat_heat_pump
         source_role_instance: role_instance.residential_space_heat@QLD
-        from_process: P::role_instance.residential_space_heat@QLD::heat.gas_heater
-        to_process: P::role_instance.residential_space_heat@QLD::heat.heat_pump
+        from_process: P::role_instance.residential_space_heat@QLD::heat_gas_heater
+        to_process: P::role_instance.residential_space_heat@QLD::heat_heat_pump
         kind: retrofit
         cost: 25 AUD2024/kW
 
@@ -1980,12 +1980,12 @@ Derived stock views using stock_characterization:
     "role_instance.residential_space_heat@NSW": {
       "public_origin": {
         "fleet": "residential_space_heat",
-        "technology_role": "heat.residential_space_heat_supply"
+        "technology_role": "heat_residential_space_heat_supply"
       },
       "resolved_model_region": "NSW",
       "initial_stock": [
         {
-          "technology": "heat.gas_heater",
+          "technology": "heat_gas_heater",
           "declared_metric": "asset_count",
           "stock_views": {
             "asset_count": {
@@ -2005,7 +2005,7 @@ Derived stock views using stock_characterization:
             "trace.norm.residential_space_heat.total",
             "trace.alloc.residential_space_heat.NSW",
             "trace.stock_view.residential_space_heat.NSW",
-            "trace.lower.P::role_instance.residential_space_heat@NSW::heat.gas_heater"
+            "trace.lower.P::role_instance.residential_space_heat@NSW::heat_gas_heater"
           ]
         }
       ]
@@ -2015,7 +2015,7 @@ Derived stock views using stock_characterization:
     "trace.site.gladstone_refinery.region_resolution": {
       "kind": "site_to_region",
       "site": "gladstone_refinery",
-      "region_partition": "regions.toy_states_3",
+      "region_partition": "regions_toy_states_3",
       "resolved_model_region": "QLD"
     },
     "trace.norm.gladstone_steam.gas_boiler": {
@@ -2042,7 +2042,7 @@ Derived stock views using stock_characterization:
         "unit": "assets",
         "year": 2023
       },
-      "using_temporal_index_series": "demo.national_dwelling_stock_index",
+      "using_temporal_index_series": "demo_national_dwelling_stock_index",
       "index_values": {
         "2023": 1.0,
         "2025": 1.04
@@ -2056,8 +2056,8 @@ Derived stock views using stock_characterization:
     },
     "trace.alloc.residential_space_heat.NSW": {
       "kind": "spatial_allocation",
-      "weight_by": "demo.abs_demography.dwelling_stock",
-      "region_partition": "regions.toy_states_3",
+      "weight_by": "demo_abs_demography.dwelling_stock",
+      "region_partition": "regions_toy_states_3",
       "region_share": 0.4,
       "resolved": {
         "model_region": "NSW",
@@ -2067,7 +2067,7 @@ Derived stock views using stock_characterization:
     },
     "trace.stock_view.residential_space_heat.NSW": {
       "kind": "stock_characterization",
-      "technology": "heat.gas_heater",
+      "technology": "heat_gas_heater",
       "counted_asset_label": "heater_system",
       "input": {
         "metric": "asset_count",

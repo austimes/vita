@@ -80,14 +80,14 @@ technology_roles:
       - electric_residential_device
 
 spatial_layers:
-  - id: geo.demo
+  - id: geo_demo
     geometry_file: data/regions.geojson
     key: region_id
     kind: polygon
 
 region_partitions:
   - id: single_region
-    layer: geo.demo
+    layer: geo_demo
     mapping:
       kind: constant
       value: SINGLE
@@ -130,8 +130,8 @@ facilities:
           technology: ccgt
     technology_role: electricity_generation
 
-  - id: residential_service_facility
-    description: residential_service_facility instantiates role residential_service
+  - id: res_service_facility
+    description: res_service_facility instantiates role residential_service
       at site single_hub.
     site: single_hub
     stock:

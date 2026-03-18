@@ -2152,9 +2152,9 @@ def harmonise_tradelinks(
             df["destination"] = df["destination"].str.upper()
             df = df.drop_duplicates(keep="first")
 
-            if trd_direction == "uni":
+            if trd_direction in {"uni", "u"}:
                 df["tradelink"] = "u"
-            elif trd_direction == "bi":
+            elif trd_direction in {"bi", "b"}:
                 df["tradelink"] = "b"
             else:
                 df["tradelink"] = 1

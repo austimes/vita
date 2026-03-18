@@ -172,14 +172,14 @@ technology_roles:
       - land_endowment
 
 spatial_layers:
-  - id: geo.demo
+  - id: geo_demo
     geometry_file: data/regions.geojson
     key: region_id
     kind: polygon
 
 region_partitions:
   - id: single_region
-    layer: geo.demo
+    layer: geo_demo
     mapping:
       kind: constant
       value: SINGLE

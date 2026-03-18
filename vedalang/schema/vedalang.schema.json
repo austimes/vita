@@ -191,13 +191,21 @@
     }
   ],
   "$defs": {
+    "public_identifier": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
     "identifier": {
       "type": "string",
-      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]*$"
+      "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)*$"
     },
     "commodity_identifier": {
       "type": "string",
-      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.@/-]*$"
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "zone_reference": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$"
     },
     "commodity_namespace": {
       "type": "string",
@@ -430,7 +438,7 @@
       ],
       "properties": {
         "id": {
-          "$ref": "#/$defs/identifier"
+          "$ref": "#/$defs/public_identifier"
         },
         "provides": {
           "$ref": "#/$defs/commodity_identifier"
@@ -517,7 +525,7 @@
       ],
       "properties": {
         "id": {
-          "$ref": "#/$defs/identifier"
+          "$ref": "#/$defs/public_identifier"
         },
         "primary_service": {
           "$ref": "#/$defs/commodity_identifier"
@@ -576,7 +584,7 @@
       ],
       "properties": {
         "id": {
-          "$ref": "#/$defs/identifier"
+          "$ref": "#/$defs/public_identifier"
         },
         "applies_to": {
           "$ref": "#/$defs/ref_array"
@@ -608,7 +616,7 @@
       ],
       "properties": {
         "id": {
-          "$ref": "#/$defs/identifier"
+          "$ref": "#/$defs/public_identifier"
         },
         "kind": {
           "type": "string",
@@ -640,7 +648,7 @@
       ],
       "properties": {
         "id": {
-          "$ref": "#/$defs/identifier"
+          "$ref": "#/$defs/public_identifier"
         },
         "observed_year": {
           "type": "integer",
@@ -673,7 +681,7 @@
       ],
       "properties": {
         "id": {
-          "$ref": "#/$defs/identifier"
+          "$ref": "#/$defs/public_identifier"
         },
         "layer": {
           "$ref": "#/$defs/identifier"
@@ -697,7 +705,7 @@
       ],
       "properties": {
         "id": {
-          "$ref": "#/$defs/identifier"
+          "$ref": "#/$defs/public_identifier"
         },
         "unit": {
           "type": "string",
@@ -800,7 +808,7 @@
       ],
       "properties": {
         "id": {
-          "$ref": "#/$defs/identifier"
+          "$ref": "#/$defs/public_identifier"
         },
         "layer": {
           "$ref": "#/$defs/identifier"
@@ -827,7 +835,7 @@
       ],
       "properties": {
         "id": {
-          "$ref": "#/$defs/identifier"
+          "$ref": "#/$defs/public_identifier"
         },
         "layer": {
           "$ref": "#/$defs/identifier"
@@ -873,7 +881,7 @@
           "$ref": "#/$defs/identifier"
         },
         "id": {
-          "$ref": "#/$defs/identifier"
+          "$ref": "#/$defs/public_identifier"
         }
       }
     },
@@ -928,7 +936,7 @@
       ],
       "properties": {
         "id": {
-          "$ref": "#/$defs/identifier"
+          "$ref": "#/$defs/public_identifier"
         },
         "location": {
           "$ref": "#/$defs/site_location"
@@ -1070,7 +1078,7 @@
       ],
       "properties": {
         "id": {
-          "$ref": "#/$defs/identifier"
+          "$ref": "#/$defs/public_identifier"
         },
         "site": {
           "$ref": "#/$defs/identifier"
@@ -1173,7 +1181,7 @@
       ],
       "properties": {
         "id": {
-          "$ref": "#/$defs/identifier"
+          "$ref": "#/$defs/public_identifier"
         },
         "technology_role": {
           "$ref": "#/$defs/identifier"
@@ -1232,7 +1240,7 @@
       ],
       "properties": {
         "id": {
-          "$ref": "#/$defs/identifier"
+          "$ref": "#/$defs/public_identifier"
         },
         "technology_role": {
           "$ref": "#/$defs/identifier"
@@ -1241,7 +1249,7 @@
           "$ref": "#/$defs/identifier"
         },
         "zone": {
-          "$ref": "#/$defs/identifier"
+          "$ref": "#/$defs/zone_reference"
         },
         "max_new_capacity": {
           "$ref": "#/$defs/quantity"
@@ -1297,7 +1305,7 @@
       ],
       "properties": {
         "id": {
-          "$ref": "#/$defs/identifier"
+          "$ref": "#/$defs/public_identifier"
         },
         "from": {
           "type": "string",
@@ -1329,7 +1337,7 @@
       ],
       "properties": {
         "id": {
-          "$ref": "#/$defs/identifier"
+          "$ref": "#/$defs/public_identifier"
         },
         "kind": {
           "type": "string",
@@ -1364,7 +1372,7 @@
       ],
       "properties": {
         "id": {
-          "$ref": "#/$defs/identifier"
+          "$ref": "#/$defs/public_identifier"
         },
         "base_year": {
           "type": "integer",

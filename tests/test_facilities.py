@@ -81,7 +81,7 @@ def test_compile_rejects_legacy_provider_parameter_surfaces():
     source = _legacy_facility_source()
     source["providers"] = [
         {
-            "id": "fleet.space_heat.AUS.residential",
+            "id": "fleet_space_heat_aus_residential",
             "kind": "fleet",
             "role": "provide_space_heat",
             "region": "AUS",

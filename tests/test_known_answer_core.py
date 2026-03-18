@@ -155,13 +155,14 @@ def _tableir_attribute_value(
 ) -> float:
     tableir_path = work_dir / "model.tableir.yaml"
     tableir = yaml.safe_load(tableir_path.read_text())
+    token_upper = process_token.upper()
 
     for file_entry in tableir.get("files", []):
         for sheet in file_entry.get("sheets", []):
             for table in sheet.get("tables", []):
                 for row in table.get("rows", []):
-                    process = str(row.get("process", ""))
-                    if process_token not in process:
+                    process = str(row.get("process", "")).upper()
+                    if token_upper not in process:
                         continue
                     if row.get("attribute") != attribute:
                         continue
@@ -597,22 +598,22 @@ def test_ka09_zone_opportunity_shift_changes_active_process_class(
 
     loose_zone_level = _token_activity_level(
         loose_results,
-        "ZONE_OPPORTUNITY",
+        "PRC_ZOP_ZO2_IFB",
         year="2020",
     )
     tight_zone_level = _token_activity_level(
         tight_results,
-        "ZONE_OPPORTUNITY",
+        "PRC_ZOP_ZO2_IFB",
         year="2020",
     )
     loose_role_level = _token_activity_level(
         loose_results,
-        "ROLE_INSTANCE_FS_R1_IFB",
+        "PRC_FAC_FS_IFB",
         year="2020",
     )
     tight_role_level = _token_activity_level(
         tight_results,
-        "ROLE_INSTANCE_FS_R1_IFB",
+        "PRC_FAC_FS_IFB",
         year="2020",
     )
 
@@ -654,16 +655,16 @@ def test_ka10_network_transfer_flip_shifts_active_region(tmp_path: Path) -> None
     open_results = extract_results(open_run.primary_gdx, limit=0)
     constrained_results = extract_results(constrained_run.primary_gdx, limit=0)
 
-    open_a_process = _process_for_token_and_region(open_results, "A_GA", "A")
-    open_b_process = _process_for_token_and_region(open_results, "B_GB", "B")
+    open_a_process = _process_for_token_and_region(open_results, "PRC_FAC_A_G_GA", "A")
+    open_b_process = _process_for_token_and_region(open_results, "PRC_FAC_B_G_GB", "B")
     constrained_a_process = _process_for_token_and_region(
         constrained_results,
-        "A_GA",
+        "PRC_FAC_A_G_GA",
         "A",
     )
     constrained_b_process = _process_for_token_and_region(
         constrained_results,
-        "B_GB",
+        "PRC_FAC_B_G_GB",
         "B",
     )
 
@@ -696,13 +697,13 @@ def test_ka10_network_transfer_flip_shifts_active_region(tmp_path: Path) -> None
 
     open_transfer_capacity = _residual_capacity_for_token(
         open_results,
-        "TU_COM_PRIMARY_NATURAL_GAS",
+        "TU_NATURAL_GAS_B_A",
         year="2020",
         region="B",
     )
     constrained_transfer_capacity = _residual_capacity_for_token(
         constrained_results,
-        "TU_COM_PRIMARY_NATURAL_GAS",
+        "TU_NATURAL_GAS_A_B",
         year="2020",
         region="A",
     )
@@ -824,20 +825,8 @@ def test_ka11_fleet_distribution_respects_weighted_allocation(tmp_path: Path) ->
         abs=1e-2,
     )
 
-    assert_process_share_at_least(
-        base_results,
-        process=north_base_process,
-        process_pool=[north_base_process, south_base_process],
-        min_share=0.74,
-        year="2020",
-    )
-    assert_process_share_at_least(
-        stress_results,
-        process=north_stress_process,
-        process_pool=[north_stress_process, south_stress_process],
-        min_share=0.74,
-        year="2020",
-    )
+    assert north_base_level / (north_base_level + south_base_level) >= 0.74
+    assert north_stress_level / (north_stress_level + south_stress_level) >= 0.74
 
     assert north_stress_level > north_base_level * 1.9
     assert south_stress_level > south_base_level * 1.9

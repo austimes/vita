@@ -13,6 +13,7 @@ This file tracks all local modifications made to the xl2times library, which is 
 | 2026-01-09 | (pending) | transforms.py | Added support for `~MILESTONEYEARS` tag in `process_time_periods()` | VedaLang emits explicit milestone years; xl2times had the tag defined but unimplemented |
 | 2026-01-27 | (pending) | transforms.py | Fixed pandas 3.0 compatibility issues | Two bugs caused by pandas 3.0 breaking changes |
 | 2026-03-04 | (pending) | main.py, utils.py | Added `--force-veda` flag to force VEDA filename filtering and require exactly one `SysSettings.*` root file | Needed strict VEDA-structure validation mode for VedaLang output checks |
+| 2026-03-18 | (pending) | transforms.py | Accepted `u_*` / `b_*` ScenTrade worksheet prefixes alongside `uni_*` / `bi_*` | VedaLang now emits shorter explicit trade worksheet names (`U_<commodity>`), and xl2times only recognized the long-form prefixes |
 
 ## Details
 
@@ -63,3 +64,13 @@ Modified `xl2times/main.py` and `xl2times/utils.py`:
 - In force mode, VEDA filename filtering is always applied
 
 This was added to support strict structure validation when testing VedaLang-emitted model directories.
+
+### (pending) - Short ScenTrade worksheet prefixes (2026-03-18)
+
+Modified `xl2times/transforms.py`:
+- `harmonise_tradelinks()` now treats sheet-name prefixes `u` and `b` as aliases
+  for `uni` and `bi`
+
+This keeps the oracle compatible with VedaLang's shorter explicit trade sheet
+names such as `U_natural_gas` without changing the rest of the ScenTrade
+parsing contract.

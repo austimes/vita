@@ -15,6 +15,7 @@ from .ast import (
     TechnologyRoleDecl,
     parse_source,
 )
+from .backend_symbols import validate_backend_aliases
 from .resolution import (
     ResolutionError,
     ResolvedDefinitionGraph,
@@ -600,7 +601,7 @@ def collect_diagnostics(
                 from .backend import _synthesize_uniform_measure_weights
 
                 effective_mw = _synthesize_uniform_measure_weights(graph, run)
-            build_run_artifacts(
+            artifacts = build_run_artifacts(
                 graph,
                 run,
                 site_region_memberships=site_region_memberships,
@@ -608,6 +609,7 @@ def collect_diagnostics(
                 measure_weights=effective_mw,
                 custom_weights=custom_weights,
             )
+            diagnostics.extend(validate_backend_aliases(graph, artifacts))
         diagnostics.extend(
             _warn_run_specific(
                 graph,

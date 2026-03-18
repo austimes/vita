@@ -18,7 +18,7 @@ def _packages_and_model():
             "dsl_version": "0.3",
             "spatial_layers": [
                 {
-                    "id": "geo_regions.sa2_2021",
+                    "id": "geo_regions_sa2_2021",
                     "kind": "polygon",
                     "key": "sa2_code",
                     "geometry_file": "data/sa2.geojson",
@@ -27,7 +27,7 @@ def _packages_and_model():
             "region_partitions": [
                 {
                     "id": "toy_states_3",
-                    "layer": "geo_regions.sa2_2021",
+                    "layer": "geo_regions_sa2_2021",
                     "members": ["NSW", "VIC", "QLD"],
                     "mapping": {
                         "kind": "file",
@@ -40,7 +40,7 @@ def _packages_and_model():
             "zone_overlays": [
                 {
                     "id": "aemo_rez_2024",
-                    "layer": "geo_regions.sa2_2021",
+                    "layer": "geo_regions_sa2_2021",
                     "key": "rez_id",
                     "geometry_file": "data/rez.geojson",
                 }
@@ -52,7 +52,7 @@ def _packages_and_model():
             "dsl_version": "0.3",
             "spatial_layers": [
                 {
-                    "id": "geo_demo.sa2_2021",
+                    "id": "geo_demo_sa2_2021",
                     "kind": "polygon",
                     "key": "sa2_code",
                     "geometry_file": "data/sa2.geojson",
@@ -61,7 +61,7 @@ def _packages_and_model():
             "spatial_measure_sets": [
                 {
                     "id": "abs_demography",
-                    "layer": "geo_demo.sa2_2021",
+                    "layer": "geo_demo_sa2_2021",
                     "measures": [
                         {
                             "id": "dwelling_stock",
@@ -278,7 +278,7 @@ def test_resolve_imports_qualifies_aliases_and_dependency_closure():
     assert "heat.space_heat" in graph.commodities
     assert "heat.res_gas_heater_default" in graph.stock_characterizations
     assert "demo.abs_demography" in graph.spatial_measure_sets
-    assert "demo.geo_demo.sa2_2021" in graph.spatial_layers
+    assert "demo.geo_demo_sa2_2021" in graph.spatial_layers
     assert "regions.toy_states_3" in graph.region_partitions
 
 
@@ -587,7 +587,7 @@ def test_allocate_direct_fleet_defaults_to_single_region_and_copies_stock():
             ],
             "spatial_layers": [
                 {
-                    "id": "geo.demo",
+                    "id": "geo_demo",
                     "kind": "polygon",
                     "key": "region_id",
                     "geometry_file": "data/regions.geojson",
@@ -596,7 +596,7 @@ def test_allocate_direct_fleet_defaults_to_single_region_and_copies_stock():
             "region_partitions": [
                 {
                     "id": "single_region",
-                    "layer": "geo.demo",
+                    "layer": "geo_demo",
                     "members": ["QLD"],
                     "mapping": {"kind": "constant", "value": "QLD"},
                 }

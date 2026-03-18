@@ -9,14 +9,13 @@ from typing import Any
 import yaml
 
 from vedalang.compiler.ast import SourceDocument
-from vedalang.compiler.backend import _commodity_symbol, _process_symbol
+from vedalang.compiler.backend_symbols import commodity_symbol, process_symbol
 from vedalang.compiler.resolution import ResolvedDefinitionGraph, RunContext
 from vedalang.compiler.source_maps import (
     build_source_block,
     resolve_location_to_runtime_path,
     yaml_node_for_path,
 )
-from vedalang.conventions import canonicalize_commodity_id
 
 
 @dataclass(frozen=True)
@@ -206,7 +205,9 @@ def _symbol_manifest_entries(
     out: dict[str, dict[str, Any]] = {}
     for entry in entries:
         if isinstance(entry, dict) and entry.get("name"):
-            out[str(entry["name"])] = entry
+            name = str(entry["name"])
+            out[name] = entry
+            out[name.upper()] = entry
     return out
 
 
@@ -774,38 +775,50 @@ def _commodity_usage_item(
 
 
 def _process_veda_items(
-    process_ids: list[str],
+    processes: list[dict[str, Any]],
     *,
     manifest_processes: dict[str, dict[str, Any]],
     table_indexes: TableIndexes,
+    role_instances_by_id: dict[str, dict[str, Any]],
 ) -> tuple[list[dict[str, Any]], bool]:
     items: list[dict[str, Any]] = []
     partial = False
-    for process_id in _sorted_unique(process_ids):
-        process_symbol = _process_symbol(process_id)
-        manifest_entry = manifest_processes.get(process_symbol)
+    seen_ids: set[str] = set()
+    for process in sorted(processes, key=lambda item: str(item.get("id", ""))):
+        process_id = str(process.get("id", ""))
+        if process_id in seen_ids:
+            continue
+        seen_ids.add(process_id)
+        veda_process_symbol = process_symbol(
+            process,
+            role_instances_by_id=role_instances_by_id,
+        )
+        manifest_entry = manifest_processes.get(
+            veda_process_symbol.upper(),
+            manifest_processes.get(veda_process_symbol),
+        )
         if manifest_entry is None:
             partial = True
         items.append(
             _item(
                 label="VEDA process",
                 kind="veda_process",
-                object_id=process_symbol,
+                object_id=veda_process_symbol,
                 attributes={
                     "process_id": process_id,
-                    "process_symbol": process_symbol,
+                    "process_symbol": veda_process_symbol,
                     "manifest_entry": manifest_entry,
                     "fi_process_rows": table_indexes.process_rows["~FI_PROCESS"].get(
-                        process_symbol, []
+                        veda_process_symbol, []
                     ),
                     "fi_t_rows": table_indexes.process_rows["~FI_T"].get(
-                        process_symbol, []
+                        veda_process_symbol, []
                     ),
                     "tfm_ins_rows": table_indexes.process_rows["~TFM_INS"].get(
-                        process_symbol, []
+                        veda_process_symbol, []
                     ),
                     "times_summary": _process_times_summary(
-                        process_symbol,
+                        veda_process_symbol,
                         table_indexes=table_indexes,
                     ),
                 },
@@ -825,29 +838,24 @@ def _commodity_veda_items(
     items: list[dict[str, Any]] = []
     partial = False
     for commodity_id in _sorted_unique(commodity_ids):
-        resolved_commodity = graph.commodities.get(commodity_id)
-        symbol_id = commodity_id
-        if resolved_commodity is not None:
-            symbol_id = canonicalize_commodity_id(
-                commodity_id,
-                type_=resolved_commodity.type,
-                energy_form=resolved_commodity.energy_form,
-            )
-        commodity_symbol = _commodity_symbol(symbol_id)
-        manifest_entry = manifest_commodities.get(commodity_symbol)
+        veda_commodity_symbol = commodity_symbol(commodity_id)
+        manifest_entry = manifest_commodities.get(
+            veda_commodity_symbol.upper(),
+            manifest_commodities.get(veda_commodity_symbol),
+        )
         if manifest_entry is None:
             partial = True
         items.append(
             _item(
                 label="VEDA commodity",
                 kind="veda_commodity",
-                object_id=commodity_symbol,
+                object_id=veda_commodity_symbol,
                 attributes={
                     "commodity_id": commodity_id,
-                    "commodity_symbol": commodity_symbol,
+                    "commodity_symbol": veda_commodity_symbol,
                     "manifest_entry": manifest_entry,
                     "times_summary": _commodity_times_summary(
-                        commodity_symbol,
+                        veda_commodity_symbol,
                         table_indexes=table_indexes,
                     ),
                 },
@@ -876,6 +884,10 @@ def build_system_node_inspectors(
     table_indexes = _table_indexes(context.tableir)
     manifest_processes = _symbol_manifest_entries(context.manifest, "processes")
     manifest_commodities = _symbol_manifest_entries(context.manifest, "commodities")
+    role_instances_by_id = {
+        item["id"]: item
+        for item in context.csir.get("technology_role_instances", [])
+    }
     role_instances = {
         str(item["id"]): item
         for item in context.csir.get("technology_role_instances", [])
@@ -1016,9 +1028,10 @@ def build_system_node_inspectors(
                     )
 
             veda_items, veda_partial = _process_veda_items(
-                [str(process.get("id", "")) for process in member_processes],
+                member_processes,
                 manifest_processes=manifest_processes,
                 table_indexes=table_indexes,
+                role_instances_by_id=role_instances_by_id,
             )
             title = " / ".join(
                 part

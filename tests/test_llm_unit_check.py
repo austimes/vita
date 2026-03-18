@@ -40,7 +40,7 @@ SOURCE = {
     ],
     "spatial_layers": [
         {
-            "id": "geo.demo",
+            "id": "geo_demo",
             "kind": "polygon",
             "key": "region_id",
             "geometry_file": "data/regions.geojson",
@@ -49,7 +49,7 @@ SOURCE = {
     "region_partitions": [
         {
             "id": "single_region",
-            "layer": "geo.demo",
+            "layer": "geo_demo",
             "members": ["R1"],
             "mapping": {"kind": "constant", "value": "R1"},
         }
@@ -120,7 +120,7 @@ SOURCE_WITH_MONETARY = {
     ],
     "spatial_layers": [
         {
-            "id": "geo.demo",
+            "id": "geo_demo",
             "kind": "polygon",
             "key": "region_id",
             "geometry_file": "data/regions.geojson",
@@ -129,7 +129,7 @@ SOURCE_WITH_MONETARY = {
     "region_partitions": [
         {
             "id": "single_region",
-            "layer": "geo.demo",
+            "layer": "geo_demo",
             "members": ["R1"],
             "mapping": {"kind": "constant", "value": "R1"},
         }

@@ -51,7 +51,7 @@ technology_roles:
 
 # Spatial layers point to the underlying geographic data source.
 spatial_layers:
-  - id: geo.demo
+  - id: geo_demo
     kind: polygon
     key: region_id
     geometry_file: data/regions.geojson
@@ -59,7 +59,7 @@ spatial_layers:
 # Region partitions group geometry members into the model regions used at compile time.
 region_partitions:
   - id: toy_region
-    layer: geo.demo
+    layer: geo_demo
     members: [QLD]
     mapping:
       kind: constant

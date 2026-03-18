@@ -115,14 +115,14 @@ technology_roles:
       - coal_delivery
 
 spatial_layers:
-  - id: geo.demo
+  - id: geo_demo
     geometry_file: data/regions.geojson
     key: region_id
     kind: polygon
 
 region_partitions:
   - id: reg1_partition
-    layer: geo.demo
+    layer: geo_demo
     mapping:
       kind: constant
       value: REG1

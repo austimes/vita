@@ -36,7 +36,7 @@ def valid_public_source() -> dict:
         ],
         "technologies": [
             {
-                "id": "heat.gas_heater",
+                "id": "heat_gas_heater",
                 "description": "Gas heater providing space heat.",
                 "provides": "space_heat",
                 "inputs": [
@@ -56,7 +56,7 @@ def valid_public_source() -> dict:
                 "lifetime": "25 year",
             },
             {
-                "id": "heat.heat_pump",
+                "id": "heat_heat_pump",
                 "description": "Heat pump providing space heat.",
                 "provides": "space_heat",
                 "inputs": [{"commodity": "electricity"}],
@@ -67,14 +67,14 @@ def valid_public_source() -> dict:
         ],
         "technology_roles": [
             {
-                "id": "heat.residential_space_heat_supply",
+                "id": "heat_residential_space_heat_supply",
                 "description": "Residential space-heat supply role.",
                 "primary_service": "space_heat",
-                "technologies": ["heat.gas_heater", "heat.heat_pump"],
+                "technologies": ["heat_gas_heater", "heat_heat_pump"],
                 "transitions": [
                     {
-                        "from": "heat.gas_heater",
-                        "to": "heat.heat_pump",
+                        "from": "heat_gas_heater",
+                        "to": "heat_heat_pump",
                         "kind": "retrofit",
                         "cost": "70 AUD2024/kW",
                     }
@@ -83,8 +83,8 @@ def valid_public_source() -> dict:
         ],
         "stock_characterizations": [
             {
-                "id": "heat.res_gas_heater_default",
-                "applies_to": ["heat.gas_heater"],
+                "id": "heat_res_gas_heater_default",
+                "applies_to": ["heat_gas_heater"],
                 "counted_asset_label": "heater_system",
                 "conversions": [
                     {
@@ -102,7 +102,7 @@ def valid_public_source() -> dict:
         ],
         "spatial_layers": [
             {
-                "id": "geo.sa2_2021",
+                "id": "geo_sa2_2021",
                 "kind": "polygon",
                 "key": "sa2_code",
                 "geometry_file": "data/sa2_2021.geojson",
@@ -110,8 +110,8 @@ def valid_public_source() -> dict:
         ],
         "spatial_measure_sets": [
             {
-                "id": "demo.abs_demography",
-                "layer": "geo.sa2_2021",
+                "id": "demo_abs_demography",
+                "layer": "geo_sa2_2021",
                 "measures": [
                     {
                         "id": "dwelling_stock",
@@ -125,7 +125,7 @@ def valid_public_source() -> dict:
         ],
         "temporal_index_series": [
             {
-                "id": "demo.national_dwelling_stock_index",
+                "id": "demo_national_dwelling_stock_index",
                 "unit": "index",
                 "base_year": 2023,
                 "values": {"2023": 1.0, "2024": 1.02, "2025": 1.04},
@@ -133,8 +133,8 @@ def valid_public_source() -> dict:
         ],
         "region_partitions": [
             {
-                "id": "regions.toy_states_3",
-                "layer": "geo.sa2_2021",
+                "id": "regions_toy_states_3",
+                "layer": "geo_sa2_2021",
                 "members": ["NSW", "VIC", "QLD"],
                 "mapping": {
                     "kind": "file",
@@ -146,8 +146,8 @@ def valid_public_source() -> dict:
         ],
         "zone_overlays": [
             {
-                "id": "regions.aemo_rez_2024",
-                "layer": "geo.sa2_2021",
+                "id": "regions_aemo_rez_2024",
+                "layer": "geo_sa2_2021",
                 "key": "rez_id",
                 "geometry_file": "data/rez.geojson",
             }
@@ -163,15 +163,15 @@ def valid_public_source() -> dict:
                 "id": "gladstone_steam",
                 "description": "Gladstone facility instance.",
                 "site": "gladstone_refinery",
-                "technology_role": "heat.residential_space_heat_supply",
-                "available_technologies": ["heat.gas_heater", "heat.heat_pump"],
+                "technology_role": "heat_residential_space_heat_supply",
+                "available_technologies": ["heat_gas_heater", "heat_heat_pump"],
                 "stock": {
                     "adjust_to_base_year": {
                         "using": {"kind": "annual_growth", "rate": "0.5 %/year"}
                     },
                     "items": [
                         {
-                            "technology": "heat.gas_heater",
+                            "technology": "heat_gas_heater",
                             "metric": "installed_capacity",
                             "observed": {"value": "600 MWth", "year": 2023},
                         }
@@ -183,15 +183,15 @@ def valid_public_source() -> dict:
             {
                 "id": "residential_space_heat",
                 "description": "Distributed residential space-heat fleet.",
-                "technology_role": "heat.residential_space_heat_supply",
+                "technology_role": "heat_residential_space_heat_supply",
                 "stock": {
                     "adjust_to_base_year": {
-                        "using": "demo.national_dwelling_stock_index",
+                        "using": "demo_national_dwelling_stock_index",
                         "elasticity": 1.0,
                     },
                     "items": [
                         {
-                            "technology": "heat.gas_heater",
+                            "technology": "heat_gas_heater",
                             "metric": "asset_count",
                             "observed": {
                                 "value": "1200000 assets",
@@ -202,7 +202,7 @@ def valid_public_source() -> dict:
                 },
                 "distribution": {
                     "method": "proportional",
-                    "weight_by": "demo.abs_demography.dwelling_stock",
+                    "weight_by": "demo_abs_demography.dwelling_stock",
                 },
             }
         ],
@@ -210,9 +210,9 @@ def valid_public_source() -> dict:
             {
                 "id": "qld_central_rez_wind_class_1",
                 "description": "Zone opportunity for QLD central REZ.",
-                "technology_role": "heat.residential_space_heat_supply",
-                "technology": "heat.heat_pump",
-                "zone": "regions.aemo_rez_2024.qld_central_rez",
+                "technology_role": "heat_residential_space_heat_supply",
+                "technology": "heat_heat_pump",
+                "zone": "regions_aemo_rez_2024.qld_central_rez",
                 "max_new_capacity": "1500 MW",
             }
         ],
@@ -222,7 +222,7 @@ def valid_public_source() -> dict:
                 "kind": "transmission",
                 "node_basis": {
                     "kind": "region_partition",
-                    "ref": "regions.toy_states_3",
+                    "ref": "regions_toy_states_3",
                 },
                 "links": [
                     {
@@ -240,7 +240,7 @@ def valid_public_source() -> dict:
                 "id": "toy_states_2025",
                 "base_year": 2025,
                 "currency_year": 2024,
-                "region_partition": "regions.toy_states_3",
+                "region_partition": "regions_toy_states_3",
             }
         ],
     }
@@ -329,7 +329,7 @@ def test_stock_characterization_requires_conversions() -> None:
 
 def test_asset_new_build_limits_require_technology_and_capacity() -> None:
     data = valid_public_source()
-    data["facilities"][0]["new_build_limits"] = [{"technology": "heat.gas_heater"}]
+    data["facilities"][0]["new_build_limits"] = [{"technology": "heat_gas_heater"}]
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(data, load_schema())
 

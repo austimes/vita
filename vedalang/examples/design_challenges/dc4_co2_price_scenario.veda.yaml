@@ -123,7 +123,7 @@ technology_roles:
       - onshore_wind_resource
 
 spatial_layers:
-  - id: geo.demo
+  - id: geo_demo
     geometry_file: data/regions.geojson
     key: region_id
     kind: polygon
@@ -140,7 +140,7 @@ temporal_index_series:
 
 region_partitions:
   - id: reg1_partition
-    layer: geo.demo
+    layer: geo_demo
     mapping:
       kind: constant
       value: REG1

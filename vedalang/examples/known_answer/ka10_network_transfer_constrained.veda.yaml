@@ -40,14 +40,14 @@ technology_roles:
       - gb
 
 spatial_layers:
-  - id: geo.demo
+  - id: geo_demo
     geometry_file: data/regions.geojson
     key: region_id
     kind: polygon
 
 region_partitions:
   - id: p2
-    layer: geo.demo
+    layer: geo_demo
     mapping:
       kind: constant
       value: A

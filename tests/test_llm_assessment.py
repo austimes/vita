@@ -47,7 +47,7 @@ MINIMAL_SOURCE = {
     ],
     "spatial_layers": [
         {
-            "id": "geo.demo",
+            "id": "geo_demo",
             "kind": "polygon",
             "key": "region_id",
             "geometry_file": "data/regions.geojson",
@@ -56,7 +56,7 @@ MINIMAL_SOURCE = {
     "region_partitions": [
         {
             "id": "single_region",
-            "layer": "geo.demo",
+            "layer": "geo_demo",
             "members": ["R1"],
             "mapping": {"kind": "constant", "value": "R1"},
         }

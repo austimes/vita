@@ -11,7 +11,7 @@ def _section16_packages_and_model():
             "dsl_version": "0.3",
             "spatial_layers": [
                 {
-                    "id": "geo_regions.sa2_2021",
+                    "id": "geo_regions_sa2_2021",
                     "kind": "polygon",
                     "key": "sa2_code",
                     "geometry_file": "data/sa2.geojson",
@@ -20,7 +20,7 @@ def _section16_packages_and_model():
             "region_partitions": [
                 {
                     "id": "toy_states_3",
-                    "layer": "geo_regions.sa2_2021",
+                    "layer": "geo_regions_sa2_2021",
                     "members": ["NSW", "VIC", "QLD"],
                     "mapping": {
                         "kind": "file",
@@ -37,7 +37,7 @@ def _section16_packages_and_model():
             "dsl_version": "0.3",
             "spatial_layers": [
                 {
-                    "id": "geo_demo.sa2_2021",
+                    "id": "geo_demo_sa2_2021",
                     "kind": "polygon",
                     "key": "sa2_code",
                     "geometry_file": "data/sa2.geojson",
@@ -46,7 +46,7 @@ def _section16_packages_and_model():
             "spatial_measure_sets": [
                 {
                     "id": "abs_demography",
-                    "layer": "geo_demo.sa2_2021",
+                    "layer": "geo_demo_sa2_2021",
                     "measures": [
                         {
                             "id": "dwelling_stock",

@@ -83,14 +83,14 @@ technology_roles:
         to: hydrogen_calciner
 
 spatial_layers:
-  - id: geo.demo
+  - id: geo_demo
     geometry_file: data/regions.geojson
     key: region_id
     kind: polygon
 
 region_partitions:
   - id: au_states
-    layer: geo.demo
+    layer: geo_demo
     mapping:
       kind: constant
       value: QLD

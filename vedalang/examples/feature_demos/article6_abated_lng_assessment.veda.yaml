@@ -111,14 +111,14 @@ technology_roles:
       - au_storage_integrity_hub
 
 spatial_layers:
-  - id: geo.demo
+  - id: geo_demo
     geometry_file: data/regions.geojson
     key: region_id
     kind: polygon
 
 region_partitions:
   - id: article6_regions
-    layer: geo.demo
+    layer: geo_demo
     mapping:
       kind: constant
       value: AU

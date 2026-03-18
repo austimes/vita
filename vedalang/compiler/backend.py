@@ -2,16 +2,22 @@
 
 from __future__ import annotations
 
-import hashlib
-import re
 from dataclasses import dataclass
 from typing import Any
 
-from vedalang.conventions import canonicalize_commodity_id
 from vedalang.versioning import annotate_tableir
 
 from .artifacts import ResolvedArtifacts, build_run_artifacts
 from .ast import SourceDocument, parse_source
+from .backend_symbols import (
+    commodity_symbol,
+    run_symbol,
+    trade_process_pattern,
+    trade_sheet_name,
+)
+from .backend_symbols import (
+    process_symbol as build_process_symbol,
+)
 from .resolution import (
     ResolutionError,
     ResolvedDefinitionGraph,
@@ -19,7 +25,9 @@ from .resolution import (
     parse_quantity,
     resolve_imports,
 )
-from .resolution import resolve_run as resolve_selected_run
+from .resolution import (
+    resolve_run as resolve_selected_run,
+)
 
 DEFAULT_UNITS = {
     "energy": "PJ",
@@ -59,22 +67,12 @@ class CompileBundle:
     explain: dict[str, Any] | None = None
 
 
-def _artifact_symbol(prefix: str, raw: str) -> str:
-    token = re.sub(r"[^A-Za-z0-9_]+", "_", raw).strip("_").upper() or prefix
-    digest = hashlib.sha1(raw.encode("utf-8")).hexdigest()[:8].upper()
-    return f"{prefix}_{token}_{digest}"[:64]
-
-
 def _commodity_symbol(commodity_id: str) -> str:
-    return _artifact_symbol("COM", commodity_id)
+    return commodity_symbol(commodity_id)
 
 
-def _process_symbol(process_id: str) -> str:
-    return _artifact_symbol("PRC", process_id)
-
-
-def _trade_sheet_name(commodity_symbol: str) -> str:
-    return f"Uni_{commodity_symbol}"[:31]
+def _run_symbol(run_id: str) -> str:
+    return run_symbol(run_id)
 
 
 def _commodity_csets(type_: str) -> str:
@@ -90,14 +88,6 @@ def _commodity_csets(type_: str) -> str:
 
 def _default_unit(type_: str) -> str:
     return DEFAULT_UNITS.get(type_, "PJ")
-
-
-def _canonical_commodity_id(commodity: Any) -> str:
-    return canonicalize_commodity_id(
-        commodity.id,
-        type_=commodity.type,
-        energy_form=commodity.energy_form,
-    )
 
 
 def _quantity_unit(quantity: dict[str, Any] | None) -> str:
@@ -236,7 +226,7 @@ def _normalize_packages(
 
 def _trade_link_files(
     network_arcs: list[dict[str, Any]],
-    commodity_symbols: dict[str, str],
+    commodity_aliases: dict[str, str],
     *,
     base_year: int,
 ) -> list[dict[str, Any]]:
@@ -244,9 +234,8 @@ def _trade_link_files(
     trade_attr_rows: list[dict[str, Any]] = []
     for arc in network_arcs:
         commodity = arc["commodity"]
-        commodity_symbol = commodity_symbols[commodity]
-        grouped.setdefault(commodity_symbol, []).append(arc)
-        pattern = f"TB_{commodity_symbol}_*,TU_{commodity_symbol}_*"
+        grouped.setdefault(commodity, []).append(arc)
+        pattern = trade_process_pattern(commodity)
         existing = arc.get("existing_transfer_capacity")
         if isinstance(existing, dict) and existing.get("amount") not in (None, 0):
             trade_attr_rows.append(
@@ -271,14 +260,17 @@ def _trade_link_files(
             )
 
     sheets = []
-    for commodity_symbol, arcs in sorted(grouped.items()):
+    for commodity_id, arcs in sorted(grouped.items()):
         by_origin: dict[str, dict[str, int]] = {}
         for arc in arcs:
-            row = by_origin.setdefault(arc["from"], {commodity_symbol: arc["from"]})
-            row[arc["to"]] = 1
+            row = by_origin.setdefault(
+                arc["from"],
+                {commodity_aliases[commodity_id]: arc["from"]},
+            )
+            row[arc["to"]] = f"TU_{commodity_id}_{arc['from']}_{arc['to']}"
         sheets.append(
             {
-                "name": _trade_sheet_name(commodity_symbol),
+                "name": trade_sheet_name(commodity_id),
                 "tables": [
                     {
                         "tag": "~TRADELINKS",
@@ -321,13 +313,19 @@ def lower_bundle_to_tableir(
     run_id = artifacts.csir["run_id"]
     model_regions = list(artifacts.csir["model_regions"])
     default_region = ",".join(model_regions)
-    bookname = _artifact_symbol("RUN", run_id)
+    bookname = _run_symbol(run_id)
     commodity_symbols = {
-        commodity_id: _commodity_symbol(_canonical_commodity_id(commodity))
+        commodity_id: _commodity_symbol(commodity_id)
         for commodity_id, commodity in sorted(graph.commodities.items())
     }
+    role_instances_by_id = {
+        item["id"]: item for item in artifacts.csir.get("technology_role_instances", [])
+    }
     process_symbols = {
-        process["id"]: _process_symbol(process["id"])
+        process["id"]: build_process_symbol(
+            process,
+            role_instances_by_id=role_instances_by_id,
+        )
         for process in artifacts.cpir.get("processes", [])
     }
 
@@ -348,13 +346,13 @@ def lower_bundle_to_tableir(
     for process in artifacts.cpir.get("processes", []):
         technology = graph.technologies[process["technology"]]
         region = process["model_region"]
-        process_symbol = process_symbols[process["id"]]
+        process_alias = process_symbols[process["id"]]
         activity_unit = _activity_unit(process, graph)
         capacity_unit = _capacity_unit(process, activity_unit)
         process_rows.append(
             {
                 "region": region,
-                "process": process_symbol,
+                "process": process_alias,
                 "description": process["id"],
                 "sets": "",
                 "tact": activity_unit,
@@ -370,7 +368,7 @@ def lower_bundle_to_tableir(
                 fi_t_rows.append(
                     {
                         "region": region,
-                        "process": process_symbol,
+                        "process": process_alias,
                         "commodity-in": commodity_symbol,
                     }
                 )
@@ -380,7 +378,7 @@ def lower_bundle_to_tableir(
                 fi_t_rows.append(
                     {
                         "region": region,
-                        "process": process_symbol,
+                        "process": process_alias,
                         "commodity-out": commodity_symbol,
                     }
                 )
@@ -388,14 +386,14 @@ def lower_bundle_to_tableir(
                 emission_rows.append(
                     {
                         "region": region,
-                        "process": process_symbol,
+                        "process": process_alias,
                         "commodity": commodity_symbol,
                         "attribute": "ENV_ACT",
                         "value": flow["coefficient"]["amount"],
                     }
                 )
 
-        eff_row = {"region": region, "process": process_symbol}
+        eff_row = {"region": region, "process": process_alias}
         if first_output_symbol:
             eff_row["commodity-out"] = first_output_symbol
         eff = _efficiency(process.get("flows", []))
@@ -423,7 +421,7 @@ def lower_bundle_to_tableir(
             tfm_rows.append(
                 {
                     "region": region,
-                    "process": process_symbol,
+                    "process": process_alias,
                     "year": artifacts.csir["base_year"],
                     "attribute": "PRC_RESID",
                     "value": initial_stock["amount"],
@@ -438,7 +436,7 @@ def lower_bundle_to_tableir(
             tfm_rows.append(
                 {
                     "region": region,
-                    "process": process_symbol,
+                    "process": process_alias,
                     "year": artifacts.csir["base_year"],
                     "limtype": "UP",
                     "attribute": "NCAP_BND",

@@ -81,7 +81,7 @@ def _sample_source(
         ],
         "spatial_layers": [
             {
-                "id": "geo.demo",
+                "id": "geo_demo",
                 "kind": "polygon",
                 "key": "region_id",
                 "geometry_file": "data/regions.geojson",
@@ -90,7 +90,7 @@ def _sample_source(
         "region_partitions": [
             {
                 "id": "toy_states",
-                "layer": "geo.demo",
+                "layer": "geo_demo",
                 "members": ["NSW", "QLD"],
                 "mapping": {"kind": "constant", "value": "NSW"},
             }
@@ -211,9 +211,21 @@ def test_compile_public_bundle_emits_artifacts_and_trade_links():
     assert len(trade_rows) == 1
     commodity_keys = [key for key in trade_rows[0] if key != "NSW"]
     assert len(commodity_keys) == 1
-    assert commodity_keys[0].startswith("COM_SECONDARY_ELECTRICITY_")
+    assert commodity_keys[0] == "COM_electricity"
     assert trade_rows[0][commodity_keys[0]] == "QLD"
-    assert trade_rows[0]["NSW"] == 1
+    assert trade_rows[0]["NSW"] == "TU_electricity_QLD_NSW"
+    process_symbols = {row["process"] for row in fi_process_rows}
+    assert process_symbols == {
+        "PRC_FAC_brisbane_heat_gas_heater",
+        "PRC_FAC_brisbane_heat_heat_pump",
+    }
+    trade_sheet_names = {
+        sheet["name"]
+        for file_spec in bundle.tableir["files"]
+        for sheet in file_spec.get("sheets", [])
+        if any(table.get("tag") == "~TRADELINKS" for table in sheet.get("tables", []))
+    }
+    assert trade_sheet_names == {"U_electricity"}
 
 
 def test_compile_public_bundle_allocates_fleet_stock_with_custom_weights():

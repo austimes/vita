@@ -31,13 +31,13 @@ def test_public_compile_json_includes_section14_location_metadata(tmp_path):
                 "    currency_year: 2024",
                 "    region_partition: toy_partition",
                 "spatial_layers:",
-                "  - id: geo.demo",
+                "  - id: geo_demo",
                 "    kind: polygon",
                 "    key: region_id",
                 "    geometry_file: data/regions.geojson",
                 "region_partitions:",
                 "  - id: toy_partition",
-                "    layer: geo.demo",
+                "    layer: geo_demo",
                 "    members: [QLD]",
                 "    mapping:",
                 "      kind: constant",
@@ -90,13 +90,13 @@ def test_lint_and_validate_emit_e020_for_missing_required_description(tmp_path):
                 "    primary_service: space_heat",
                 "    technologies: [gas_heater]",
                 "spatial_layers:",
-                "  - id: geo.demo",
+                "  - id: geo_demo",
                 "    kind: polygon",
                 "    key: region_id",
                 "    geometry_file: data/regions.geojson",
                 "region_partitions:",
                 "  - id: toy_partition",
-                "    layer: geo.demo",
+                "    layer: geo_demo",
                 "    members: [QLD]",
                 "    mapping:",
                 "      kind: constant",
@@ -189,7 +189,7 @@ def test_collect_public_diagnostics_emits_prd_warning_codes():
         ],
         "spatial_layers": [
             {
-                "id": "geo.demo",
+                "id": "geo_demo",
                 "kind": "polygon",
                 "key": "region_id",
                 "geometry_file": "data/regions.geojson",
@@ -198,7 +198,7 @@ def test_collect_public_diagnostics_emits_prd_warning_codes():
         "spatial_measure_sets": [
             {
                 "id": "weights",
-                "layer": "geo.demo",
+                "layer": "geo_demo",
                 "measures": [
                     {
                         "id": "dwelling_stock",
@@ -220,7 +220,7 @@ def test_collect_public_diagnostics_emits_prd_warning_codes():
         "region_partitions": [
             {
                 "id": "toy_partition",
-                "layer": "geo.demo",
+                "layer": "geo_demo",
                 "members": ["QLD"],
                 "mapping": {"kind": "constant", "value": "QLD"},
             }
@@ -318,7 +318,7 @@ def test_collect_public_diagnostics_flags_duplicate_rollout_patterns():
         ],
         "spatial_layers": [
             {
-                "id": "geo.demo",
+                "id": "geo_demo",
                 "kind": "polygon",
                 "key": "region_id",
                 "geometry_file": "data/regions.geojson",
@@ -327,7 +327,7 @@ def test_collect_public_diagnostics_flags_duplicate_rollout_patterns():
         "region_partitions": [
             {
                 "id": "single_region",
-                "layer": "geo.demo",
+                "layer": "geo_demo",
                 "members": ["SINGLE"],
                 "mapping": {"kind": "constant", "value": "SINGLE"},
             }
@@ -402,7 +402,7 @@ def test_collect_public_diagnostics_flags_missing_res_explorer_descriptions():
         ],
         "spatial_layers": [
             {
-                "id": "geo.demo",
+                "id": "geo_demo",
                 "kind": "polygon",
                 "key": "region_id",
                 "geometry_file": "data/regions.geojson",
@@ -411,15 +411,15 @@ def test_collect_public_diagnostics_flags_missing_res_explorer_descriptions():
         "region_partitions": [
             {
                 "id": "toy_partition",
-                "layer": "geo.demo",
+                "layer": "geo_demo",
                 "members": ["QLD"],
                 "mapping": {"kind": "constant", "value": "QLD"},
             }
         ],
         "zone_overlays": [
             {
-                "id": "zones.demo",
-                "layer": "geo.demo",
+                "id": "zones_demo",
+                "layer": "geo_demo",
                 "key": "zone_id",
                 "geometry_file": "data/zones.geojson",
             }
@@ -430,7 +430,7 @@ def test_collect_public_diagnostics_flags_missing_res_explorer_descriptions():
                 "location": {"point": {"lat": -27.4, "lon": 153.0}},
                 "membership_overrides": {
                     "region_partitions": {"toy_partition": "QLD"},
-                    "zone_overlays": {"zones.demo": "qld_rez"},
+                    "zone_overlays": {"zones_demo": "qld_rez"},
                 },
             }
         ],
@@ -462,7 +462,7 @@ def test_collect_public_diagnostics_flags_missing_res_explorer_descriptions():
                 "id": "qld_rez_new_build",
                 "technology_role": "heat_supply",
                 "technology": "gas_heater",
-                "zone": "zones.demo.qld_rez",
+                "zone": "zones_demo.qld_rez",
                 "max_new_capacity": "10 MW",
             }
         ],
@@ -567,7 +567,7 @@ def test_run_core_skips_legacy_xref_checks_for_public_source():
         ],
         "spatial_layers": [
             {
-                "id": "geo.demo",
+                "id": "geo_demo",
                 "kind": "polygon",
                 "key": "region_id",
                 "geometry_file": "data/regions.geojson",
@@ -576,7 +576,7 @@ def test_run_core_skips_legacy_xref_checks_for_public_source():
         "region_partitions": [
             {
                 "id": "toy_partition",
-                "layer": "geo.demo",
+                "layer": "geo_demo",
                 "members": ["QLD"],
                 "mapping": {"kind": "constant", "value": "QLD"},
             }
