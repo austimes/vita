@@ -25,6 +25,8 @@ vedalang validate models/example.veda.yaml --run demo_2025
 vita run models/example.veda.yaml --run demo_2025 --no-solver --json
 ```
 
+Refresh the installed `vita` and `vedalang` commands later with `vita update`.
+
 Read [`skills/vedalang-dsl-cli/SKILL.md`](../../skills/vedalang-dsl-cli/SKILL.md), study `vedalang/examples/`, check `vedalang/schema/vedalang.schema.json`, and use patterns from `rules/patterns.yaml` when you want the full repository content locally.
 
 ## Key Resources

@@ -19,6 +19,7 @@ from vita.handlers import (
     run_pipeline_command,
     run_sankey_command,
     run_times_results_command,
+    run_update_command,
 )
 
 
@@ -404,10 +405,21 @@ def main() -> None:
         help="Initialize beads (bd) for experiment task tracking",
     )
 
+    subparsers.add_parser(
+        "update",
+        help="Refresh installed vita and vedalang tools from GitHub main",
+        description=(
+            "Refresh the installed vita and vedalang commands from GitHub main "
+            "using uv tool install --force."
+        ),
+    )
+
     args = parser.parse_args()
 
     if args.command == "init":
         run_init_command(args)
+    elif args.command == "update":
+        run_update_command(args)
     elif args.command == "run":
         run_pipeline_command(args)
     elif args.command == "results":

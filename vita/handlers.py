@@ -2,9 +2,13 @@
 
 import json
 import shutil
+import subprocess
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
+
+UPDATE_TOOL_SOURCE = "git+https://github.com/austimes/vita@main"
+UPDATED_TOOL_COMMANDS = ("vita", "vedalang", "vedalang-dev")
 
 
 def run_pipeline_command(args):
@@ -573,6 +577,30 @@ def run_init_command(args):
     print("  1. Open this directory in your AI agent (Amp, Codex, Claude)")
     print("  2. The agent will read AGENTS.md and understand the workflow")
     print('  3. Ask: "Run the example model and explain the results"')
+
+
+def run_update_command(_args):
+    """Refresh the installed Vita tool package from GitHub main."""
+    command = ["uv", "tool", "install", "--force", UPDATE_TOOL_SOURCE]
+    print("Refreshing CLI tools from GitHub main:")
+    print(f"  {' '.join(command)}")
+
+    try:
+        result = subprocess.run(command, check=False)
+    except FileNotFoundError:
+        print("Error: uv was not found on PATH.", file=sys.stderr)
+        sys.exit(2)
+
+    if result.returncode != 0:
+        sys.exit(result.returncode)
+
+    print()
+    print(
+        "Refreshed commands: "
+        + ", ".join(UPDATED_TOOL_COMMANDS)
+        + " (vita and vedalang come from the same tool package)."
+    )
+    sys.exit(0)
 
 
 def _parse_multi_csv_args(values: list[str] | None) -> list[str]:

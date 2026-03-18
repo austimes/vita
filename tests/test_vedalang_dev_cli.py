@@ -88,6 +88,7 @@ class TestVitaHelp:
         assert "results" in result.stdout
         assert "sankey" in result.stdout
         assert "diff" in result.stdout
+        assert "update" in result.stdout
 
     def test_vita_run_help(self):
         """Run subcommand --help works."""
@@ -120,6 +121,13 @@ class TestVitaHelp:
         assert "--focus-processes" in result.stdout
         assert "--metric" in result.stdout
         assert "--json" in result.stdout
+
+    def test_vita_update_help(self):
+        """Update subcommand --help works."""
+        result = run_vita("update", "--help")
+        assert result.returncode == 0
+        assert "github main" in result.stdout.lower()
+        assert "vita and vedalang" in result.stdout.lower()
 
 
 class TestEmitExcel:

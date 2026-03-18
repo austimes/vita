@@ -45,7 +45,8 @@ vedalang validate models/example.veda.yaml --run demo_2025
 vita run models/example.veda.yaml --run demo_2025 --no-solver --json
 ```
 
-Rerun `uv tool install --force git+https://github.com/austimes/vita` to refresh to the latest GitHub HEAD.
+Run `vita update` to refresh the installed `vita` and `vedalang` commands from GitHub `main`.
+It performs `uv tool install --force git+https://github.com/austimes/vita@main` for the shared tool package.
 
 Clone the repository only if you want the bundled examples, the agent skill files under `skills/`, or contributor workflows. The quick start above is the supported path for getting `vita` and `vedalang` onto your shell `PATH`.
 

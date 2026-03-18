@@ -4,6 +4,8 @@ Chronological record of the current repository state.
 
 ## 2026-03-18
 
+- Added `vita update` to refresh the installed `vita`/`vedalang` tool package
+  from GitHub `main` via `uv tool install --force`.
 - Repository hygiene audit (`vedalang-tidn`): fixed broken pytest venv shim,
   resolved 29 ruff lint violations, added `runs/` to `.gitignore`, fixed
   README clone URL from `austimes/vedalang` to `austimes/vita`.
