@@ -13,7 +13,7 @@ def test_compare_versions_orders_dotted_numbers():
     assert handlers._compare_versions("0.4", "0.4.0") == 0
 
 
-def test_run_update_command_is_noop_when_current(monkeypatch, capsys):
+def test_run_update_command_always_refreshes_even_when_current(monkeypatch, capsys):
     monkeypatch.setattr(handlers, "_get_installed_tool_version", lambda: "0.4.2")
     monkeypatch.setattr(handlers, "_fetch_latest_tool_version", lambda: "0.4.2")
 
@@ -29,8 +29,18 @@ def test_run_update_command_is_noop_when_current(monkeypatch, capsys):
         handlers.run_update_command(argparse.Namespace())
 
     assert excinfo.value.code == 0
-    assert calls == []
-    assert "already up to date (version 0.4.2)" in capsys.readouterr().out
+    assert calls == [
+        [
+            "uv",
+            "tool",
+            "install",
+            "--force",
+            "git+https://github.com/austimes/vita@main",
+        ]
+    ]
+    stdout = capsys.readouterr().out
+    assert "Refreshing" in stdout
+    assert "Refreshed commands: vita, vedalang, vedalang-dev" in stdout
 
 
 def test_run_update_command_invokes_uv_when_remote_is_newer(monkeypatch, capsys):
@@ -60,19 +70,9 @@ def test_run_update_command_invokes_uv_when_remote_is_newer(monkeypatch, capsys)
         ]
     ]
     stdout = capsys.readouterr().out
-    assert "Updating vita tool package from GitHub main (0.3.0 -> 0.4.2)." in stdout
+    assert "0.3.0" in stdout
+    assert "0.4.2" in stdout
     assert "Refreshed commands: vita, vedalang, vedalang-dev" in stdout
-
-
-def test_run_update_command_skips_when_installed_is_newer(monkeypatch, capsys):
-    monkeypatch.setattr(handlers, "_get_installed_tool_version", lambda: "0.4.3")
-    monkeypatch.setattr(handlers, "_fetch_latest_tool_version", lambda: "0.4.2")
-
-    with pytest.raises(SystemExit) as excinfo:
-        handlers.run_update_command(argparse.Namespace())
-
-    assert excinfo.value.code == 0
-    assert "newer than GitHub main (0.4.3 > 0.4.2)" in capsys.readouterr().out
 
 
 def test_run_update_command_refreshes_when_latest_unknown(monkeypatch, capsys):
@@ -88,9 +88,8 @@ def test_run_update_command_refreshes_when_latest_unknown(monkeypatch, capsys):
         handlers.run_update_command(argparse.Namespace())
 
     assert excinfo.value.code == 0
-    assert (
-        "Could not determine the latest GitHub main version" in capsys.readouterr().out
-    )
+    stdout = capsys.readouterr().out
+    assert "Could not determine latest GitHub main version" in stdout
 
 
 def test_run_update_command_propagates_uv_failure(monkeypatch):

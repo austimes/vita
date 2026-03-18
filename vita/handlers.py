@@ -756,50 +756,28 @@ def run_update_command(_args):
     latest_version = _fetch_latest_tool_version()
 
     if installed_version is not None and latest_version is not None:
-        comparison = _compare_versions(installed_version, latest_version)
-        if comparison >= 0:
-            if comparison == 0:
-                print_message(
-                    "CLI Tools",
-                    [
-                        "vita and vedalang are already up to date "
-                        f"(version {installed_version})."
-                    ],
-                    level="success",
-                )
-            else:
-                print_message(
-                    "CLI Tools",
-                    [
-                        "Installed vita tools are newer than GitHub main "
-                        f"({installed_version} > {latest_version}); skipping refresh."
-                    ],
-                    level="warning",
-                )
-            sys.exit(0)
-
         print_message(
             "CLI Tools",
             [
-                "Updating vita tool package from GitHub main "
+                "Refreshing vita tool package from GitHub main "
                 f"({installed_version} -> {latest_version})."
             ],
             level="info",
         )
-    elif latest_version is None:
+    elif installed_version is not None:
         print_message(
             "CLI Tools",
-            ["Could not determine the latest GitHub main version; refreshing anyway."],
-            level="warning",
+            [
+                f"Installed version: {installed_version}. "
+                "Could not determine latest GitHub main version; refreshing anyway."
+            ],
+            level="info",
         )
     else:
         print_message(
             "CLI Tools",
-            [
-                "Could not determine the installed vita tool version; "
-                "refreshing from GitHub main."
-            ],
-            level="warning",
+            ["Refreshing vita tool package from GitHub main."],
+            level="info",
         )
 
     command = ["uv", "tool", "install", "--force", UPDATE_TOOL_SOURCE]
