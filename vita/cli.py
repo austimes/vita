@@ -7,6 +7,14 @@ from dotenv import load_dotenv
 
 from vita.handlers import (
     run_diff_command,
+    run_experiment_full_command,
+    run_experiment_plan_command,
+    run_experiment_present_command,
+    run_experiment_run_command,
+    run_experiment_status_command,
+    run_experiment_summarize_command,
+    run_experiment_validate_brief_command,
+    run_experiment_validate_interpretation_command,
     run_pipeline_command,
     run_sankey_command,
     run_times_results_command,
@@ -258,6 +266,110 @@ def main() -> None:
         help="Output as JSON",
     )
 
+    # Experiment subcommand
+    exp_parser = subparsers.add_parser(
+        "experiment",
+        help="Run declarative experiments from manifest files",
+    )
+    exp_parser.add_argument(
+        "manifest",
+        nargs="?",
+        type=Path,
+        help="Path to experiment.yaml manifest (convenience mode)",
+    )
+    exp_parser.add_argument(
+        "--out",
+        type=Path,
+        help="Output directory (convenience mode, default: experiments/<id>)",
+    )
+    exp_parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="json_output",
+        help="Output as JSON (convenience mode)",
+    )
+    exp_subparsers = exp_parser.add_subparsers(dest="exp_command")
+
+    # vita experiment stage
+    exp_stage_parser = exp_subparsers.add_parser(
+        "stage", help="Stage experiment inputs and create directory structure"
+    )
+    exp_stage_parser.add_argument(
+        "manifest", type=Path, help="Path to experiment.yaml manifest"
+    )
+    exp_stage_parser.add_argument(
+        "--out", type=Path, help="Output directory (default: experiments/<id>)"
+    )
+
+    # vita experiment run
+    exp_run_parser = exp_subparsers.add_parser(
+        "run", help="Execute pending runs and diffs"
+    )
+    exp_run_parser.add_argument(
+        "experiment_dir", type=Path, help="Experiment directory"
+    )
+    exp_run_parser.add_argument(
+        "--resume", action="store_true", help="Skip completed runs"
+    )
+    exp_run_parser.add_argument(
+        "--force", action="store_true", help="Re-run everything"
+    )
+    exp_run_parser.add_argument(
+        "--json", action="store_true", dest="json_output"
+    )
+
+    # vita experiment summarize
+    exp_summarize_parser = exp_subparsers.add_parser(
+        "summarize", help="Extract evidence summary from completed runs"
+    )
+    exp_summarize_parser.add_argument(
+        "experiment_dir", type=Path, help="Experiment directory"
+    )
+    exp_summarize_parser.add_argument(
+        "--json", action="store_true", dest="json_output"
+    )
+
+    # vita experiment validate-brief
+    exp_vb_parser = exp_subparsers.add_parser(
+        "validate-brief", help="Run brief validation gate"
+    )
+    exp_vb_parser.add_argument(
+        "experiment_dir", type=Path, help="Experiment directory"
+    )
+    exp_vb_parser.add_argument(
+        "--json", action="store_true", dest="json_output"
+    )
+
+    # vita experiment validate-interpretation
+    exp_vi_parser = exp_subparsers.add_parser(
+        "validate-interpretation", help="Run interpretation validation gate"
+    )
+    exp_vi_parser.add_argument(
+        "experiment_dir", type=Path, help="Experiment directory"
+    )
+    exp_vi_parser.add_argument(
+        "--json", action="store_true", dest="json_output"
+    )
+
+    # vita experiment present
+    exp_present_parser = exp_subparsers.add_parser(
+        "present", help="Regenerate HTML presentation"
+    )
+    exp_present_parser.add_argument(
+        "experiment_dir", type=Path, help="Experiment directory"
+    )
+
+    # vita experiment status
+    exp_status_parser = exp_subparsers.add_parser(
+        "status", help="Show experiment lifecycle status"
+    )
+    exp_status_parser.add_argument(
+        "experiment_dir", type=Path, help="Experiment directory"
+    )
+    exp_status_parser.add_argument(
+        "--json", action="store_true", dest="json_output"
+    )
+
     args = parser.parse_args()
 
     if args.command == "run":
@@ -268,6 +380,26 @@ def main() -> None:
         run_sankey_command(args)
     elif args.command == "diff":
         run_diff_command(args)
+    elif args.command == "experiment":
+        if args.exp_command == "stage":
+            run_experiment_plan_command(args)
+        elif args.exp_command == "run":
+            run_experiment_run_command(args)
+        elif args.exp_command == "summarize":
+            run_experiment_summarize_command(args)
+        elif args.exp_command == "validate-brief":
+            run_experiment_validate_brief_command(args)
+        elif args.exp_command == "validate-interpretation":
+            run_experiment_validate_interpretation_command(args)
+        elif args.exp_command == "present":
+            run_experiment_present_command(args)
+        elif args.exp_command == "status":
+            run_experiment_status_command(args)
+        elif args.exp_command is None and args.manifest is not None:
+            # Convenience mode: vita experiment <manifest.yaml>
+            run_experiment_full_command(args)
+        else:
+            exp_parser.print_help()
 
 
 if __name__ == "__main__":

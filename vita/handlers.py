@@ -310,6 +310,230 @@ def run_sankey_command(args):
     sys.exit(0)
 
 
+def run_experiment_plan_command(args):
+    """Handle 'vita experiment plan'."""
+    from vita.experiment_runner import plan_experiment
+
+    state = plan_experiment(args.manifest, args.out)
+    print(f"Experiment planned: {state.experiment_id}")
+    print(f"  Status: {state.status}")
+    print(f"  Runs: {state.progress.runs_total}")
+    print(f"  Comparisons: {state.progress.diffs_total}")
+
+
+def run_experiment_run_command(args):
+    """Handle 'vita experiment run'."""
+    from vita.experiment_runner import run_experiment
+
+    result = run_experiment(
+        args.experiment_dir,
+        resume=args.resume,
+        force=args.force,
+        json_output=getattr(args, "json_output", False),
+    )
+    if args.json_output:
+        print(
+            json.dumps(
+                {
+                    "experiment_dir": str(result.experiment_dir),
+                    "status": result.state.status,
+                    "success": result.success,
+                    "progress": result.state.progress.__dict__,
+                    "errors": result.errors,
+                },
+                indent=2,
+            )
+        )
+    else:
+        print(f"Experiment: {result.state.experiment_id}")
+        print(f"  Status: {result.state.status}")
+        p = result.state.progress
+        print(f"  Runs: {p.runs_complete}/{p.runs_total} complete")
+        print(f"  Diffs: {p.diffs_complete}/{p.diffs_total} complete")
+    sys.exit(0 if result.success else 2)
+
+
+def run_experiment_summarize_command(args):
+    """Handle 'vita experiment summarize'."""
+    from vita.experiment_summary import generate_summary
+
+    summary_path = generate_summary(args.experiment_dir)
+
+    if getattr(args, "json_output", False):
+        import json as json_mod
+
+        print(json_mod.dumps({"summary_json": str(summary_path)}, indent=2))
+    else:
+        print(f"Summary generated: {summary_path}")
+
+
+def run_experiment_validate_brief_command(args):
+    """Handle 'vita experiment validate-brief'."""
+    import json as json_mod
+
+    from vita.experiment_manifest import load_experiment_manifest
+    from vita.experiment_validation import validate_brief
+
+    experiment_dir = args.experiment_dir.expanduser().resolve()
+    manifest = load_experiment_manifest(experiment_dir / "manifest.yaml")
+
+    brief_path = experiment_dir / "planning" / "brief.json"
+    if not brief_path.exists():
+        print(f"Error: brief.json not found: {brief_path}", file=sys.stderr)
+        sys.exit(2)
+
+    brief = json_mod.loads(brief_path.read_text(encoding="utf-8"))
+    result = validate_brief(brief, manifest)
+
+    # Save validation result
+    val_path = experiment_dir / "planning" / "brief.validation.json"
+    result.save(val_path)
+
+    if getattr(args, "json_output", False):
+        print(json_mod.dumps(result.to_dict(), indent=2))
+    else:
+        if result.valid:
+            print(f"Brief validation passed ({len(result.warnings)} warnings)")
+        else:
+            print(f"Brief validation FAILED ({len(result.errors)} errors)")
+            for err in result.errors:
+                print(f"  ERROR: {err}")
+        for w in result.warnings:
+            print(f"  WARNING: {w}")
+
+    sys.exit(0 if result.valid else 2)
+
+
+def run_experiment_validate_interpretation_command(args):
+    """Handle 'vita experiment validate-interpretation'."""
+    import json as json_mod
+
+    from vita.experiment_manifest import load_experiment_manifest
+    from vita.experiment_validation import validate_interpretation
+
+    experiment_dir = args.experiment_dir.expanduser().resolve()
+    manifest = load_experiment_manifest(experiment_dir / "manifest.yaml")
+
+    interpretation_path = experiment_dir / "conclusions" / "interpretation.json"
+    if not interpretation_path.exists():
+        print(
+            f"Error: interpretation.json not found: {interpretation_path}",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+
+    interpretation = json_mod.loads(
+        interpretation_path.read_text(encoding="utf-8")
+    )
+
+    summary_path = experiment_dir / "conclusions" / "summary.json"
+    summary = {}
+    if summary_path.exists():
+        summary = json_mod.loads(summary_path.read_text(encoding="utf-8"))
+
+    result = validate_interpretation(interpretation, manifest, summary)
+
+    # Save validation result
+    val_path = experiment_dir / "conclusions" / "interpretation.validation.json"
+    val_path.parent.mkdir(parents=True, exist_ok=True)
+    result.save(val_path)
+
+    if getattr(args, "json_output", False):
+        print(json_mod.dumps(result.to_dict(), indent=2))
+    else:
+        if result.valid:
+            print(
+                f"Interpretation validation passed ({len(result.warnings)} warnings)"
+            )
+        else:
+            print(
+                f"Interpretation validation FAILED ({len(result.errors)} errors)"
+            )
+            for err in result.errors:
+                print(f"  ERROR: {err}")
+        for w in result.warnings:
+            print(f"  WARNING: {w}")
+
+    sys.exit(0 if result.valid else 2)
+
+
+def run_experiment_present_command(args):
+    """Handle 'vita experiment present'."""
+    from vita.experiment_presentation import generate_presentation
+
+    html_path = generate_presentation(args.experiment_dir)
+    print(f"Presentation generated: {html_path}")
+
+
+def run_experiment_status_command(args):
+    """Handle 'vita experiment status'."""
+    from vita.experiment_state import load_experiment_state
+
+    state = load_experiment_state(args.experiment_dir)
+    if getattr(args, "json_output", False):
+        print(json.dumps(state.to_dict(), indent=2))
+    else:
+        print(f"Experiment: {state.experiment_id}")
+        print(f"  Status: {state.status}")
+        p = state.progress
+        print(
+            f"  Runs: {p.runs_complete}/{p.runs_total} complete, {p.runs_failed} failed"
+        )
+        print(f"  Diffs: {p.diffs_complete}/{p.diffs_total} complete")
+        if state.completed_at:
+            print(f"  Completed: {state.completed_at}")
+        if state.concluded_at:
+            print(f"  Concluded: {state.concluded_at}")
+
+
+def run_experiment_full_command(args):
+    """Handle convenience 'vita experiment <manifest.yaml>' (stage+run+summarize)."""
+    from vita.experiment_runner import plan_experiment, run_experiment
+    from vita.experiment_summary import generate_summary
+
+    state = plan_experiment(args.manifest, args.out)
+    print(f"Experiment staged: {state.experiment_id}")
+    print(f"  Runs: {state.progress.runs_total}")
+    print(f"  Comparisons: {state.progress.diffs_total}")
+
+    result = run_experiment(
+        state.experiment_dir,
+        resume=False,
+        force=False,
+        json_output=getattr(args, "json_output", False),
+    )
+
+    if getattr(args, "json_output", False):
+        print(
+            json.dumps(
+                {
+                    "experiment_dir": str(result.experiment_dir),
+                    "status": result.state.status,
+                    "success": result.success,
+                    "progress": result.state.progress.__dict__,
+                    "errors": result.errors,
+                },
+                indent=2,
+            )
+        )
+    else:
+        print(f"Experiment: {result.state.experiment_id}")
+        print(f"  Status: {result.state.status}")
+        p = result.state.progress
+        print(f"  Runs: {p.runs_complete}/{p.runs_total} complete")
+        print(f"  Diffs: {p.diffs_complete}/{p.diffs_total} complete")
+
+    if not result.success:
+        sys.exit(2)
+
+    summary_path = generate_summary(result.experiment_dir)
+    # DO NOT auto-present or auto-conclude — those require agentic artifacts
+    if not getattr(args, "json_output", False):
+        print(f"  Summary: {summary_path}")
+
+    sys.exit(0)
+
+
 def _parse_multi_csv_args(values: list[str] | None) -> list[str]:
     """Parse repeated/CSV CLI values into a de-duplicated ordered list."""
     if values is None:
