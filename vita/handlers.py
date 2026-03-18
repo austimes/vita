@@ -1,14 +1,22 @@
 """Handler functions for Vita CLI commands."""
 
+import importlib.metadata
 import json
 import shutil
 import subprocess
 import sys
+import tomllib
 from datetime import UTC, datetime
 from pathlib import Path
+from urllib.error import URLError
+from urllib.request import urlopen
 
 UPDATE_TOOL_SOURCE = "git+https://github.com/austimes/vita@main"
 UPDATED_TOOL_COMMANDS = ("vita", "vedalang", "vedalang-dev")
+UPDATE_TOOL_PACKAGE = "veda-devtools"
+UPDATE_VERSION_URL = (
+    "https://raw.githubusercontent.com/austimes/vita/main/pyproject.toml"
+)
 
 
 def run_pipeline_command(args):
@@ -581,6 +589,36 @@ def run_init_command(args):
 
 def run_update_command(_args):
     """Refresh the installed Vita tool package from GitHub main."""
+    installed_version = _get_installed_tool_version()
+    latest_version = _fetch_latest_tool_version()
+
+    if installed_version is not None and latest_version is not None:
+        comparison = _compare_versions(installed_version, latest_version)
+        if comparison >= 0:
+            if comparison == 0:
+                print(
+                    "vita and vedalang are already up to date "
+                    f"(version {installed_version})."
+                )
+            else:
+                print(
+                    "Installed vita tools are newer than GitHub main "
+                    f"({installed_version} > {latest_version}); skipping refresh."
+                )
+            sys.exit(0)
+
+        print(
+            "Updating vita tool package from GitHub main "
+            f"({installed_version} -> {latest_version})."
+        )
+    elif latest_version is None:
+        print("Could not determine the latest GitHub main version; refreshing anyway.")
+    else:
+        print(
+            "Could not determine the installed vita tool version; refreshing from "
+            "GitHub main."
+        )
+
     command = ["uv", "tool", "install", "--force", UPDATE_TOOL_SOURCE]
     print("Refreshing CLI tools from GitHub main:")
     print(f"  {' '.join(command)}")
@@ -601,6 +639,51 @@ def run_update_command(_args):
         + " (vita and vedalang come from the same tool package)."
     )
     sys.exit(0)
+
+
+def _get_installed_tool_version() -> str | None:
+    """Return the installed veda-devtools package version, if available."""
+    try:
+        return importlib.metadata.version(UPDATE_TOOL_PACKAGE)
+    except importlib.metadata.PackageNotFoundError:
+        return None
+
+
+def _fetch_latest_tool_version() -> str | None:
+    """Fetch the latest package version declared on GitHub main."""
+    try:
+        with urlopen(UPDATE_VERSION_URL, timeout=5) as response:
+            payload = response.read().decode("utf-8")
+    except (OSError, URLError):
+        return None
+
+    try:
+        data = tomllib.loads(payload)
+        return str(data["project"]["version"])
+    except (tomllib.TOMLDecodeError, KeyError, TypeError):
+        return None
+
+
+def _compare_versions(lhs: str, rhs: str) -> int:
+    """Compare dotted numeric versions."""
+    lhs_parts = _parse_version(lhs)
+    rhs_parts = _parse_version(rhs)
+    width = max(len(lhs_parts), len(rhs_parts))
+    lhs_norm = lhs_parts + (0,) * (width - len(lhs_parts))
+    rhs_norm = rhs_parts + (0,) * (width - len(rhs_parts))
+    if lhs_norm < rhs_norm:
+        return -1
+    if lhs_norm > rhs_norm:
+        return 1
+    return 0
+
+
+def _parse_version(value: str) -> tuple[int, ...]:
+    """Parse a dotted numeric version string."""
+    parts = tuple(int(part) for part in value.split("."))
+    if not parts:
+        raise ValueError("version must not be empty")
+    return parts
 
 
 def _parse_multi_csv_args(values: list[str] | None) -> list[str]:

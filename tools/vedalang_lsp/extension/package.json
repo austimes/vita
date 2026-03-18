@@ -2,7 +2,7 @@
   "name": "vedalang",
   "displayName": "VedaLang",
   "description": "Language support for VedaLang - a typed DSL for TIMES energy models",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "publisher": "austimes",
   "repository": {
     "type": "git",

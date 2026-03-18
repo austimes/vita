@@ -26,6 +26,7 @@ vita run models/example.veda.yaml --run demo_2025 --no-solver --json
 ```
 
 Refresh the installed `vita` and `vedalang` commands later with `vita update`.
+It only reinstalls when GitHub `main` is newer than your current tool version.
 
 Read [`skills/vedalang-dsl-cli/SKILL.md`](../../skills/vedalang-dsl-cli/SKILL.md), study `vedalang/examples/`, check `vedalang/schema/vedalang.schema.json`, and use patterns from `rules/patterns.yaml` when you want the full repository content locally.
 

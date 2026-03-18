@@ -127,7 +127,7 @@ class TestVitaHelp:
         result = run_vita("update", "--help")
         assert result.returncode == 0
         assert "github main" in result.stdout.lower()
-        assert "vita and vedalang" in result.stdout.lower()
+        assert "when main is newer" in result.stdout.lower()
 
 
 class TestEmitExcel:

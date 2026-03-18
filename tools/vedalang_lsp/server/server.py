@@ -178,7 +178,7 @@ class VedaLangServer(LanguageServer):
         self.references: dict[str, list[SymbolRef]] = {}
 
 
-server = VedaLangServer("vedalang-lsp", "0.3.0")
+server = VedaLangServer("vedalang-lsp", "0.3.1")
 
 
 def get_word_at_position(

@@ -792,10 +792,13 @@ cat diag.json | jq '.diagnostics[] | {code, severity, message}'
 **MANDATORY WORKFLOW:**
 
 1. **File issues for remaining work** - Create issues for anything that needs follow-up
-2. **Run quality gates** (if code changed) - Tests, linters, builds
-3. **Commit all completed work** - Stage and commit all intended changes before handoff
-4. **Update issue status** - Close finished work, update in-progress items
-5. **PUSH TO REMOTE** - This is MANDATORY:
+2. **Bump versions** - Increment shipped version markers before every push
+   (`pyproject.toml`, `tools/vedalang_lsp/server/server.py`,
+   `tools/vedalang_lsp/extension/package.json`) and update any related tests/docs
+3. **Run quality gates** (if code changed) - Tests, linters, builds
+4. **Commit all completed work** - Stage and commit all intended changes before handoff
+5. **Update issue status** - Close finished work, update in-progress items
+6. **PUSH TO REMOTE** - This is MANDATORY:
    ```bash
    git add -A
    git commit -m "<clear summary>"
@@ -804,13 +807,14 @@ cat diag.json | jq '.diagnostics[] | {code, severity, message}'
    git push
    git status  # MUST show "up to date with origin"
    ```
-6. **Clean up** - Clear stashes, prune remote branches
-7. **Verify** - All changes committed AND pushed
-8. **Hand off** - Provide context for next session
+7. **Clean up** - Clear stashes, prune remote branches
+8. **Verify** - All changes committed AND pushed
+9. **Hand off** - Provide context for next session
 
 **CRITICAL RULES:**
 - Work is NOT complete until all intended changes are committed
 - Work is NOT complete until `git push` succeeds
+- Do NOT push shipped code without incrementing the repo/tool version markers
 - NEVER leave finished work only in the working tree
 - NEVER stop before pushing - that leaves work stranded locally
 - NEVER say "ready to push when you are" - YOU must push

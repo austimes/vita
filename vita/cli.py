@@ -407,10 +407,10 @@ def main() -> None:
 
     subparsers.add_parser(
         "update",
-        help="Refresh installed vita and vedalang tools from GitHub main",
+        help="Refresh installed vita and vedalang tools when GitHub main is newer",
         description=(
-            "Refresh the installed vita and vedalang commands from GitHub main "
-            "using uv tool install --force."
+            "Check the installed vita and vedalang tool package against GitHub "
+            "main and refresh it with uv tool install --force when main is newer."
         ),
     )
 

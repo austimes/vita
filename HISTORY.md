@@ -4,6 +4,11 @@ Chronological record of the current repository state.
 
 ## 2026-03-18
 
+- Bumped the shipped repo/tool version to `0.3.1` across the Python package,
+  LSP server, and VS Code extension metadata.
+- Made `vita update` version-aware: it now compares the installed tool package
+  to GitHub `main`, reports when you are already current, and only refreshes
+  when `main` is newer.
 - Added `vita update` to refresh the installed `vita`/`vedalang` tool package
   from GitHub `main` via `uv tool install --force`.
 - Repository hygiene audit (`vedalang-tidn`): fixed broken pytest venv shim,
