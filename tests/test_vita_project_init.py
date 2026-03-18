@@ -53,18 +53,20 @@ class TestInitProject:
     def test_with_bd_runs_bd_init(self, tmp_path: Path) -> None:
         with patch("vita.project_init.subprocess.run") as mock_run:
             mock_run.return_value = subprocess.CompletedProcess(
-                args=["bd", "init"], returncode=0
+                args=["bd", "init", "--quiet"], returncode=0
             )
             result = init_project(tmp_path, with_bd=True)
         assert result["bd_initialized"] is True
         mock_run.assert_called_once()
         call_args = mock_run.call_args
-        assert call_args[0][0] == ["bd", "init"]
+        assert call_args[0][0] == ["bd", "init", "--quiet"]
+        assert call_args[1]["capture_output"] is True
+        assert call_args[1]["text"] is True
 
     def test_with_bd_appends_agents_template(self, tmp_path: Path) -> None:
         with patch("vita.project_init.subprocess.run") as mock_run:
             mock_run.return_value = subprocess.CompletedProcess(
-                args=["bd", "init"], returncode=0
+                args=["bd", "init", "--quiet"], returncode=0
             )
             init_project(tmp_path, with_bd=True)
         agents = tmp_path / "AGENTS.md"
@@ -81,6 +83,10 @@ class TestInitProject:
             result = init_project(tmp_path, with_bd=True)
         assert result["bd_initialized"] is False
         assert result["bd_failed"] is True
+        assert (
+            result["bd_error"]
+            == "bd not found on PATH; install beads to use task tracking"
+        )
         # AGENTS.md should exist but without bd section
         agents = tmp_path / "AGENTS.md"
         assert agents.exists()
@@ -89,11 +95,24 @@ class TestInitProject:
     def test_with_bd_handles_bd_failure(self, tmp_path: Path) -> None:
         with patch(
             "vita.project_init.subprocess.run",
-            side_effect=subprocess.CalledProcessError(1, "bd init"),
+            side_effect=subprocess.CalledProcessError(
+                1, ["bd", "init", "--quiet"], stderr="bd backend failed"
+            ),
         ):
             result = init_project(tmp_path, with_bd=True)
         assert result["bd_initialized"] is False
         assert result["bd_failed"] is True
+        assert result["bd_error"] == "bd backend failed"
+
+    def test_with_bd_handles_timeout(self, tmp_path: Path) -> None:
+        with patch(
+            "vita.project_init.subprocess.run",
+            side_effect=subprocess.TimeoutExpired(["bd", "init", "--quiet"], 30),
+        ):
+            result = init_project(tmp_path, with_bd=True)
+        assert result["bd_initialized"] is False
+        assert result["bd_failed"] is True
+        assert result["bd_error"] == "bd init timed out after 30s"
 
     def test_without_bd_no_bd_keys_in_result(self, tmp_path: Path) -> None:
         result = init_project(tmp_path)

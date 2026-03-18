@@ -88,12 +88,13 @@ def init_project(
 
     # Initialize beads (bd) for task tracking
     if with_bd:
-        if _init_beads(target):
-            result["bd_initialized"] = True
+        bd_result = _init_beads(target)
+        result["bd_initialized"] = bd_result["initialized"]
+        if bd_result["initialized"]:
             _append_bd_template(target / "AGENTS.md")
         else:
-            result["bd_initialized"] = False
             result["bd_failed"] = True
+            result["bd_error"] = bd_result["message"]
 
     return result
 
@@ -164,26 +165,39 @@ def _write_env(
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def _init_beads(target: Path) -> bool:
+def _init_beads(target: Path) -> dict[str, str | bool]:
     """Run ``bd init`` in the target directory.
 
-    Returns True on success, False on failure.
+    Returns structured status to distinguish missing commands from runtime failures.
     """
     try:
         subprocess.run(
-            ["bd", "init"],
+            ["bd", "init", "--quiet"],
             cwd=str(target),
             capture_output=True,
+            text=True,
             timeout=30,
             check=True,
         )
-    except (
-        subprocess.CalledProcessError,
-        FileNotFoundError,
-        subprocess.TimeoutExpired,
-    ):
-        return False
-    return True
+    except FileNotFoundError:
+        return {
+            "initialized": False,
+            "message": "bd not found on PATH; install beads to use task tracking",
+        }
+    except subprocess.TimeoutExpired:
+        return {
+            "initialized": False,
+            "message": "bd init timed out after 30s",
+        }
+    except subprocess.CalledProcessError as exc:
+        detail = (exc.stderr or exc.stdout or "").strip()
+        if not detail:
+            detail = f"bd init exited with status {exc.returncode}"
+        return {
+            "initialized": False,
+            "message": detail,
+        }
+    return {"initialized": True, "message": ""}
 
 
 def _append_bd_template(agents_md_path: Path) -> None:
