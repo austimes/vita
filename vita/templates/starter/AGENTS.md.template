@@ -1,0 +1,92 @@
+# Vita Project
+
+This is a Vita project for answering energy system questions through experiments.
+
+## How It Works
+
+Vita runs the scientific method as an agentic loop:
+
+1. **Ask a question** about an energy system
+2. **Design experiments** — write VedaLang model variants and an experiment manifest
+3. **Run the deterministic pipeline** — `vita experiment stage → run → summarize`
+4. **Interpret results** — read the evidence, write structured reasoning
+5. **Iterate** — refine models, add variants, go around until the question is answered
+
+Every step produces documented, reproducible artifacts.
+
+## Workflow Commands
+
+```bash
+# Author and validate models
+vedalang validate models/<model>.veda.yaml --run <run_id>
+vedalang lint models/<model>.veda.yaml
+vedalang fmt models/<model>.veda.yaml
+
+# Run a single model
+vita run models/<model>.veda.yaml --run <run_id> --out runs/<name> --json
+
+# Compare two runs
+vita diff runs/<baseline> runs/<variant> --json
+
+# Run a full experiment (stage + run + summarize)
+vita experiment experiments/<manifest>.experiment.yaml --out experiments/ --json
+
+# Step-by-step experiment workflow
+vita experiment stage <manifest>.experiment.yaml --out experiments/
+vita experiment run experiments/<id> --json
+vita experiment summarize experiments/<id> --json
+
+# Validate agentic artifacts
+vita experiment validate-brief experiments/<id>
+vita experiment validate-interpretation experiments/<id>
+
+# Generate HTML presentation
+vita experiment present experiments/<id>
+```
+
+## Experiment Workflow
+
+### Phase 1: Design & Plan (Your Job)
+1. Read the question and understand the target model
+2. Design the experiment: choose variants, form hypotheses
+3. Write `manifest.yaml` — the experiment contract
+4. Write `planning/brief.json` — your design rationale with mechanism chains
+5. Run `vita experiment validate-brief` — must pass before continuing
+
+### Phase 2: Execute (Deterministic)
+6. `vita experiment stage <manifest> --out <dir>`
+7. `vita experiment run <dir> --json`
+8. `vita experiment summarize <dir> --json`
+
+### Phase 3: Interpret (Your Job)
+9. Read the evidence: `conclusions/summary.json`, `diffs/*/diff.json`, `runs/*/results.json`
+10. Reason about what the results mean — WHY did things change?
+11. Write `conclusions/interpretation.json` — structured reasoning chain
+12. Run `vita experiment validate-interpretation` — must pass
+
+### Phase 4: Present (Deterministic)
+13. `vita experiment present <dir>`
+
+## Project Layout
+
+- `models/` — VedaLang model files (.veda.yaml)
+- `experiments/` — Experiment outputs (manifests, runs, diffs, conclusions)
+- `runs/` — Individual run artifacts
+- `notes/` — Research questions and planning notes
+
+## First Prompts to Try
+
+- "What technology mix does the solver select for the example model, and why?"
+- "Design an experiment to test what happens if we double gas prices"
+- "Run the example model and explain the results"
+
+## VedaLang Quick Reference
+
+Models are written in `.veda.yaml` files defining:
+- **Commodities** — energy carriers, services, emissions
+- **Technologies** — conversion processes with inputs, outputs, efficiency
+- **Technology roles** — service contracts grouping technologies
+- **Sites and facilities** — physical locations with asset stock
+- **Runs** — compilation targets (base year, region)
+
+See `vedalang --help` and `vita --help` for full CLI documentation.

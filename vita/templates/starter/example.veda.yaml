@@ -1,0 +1,120 @@
+dsl_version: "0.3"
+
+commodities:
+  - id: natural_gas
+    type: energy
+    energy_form: primary
+
+  - id: electricity
+    type: energy
+    energy_form: secondary
+
+  - id: industrial_heat
+    type: service
+
+  - id: gas_supply
+    type: service
+
+technologies:
+  - id: gas_boiler
+    description: Gas-fired boiler for industrial heat production.
+    inputs:
+      - commodity: natural_gas
+        basis: HHV
+    outputs:
+      - commodity: industrial_heat
+    lifetime: 25 year
+    performance:
+      kind: efficiency
+      value: 0.85
+    provides: industrial_heat
+
+  - id: electric_heater
+    description: Electric resistance heater for industrial heat.
+    inputs:
+      - commodity: electricity
+    lifetime: 20 year
+    performance:
+      kind: efficiency
+      value: 0.95
+    provides: industrial_heat
+
+  - id: gas_import
+    description: Natural gas import/supply process.
+    outputs:
+      - commodity: natural_gas
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: gas_supply
+
+technology_roles:
+  - id: heat_supply
+    description: Technologies that deliver industrial heat.
+    primary_service: industrial_heat
+    technologies:
+      - gas_boiler
+      - electric_heater
+
+  - id: gas_supply
+    description: Technologies that supply natural gas.
+    primary_service: gas_supply
+    technologies:
+      - gas_import
+
+spatial_layers:
+  - id: geo.demo
+    geometry_file: data/regions.geojson
+    key: region_id
+    kind: polygon
+
+region_partitions:
+  - id: demo_partition
+    layer: geo.demo
+    mapping:
+      kind: constant
+      value: REG1
+    members:
+      - REG1
+
+sites:
+  - id: demo_site
+    location:
+      point:
+        lat: -33.87
+        lon: 151.21
+    membership_overrides:
+      region_partitions:
+        demo_partition: REG1
+
+facilities:
+  - id: demo_gas_supply
+    description: Gas supply facility at demo site.
+    site: demo_site
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 500 MW
+            year: 2025
+          technology: gas_import
+    technology_role: gas_supply
+
+  - id: demo_heat_plant
+    description: Heat production facility at demo site.
+    site: demo_site
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 50 MW
+            year: 2025
+          technology: gas_boiler
+    technology_role: heat_supply
+
+runs:
+  - id: demo_2025
+    base_year: 2025
+    currency_year: 2024
+    region_partition: demo_partition

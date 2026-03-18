@@ -1,16 +1,161 @@
-# VedaLang
+# Vita
 
-A typed DSL that compiles to VEDA tables for TIMES energy system models.
-
-VedaLang provides type safety, schema validation, and clear error messages while compiling to VEDA Excel tables that can be processed by xl2times and solved with GAMS/TIMES.
+Vita lets AI agents run the scientific method on energy system models. Ask a question about energy policy, technology, or infrastructure — Vita frames hypotheses, designs experiments, runs them through a physics-based solver, and interprets the results.
 
 ```
-VedaLang Source (.veda.yaml) → CSIR/CPIR → VEDA Excel (.xlsx) → xl2times → TIMES DD files
+    ┌─────────────────────────────────────────────────────────────┐
+    │                   THE VITA LOOP                             │
+    │                                                             │
+    │   ┌──────────┐    ┌────────────┐    ┌──────────────────┐    │
+    │   │  Frame   │───▶│ Hypothesize│───▶│ Design Experiment│    │
+    │   │ Question │    │            │    │  (VedaLang model) │    │
+    │   └──────────┘    └────────────┘    └────────┬─────────┘    │
+    │        ▲                                     │              │
+    │        │                                     ▼              │
+    │   ┌────┴─────┐    ┌────────────┐    ┌──────────────────┐    │
+    │   │ Iterate  │◀───│ Interpret  │◀───│   Run Solver     │    │
+    │   │          │    │  Results   │    │  (GAMS/TIMES)    │    │
+    │   └──────────┘    └────────────┘    └──────────────────┘    │
+    │                                                             │
+    └─────────────────────────────────────────────────────────────┘
+```
+
+The agent handles the bookends (framing, hypothesizing, interpreting, iterating). The deterministic core (compile, solve, extract) runs without LLM involvement.
+
+---
+
+## Quick Start
+
+```bash
+# Clone and install
+git clone https://github.com/austimes/vedalang.git
+cd vedalang
+uv sync
+
+# Initialize a new experiment workspace
+vita init my-experiment
+
+# Or run an existing model
+uv run vita run vedalang/examples/quickstart/mini_space_heat.veda.yaml \
+  --run toy_region_2025 --json
+```
+
+Then open the workspace in your AI agent and start asking questions.
+
+---
+
+## How Vita Works
+
+Vita separates what agents are good at from what deterministic tools are good at:
+
+| Phase | Who | What happens |
+|-------|-----|-------------|
+| **Frame** | Agent | Translates a policy/engineering question into a testable hypothesis |
+| **Design** | Agent | Authors a VedaLang model (baseline + variant) expressing the experiment |
+| **Compile** | `vedalang compile` | Deterministic lowering: VedaLang → CSIR → CPIR → VEDA Excel |
+| **Solve** | `vita run` | VEDA Excel → xl2times → DD files → GAMS/TIMES solver |
+| **Extract** | `vita results` | Structured results from solver output (GDX → JSON) |
+| **Interpret** | Agent | Reads results, draws conclusions, decides next iteration |
+
+The compile → solve → extract core is fully deterministic. No LLM is involved in the physics.
+
+---
+
+## How the Pieces Fit Together
+
+- **Vita** is the experiment loop — orchestrates question → model → solve → interpret cycles
+- **VedaLang** is the language — a typed DSL for expressing energy system models as `.veda.yaml` files
+- **GAMS/TIMES** is the solver backend — the physics engine that optimizes the energy system
+
+```
+VedaLang Source (.veda.yaml) → CSIR/CPIR → VEDA Excel (.xlsx) → xl2times → TIMES DD files → GAMS → Solution
 ```
 
 ---
 
-## Terminology
+## Three CLI Tools
+
+This repository provides three CLI tools with distinct roles:
+
+| CLI | Role | Audience |
+|-----|------|----------|
+| **`vita`** | The engine — run, analyze, and explain TIMES experiments | Anyone running models |
+| **`vedalang`** | The language — author, lint, compile, validate models | Model developers |
+| **`vedalang-dev`** | Internal R&D — pattern experimentation, evals, emit-excel | Language designers |
+
+**Rule of thumb:** Use `vita` to *run and analyze* experiments, `vedalang` to *write* models, and `vedalang-dev` only for language design work.
+
+---
+
+## Choose Your Path
+
+| Goal | You are a... | Start here |
+|------|--------------|------------|
+| **Answer energy system questions** with an AI agent | Analyst / Researcher | [Running Experiments](#running-experiments) |
+| **Author energy system models** using VedaLang | Model Developer | [Authoring Models in VedaLang](#authoring-models-in-vedalang) |
+| **Extend or improve** the VedaLang language itself | Language Designer | [For Contributors](#for-contributors) |
+
+---
+
+## Core Commands
+
+### Vita (run and analyze)
+
+```bash
+# Run full pipeline: VedaLang → Excel → DD → TIMES
+uv run vita run model.veda.yaml --run <run_id> --json
+
+# Run without solver (useful when GAMS unavailable)
+uv run vita run model.veda.yaml --run <run_id> --no-solver --json
+
+# Compare baseline vs variant
+uv run vita diff runs/<study>/baseline runs/<study>/<variant> --json
+
+# Extract results from a solved model
+uv run vita results --gdx tmp/gams/scenario.gdx --json
+```
+
+### VedaLang (author and validate)
+
+```bash
+# Validate a model (compile + oracle validation)
+uv run vedalang validate model.veda.yaml --run <run_id>
+
+# Compile to Excel only
+uv run vedalang compile model.veda.yaml --run <run_id> --out output/
+
+# Lint for heuristic issues
+uv run vedalang lint model.veda.yaml
+
+# Format YAML
+uv run vedalang fmt model.veda.yaml
+```
+
+### CLI Command Boundaries
+
+- `uv run vedalang fmt <path>`: canonical formatting (deterministic ordering + layout/blank-lines/indentation)
+- `uv run vedalang lint <model>.veda.yaml`: semantic/modeling diagnostics
+- `uv run vedalang compile <model>.veda.yaml --run <run_id> --out <dir>`: run-scoped compilation
+- `uv run vedalang validate <model>.veda.yaml --run <run_id>`: full compile + oracle validation
+- `uv run vita run <model>.veda.yaml --run <run_id> [--json]`: solve/execution and artifact generation
+- `uv run vita diff <baseline_run_dir> <variant_run_dir> --json`: run-to-run comparison and deltas
+
+---
+
+## Authoring Models in VedaLang
+
+Write `.veda.yaml` files to define energy system models. The compiler handles Excel generation and validation.
+
+### Documentation
+
+- **[skills/vedalang-dsl-cli/SKILL.md](skills/vedalang-dsl-cli/SKILL.md)** — Canonical agent skill for VedaLang DSL + CLI usage
+- **[docs/vedalang-user/modeling-conventions.md](docs/vedalang-user/modeling-conventions.md)** — Canonical modeling conventions guidance
+- **[docs/vedalang-user/known_answer_catalog.md](docs/vedalang-user/known_answer_catalog.md)** — Solver-backed known-answer suite catalog with coverage status and solved-output mappings
+- **[vedalang/examples/](vedalang/examples/)** — Example models
+- **[vedalang/schema/vedalang.schema.json](vedalang/schema/vedalang.schema.json)** — Language schema
+- **[rules/patterns.yaml](rules/patterns.yaml)** — Pattern "standard library"
+
+### Terminology
 
 VedaLang uses precise terminology to avoid ambiguity:
 
@@ -44,109 +189,6 @@ This separation distinguishes between:
 - **Model architecture** (`VT` in VEDA terminology; compiler emits lowercase `vt_*` files): processes, commodities, topology
 - **Scenario instantiation** (`scen_*` files, when used): demands, prices, policies that instantiate the architecture
 
----
-
-## Three CLI Tools
-
-This repository provides three CLI tools with distinct roles:
-
-| CLI | Role | Audience |
-|-----|------|----------|
-| **`vedalang`** | The language — author, lint, compile, validate models | Model developers |
-| **`vita`** | The engine — run, analyze, and explain TIMES experiments | Anyone running models |
-| **`vedalang-dev`** | Internal R&D — pattern experimentation, evals, emit-excel | Language designers |
-
-**Rule of thumb:** Use `vedalang` to *write* models, `vita` to *run and analyze* them, and `vedalang-dev` only for language design work.
-
-## Two Ways to Use This Repository
-
-| Goal | You are a... | Start here |
-|------|--------------|------------|
-| **Author energy system models** using VedaLang | Model Developer | [Using VedaLang](#using-vedalang) |
-| **Extend or improve** the VedaLang language itself | Language Designer | [Developing VedaLang](#developing-vedalang) |
-
-## LLM-Facing Docs
-
-The repo keeps LLM-facing guidance split by persona, with explicit ownership:
-
-- [docs/LLM_DOCS.md](docs/LLM_DOCS.md) — full index of each LLM-facing file, purpose, and source-of-truth
-- `vedalang/schema/vedalang.schema.json` — canonical authored-DSL enums and syntax truth
-- `vedalang/conventions.py` — canonical runtime accessors used by compiler, linter, and LLM prompts
-- `docs/vedalang-user/modeling-conventions.md` — canonical modeling conventions guidance text
-- `skills/vedalang-dsl-cli/SKILL.md` — canonical user-agent DSL+CLI skill
-- `tools/sync_conventions.py` — regenerates schema-derived enum snippets in docs
-
-To verify docs are in sync with schema enums:
-
-```bash
-uv run python tools/sync_conventions.py --check
-```
-
-To verify runtime consumers stay aligned with canonical conventions:
-
-```bash
-uv run pytest tests/test_conventions_sync.py
-```
-
----
-
-## Using VedaLang
-
-Write `.veda.yaml` files to define energy system models. The compiler handles Excel generation and validation.
-
-### Documentation
-
-- **[skills/vedalang-dsl-cli/SKILL.md](skills/vedalang-dsl-cli/SKILL.md)** — Canonical agent skill for VedaLang DSL + CLI usage
-- **[docs/vedalang-user/modeling-conventions.md](docs/vedalang-user/modeling-conventions.md)** — Canonical modeling conventions guidance
-- **[docs/vedalang-user/known_answer_catalog.md](docs/vedalang-user/known_answer_catalog.md)** — Solver-backed known-answer suite catalog with coverage status and solved-output mappings
-- **[vedalang/examples/](vedalang/examples/)** — Example models
-- **[vedalang/schema/vedalang.schema.json](vedalang/schema/vedalang.schema.json)** — Language schema
-- **[rules/patterns.yaml](rules/patterns.yaml)** — Pattern "standard library"
-
-### Quick Start
-
-```bash
-# Install
-git clone https://github.com/austimes/vedalang.git
-cd vedalang
-uv sync
-
-# Validate a model
-uv run vedalang validate model.veda.yaml --run <run_id>
-
-# Check formatting for VedaLang YAML
-uv run vedalang fmt --check model.veda.yaml
-
-# Lint for heuristic issues
-uv run vedalang lint model.veda.yaml
-
-# Compile to Excel only
-uv run vedalang compile model.veda.yaml --run <run_id> --out output/
-
-# Run full pipeline (VedaLang → Excel → DD → TIMES)
-uv run vita run model.veda.yaml --run <run_id> --json
-
-# Run without solver (useful when GAMS unavailable)
-uv run vita run model.veda.yaml --run <run_id> --no-solver --json
-```
-
-### Running Toy Examples With Vita
-
-Toy-sector examples live in `vedalang/examples/toy_sectors/`. Keep `vedalang`
-for authoring/validation, and use `vita` to execute and compare runs.
-
-```bash
-# Run a toy example (recommended default for toy-sector runs: keep --no-sankey)
-uv run vita run vedalang/examples/toy_sectors/<toy_model>.veda.yaml --run <run_id> --no-sankey --out runs/<study>/<case> --json
-
-# Compare baseline vs variant artifacts
-uv run vita diff runs/<study>/baseline runs/<study>/<variant> --json
-```
-
-For a concrete reproducible loop, see
-`vedalang/examples/toy_sectors/README.md` and
-`docs/vedalang-user/toy_industry_experiment_notes.md`.
-
 ### Explicit Quantities and Basis
 
 VedaLang v0.3 uses explicit quantity strings and no implicit basis/defaulting:
@@ -161,15 +203,6 @@ VedaLang v0.3 uses explicit quantity strings and no implicit basis/defaulting:
 
 See [docs/vedalang-user/attribute_mapping.md](docs/vedalang-user/attribute_mapping.md)
 for supported quantity strings and backend attribute mapping details.
-
-### CLI Command Boundaries
-
-- `uv run vedalang fmt <path>`: canonical formatting (deterministic ordering + layout/blank-lines/indentation)
-- `uv run vedalang lint <model>.veda.yaml`: semantic/modeling diagnostics
-- `uv run vedalang compile <model>.veda.yaml --run <run_id> --out <dir>`: run-scoped compilation
-- `uv run vedalang validate <model>.veda.yaml --run <run_id>`: full compile + oracle validation
-- `uv run vita run <model>.veda.yaml --run <run_id> [--json]`: solve/execution and artifact generation
-- `uv run vita diff <baseline_run_dir> <variant_run_dir> --json`: run-to-run comparison and deltas
 
 ### Minimal Example
 
@@ -265,7 +298,92 @@ runs:
 
 ---
 
-## Developing VedaLang
+## Running Experiments
+
+Toy-sector examples live in `vedalang/examples/toy_sectors/`. Use `vedalang` for authoring/validation and `vita` to execute and compare runs.
+
+```bash
+# Run a toy example (recommended default for toy-sector runs: keep --no-sankey)
+uv run vita run vedalang/examples/toy_sectors/<toy_model>.veda.yaml \
+  --run <run_id> --no-sankey --out runs/<study>/<case> --json
+
+# Compare baseline vs variant artifacts
+uv run vita diff runs/<study>/baseline runs/<study>/<variant> --json
+```
+
+For a concrete reproducible loop, see
+`vedalang/examples/toy_sectors/README.md` and
+`docs/vedalang-user/toy_industry_experiment_notes.md`.
+
+---
+
+## Project Structure
+
+```
+vedalang/
+├── vita/                  # Vita engine CLI (run, results, sankey, diff)
+├── vedalang/              # VedaLang compiler, schema, examples
+│   ├── compiler/          # VedaLang → TableIR compiler
+│   ├── schema/            # JSON Schema definitions
+│   ├── examples/          # Example VedaLang models
+│   ├── heuristics/        # Pre-compilation checks
+│   ├── identity/          # Process/commodity identity system
+│   ├── lint/              # LLM-based structural assessment
+│   └── viz/               # RES graph visualization and inspector
+├── tools/
+│   ├── veda_dev/          # Design agent CLI (vedalang-dev)
+│   ├── veda_emit_excel/   # TableIR → Excel emitter
+│   ├── veda_check/        # Model validation utilities
+│   ├── veda_patterns/     # Pattern library tools
+│   ├── veda_run_times/    # Internal TIMES solver runner used by vita
+│   └── vedalang_lsp/      # Language server protocol
+├── xl2times/              # Local fork of xl2times (Excel → DD)
+├── rules/                 # Pattern library
+├── skills/                # Agent skills (DSL, modeling, experiments)
+├── docs/
+│   ├── vedalang-user/     # Documentation for model authors
+│   └── vedalang-design-agent/  # Documentation for language designers
+├── tests/                 # Test suite
+└── fixtures/              # Golden test fixtures
+```
+
+---
+
+## Installation
+
+### Prerequisites
+
+- Python 3.11+
+- [Bun](https://bun.sh/) (for YAML formatting checks)
+- [uv](https://docs.astral.sh/uv/) package manager
+- GAMS with a valid license (for running the solver)
+- TIMES source code
+
+### Setup
+
+```bash
+# Clone and install
+git clone https://github.com/austimes/vedalang.git
+cd vedalang
+uv sync
+uv pip install -e .
+
+# Configure environment
+cp .env.example .env
+# Edit .env to set TIMES_SRC=/path/to/your/TIMES_model
+```
+
+### Getting TIMES Source
+
+```bash
+git clone https://github.com/etsap-TIMES/TIMES_model.git ~/TIMES_model
+```
+
+Then set `TIMES_SRC` in your `.env` file to point to this directory.
+
+---
+
+## For Contributors
 
 Extend the VedaLang DSL, improve the compiler, or discover new VEDA patterns.
 
@@ -308,68 +426,27 @@ uv run vedalang validate vedalang/examples/quickstart/mini_space_heat.veda.yaml 
 
 ---
 
-## Installation
+## LLM-Facing Docs
 
-### Prerequisites
+The repo keeps LLM-facing guidance split by persona, with explicit ownership:
 
-- Python 3.11+
-- [Bun](https://bun.sh/) (for YAML formatting checks)
-- [uv](https://docs.astral.sh/uv/) package manager
-- GAMS with a valid license (for running the solver)
-- TIMES source code
+- [docs/LLM_DOCS.md](docs/LLM_DOCS.md) — full index of each LLM-facing file, purpose, and source-of-truth
+- `vedalang/schema/vedalang.schema.json` — canonical authored-DSL enums and syntax truth
+- `vedalang/conventions.py` — canonical runtime accessors used by compiler, linter, and LLM prompts
+- `docs/vedalang-user/modeling-conventions.md` — canonical modeling conventions guidance text
+- `skills/vedalang-dsl-cli/SKILL.md` — canonical user-agent DSL+CLI skill
+- `tools/sync_conventions.py` — regenerates schema-derived enum snippets in docs
 
-### Setup
-
-```bash
-# Clone and install
-git clone https://github.com/austimes/vedalang.git
-cd vedalang
-uv sync
-uv pip install -e .
-
-# Configure environment
-cp .env.example .env
-# Edit .env to set TIMES_SRC=/path/to/your/TIMES_model
-```
-
-### Getting TIMES Source
+To verify docs are in sync with schema enums:
 
 ```bash
-git clone https://github.com/etsap-TIMES/TIMES_model.git ~/TIMES_model
+uv run python tools/sync_conventions.py --check
 ```
 
-Then set `TIMES_SRC` in your `.env` file to point to this directory.
+To verify runtime consumers stay aligned with canonical conventions:
 
----
-
-## Project Structure
-
-```
-vedalang/
-├── vedalang/              # VedaLang compiler, schema, examples
-│   ├── compiler/          # VedaLang → TableIR compiler
-│   ├── schema/            # JSON Schema definitions
-│   ├── examples/          # Example VedaLang models
-│   ├── heuristics/        # Pre-compilation checks
-│   ├── identity/          # Process/commodity identity system
-│   ├── lint/              # LLM-based structural assessment
-│   └── viz/               # RES graph visualization and inspector
-├── vita/                  # Vita engine CLI (run, results, sankey, diff)
-├── tools/
-│   ├── veda_dev/          # Design agent CLI (vedalang-dev)
-│   ├── veda_emit_excel/   # TableIR → Excel emitter
-│   ├── veda_check/        # Model validation utilities
-│   ├── veda_patterns/     # Pattern library tools
-│   ├── veda_run_times/    # Internal TIMES solver runner used by vita
-│   └── vedalang_lsp/      # Language server protocol
-├── xl2times/              # Local fork of xl2times (Excel → DD)
-├── rules/                 # Pattern library
-├── skills/                # Agent skills (DSL, modeling, experiments)
-├── docs/
-│   ├── vedalang-user/     # Documentation for model authors
-│   └── vedalang-design-agent/  # Documentation for language designers
-├── tests/                 # Test suite
-└── fixtures/              # Golden test fixtures
+```bash
+uv run pytest tests/test_conventions_sync.py
 ```
 
 ---

@@ -1,0 +1,24 @@
+# {project_name}
+
+A Vita project for energy system analysis.
+
+## Getting Started
+
+1. Open this directory in your AI agent (Amp, Codex, Claude)
+2. The agent will read `AGENTS.md` and understand the workflow
+3. Ask a question like: "Run the example model and explain what technologies are selected"
+
+## Commands
+
+```bash
+# Validate the example model
+vedalang validate models/example.veda.yaml --run demo_2025
+
+# Run the example
+vita run models/example.veda.yaml --run demo_2025 --out runs/example --json
+```
+
+## Environment
+
+- GAMS: {gams_status}
+- TIMES source: {times_status}

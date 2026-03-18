@@ -534,6 +534,38 @@ def run_experiment_full_command(args):
     sys.exit(0)
 
 
+def run_init_command(args):
+    """Handle 'vita init'."""
+    from vita.project_init import init_project
+
+    result = init_project(
+        target_dir=args.target,
+        times_src=getattr(args, "times_src", None),
+        gams_binary=getattr(args, "gams_binary", None),
+        smoke_test=getattr(args, "smoke_test", False),
+    )
+
+    print(f"\n✓ Vita project initialized: {result['project_dir']}")
+    print()
+    if result["gams_detected"]:
+        print("  GAMS: detected")
+    else:
+        print("  GAMS: not found (set GAMS_BINARY in .env)")
+    if result["times_src_detected"]:
+        print("  TIMES source: detected")
+    else:
+        print("  TIMES source: not found (set TIMES_SRC in .env)")
+    if result.get("smoke_test_passed") is True:
+        print("  Smoke test: passed ✓")
+    elif result.get("smoke_test_passed") is False:
+        print("  Smoke test: failed ✗")
+    print()
+    print("Next steps:")
+    print("  1. Open this directory in your AI agent (Amp, Codex, Claude)")
+    print("  2. The agent will read AGENTS.md and understand the workflow")
+    print('  3. Ask: "Run the example model and explain the results"')
+
+
 def _parse_multi_csv_args(values: list[str] | None) -> list[str]:
     """Parse repeated/CSV CLI values into a de-duplicated ordered list."""
     if values is None:

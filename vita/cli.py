@@ -15,6 +15,7 @@ from vita.handlers import (
     run_experiment_summarize_command,
     run_experiment_validate_brief_command,
     run_experiment_validate_interpretation_command,
+    run_init_command,
     run_pipeline_command,
     run_sankey_command,
     run_times_results_command,
@@ -370,9 +371,39 @@ def main() -> None:
         "--json", action="store_true", dest="json_output"
     )
 
+    # vita init
+    init_parser = subparsers.add_parser(
+        "init",
+        help="Bootstrap a new Vita project directory",
+    )
+    init_parser.add_argument(
+        "target",
+        nargs="?",
+        type=Path,
+        default=Path("."),
+        help="Target directory (default: current directory)",
+    )
+    init_parser.add_argument(
+        "--times-src",
+        type=Path,
+        help="Path to TIMES source code",
+    )
+    init_parser.add_argument(
+        "--gams-binary",
+        default=None,
+        help="Path to GAMS executable",
+    )
+    init_parser.add_argument(
+        "--smoke-test",
+        action="store_true",
+        help="Run a smoke test after initialization",
+    )
+
     args = parser.parse_args()
 
-    if args.command == "run":
+    if args.command == "init":
+        run_init_command(args)
+    elif args.command == "run":
         run_pipeline_command(args)
     elif args.command == "results":
         run_times_results_command(args)
