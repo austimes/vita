@@ -27,18 +27,27 @@ The agent handles the bookends (framing, hypothesizing, interpreting, iterating)
 ## Quick Start
 
 ```bash
-# Clone and install
-git clone https://github.com/austimes/vedalang.git
-cd vedalang
-uv sync
+# Install the latest CLI tools from GitHub
+uv tool install git+https://github.com/austimes/vedalang
+
+# Verify the commands are on PATH
+vita --help
+vedalang --help
 
 # Initialize a new experiment workspace
 vita init my-experiment
+cd my-experiment
 
-# Or run an existing model
-uv run vita run vedalang/examples/quickstart/mini_space_heat.veda.yaml \
-  --run toy_region_2025 --json
+# Validate the starter model
+vedalang validate models/example.veda.yaml --run demo_2025
+
+# Run the starter model without the solver
+vita run models/example.veda.yaml --run demo_2025 --no-solver --json
 ```
+
+Rerun `uv tool install --force git+https://github.com/austimes/vedalang` to refresh to the latest GitHub HEAD.
+
+Clone the repository only if you want the bundled examples, the agent skill files under `skills/`, or contributor workflows. The quick start above is the supported path for getting `vita` and `vedalang` onto your shell `PATH`.
 
 Then open the workspace in your AI agent and start asking questions.
 
@@ -103,42 +112,42 @@ This repository provides three CLI tools with distinct roles:
 
 ```bash
 # Run full pipeline: VedaLang → Excel → DD → TIMES
-uv run vita run model.veda.yaml --run <run_id> --json
+vita run model.veda.yaml --run <run_id> --json
 
 # Run without solver (useful when GAMS unavailable)
-uv run vita run model.veda.yaml --run <run_id> --no-solver --json
+vita run model.veda.yaml --run <run_id> --no-solver --json
 
 # Compare baseline vs variant
-uv run vita diff runs/<study>/baseline runs/<study>/<variant> --json
+vita diff runs/<study>/baseline runs/<study>/<variant> --json
 
 # Extract results from a solved model
-uv run vita results --gdx tmp/gams/scenario.gdx --json
+vita results --gdx tmp/gams/scenario.gdx --json
 ```
 
 ### VedaLang (author and validate)
 
 ```bash
 # Validate a model (compile + oracle validation)
-uv run vedalang validate model.veda.yaml --run <run_id>
+vedalang validate model.veda.yaml --run <run_id>
 
 # Compile to Excel only
-uv run vedalang compile model.veda.yaml --run <run_id> --out output/
+vedalang compile model.veda.yaml --run <run_id> --out output/
 
 # Lint for heuristic issues
-uv run vedalang lint model.veda.yaml
+vedalang lint model.veda.yaml
 
 # Format YAML
-uv run vedalang fmt model.veda.yaml
+vedalang fmt model.veda.yaml
 ```
 
 ### CLI Command Boundaries
 
-- `uv run vedalang fmt <path>`: canonical formatting (deterministic ordering + layout/blank-lines/indentation)
-- `uv run vedalang lint <model>.veda.yaml`: semantic/modeling diagnostics
-- `uv run vedalang compile <model>.veda.yaml --run <run_id> --out <dir>`: run-scoped compilation
-- `uv run vedalang validate <model>.veda.yaml --run <run_id>`: full compile + oracle validation
-- `uv run vita run <model>.veda.yaml --run <run_id> [--json]`: solve/execution and artifact generation
-- `uv run vita diff <baseline_run_dir> <variant_run_dir> --json`: run-to-run comparison and deltas
+- `vedalang fmt <path>`: canonical formatting (deterministic ordering + layout/blank-lines/indentation)
+- `vedalang lint <model>.veda.yaml`: semantic/modeling diagnostics
+- `vedalang compile <model>.veda.yaml --run <run_id> --out <dir>`: run-scoped compilation
+- `vedalang validate <model>.veda.yaml --run <run_id>`: full compile + oracle validation
+- `vita run <model>.veda.yaml --run <run_id> [--json]`: solve/execution and artifact generation
+- `vita diff <baseline_run_dir> <variant_run_dir> --json`: run-to-run comparison and deltas
 
 ---
 
@@ -363,8 +372,8 @@ vedalang/
 
 ```bash
 # Clone and install
-git clone https://github.com/austimes/vedalang.git
-cd vedalang
+git clone https://github.com/austimes/vita.git
+cd vita
 uv sync
 uv pip install -e .
 

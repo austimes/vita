@@ -41,4 +41,4 @@ Typical contents:
 - small supply/conversion/delivery chains that compile cleanly through the
   Excel and xl2times path
 - first-run validation examples that can be used with
-  `uv run vedalang validate <file> --run <run_id>`
+  `vedalang validate <file> --run <run_id>`

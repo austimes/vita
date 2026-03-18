@@ -54,7 +54,36 @@ vedalang-dev = "tools.veda_dev.cli:main"
 vita = "vita.cli:main"
 
 [tool.setuptools.packages.find]
-include = ["tools*", "vedalang*", "vita*", "xl2times*"]
+include = ["rules*", "tools*", "vedalang*", "vita*", "xl2times*"]
+
+[tool.setuptools.package-data]
+vedalang = [
+    "schema/*.json",
+    "schema/*.yaml",
+    "identity/*.yaml",
+    "lint/prompts/*/*/*.json",
+    "lint/prompts/*/*/*.txt",
+    "viz/static/*",
+]
+vita = [
+    "templates/*.template",
+    "templates/starter/*",
+]
+"xl2times.config" = [
+    "*.json",
+    "*.txt",
+]
+"xl2times.gams_scaffold" = [
+    "*.gms",
+    "*.opt",
+    "*.run",
+]
+"tools.veda_dev" = [
+    "evals/datasets/*.yaml",
+]
+rules = [
+    "*.yaml",
+]
 
 [tool.ruff]
 target-version = "py311"

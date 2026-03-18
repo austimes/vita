@@ -12,10 +12,20 @@ VedaLang Source (.veda.yaml)  →  VEDA Excel (.xlsx)  →  TIMES DD files
 
 ## Quick Start
 
-1. Read [`skills/vedalang-dsl-cli/SKILL.md`](../../skills/vedalang-dsl-cli/SKILL.md) — canonical DSL + CLI operational skill
-2. Study the examples in `vedalang/examples/`
-3. Check the schema at `vedalang/schema/vedalang.schema.json`
-4. Use patterns from `rules/patterns.yaml`
+```bash
+# Install the latest CLI tools from GitHub
+uv tool install git+https://github.com/austimes/vedalang
+
+# Start a workspace with a runnable starter model
+vita init my-experiment
+cd my-experiment
+
+# Validate or run the starter model
+vedalang validate models/example.veda.yaml --run demo_2025
+vita run models/example.veda.yaml --run demo_2025 --no-solver --json
+```
+
+Read [`skills/vedalang-dsl-cli/SKILL.md`](../../skills/vedalang-dsl-cli/SKILL.md), study `vedalang/examples/`, check `vedalang/schema/vedalang.schema.json`, and use patterns from `rules/patterns.yaml` when you want the full repository content locally.
 
 ## Key Resources
 
@@ -42,37 +52,37 @@ Always validate your models:
 
 ```bash
 # Formatting only (blank lines/indent/layout)
-uv run vedalang fmt your_model.veda.yaml
+vedalang fmt your_model.veda.yaml
 
 # Non-mutating formatting gate
-uv run vedalang fmt --check your_model.veda.yaml
+vedalang fmt --check your_model.veda.yaml
 
 # Full validation (lint + compile + xl2times)
-uv run vedalang validate your_model.veda.yaml --run your_run_id
+vedalang validate your_model.veda.yaml --run your_run_id
 
 # Compile only
-uv run vedalang compile your_model.veda.yaml --run your_run_id --out out/
+vedalang compile your_model.veda.yaml --run your_run_id --out out/
 
 # Execute/solve a run and write machine-readable artifacts
-uv run vita run your_model.veda.yaml --run your_run_id --json
+vita run your_model.veda.yaml --run your_run_id --json
 
 # Compare two completed run artifacts
-uv run vita diff runs/<study>/baseline runs/<study>/variant --json
+vita diff runs/<study>/baseline runs/<study>/variant --json
 
 # Lint all deterministic categories
-uv run vedalang lint your_model.veda.yaml
+vedalang lint your_model.veda.yaml
 
 # Deterministic lint categories (repeat --category as needed)
-uv run vedalang lint your_model.veda.yaml --category feasibility
-uv run vedalang lint your_model.veda.yaml --category core --category identity
+vedalang lint your_model.veda.yaml --category feasibility
+vedalang lint your_model.veda.yaml --category core --category identity
 
 # LLM lint (advisory checks; critical findings fail by default)
-uv run vedalang llm-lint your_model.veda.yaml --category structure
-uv run vedalang llm-lint your_model.veda.yaml --category units
+vedalang llm-lint your_model.veda.yaml --category structure
+vedalang llm-lint your_model.veda.yaml --category units
 
 # LLM lint runtime controls
-uv run vedalang llm-lint your_model.veda.yaml --category structure --model gpt-5-nano --reasoning-effort low --prompt-version v1
-uv run vedalang llm-lint your_model.veda.yaml --category units --model gpt-5-mini --model gpt-5-nano --reasoning-effort low --request-timeout-sec 180
+vedalang llm-lint your_model.veda.yaml --category structure --model gpt-5-nano --reasoning-effort low --prompt-version v1
+vedalang llm-lint your_model.veda.yaml --category units --model gpt-5-mini --model gpt-5-nano --reasoning-effort low --request-timeout-sec 180
 ```
 
 `vedalang-dev eval ...` is design-agent R&D tooling and intentionally excluded
@@ -107,8 +117,8 @@ Deterministic `lint` behavior:
 - default runs all deterministic categories
 - use `--category` to narrow to specific categories
 
-Use `uv run vedalang lint --list-categories` and
-`uv run vedalang lint --list-checks` to inspect available coverage.
+Use `vedalang lint --list-categories` and
+`vedalang lint --list-checks` to inspect available coverage.
 
 LLM lint behavior:
 

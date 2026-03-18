@@ -2,6 +2,7 @@
 
 import json
 import subprocess
+import sys
 import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -142,7 +143,9 @@ def run_check(
 
             proc = subprocess.run(
                 [
-                    "uv", "run", "python", "-m", "xl2times",
+                    sys.executable,
+                    "-m",
+                    "xl2times",
                     str(tmpdir),
                     "--output_dir", str(xl2times_output_dir),
                     "--manifest-json", str(manifest_path),
