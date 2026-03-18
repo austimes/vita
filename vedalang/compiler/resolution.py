@@ -305,6 +305,7 @@ def _qualify_imported_object(
             investment_cost=item.investment_cost,
             fixed_om=item.fixed_om,
             variable_om=item.variable_om,
+            activity_bound=item.activity_bound,
             lifetime=item.lifetime,
             stock_characterization=(
                 _qualify_ref(

@@ -13,16 +13,15 @@ STATE_FILENAME = "state.json"
 
 SCHEMA_VERSION = "vita-experiment-state/v1"
 
-VALID_STATUSES = ("planned", "running", "complete", "interpreted", "presented")
+VALID_STATUSES = ("planned", "running", "complete", "narrated")
 VALID_RUN_STATUSES = ("pending", "running", "complete", "failed")
 VALID_DIFF_STATUSES = ("pending", "complete", "failed")
 
 _VALID_TRANSITIONS: dict[str, set[str]] = {
     "planned": {"running"},
     "running": {"complete"},
-    "complete": {"interpreted"},
-    "interpreted": {"presented"},
-    "presented": set(),
+    "complete": {"narrated"},
+    "narrated": set(),
 }
 
 
@@ -67,8 +66,7 @@ class ExperimentState:
     created_at: str
     updated_at: str
     completed_at: str | None
-    interpreted_at: str | None
-    presented_at: str | None
+    narrated_at: str | None
     progress: ExperimentProgress
     run_statuses: dict[str, str] = field(default_factory=dict)
     diff_statuses: dict[str, str] = field(default_factory=dict)
@@ -83,8 +81,7 @@ class ExperimentState:
             "created_at": self.created_at,
             "updated_at": self.updated_at,
             "completed_at": self.completed_at,
-            "interpreted_at": self.interpreted_at,
-            "presented_at": self.presented_at,
+            "narrated_at": self.narrated_at,
             "progress": self.progress.to_dict(),
             "run_statuses": dict(self.run_statuses),
             "diff_statuses": dict(self.diff_statuses),
@@ -101,8 +98,7 @@ class ExperimentState:
             created_at=data["created_at"],
             updated_at=data["updated_at"],
             completed_at=data.get("completed_at"),
-            interpreted_at=data.get("interpreted_at"),
-            presented_at=data.get("presented_at"),
+            narrated_at=data.get("narrated_at"),
             progress=ExperimentProgress.from_dict(data["progress"]),
             run_statuses=dict(data.get("run_statuses", {})),
             diff_statuses=dict(data.get("diff_statuses", {})),
@@ -145,8 +141,7 @@ def create_experiment_state(
         created_at=ts,
         updated_at=ts,
         completed_at=None,
-        interpreted_at=None,
-        presented_at=None,
+        narrated_at=None,
         progress=ExperimentProgress(
             runs_total=len(run_ids),
             runs_complete=0,
@@ -162,10 +157,7 @@ def create_experiment_state(
             "brief_validation_json": None,
             "summary_json": None,
             "summary_md": None,
-            "interpretation_json": None,
-            "interpretation_md": None,
-            "interpretation_validation_json": None,
-            "presentation_html": None,
+            "report_html": None,
         },
     )
     save_experiment_state(state, experiment_dir)
@@ -274,43 +266,24 @@ def check_completion(state: ExperimentState) -> ExperimentState:
     return state
 
 
-def mark_interpreted(
+def mark_narrated(
     state: ExperimentState,
     now_utc: Callable[[], datetime] | None = None,
 ) -> ExperimentState:
-    """Transition to 'interpreted'.
+    """Transition to 'narrated'.
 
-    Raises if summary_json or interpretation_json missing.
+    Raises if summary_json or report_html missing.
     """
     if not state.artifacts.get("summary_json"):
         raise ExperimentStateError(
-            "Cannot interpret: artifacts.summary_json is not set"
+            "Cannot narrate: artifacts.summary_json is not set"
         )
-    if not state.artifacts.get("interpretation_json"):
+    if not state.artifacts.get("report_html"):
         raise ExperimentStateError(
-            "Cannot interpret: artifacts.interpretation_json is not set"
+            "Cannot narrate: artifacts.report_html is not set"
         )
-    _transition(state, "interpreted")
+    _transition(state, "narrated")
     ts = _format_timestamp(_now_factory(now_utc)())
-    state.interpreted_at = ts
-    state.updated_at = ts
-    return state
-
-
-def mark_presented(
-    state: ExperimentState,
-    now_utc: Callable[[], datetime] | None = None,
-) -> ExperimentState:
-    """Transition to 'presented'.
-
-    Raises if presentation_html missing.
-    """
-    if not state.artifacts.get("presentation_html"):
-        raise ExperimentStateError(
-            "Cannot present: artifacts.presentation_html is not set"
-        )
-    _transition(state, "presented")
-    ts = _format_timestamp(_now_factory(now_utc)())
-    state.presented_at = ts
+    state.narrated_at = ts
     state.updated_at = ts
     return state

@@ -271,3 +271,25 @@ def test_compile_public_bundle_attaches_asset_new_build_limits_to_role_processes
         process.get("source_zone_opportunity")
         for process in bundle.cpir.get("processes", [])
     )
+
+
+def test_compile_public_bundle_lowers_activity_bound_to_act_bnd():
+    source = _sample_source()
+    source["technologies"][0]["activity_bound"] = {
+        "limtype": "UP",
+        "value": "0.06 PJ",
+    }
+
+    bundle = compile_vedalang_bundle(
+        source,
+        selected_run="toy_states_2025",
+    )
+
+    fi_t_rows = _table_rows(bundle.tableir, "~FI_T")
+    assert any(
+        row.get("process") == "PRC_FAC_brisbane_heat_gas_heater"
+        and row.get("limtype") == "UP"
+        and row.get("year") == 2025
+        and row.get("act_bnd") == 0.06
+        for row in fi_t_rows
+    )

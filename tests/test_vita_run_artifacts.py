@@ -217,6 +217,69 @@ def test_emit_run_artifacts_solver_case_writes_results_and_solver_files(
     assert resolved.manifest_path.exists()
 
 
+def test_emit_run_artifacts_copies_compiled_and_dd_artifacts(
+    tmp_path: Path,
+) -> None:
+    """Pipeline intermediate artifacts (Excel, DD, diagnostics) should be preserved."""
+    src = tmp_path / "model.veda.yaml"
+    src.write_text("dsl_version: '0.3'\n", encoding="utf-8")
+
+    # Simulate pipeline work directory with Excel and DD outputs
+    work_dir = tmp_path / "work"
+    excel_dir = work_dir / "excel"
+    dd_dir = work_dir / "dd"
+    excel_dir.mkdir(parents=True)
+    dd_dir.mkdir(parents=True)
+
+    # Create fake Excel files (including nested subdirectory)
+    (excel_dir / "base").mkdir()
+    (excel_dir / "base" / "base.xlsx").write_bytes(b"excel-base")
+    (excel_dir / "scen_baseline.xlsx").write_bytes(b"excel-scen")
+
+    # Create fake DD files
+    (dd_dir / "scenario.dd").write_text("DD content", encoding="utf-8")
+    (dd_dir / "syssettings.dd").write_text("SS content", encoding="utf-8")
+
+    # Create xl2times diagnostics next to dd_dir
+    diag = {"diagnostics": []}
+    (work_dir / "xl2times_diagnostics.json").write_text(
+        json.dumps(diag), encoding="utf-8"
+    )
+
+    emission = emit_run_artifacts(
+        run_dir=tmp_path / "runs" / "baseline",
+        input_path=src,
+        input_kind="vedalang",
+        case="scenario",
+        selected_run_id="baseline",
+        pipeline_success=True,
+        pipeline_artifacts={
+            "run_id": "baseline",
+            "excel_dir": str(excel_dir),
+            "dd_dir": str(dd_dir),
+        },
+        run_times_artifacts={},
+        run_times_success=False,
+        run_times_skipped=True,
+    )
+
+    # Verify compiled/ directory
+    compiled = emission.paths.compiled_dir
+    assert compiled.is_dir()
+    assert (compiled / "base" / "base.xlsx").exists()
+    assert (compiled / "scen_baseline.xlsx").exists()
+    assert (compiled / "base" / "base.xlsx").read_bytes() == b"excel-base"
+
+    # Verify dd/ directory
+    dd = emission.paths.dd_dir
+    assert dd.is_dir()
+    assert (dd / "scenario.dd").exists()
+    assert (dd / "syssettings.dd").exists()
+    assert (dd / "diagnostics.json").exists()
+    diag_loaded = json.loads((dd / "diagnostics.json").read_text(encoding="utf-8"))
+    assert diag_loaded == {"diagnostics": []}
+
+
 def test_emit_run_artifacts_toy_industry_switching_signal_regression(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

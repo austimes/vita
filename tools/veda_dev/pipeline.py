@@ -110,11 +110,14 @@ class PipelineResult:
 
 def detect_input_kind(path: Path) -> str:
     """Auto-detect input type based on file extension/content."""
-    if path.suffix == ".yaml" and ".veda" in path.name:
+    suffix = path.suffix.lower()
+    name = path.name.lower()
+
+    if suffix in (".yaml", ".yml") and ".veda" in name:
         return "vedalang"
-    if path.suffix in (".yaml", ".json"):
+    if suffix in (".yaml", ".yml", ".json") and "tableir" in name:
         return "tableir"
-    if path.suffix == ".xlsx":
+    if suffix == ".xlsx":
         return "excel"
     if path.is_dir():
         if list(path.glob("*.dd")):
@@ -207,6 +210,16 @@ def run_pipeline(
     if input_kind is None:
         input_kind = detect_input_kind(input_path)
     result.input_kind = input_kind
+
+    supported_input_kinds = {"vedalang", "tableir", "excel", "dd"}
+    if input_kind not in supported_input_kinds:
+        input_step = StepResult(success=False)
+        input_step.errors.append(
+            "Unknown input kind. Use .veda.yaml for VedaLang, .xlsx for Excel, "
+            "a DD directory, or pass --from explicitly."
+        )
+        result.steps["input"] = input_step
+        return result
 
     # Set up work directory
     if work_dir is None:

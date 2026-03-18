@@ -62,18 +62,19 @@ CURATED_STARTER_DEMOS: tuple[StarterDemo, ...] = (
         target_relpath=Path("models/demos/toy_industry.veda.yaml"),
         default_run="single_2025",
         question=(
-            "Test a cap-tightening clean-heat extension ladder and compare policy, "
+            "Test a gas-cap extension ladder and compare policy, "
             "price, and hydrogen marginal effects."
         ),
         featured=True,
         experiment_asset_filename="experiment.toy_industry_core.experiment.yaml",
         companion_asset_filenames=(
-            "demo.toy_industry_co2_cap_loose.veda.yaml",
-            "demo.toy_industry_co2_cap_mid.veda.yaml",
-            "demo.toy_industry_co2_cap_tight.veda.yaml",
-            "demo.toy_industry_high_gas_price.veda.yaml",
-            "demo.toy_industry_high_gas_price_co2_cap_mid.veda.yaml",
-            "demo.toy_industry_high_h2_price_co2_cap_mid.veda.yaml",
+            "demo.toy_industry_switch_base.veda.yaml",
+            "demo.toy_industry_switch_cap_loose.veda.yaml",
+            "demo.toy_industry_switch_cap_mid.veda.yaml",
+            "demo.toy_industry_switch_cap_tight.veda.yaml",
+            "demo.toy_industry_switch_high_gas_price.veda.yaml",
+            "demo.toy_industry_switch_high_gas_price_cap_mid.veda.yaml",
+            "demo.toy_industry_switch_high_h2_price_cap_mid.veda.yaml",
         ),
     ),
     StarterDemo(

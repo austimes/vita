@@ -21,6 +21,12 @@ UPDATE_TOOL_PACKAGE = "VITA"
 UPDATE_VERSION_URL = (
     "https://raw.githubusercontent.com/austimes/vita/main/pyproject.toml"
 )
+_TEXT_INPUT_SUFFIXES = frozenset({".yaml", ".yml", ".json"})
+_TABLEIR_SUFFIXES = (
+    ".tableir.yaml",
+    ".tableir.yml",
+    ".tableir.json",
+)
 
 
 def _print_error(message: str) -> None:
@@ -39,6 +45,53 @@ def _print_status(
     status: tuple[str, str] | None = None,
 ) -> None:
     print_renderable(status_panel(title, rows, level=level, status=status))
+
+
+def _is_vedalang_source(path: Path) -> bool:
+    """Return True for canonical VedaLang source file names."""
+    name = path.name.lower()
+    return name.endswith(".veda.yaml") or name.endswith(".veda.yml")
+
+
+def _is_tableir_like_source(path: Path) -> bool:
+    """Return True for file names that look like TableIR sources."""
+    name = path.name.lower()
+    if name.endswith(_TABLEIR_SUFFIXES):
+        return True
+    return path.suffix.lower() in _TEXT_INPUT_SUFFIXES and "tableir" in name
+
+
+def _run_input_guardrail_error(input_path: Path, input_kind: str | None) -> str | None:
+    """Return an actionable guardrail error message for invalid user-facing inputs."""
+    if input_kind == "tableir":
+        return (
+            "TableIR input is dev-only for vita run. Use a .veda.yaml model in normal "
+            "vita workflows, or use vedalang-dev tools for TableIR workflows."
+        )
+
+    if not input_path.is_file():
+        return None
+
+    if _is_tableir_like_source(input_path):
+        return (
+            "TableIR-style input is not supported in normal vita run mode: "
+            f"{input_path}. "
+            "Use a .veda.yaml model, or convert/check TableIR via vedalang-dev."
+        )
+
+    suffix = input_path.suffix.lower()
+    if (
+        input_kind is None
+        and suffix in _TEXT_INPUT_SUFFIXES
+        and not _is_vedalang_source(input_path)
+    ):
+        return (
+            f"Unrecognized model source for vita run: {input_path}. "
+            "Use a VedaLang file ending in .veda.yaml (or .veda.yml), "
+            "or pass --from excel / --from dd for compiled artifacts."
+        )
+
+    return None
 
 
 def run_pipeline_command(args):
@@ -67,6 +120,11 @@ def run_pipeline_command(args):
 
     if not args.input.exists():
         _print_error(f"Input not found: {args.input}")
+        sys.exit(2)
+
+    guardrail_error = _run_input_guardrail_error(args.input, args.input_kind)
+    if guardrail_error:
+        _print_error(guardrail_error)
         sys.exit(2)
 
     # Suppress verbose output when JSON is requested (to keep stdout clean)
@@ -386,9 +444,15 @@ def run_sankey_command(args):
 
 def run_experiment_plan_command(args):
     """Handle 'vita experiment plan'."""
+    from vita.experiment_manifest import ExperimentManifestError
     from vita.experiment_runner import plan_experiment
 
-    state = plan_experiment(args.manifest, args.out)
+    try:
+        state = plan_experiment(args.manifest, args.out)
+    except ExperimentManifestError as exc:
+        _print_error(str(exc))
+        sys.exit(2)
+
     _print_status(
         "Experiment Staged",
         [
@@ -404,14 +468,20 @@ def run_experiment_plan_command(args):
 
 def run_experiment_run_command(args):
     """Handle 'vita experiment run'."""
+    from vita.experiment_manifest import ExperimentManifestError
     from vita.experiment_runner import run_experiment
 
-    result = run_experiment(
-        args.experiment_dir,
-        resume=args.resume,
-        force=args.force,
-        json_output=getattr(args, "json_output", False),
-    )
+    try:
+        result = run_experiment(
+            args.experiment_dir,
+            resume=args.resume,
+            force=args.force,
+            json_output=getattr(args, "json_output", False),
+        )
+    except ExperimentManifestError as exc:
+        _print_error(str(exc))
+        sys.exit(2)
+
     if args.json_output:
         print(
             json.dumps(
@@ -462,20 +532,25 @@ def run_experiment_summarize_command(args):
 
 def run_experiment_validate_brief_command(args):
     """Handle 'vita experiment validate-brief'."""
-    import json as json_mod
-
-    from vita.experiment_manifest import load_experiment_manifest
+    from vita.experiment_manifest import (
+        ExperimentManifestError,
+        load_experiment_manifest,
+    )
     from vita.experiment_validation import validate_brief
 
     experiment_dir = args.experiment_dir.expanduser().resolve()
-    manifest = load_experiment_manifest(experiment_dir / "manifest.yaml")
+    try:
+        manifest = load_experiment_manifest(experiment_dir / "manifest.yaml")
+    except ExperimentManifestError as exc:
+        _print_error(str(exc))
+        sys.exit(2)
 
     brief_path = experiment_dir / "planning" / "brief.json"
     if not brief_path.exists():
         _print_error(f"brief.json not found: {brief_path}")
         sys.exit(2)
 
-    brief = json_mod.loads(brief_path.read_text(encoding="utf-8"))
+    brief = json.loads(brief_path.read_text(encoding="utf-8"))
     result = validate_brief(brief, manifest)
 
     # Save validation result
@@ -483,7 +558,7 @@ def run_experiment_validate_brief_command(args):
     result.save(val_path)
 
     if getattr(args, "json_output", False):
-        print(json_mod.dumps(result.to_dict(), indent=2))
+        print(json.dumps(result.to_dict(), indent=2))
     else:
         rows = [
             ("Errors", str(len(result.errors))),
@@ -515,35 +590,32 @@ def run_experiment_validate_brief_command(args):
 
 def run_experiment_validate_interpretation_command(args):
     """Handle 'vita experiment validate-interpretation'."""
-    import json as json_mod
-
-    from vita.experiment_manifest import load_experiment_manifest
+    from vita.experiment_manifest import (
+        ExperimentManifestError,
+        load_experiment_manifest,
+    )
     from vita.experiment_validation import validate_interpretation
 
     experiment_dir = args.experiment_dir.expanduser().resolve()
-    manifest = load_experiment_manifest(experiment_dir / "manifest.yaml")
+    try:
+        manifest = load_experiment_manifest(experiment_dir / "manifest.yaml")
+    except ExperimentManifestError as exc:
+        _print_error(str(exc))
+        sys.exit(2)
 
     interpretation_path = experiment_dir / "conclusions" / "interpretation.json"
     if not interpretation_path.exists():
         _print_error(f"interpretation.json not found: {interpretation_path}")
         sys.exit(2)
 
-    interpretation = json_mod.loads(interpretation_path.read_text(encoding="utf-8"))
+    interpretation = json.loads(interpretation_path.read_text(encoding="utf-8"))
+    result = validate_interpretation(interpretation, manifest)
 
-    summary_path = experiment_dir / "conclusions" / "summary.json"
-    summary = {}
-    if summary_path.exists():
-        summary = json_mod.loads(summary_path.read_text(encoding="utf-8"))
-
-    result = validate_interpretation(interpretation, manifest, summary)
-
-    # Save validation result
     val_path = experiment_dir / "conclusions" / "interpretation.validation.json"
-    val_path.parent.mkdir(parents=True, exist_ok=True)
     result.save(val_path)
 
     if getattr(args, "json_output", False):
-        print(json_mod.dumps(result.to_dict(), indent=2))
+        print(json.dumps(result.to_dict(), indent=2))
     else:
         rows = [
             ("Errors", str(len(result.errors))),
@@ -573,19 +645,6 @@ def run_experiment_validate_interpretation_command(args):
     sys.exit(0 if result.valid else 2)
 
 
-def run_experiment_present_command(args):
-    """Handle 'vita experiment present'."""
-    from vita.experiment_presentation import generate_presentation
-
-    html_path = generate_presentation(args.experiment_dir)
-    _print_status(
-        "Presentation Generated",
-        [("HTML", str(html_path))],
-        level="success",
-        status=("saved", "success"),
-    )
-
-
 def run_experiment_status_command(args):
     """Handle 'vita experiment status'."""
     from vita.experiment_state import load_experiment_state
@@ -613,10 +672,16 @@ def run_experiment_status_command(args):
 
 def run_experiment_full_command(args):
     """Handle convenience 'vita experiment <manifest.yaml>' (stage+run+summarize)."""
+    from vita.experiment_manifest import ExperimentManifestError
     from vita.experiment_runner import plan_experiment, run_experiment
     from vita.experiment_summary import generate_summary
 
-    state = plan_experiment(args.manifest, args.out)
+    try:
+        state = plan_experiment(args.manifest, args.out)
+    except ExperimentManifestError as exc:
+        _print_error(str(exc))
+        sys.exit(2)
+
     _print_status(
         "Experiment Staged",
         [
@@ -629,12 +694,16 @@ def run_experiment_full_command(args):
     )
 
     experiment_dir = args.out / state.experiment_id
-    result = run_experiment(
-        experiment_dir,
-        resume=False,
-        force=False,
-        json_output=getattr(args, "json_output", False),
-    )
+    try:
+        result = run_experiment(
+            experiment_dir,
+            resume=False,
+            force=False,
+            json_output=getattr(args, "json_output", False),
+        )
+    except ExperimentManifestError as exc:
+        _print_error(str(exc))
+        sys.exit(2)
 
     if getattr(args, "json_output", False):
         print(

@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import shutil
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -73,7 +73,17 @@ def plan_experiment(
     models_dir = experiment_dir / "inputs" / "models"
     models_dir.mkdir(parents=True, exist_ok=True)
     seen_models: set[Path] = set()
+    model_sources_by_name: dict[str, Path] = {}
     for case in manifest.all_cases():
+        existing_source = model_sources_by_name.get(case.model.name)
+        if existing_source is not None and existing_source != case.model:
+            raise ValueError(
+                "Experiment includes model files with the same name but different "
+                f"paths: {existing_source} and {case.model}. Rename one file so "
+                "staging can snapshot models deterministically."
+            )
+        model_sources_by_name[case.model.name] = case.model
+
         if case.model in seen_models:
             continue
         seen_models.add(case.model)
@@ -129,6 +139,8 @@ def run_experiment(
 
     # --- Runs ---
     for case in manifest.all_cases():
+        resolved_model_path = _resolve_case_model_path_for_run(case, experiment_dir)
+        execution_case = replace(case, model=resolved_model_path)
         run_dir = experiment_dir / "runs" / case.id
 
         if force:
@@ -141,7 +153,7 @@ def run_experiment(
         save_experiment_state(state, experiment_dir)
 
         try:
-            _run_single_case(case, run_dir, no_sankey=no_sankey)
+            _run_single_case(execution_case, run_dir, no_sankey=no_sankey)
             mark_run_complete(state, case.id)
         except Exception as exc:
             msg = f"Run {case.id} failed: {exc}"
@@ -292,6 +304,18 @@ def _run_single_diff(
         metrics=comparison.metrics,
         focus_processes=comparison.focus_processes,
     )
+
+
+def _resolve_case_model_path_for_run(case: CaseSpec, experiment_dir: Path) -> Path:
+    """Resolve a case model path against staged snapshots when needed."""
+    if case.model.exists():
+        return case.model
+
+    staged_model_path = experiment_dir / "inputs" / "models" / case.model.name
+    if staged_model_path.exists():
+        return staged_model_path
+
+    return case.model
 
 
 def _build_run_matrix(

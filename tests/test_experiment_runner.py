@@ -15,7 +15,7 @@ from vita.experiment_runner import (
     plan_experiment,
     run_experiment,
 )
-from vita.experiment_state import load_experiment_state
+from vita.experiment_state import load_experiment_state, mark_narrated
 from vita.run_artifacts import RunManifest, write_run_manifest
 
 # ---------------------------------------------------------------------------
@@ -144,6 +144,42 @@ class TestPlanExperiment:
 
         models_dir = out_dir / "test_exp" / "inputs" / "models"
         assert (models_dir / "model.veda.yaml").exists()
+
+    def test_rejects_duplicate_model_filenames_with_different_paths(
+        self, tmp_path: Path
+    ) -> None:
+        model_one_dir = tmp_path / "a"
+        model_two_dir = tmp_path / "b"
+        model_one_dir.mkdir(parents=True)
+        model_two_dir.mkdir(parents=True)
+
+        (model_one_dir / "shared.veda.yaml").write_text(_MINIMAL_MODEL)
+        (model_two_dir / "shared.veda.yaml").write_text(_MINIMAL_MODEL)
+
+        manifest_path = tmp_path / "manifest.yaml"
+        manifest_path.write_text(
+            yaml.dump(
+                {
+                    **_MINIMAL_MANIFEST,
+                    "baseline": {
+                        "id": "baseline",
+                        "model": "a/shared.veda.yaml",
+                        "run": "base_run",
+                    },
+                    "variants": [
+                        {
+                            "id": "variant_a",
+                            "model": "b/shared.veda.yaml",
+                            "run": "variant_run",
+                        }
+                    ],
+                }
+            )
+        )
+
+        out_dir = tmp_path / "experiments"
+        with pytest.raises(ValueError, match="same name"):
+            plan_experiment(manifest_path, out_dir)
 
     def test_state_persisted_to_disk(self, manifest_dir: Path, tmp_path: Path):
         out_dir = tmp_path / "experiments"
@@ -277,6 +313,11 @@ class TestRunExperiment:
         assert result.errors == []
         assert mock_run.call_count == 2
         assert mock_diff.call_count == 1
+        called_models = {
+            call.args[0].model
+            for call in mock_run.call_args_list
+        }
+        assert called_models == {exp_dir / "inputs" / "models" / "model.veda.yaml"}
 
         # State should be complete
         state = load_experiment_state(exp_dir)
@@ -290,6 +331,50 @@ class TestRunExperiment:
         matrix = json.loads(matrix_path.read_text())
         assert len(matrix["cases"]) == 2
         assert len(matrix["comparisons"]) == 1
+
+    @patch("vita.experiment_runner._run_single_case")
+    @patch("vita.experiment_runner._run_single_diff")
+    def test_narrative_gate_requires_summary_and_report_artifacts(
+        self,
+        mock_diff: MagicMock,
+        mock_run: MagicMock,
+        manifest_dir: Path,
+        tmp_path: Path,
+    ):
+        out_dir = tmp_path / "experiments"
+        plan_experiment(manifest_dir / "manifest.yaml", out_dir)
+        exp_dir = out_dir / "test_exp"
+
+        def run_side_effect(case, run_dir, *, no_sankey):
+            _write_fake_run(run_dir, case_id=case.id)
+            return {}
+
+        mock_run.side_effect = run_side_effect
+        mock_diff.return_value = {
+            "objective": {
+                "baseline": 100.0,
+                "variant": 110.0,
+                "delta": 10.0,
+                "pct_delta": 10.0,
+            },
+        }
+
+        result = run_experiment(exp_dir)
+        assert result.success is True
+
+        state = load_experiment_state(exp_dir)
+        assert state.status == "complete"
+
+        with pytest.raises(Exception, match="summary_json"):
+            mark_narrated(state)
+
+        state.artifacts["summary_json"] = "conclusions/summary.json"
+        with pytest.raises(Exception, match="report_html"):
+            mark_narrated(state)
+
+        state.artifacts["report_html"] = "report/index.html"
+        narrate_result = mark_narrated(state)
+        assert narrate_result.status == "narrated"
 
     @patch("vita.experiment_runner._run_single_case")
     def test_run_failure_continues(

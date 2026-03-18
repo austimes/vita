@@ -53,6 +53,13 @@ class EmissionFactor:
 
 
 @dataclass(frozen=True)
+class ActivityBoundSpec:
+    limtype: str
+    value: str | int | float
+    source_ref: SourceRef
+
+
+@dataclass(frozen=True)
 class TechnologyDecl:
     id: str
     provides: str
@@ -63,6 +70,7 @@ class TechnologyDecl:
     investment_cost: str | int | float | None
     fixed_om: str | int | float | None
     variable_om: str | int | float | None
+    activity_bound: ActivityBoundSpec | None
     lifetime: str | int | float | None
     stock_characterization: str | None
     description: str | None
@@ -389,6 +397,19 @@ def _parse_emission_factor(data: dict[str, Any], path: str) -> EmissionFactor:
     )
 
 
+def _parse_activity_bound(
+    data: dict[str, Any] | None,
+    path: str,
+) -> ActivityBoundSpec | None:
+    if not data:
+        return None
+    return ActivityBoundSpec(
+        limtype=str(data["limtype"]),
+        value=data["value"],
+        source_ref=_source_ref(path),
+    )
+
+
 def _parse_base_year_adjustment(
     data: dict[str, Any] | None, path: str
 ) -> BaseYearAdjustment | None:
@@ -522,6 +543,10 @@ def parse_source(source: dict[str, Any]) -> SourceDocument:
                 investment_cost=item.get("investment_cost"),
                 fixed_om=item.get("fixed_om"),
                 variable_om=item.get("variable_om"),
+                activity_bound=_parse_activity_bound(
+                    item.get("activity_bound"),
+                    f"technologies[{idx}].activity_bound",
+                ),
                 lifetime=item.get("lifetime"),
                 stock_characterization=(
                     str(item["stock_characterization"])

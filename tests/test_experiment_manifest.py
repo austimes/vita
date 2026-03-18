@@ -252,6 +252,38 @@ baseline:
         with pytest.raises(ExperimentManifestError, match="Unsupported schema_version"):
             load_experiment_manifest(path)
 
+    def test_rejects_tableir_model_path(self, tmp_path: Path) -> None:
+        (tmp_path / "model.tableir.yaml").write_text("files: []\n", encoding="utf-8")
+        content = """\
+schema_version: 1
+id: test
+title: T
+question: Q
+baseline:
+  id: base
+  model: model.tableir.yaml
+  run: default
+"""
+        path = _write_manifest(tmp_path, content, create_model=False)
+        with pytest.raises(ExperimentManifestError, match="not TableIR"):
+            load_experiment_manifest(path)
+
+    def test_rejects_non_veda_model_extension(self, tmp_path: Path) -> None:
+        (tmp_path / "model.yaml").write_text("foo: bar\n", encoding="utf-8")
+        content = """\
+schema_version: 1
+id: test
+title: T
+question: Q
+baseline:
+  id: base
+  model: model.yaml
+  run: default
+"""
+        path = _write_manifest(tmp_path, content, create_model=False)
+        with pytest.raises(ExperimentManifestError, match="must end with"):
+            load_experiment_manifest(path)
+
     def test_invalid_case_reference_in_comparison(self, tmp_path: Path) -> None:
         content = """\
 schema_version: 1

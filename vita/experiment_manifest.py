@@ -273,6 +273,38 @@ def _parse_extension(raw: object) -> ExtensionSpec:
     return ExtensionSpec(id=raw["id"], question=raw["question"])
 
 
+def _resolve_case_model_path(
+    *,
+    model_raw: str,
+    manifest_dir: Path,
+    context: str,
+) -> Path:
+    """Resolve and validate model path for user-facing experiment manifests."""
+    model_path = (manifest_dir / model_raw).resolve()
+    model_name = model_path.name.lower()
+    is_tableir_like = model_name.endswith(
+        (".tableir.yaml", ".tableir.yml", ".tableir.json")
+    ) or (
+        model_path.suffix.lower() in {".yaml", ".yml", ".json"}
+        and "tableir" in model_name
+    )
+    if is_tableir_like:
+        raise ExperimentManifestError(
+            f"{context} model must be a VedaLang source (.veda.yaml/.veda.yml), "
+            f"not TableIR: {model_raw}. TableIR workflows are dev-only and should use "
+            "vedalang-dev tooling."
+        )
+
+    if not (
+        model_name.endswith(".veda.yaml") or model_name.endswith(".veda.yml")
+    ):
+        raise ExperimentManifestError(
+            f"{context} model must end with .veda.yaml or .veda.yml: {model_raw}"
+        )
+
+    return model_path
+
+
 def _parse_case(
     raw: dict,
     *,
@@ -280,7 +312,11 @@ def _parse_case(
     manifest_dir: Path,
 ) -> CaseSpec:
     _require_fields(raw, ("id", "model", "run"), context=f"case {raw.get('id', '?')!r}")
-    model_path = (manifest_dir / raw["model"]).resolve()
+    model_path = _resolve_case_model_path(
+        model_raw=raw["model"],
+        manifest_dir=manifest_dir,
+        context=f"case {raw['id']!r}",
+    )
     return CaseSpec(
         id=raw["id"],
         model=model_path,
@@ -310,7 +346,11 @@ def _parse_variant(
         parent = cases_by_id[from_ref]
         model_raw = raw.get("model")
         model_path = (
-            (manifest_dir / model_raw).resolve()
+            _resolve_case_model_path(
+                model_raw=model_raw,
+                manifest_dir=manifest_dir,
+                context=f"variant {raw['id']!r}",
+            )
             if model_raw is not None
             else parent.model
         )
@@ -326,7 +366,11 @@ def _parse_variant(
 
     # No inheritance — require model and run
     _require_fields(raw, ("model", "run"), context=f"variant {raw['id']!r}")
-    model_path = (manifest_dir / raw["model"]).resolve()
+    model_path = _resolve_case_model_path(
+        model_raw=raw["model"],
+        manifest_dir=manifest_dir,
+        context=f"variant {raw['id']!r}",
+    )
     return CaseSpec(
         id=raw["id"],
         model=model_path,

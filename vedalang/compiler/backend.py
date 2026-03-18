@@ -413,6 +413,18 @@ def lower_bundle_to_tableir(
         if len(eff_row) > 2:
             fi_t_rows.append(eff_row)
 
+        if technology.activity_bound is not None:
+            bound_row = {
+                "region": region,
+                "process": process_alias,
+                "year": artifacts.csir["base_year"],
+                "limtype": technology.activity_bound.limtype,
+                "act_bnd": _numeric_amount(technology.activity_bound.value),
+            }
+            if first_output_symbol is not None:
+                bound_row["commodity-out"] = first_output_symbol
+            fi_t_rows.append(bound_row)
+
         initial_stock = process.get("initial_stock")
         if (
             isinstance(initial_stock, dict)

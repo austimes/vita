@@ -428,6 +428,27 @@
         }
       }
     },
+    "activity_bound": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "limtype",
+        "value"
+      ],
+      "properties": {
+        "limtype": {
+          "type": "string",
+          "enum": [
+            "FX",
+            "UP",
+            "LO"
+          ]
+        },
+        "value": {
+          "$ref": "#/$defs/quantity"
+        }
+      }
+    },
     "technology": {
       "type": "object",
       "additionalProperties": false,
@@ -472,6 +493,9 @@
         },
         "variable_om": {
           "$ref": "#/$defs/quantity"
+        },
+        "activity_bound": {
+          "$ref": "#/$defs/activity_bound"
         },
         "lifetime": {
           "$ref": "#/$defs/quantity"

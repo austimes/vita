@@ -97,6 +97,7 @@ class TestVitaHelp:
         assert "--no-solver" in result.stdout
         assert "--from" in result.stdout
         assert "--out" in result.stdout
+        assert "tableir" not in result.stdout.lower()
 
     def test_vita_run_help_agent_mode(self):
         """Run subcommand accepts --agent-mode and stays unboxed."""
@@ -142,6 +143,20 @@ class TestVitaHelp:
         assert result.returncode == 0
         assert "--agent-mode" in result.stdout
         assert "╭" not in result.stdout
+
+    def test_vita_experiment_validate_interpretation_help(self):
+        """Interpretation validation gate remains exposed in the experiment CLI."""
+        result = run_vita("experiment", "validate-interpretation", "--help")
+        assert result.returncode == 0
+        assert "validate-interpretation" in result.stdout.lower()
+        assert "experiment directory" in result.stdout.lower()
+
+    def test_vita_run_from_tableir_is_rejected_by_parser(self):
+        """Public vita run parser no longer accepts --from tableir."""
+        result = run_vita("run", str(MINI_PLANT), "--from", "tableir", "--no-solver")
+        assert result.returncode == 2
+        assert "invalid choice" in result.stderr.lower()
+        assert "tableir" in result.stderr
 
 
 class TestEmitExcel:
@@ -252,6 +267,17 @@ class TestVitaRun:
         result = run_vita("run", "nonexistent.veda.yaml", "--no-solver")
         assert result.returncode == 2
         assert "not found" in result.stderr.lower()
+
+    def test_vita_run_rejects_tableir_style_input(self, tmp_path):
+        """Vita run emits a guardrail error for tableir-like model files."""
+        tableir_file = tmp_path / "toy.tableir.yaml"
+        tableir_file.write_text("files: []\n", encoding="utf-8")
+
+        result = run_vita("run", str(tableir_file), "--no-solver")
+        assert result.returncode == 2
+        assert "tableir-style" in result.stderr.lower()
+        assert "veda.yaml" in result.stderr.lower()
+        assert "vedalang-dev" in result.stderr.lower()
 
     def test_vita_run_out_writes_run_artifacts(self, tmp_path):
         """Vita run --out writes manifest and source snapshot artifacts."""

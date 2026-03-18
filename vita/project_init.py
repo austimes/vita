@@ -258,12 +258,12 @@ def _curated_template_context(
             "The seeded experiment is "
             "`experiments/demos/toy_industry_core.experiment.yaml`: it compares "
             "the baseline run `single_2025` against six canonical `.veda.yaml` "
-            "variants spanning loose/mid/tight clean-heat policy proxies, "
-            "gas-price stress, and H2 marginal sensitivity."
+            "variants spanning loose/mid/tight gas activity caps, gas-price stress, "
+            "and H2 marginal sensitivity."
         ),
         "starter_experiment_note": (
-            "This experiment is a coordinated set of run variations over the "
-            "seeded toy industry model, not a separate model family."
+            "This experiment is a coordinated set of run variations over the seeded "
+            "toy industry switch model family."
         ),
         "starter_experiment_section": (
             "```bash\n"

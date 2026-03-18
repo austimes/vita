@@ -145,7 +145,7 @@ def _build_summary(
         "limitations": _build_limitations(manifest),
         "artifacts": {
             "summary_md": "conclusions/summary.md",
-            "presentation_html": "presentation/index.html",
+            "report_html": "report/index.html",
         },
     }
 

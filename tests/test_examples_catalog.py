@@ -77,6 +77,24 @@ def test_ported_example_catalog_compiles():
         example_dir
         / "toy_sectors/toy_electricity_4ts.veda.yaml": "electricity_4node_2025",
         example_dir / "toy_sectors/toy_industry.veda.yaml": "single_2025",
+        example_dir
+        / "toy_sectors/toy_industry_switch_base.veda.yaml": "single_2025",
+        example_dir
+        / "toy_sectors/toy_industry_switch_cap_loose.veda.yaml": "single_2025",
+        example_dir
+        / "toy_sectors/toy_industry_switch_cap_mid.veda.yaml": "single_2025",
+        example_dir
+        / "toy_sectors/toy_industry_switch_cap_tight.veda.yaml": "single_2025",
+        example_dir
+        / "toy_sectors/toy_industry_switch_high_gas_price.veda.yaml": "single_2025",
+        (
+            example_dir
+            / "toy_sectors/toy_industry_switch_high_gas_price_cap_mid.veda.yaml"
+        ): "single_2025",
+        (
+            example_dir
+            / "toy_sectors/toy_industry_switch_high_h2_price_cap_mid.veda.yaml"
+        ): "single_2025",
         example_dir / "toy_sectors/toy_integrated_6sector.veda.yaml": "integrated_2025",
         example_dir / "toy_sectors/toy_resources.veda.yaml": "single_2025",
         example_dir / "toy_sectors/toy_transport.veda.yaml": "single_2025",

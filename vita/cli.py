@@ -11,7 +11,6 @@ from vita.handlers import (
     run_diff_command,
     run_experiment_full_command,
     run_experiment_plan_command,
-    run_experiment_present_command,
     run_experiment_run_command,
     run_experiment_status_command,
     run_experiment_summarize_command,
@@ -26,8 +25,7 @@ from vita.handlers import (
 from vita.version import VITA_CLI_VERSION
 
 _EXPERIMENT_SUBCOMMANDS = frozenset({
-    "stage", "run", "summarize", "validate-brief",
-    "validate-interpretation", "present", "status",
+    "stage", "run", "summarize", "validate-brief", "validate-interpretation", "status",
 })
 
 
@@ -97,7 +95,7 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument(
         "--from",
         dest="input_kind",
-        choices=["vedalang", "tableir", "excel", "dd"],
+        choices=["vedalang", "excel", "dd"],
         help="Input type (auto-detected if not specified)",
     )
     run_parser.add_argument(
@@ -408,14 +406,6 @@ def build_parser() -> argparse.ArgumentParser:
     exp_vi_parser.add_argument("experiment_dir", type=Path, help="Experiment directory")
     exp_vi_parser.add_argument("--json", action="store_true", dest="json_output")
 
-    # vita experiment present
-    exp_present_parser = exp_subparsers.add_parser(
-        "present", help="Regenerate HTML presentation", parents=[agent_parent]
-    )
-    exp_present_parser.add_argument(
-        "experiment_dir", type=Path, help="Experiment directory"
-    )
-
     # vita experiment status
     exp_status_parser = exp_subparsers.add_parser(
         "status", help="Show experiment lifecycle status", parents=[agent_parent]
@@ -518,8 +508,6 @@ def main() -> None:
             run_experiment_validate_brief_command(args)
         elif args.exp_command == "validate-interpretation":
             run_experiment_validate_interpretation_command(args)
-        elif args.exp_command == "present":
-            run_experiment_present_command(args)
         elif args.exp_command == "status":
             run_experiment_status_command(args)
         else:

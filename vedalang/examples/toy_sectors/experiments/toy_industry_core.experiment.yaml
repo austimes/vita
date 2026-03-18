@@ -2,9 +2,9 @@ schema_version: 1
 id: toy_industry_core
 title: "Industrial heat decarbonisation: switching, drivers, and hydrogen marginal"
 question: >
-  Apply an emissions-constraining clean-heat policy to stylised industrial heat demand
-  with gas, e-heat, and H2. Track policy-driven switching, separate policy-vs-price
-  drivers, and measure hydrogen marginal contribution under a binding constraint.
+  Apply an emissions-constraining gas activity cap to stylised industrial heat demand
+  with gas, e-heat, and H2. Track cap-driven switching, separate policy-vs-price
+  cost drivers, and measure hydrogen marginal contribution under a binding cap.
 
 extensions:
   - id: A
@@ -37,54 +37,47 @@ defaults:
 
 baseline:
   id: baseline
-  model: ../toy_industry.veda.yaml
+  model: ../toy_industry_switch_base.veda.yaml
   run: single_2025
   notes: >
-    Calibrated baseline with fixed heat demand and no clean-heat policy proxy active.
+    Calibrated baseline with fixed heat demand (ACT_BND FX = 0.1242 PJ) and no gas
+    activity cap.
 
 variants:
   - id: co2_cap_loose
     from: baseline
-    model: ../toy_industry_co2_cap_loose.veda.yaml
+    model: ../toy_industry_switch_cap_loose.veda.yaml
     run: single_2025
     hypothesis: >
-      Loose policy proxy should trigger a small shift toward clean heat while keeping
-      objective impacts modest.
-    notes: >
-      Current public VedaLang surface does not expose direct ACT_BND authoring;
-      this variant approximates a loose cap by lowering residual gas boiler stock
-      and setting near-zero new gas build allowance.
+      Loose cap (gas ACT_BND UP = 0.10 PJ) remains gas-led with initial clean-heat
+      backfill.
 
   - id: co2_cap_mid
     from: baseline
-    model: ../toy_industry_co2_cap_mid.veda.yaml
+    model: ../toy_industry_switch_cap_mid.veda.yaml
     run: single_2025
     hypothesis: >
-      Mid policy proxy should force stronger substitution from gas toward e-heat.
-    notes: >
-      Proxy uses a tighter residual gas stock clamp and near-zero new gas build.
+      Mid cap (gas ACT_BND UP = 0.06 PJ) should force substantial substitution from gas
+      toward e-heat.
 
   - id: co2_cap_tight
     from: baseline
-    model: ../toy_industry_co2_cap_tight.veda.yaml
+    model: ../toy_industry_switch_cap_tight.veda.yaml
     run: single_2025
     hypothesis: >
-      Tight policy proxy should produce the highest clean-heat pressure and largest
-      objective movement across the cap ladder.
-    notes: >
-      Tightest residual gas stock clamp plus near-zero new gas build.
+      Tight cap (gas ACT_BND UP = 0.02 PJ) should create an e-heat-heavy dispatch.
 
   - id: high_gas_price
     from: baseline
-    model: ../toy_industry_high_gas_price.veda.yaml
+    model: ../toy_industry_switch_high_gas_price.veda.yaml
     run: single_2025
     hypothesis: >
-      Cost-only stress (higher gas pathway cost) increases objective without policy
-      tightening.
+      Cost-only stress (pipe_ng ACT_COST 8 -> 20 AUD/MWh) increases objective even
+      without cap tightening.
 
   - id: high_gas_price_co2_cap_mid
     from: baseline
-    model: ../toy_industry_high_gas_price_co2_cap_mid.veda.yaml
+    model: ../toy_industry_switch_high_gas_price_cap_mid.veda.yaml
     run: single_2025
     hypothesis: >
       Combined stress (mid cap + high gas price) should add only modest incremental
@@ -92,11 +85,11 @@ variants:
 
   - id: high_h2_price_co2_cap_mid
     from: baseline
-    model: ../toy_industry_high_h2_price_co2_cap_mid.veda.yaml
+    model: ../toy_industry_switch_high_h2_price_cap_mid.veda.yaml
     run: single_2025
     hypothesis: >
-      Under mid cap, higher H2 pathway cost isolates hydrogen's marginal objective
-      contribution.
+      Under mid cap, higher delivered H2 cost (pipe_h2 ACT_COST 18 -> 35 AUD/MWh)
+      isolates hydrogen's marginal cost contribution.
 
 comparisons:
   - id: baseline_vs_co2_cap_loose
@@ -138,8 +131,8 @@ comparisons:
 analyses:
   - id: extension_a_switching
     question: >
-      As the policy proxy tightens, how do gas/e-heat/H2 outcomes move across the
-      ladder?
+      As the cap tightens, how do gas/e-heat/H2 dispatch shares and objective outcomes
+      move across the ladder?
     comparisons:
       - baseline_vs_co2_cap_loose
       - baseline_vs_co2_cap_mid
@@ -172,8 +165,8 @@ analyses:
 
   - id: extension_c_hydrogen_marginal
     question: >
-      Under a binding mid policy proxy, what additional objective movement appears when
-      only H2 pathway cost is stressed?
+      Under a binding mid cap, what additional objective movement appears when only H2
+      delivered price is stressed?
     comparisons:
       - baseline_vs_co2_cap_mid
       - co2_cap_mid_vs_high_h2_price_co2_cap_mid

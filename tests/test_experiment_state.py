@@ -15,8 +15,7 @@ from vita.experiment_state import (
     create_experiment_state,
     load_experiment_state,
     mark_diff_complete,
-    mark_interpreted,
-    mark_presented,
+    mark_narrated,
     mark_run_complete,
     mark_run_failed,
     mark_run_started,
@@ -50,8 +49,7 @@ class TestCreateExperimentState:
         assert state.created_at == "2026-03-18T12:00:00Z"
         assert state.updated_at == "2026-03-18T12:00:00Z"
         assert state.completed_at is None
-        assert state.interpreted_at is None
-        assert state.presented_at is None
+        assert state.narrated_at is None
         assert state.progress.runs_total == 2
         assert state.progress.runs_complete == 0
         assert state.progress.runs_failed == 0
@@ -60,8 +58,7 @@ class TestCreateExperimentState:
         assert state.run_statuses == {"baseline": "pending", "variant_a": "pending"}
         assert state.diff_statuses == {"baseline_vs_variant_a": "pending"}
         assert state.artifacts["summary_json"] is None
-        assert state.artifacts["interpretation_json"] is None
-        assert state.artifacts["presentation_html"] is None
+        assert state.artifacts["report_html"] is None
 
     def test_writes_state_file(self, tmp_path: Path) -> None:
         create_experiment_state(
@@ -141,18 +138,12 @@ class TestLifecycleTransitions:
         assert state.status == "complete"
         assert state.completed_at == "2026-03-18T14:00:00Z"
 
-        # complete → interpreted
+        # complete → narrated
         state.artifacts["summary_json"] = "conclusions/summary.json"
-        state.artifacts["interpretation_json"] = "conclusions/interpretation.json"
-        mark_interpreted(state, now_utc=_clock(FIXED_TIME_3))
-        assert state.status == "interpreted"
-        assert state.interpreted_at == "2026-03-18T14:00:00Z"
-
-        # interpreted → presented
-        state.artifacts["presentation_html"] = "presentation/index.html"
-        mark_presented(state, now_utc=_clock(FIXED_TIME_4))
-        assert state.status == "presented"
-        assert state.presented_at == "2026-03-18T15:00:00Z"
+        state.artifacts["report_html"] = "report/index.html"
+        mark_narrated(state, now_utc=_clock(FIXED_TIME_3))
+        assert state.status == "narrated"
+        assert state.narrated_at == "2026-03-18T14:00:00Z"
 
     def test_no_diffs_auto_completes(self, tmp_path: Path) -> None:
         state = create_experiment_state(
@@ -169,7 +160,7 @@ class TestLifecycleTransitions:
 
 
 class TestInvalidTransitions:
-    def test_cannot_interpret_from_planned(self, tmp_path: Path) -> None:
+    def test_cannot_narrate_from_planned(self, tmp_path: Path) -> None:
         state = create_experiment_state(
             experiment_dir=tmp_path,
             experiment_id="bad",
@@ -179,11 +170,11 @@ class TestInvalidTransitions:
             now_utc=_clock(FIXED_TIME),
         )
         state.artifacts["summary_json"] = "x"
-        state.artifacts["interpretation_json"] = "y"
+        state.artifacts["report_html"] = "y"
         with pytest.raises(ExperimentStateError, match="Invalid transition"):
-            mark_interpreted(state)
+            mark_narrated(state)
 
-    def test_cannot_interpret_from_running(self, tmp_path: Path) -> None:
+    def test_cannot_narrate_from_running(self, tmp_path: Path) -> None:
         state = create_experiment_state(
             experiment_dir=tmp_path,
             experiment_id="bad",
@@ -194,25 +185,9 @@ class TestInvalidTransitions:
         )
         mark_run_started(state, "baseline", now_utc=_clock(FIXED_TIME_2))
         state.artifacts["summary_json"] = "x"
-        state.artifacts["interpretation_json"] = "y"
+        state.artifacts["report_html"] = "y"
         with pytest.raises(ExperimentStateError, match="Invalid transition"):
-            mark_interpreted(state)
-
-    def test_cannot_present_from_complete(self, tmp_path: Path) -> None:
-        """Must go through interpreted first."""
-        state = create_experiment_state(
-            experiment_dir=tmp_path,
-            experiment_id="bad",
-            manifest_file="manifest.yaml",
-            run_ids=["baseline"],
-            comparison_ids=[],
-            now_utc=_clock(FIXED_TIME),
-        )
-        mark_run_started(state, "baseline", now_utc=_clock(FIXED_TIME_2))
-        mark_run_complete(state, "baseline", now_utc=_clock(FIXED_TIME_2))
-        state.artifacts["presentation_html"] = "x"
-        with pytest.raises(ExperimentStateError, match="Invalid transition"):
-            mark_presented(state)
+            mark_narrated(state)
 
     def test_unknown_run_id_raises(self, tmp_path: Path) -> None:
         state = create_experiment_state(
@@ -240,7 +215,7 @@ class TestInvalidTransitions:
             mark_diff_complete(state, "nonexistent")
 
 
-class TestCannotInterpretWithoutArtifacts:
+class TestCannotNarrateWithoutArtifacts:
     def test_missing_summary_json(self, tmp_path: Path) -> None:
         state = create_experiment_state(
             experiment_dir=tmp_path,
@@ -253,12 +228,12 @@ class TestCannotInterpretWithoutArtifacts:
         mark_run_started(state, "baseline", now_utc=_clock(FIXED_TIME_2))
         mark_run_complete(state, "baseline", now_utc=_clock(FIXED_TIME_2))
         with pytest.raises(ExperimentStateError, match="summary_json"):
-            mark_interpreted(state)
+            mark_narrated(state)
 
-    def test_missing_interpretation_json(self, tmp_path: Path) -> None:
+    def test_missing_report_html(self, tmp_path: Path) -> None:
         state = create_experiment_state(
             experiment_dir=tmp_path,
-            experiment_id="no_interpretation",
+            experiment_id="no_report",
             manifest_file="manifest.yaml",
             run_ids=["baseline"],
             comparison_ids=[],
@@ -267,27 +242,8 @@ class TestCannotInterpretWithoutArtifacts:
         mark_run_started(state, "baseline", now_utc=_clock(FIXED_TIME_2))
         mark_run_complete(state, "baseline", now_utc=_clock(FIXED_TIME_2))
         state.artifacts["summary_json"] = "conclusions/summary.json"
-        with pytest.raises(ExperimentStateError, match="interpretation_json"):
-            mark_interpreted(state)
-
-
-class TestCannotPresentWithoutArtifacts:
-    def test_missing_presentation_html(self, tmp_path: Path) -> None:
-        state = create_experiment_state(
-            experiment_dir=tmp_path,
-            experiment_id="no_presentation",
-            manifest_file="manifest.yaml",
-            run_ids=["baseline"],
-            comparison_ids=[],
-            now_utc=_clock(FIXED_TIME),
-        )
-        mark_run_started(state, "baseline", now_utc=_clock(FIXED_TIME_2))
-        mark_run_complete(state, "baseline", now_utc=_clock(FIXED_TIME_2))
-        state.artifacts["summary_json"] = "conclusions/summary.json"
-        state.artifacts["interpretation_json"] = "conclusions/interpretation.json"
-        mark_interpreted(state, now_utc=_clock(FIXED_TIME_3))
-        with pytest.raises(ExperimentStateError, match="presentation_html"):
-            mark_presented(state)
+        with pytest.raises(ExperimentStateError, match="report_html"):
+            mark_narrated(state)
 
 
 class TestRunFailed:

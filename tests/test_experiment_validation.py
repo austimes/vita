@@ -11,7 +11,6 @@ from vita.experiment_manifest import ExperimentManifest, load_experiment_manifes
 from vita.experiment_validation import (
     ValidationResult,
     render_brief_md,
-    render_interpretation_md,
     validate_brief,
     validate_interpretation,
 )
@@ -64,6 +63,47 @@ _LONG_TEXT = "This is a sufficiently long substantive text for validation checks
 _LONG_TEXT_32 = (
     "This text is long enough for thirty-two character minimum checks easily."
 )
+
+_CALIBRATION_VARIANT_IDS = [
+    "co2_cap_loose",
+    "co2_cap_mid",
+    "co2_cap_tight",
+    "high_gas_price",
+    "high_gas_price_co2_cap_mid",
+    "high_h2_price_co2_cap_mid",
+]
+
+_CALIBRATION_COMPARISON_SPECS: list[tuple[str, str, str]] = [
+    ("baseline_vs_co2_cap_loose", "baseline", "co2_cap_loose"),
+    ("baseline_vs_co2_cap_mid", "baseline", "co2_cap_mid"),
+    ("baseline_vs_co2_cap_tight", "baseline", "co2_cap_tight"),
+    ("baseline_vs_high_gas_price", "baseline", "high_gas_price"),
+    (
+        "baseline_vs_high_gas_price_co2_cap_mid",
+        "baseline",
+        "high_gas_price_co2_cap_mid",
+    ),
+    (
+        "baseline_vs_high_h2_price_co2_cap_mid",
+        "baseline",
+        "high_h2_price_co2_cap_mid",
+    ),
+    (
+        "co2_cap_mid_vs_high_gas_price_co2_cap_mid",
+        "co2_cap_mid",
+        "high_gas_price_co2_cap_mid",
+    ),
+    (
+        "co2_cap_mid_vs_high_h2_price_co2_cap_mid",
+        "co2_cap_mid",
+        "high_h2_price_co2_cap_mid",
+    ),
+    (
+        "high_gas_price_co2_cap_mid_vs_high_h2_price_co2_cap_mid",
+        "high_gas_price_co2_cap_mid",
+        "high_h2_price_co2_cap_mid",
+    ),
+]
 
 
 def _make_manifest(tmp_path: Path) -> ExperimentManifest:
@@ -151,111 +191,150 @@ def _make_valid_brief() -> dict:
     }
 
 
-def _make_valid_interpretation() -> dict:
-    """Build a minimal valid interpretation dict matching _MANIFEST_DICT."""
-    return {
-        "schema_version": "vita-experiment-interpretation/v1",
-        "experiment_id": "test_experiment",
-        "summary_file": "conclusions/summary.json",
-        "created_at": "2026-03-18T13:00:00Z",
-        "research_question": "What happens when we change X?",
-        "executive_summary": {
-            "short_answer": _LONG_TEXT_32,
-            "answer": _LONG_TEXT_32,
-            "confidence": "high",
-            "evidence_refs": ["E1"],
-            "supporting_step_ids": ["baseline_vs_variant_a_r1"],
+def _make_calibration_manifest(tmp_path: Path) -> ExperimentManifest:
+    """Write a 6-variant/9-comparison toy calibration manifest and load it."""
+    model_path = tmp_path / "model.veda.yaml"
+    model_path.write_text(_MINIMAL_MODEL)
+    manifest_dict = {
+        "schema_version": 1,
+        "id": "toy_industry_calibrated",
+        "title": "Toy Industry Calibrated",
+        "question": "Calibration fixture for narrative validation gates",
+        "baseline": {
+            "id": "baseline",
+            "model": "model.veda.yaml",
+            "run": "single_2025",
         },
-        "evidence_index": [
+        "variants": [
             {
-                "id": "E1",
-                "kind": "comparison_metric",
-                "comparison_id": "baseline_vs_variant_a",
-                "metric": "objective",
-                "source_file": "diffs/baseline_vs_variant_a/diff.json",
-            },
-            {
-                "id": "E2",
-                "kind": "run_metric",
-                "metric": "objective",
-                "source_file": "runs/baseline/results.json",
-            },
+                "id": variant_id,
+                "from": "baseline",
+                "run": f"run_{variant_id}",
+                "hypothesis": _LONG_TEXT,
+            }
+            for variant_id in _CALIBRATION_VARIANT_IDS
         ],
-        "question_answers": [
+        "comparisons": [
             {
-                "question_id": "Q",
-                "question": "What happens when we change X?",
-                "comparison_ids": ["baseline_vs_variant_a"],
-                "short_answer": _LONG_TEXT_32,
-                "answer": _LONG_TEXT_32,
-                "confidence": "high",
-                "uncertainty": "None significant",
-                "evidence_refs": ["E1"],
-                "supporting_step_ids": ["baseline_vs_variant_a_r3"],
-            },
-            {
-                "question_id": "A",
-                "question": "Sub-question A?",
-                "comparison_ids": ["baseline_vs_variant_a"],
-                "short_answer": _LONG_TEXT_32,
-                "answer": _LONG_TEXT_32,
-                "confidence": "medium",
-                "uncertainty": "Some uncertainty remains",
-                "evidence_refs": ["E2"],
-                "supporting_step_ids": ["baseline_vs_variant_a_r3"],
-            },
+                "id": comp_id,
+                "baseline": baseline_id,
+                "variant": variant_id,
+            }
+            for comp_id, baseline_id, variant_id in _CALIBRATION_COMPARISON_SPECS
         ],
-        "comparison_interpretations": [
+        "analyses": [
             {
-                "comparison_id": "baseline_vs_variant_a",
-                "takeaway": _LONG_TEXT_32,
-                "hypothesis_assessment": {
-                    "status": "supports",
-                    "rationale": _LONG_TEXT_32,
+                "id": "main",
+                "question": "Calibration validation coverage",
+                "comparisons": [c[0] for c in _CALIBRATION_COMPARISON_SPECS],
+            }
+        ],
+    }
+    manifest_path = tmp_path / "manifest.yaml"
+    manifest_path.write_text(yaml.dump(manifest_dict))
+    return load_experiment_manifest(manifest_path)
+
+
+def _make_calibration_brief() -> dict:
+    """Build a valid brief matching the 6-variant/9-comparison fixture."""
+    variants = []
+    for variant_id in _CALIBRATION_VARIANT_IDS:
+        variants.append(
+            {
+                "variant_id": variant_id,
+                "change_summary": _LONG_TEXT_32,
+                "why_this_variant": _LONG_TEXT_32,
+                "hypothesis": {
+                    "statement": _LONG_TEXT_32,
+                    "expected_direction": "increase",
+                    "mechanism_chains": [
+                        {
+                            "id": f"M_{variant_id}",
+                            "cause": _LONG_TEXT_32,
+                            "effect": _LONG_TEXT_32,
+                            "because": _LONG_TEXT_32,
+                        },
+                    ],
+                    "confirmation_criteria": [
+                        {
+                            "id": f"C_{variant_id}",
+                            "description": _LONG_TEXT_32,
+                            "signals": [
+                                {
+                                    "metric": "objective",
+                                    "expected_direction": "increase",
+                                }
+                            ],
+                        },
+                    ],
+                    "refutation_criteria": [
+                        {
+                            "id": f"R_{variant_id}",
+                            "description": _LONG_TEXT_32,
+                        }
+                    ],
                 },
-                "key_evidence_refs": ["E1", "E2"],
-                "reasoning_steps": [
-                    {
-                        "id": "baseline_vs_variant_a_r1",
-                        "kind": "observation",
-                        "statement": _LONG_TEXT_32,
-                        "evidence_refs": ["E1"],
-                        "depends_on": [],
-                    },
-                    {
-                        "id": "baseline_vs_variant_a_r2",
-                        "kind": "mechanism",
-                        "statement": _LONG_TEXT_32,
-                        "evidence_refs": ["E2"],
-                        "depends_on": ["baseline_vs_variant_a_r1"],
-                    },
-                    {
-                        "id": "baseline_vs_variant_a_r3",
-                        "kind": "conclusion",
-                        "statement": _LONG_TEXT_32,
-                        "evidence_refs": ["E1", "E2"],
-                        "depends_on": ["baseline_vs_variant_a_r2"],
-                    },
-                ],
-                "primary_mechanism": _LONG_TEXT_32,
-                "alternative_mechanisms": [],
-                "confidence": "high",
-                "surprises": [],
+            }
+        )
+
+    comparison_plan = [
+        {
+            "comparison_id": comp_id,
+            "purpose": _LONG_TEXT_32,
+            "metrics_of_interest": [
+                {
+                    "metric": "objective",
+                    "priority": "primary",
+                    "why_it_matters": _LONG_TEXT_32,
+                }
+            ],
+        }
+        for comp_id, _, _ in _CALIBRATION_COMPARISON_SPECS
+    ]
+
+    return {
+        "schema_version": "vita-experiment-brief/v1",
+        "experiment_id": "toy_industry_calibrated",
+        "manifest_file": "manifest.yaml",
+        "created_at": "2026-03-18T12:00:00Z",
+        "research": {
+            "question": "How does policy and stress calibration behave?",
+            "scope": _LONG_TEXT_32,
+        },
+        "design_summary": {
+            "approach": _LONG_TEXT_32,
+            "variant_ids": list(_CALIBRATION_VARIANT_IDS),
+            "comparison_ids": [c[0] for c in _CALIBRATION_COMPARISON_SPECS],
+        },
+        "variants": variants,
+        "comparison_plan": comparison_plan,
+        "design_reasoning_steps": [
+            {
+                "id": "P1",
+                "kind": "question_framing",
+                "statement": _LONG_TEXT_32,
+            },
+            {
+                "id": "P2",
+                "kind": "hypothesis_decomposition",
+                "statement": _LONG_TEXT_32,
             },
         ],
-        "cross_comparison_synthesis": {
-            "overall_pattern": "Cost increases as expected",
-            "open_questions": [],
-            "limits": ["Single-period model"],
-        },
     }
 
 
-def _make_summary() -> dict:
-    """Minimal summary.json for interpretation validation."""
+def _make_calibration_interpretation() -> dict:
+    """Build a valid interpretation payload matching the calibration fixture."""
     return {
-        "schema_version": "vita-experiment-summary/v1",
-        "experiment_id": "test_experiment",
+        "schema_version": "vita-experiment-interpretation/v1",
+        "experiment_id": "toy_industry_calibrated",
+        "comparison_interpretations": [
+            {
+                "comparison_id": comp_id,
+                "takeaway": _LONG_TEXT_32,
+            }
+            for comp_id, _, _ in _CALIBRATION_COMPARISON_SPECS
+        ],
     }
 
 
@@ -379,131 +458,75 @@ class TestBriefValidation:
         )
 
 
-# ---------------------------------------------------------------------------
-# Interpretation validation
-# ---------------------------------------------------------------------------
+class TestToyIndustryCalibrationBriefCoverage:
+    def test_full_calibration_brief_passes(self, tmp_path: Path):
+        manifest = _make_calibration_manifest(tmp_path)
+        brief = _make_calibration_brief()
 
+        result = validate_brief(brief, manifest)
 
-class TestInterpretationValidation:
-    def test_valid_interpretation_passes(self, tmp_path: Path):
-        manifest = _make_manifest(tmp_path)
-        interp = _make_valid_interpretation()
-        summary = _make_summary()
-        result = validate_interpretation(interp, manifest, summary)
-        assert result.valid, f"Expected valid, got errors: {result.errors}"
-        assert result.errors == []
+        assert result.valid, f"Expected valid brief, got errors: {result.errors}"
+        assert result.coverage["missing_variant_ids"] == []
+        assert result.coverage["missing_comparison_ids"] == []
+        assert len(result.coverage["expected_variant_ids"]) == 6
+        assert len(result.coverage["expected_comparison_ids"]) == 9
 
-    def test_missing_comparison_interpretation(self, tmp_path: Path):
-        manifest = _make_manifest(tmp_path)
-        interp = _make_valid_interpretation()
-        interp["comparison_interpretations"] = []
-        summary = _make_summary()
-        result = validate_interpretation(interp, manifest, summary)
-        assert not result.valid
-        assert any("Missing comparison interpretation" in e for e in result.errors)
-
-    def test_missing_question_answer(self, tmp_path: Path):
-        manifest = _make_manifest(tmp_path)
-        interp = _make_valid_interpretation()
-        # Remove question A
-        interp["question_answers"] = [
-            qa for qa in interp["question_answers"] if qa["question_id"] != "A"
+    def test_missing_variant_fails_for_calibration_manifest(self, tmp_path: Path):
+        manifest = _make_calibration_manifest(tmp_path)
+        brief = _make_calibration_brief()
+        brief["variants"] = [
+            item
+            for item in brief["variants"]
+            if item["variant_id"] != "co2_cap_tight"
         ]
-        summary = _make_summary()
-        result = validate_interpretation(interp, manifest, summary)
-        assert not result.valid
-        assert any("Missing question answer" in e for e in result.errors)
 
-    def test_duplicate_evidence_ids(self, tmp_path: Path):
-        manifest = _make_manifest(tmp_path)
-        interp = _make_valid_interpretation()
-        dup = copy.deepcopy(interp["evidence_index"][0])
-        interp["evidence_index"].append(dup)
-        summary = _make_summary()
-        result = validate_interpretation(interp, manifest, summary)
-        assert not result.valid
-        assert any("Duplicate evidence_index" in e for e in result.errors)
+        result = validate_brief(brief, manifest)
 
-    def test_dangling_evidence_ref(self, tmp_path: Path):
-        manifest = _make_manifest(tmp_path)
-        interp = _make_valid_interpretation()
-        interp["executive_summary"]["evidence_refs"] = ["ENONEXISTENT"]
-        summary = _make_summary()
-        result = validate_interpretation(interp, manifest, summary)
         assert not result.valid
-        assert any("ENONEXISTENT" in e for e in result.errors)
+        assert "co2_cap_tight" in result.coverage["missing_variant_ids"]
+        assert any("Missing variant" in err for err in result.errors)
 
-    def test_dangling_step_ref(self, tmp_path: Path):
-        manifest = _make_manifest(tmp_path)
-        interp = _make_valid_interpretation()
-        ci = interp["comparison_interpretations"][0]
-        ci["reasoning_steps"][2]["depends_on"] = ["NONEXISTENT_STEP"]
-        summary = _make_summary()
-        result = validate_interpretation(interp, manifest, summary)
-        assert not result.valid
-        assert any("NONEXISTENT_STEP" in e for e in result.errors)
-
-    def test_no_observation_step(self, tmp_path: Path):
-        manifest = _make_manifest(tmp_path)
-        interp = _make_valid_interpretation()
-        ci = interp["comparison_interpretations"][0]
-        # Remove observation, keep only mechanism and conclusion
-        ci["reasoning_steps"] = [
-            s for s in ci["reasoning_steps"] if s["kind"] != "observation"
+    def test_missing_comparison_fails_for_calibration_manifest(self, tmp_path: Path):
+        manifest = _make_calibration_manifest(tmp_path)
+        brief = _make_calibration_brief()
+        brief["comparison_plan"] = [
+            item
+            for item in brief["comparison_plan"]
+            if item["comparison_id"] != "baseline_vs_high_gas_price"
         ]
-        # Fix depends_on so mechanism doesn't reference removed step
-        ci["reasoning_steps"][0]["depends_on"] = []
-        summary = _make_summary()
-        result = validate_interpretation(interp, manifest, summary)
-        assert not result.valid
-        assert any("observation step" in e for e in result.errors)
 
-    def test_no_conclusion_step(self, tmp_path: Path):
-        manifest = _make_manifest(tmp_path)
-        interp = _make_valid_interpretation()
-        ci = interp["comparison_interpretations"][0]
-        ci["reasoning_steps"] = [
-            s for s in ci["reasoning_steps"] if s["kind"] != "conclusion"
+        result = validate_brief(brief, manifest)
+
+        assert not result.valid
+        assert "baseline_vs_high_gas_price" in result.coverage["missing_comparison_ids"]
+        assert any("Missing comparison" in err for err in result.errors)
+
+
+class TestToyIndustryCalibrationInterpretationCoverage:
+    def test_full_calibration_interpretation_passes(self, tmp_path: Path):
+        manifest = _make_calibration_manifest(tmp_path)
+        interpretation = _make_calibration_interpretation()
+
+        result = validate_interpretation(interpretation, manifest)
+
+        assert result.valid
+        assert result.coverage["missing_comparison_ids"] == []
+        assert len(result.coverage["expected_comparison_ids"]) == 9
+
+    def test_missing_comparison_fails_for_interpretation(self, tmp_path: Path):
+        manifest = _make_calibration_manifest(tmp_path)
+        interpretation = _make_calibration_interpretation()
+        interpretation["comparison_interpretations"] = [
+            item
+            for item in interpretation["comparison_interpretations"]
+            if item["comparison_id"] != "baseline_vs_high_gas_price"
         ]
-        summary = _make_summary()
-        result = validate_interpretation(interp, manifest, summary)
-        assert not result.valid
-        assert any("conclusion step" in e for e in result.errors)
 
-    def test_unreachable_conclusion(self, tmp_path: Path):
-        manifest = _make_manifest(tmp_path)
-        interp = _make_valid_interpretation()
-        ci = interp["comparison_interpretations"][0]
-        # Make conclusion depend on nothing (and not reachable from observation)
-        ci["reasoning_steps"] = [
-            {
-                "id": "baseline_vs_variant_a_r1",
-                "kind": "observation",
-                "statement": _LONG_TEXT_32,
-                "evidence_refs": ["E1"],
-                "depends_on": [],
-            },
-            {
-                "id": "baseline_vs_variant_a_r3",
-                "kind": "conclusion",
-                "statement": _LONG_TEXT_32,
-                "evidence_refs": ["E1"],
-                "depends_on": [],
-            },
-        ]
-        summary = _make_summary()
-        result = validate_interpretation(interp, manifest, summary)
-        assert not result.valid
-        assert any("not reachable from any observation" in e for e in result.errors)
+        result = validate_interpretation(interpretation, manifest)
 
-    def test_non_substantive_interpretation(self, tmp_path: Path):
-        manifest = _make_manifest(tmp_path)
-        interp = _make_valid_interpretation()
-        interp["executive_summary"]["short_answer"] = "tbd"
-        summary = _make_summary()
-        result = validate_interpretation(interp, manifest, summary)
         assert not result.valid
-        assert any("executive_summary.short_answer" in e for e in result.errors)
+        assert "baseline_vs_high_gas_price" in result.coverage["missing_comparison_ids"]
+        assert any("Missing comparison interpretation" in err for err in result.errors)
 
 
 # ---------------------------------------------------------------------------
@@ -521,14 +544,3 @@ class TestRenderBriefMd:
         assert "## Variants" in md
         assert "## Comparison Plan" in md
         assert "## Design Reasoning" in md
-
-
-class TestRenderInterpretationMd:
-    def test_interpretation_md_has_key_sections(self):
-        interp = _make_valid_interpretation()
-        md = render_interpretation_md(interp)
-        assert "# Experiment Interpretation:" in md
-        assert "## Executive Summary" in md
-        assert "## Comparison Interpretations" in md
-        assert "## Question Answers" in md
-        assert "## Cross-Comparison Synthesis" in md

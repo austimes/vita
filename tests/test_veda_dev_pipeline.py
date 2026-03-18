@@ -1,10 +1,14 @@
 """Tests for veda_dev pipeline result formatting and summaries."""
 
+from pathlib import Path
+
 from tools.veda_dev.pipeline import (
     PipelineResult,
     StepResult,
     _format_step_detail,
+    detect_input_kind,
     format_result_table,
+    run_pipeline,
 )
 
 
@@ -117,3 +121,32 @@ def test_pipeline_to_dict_summary_includes_gams_status_codes_and_text() -> None:
     assert gams_summary["model_status_text"] == "LICENSING PROBLEM"
     assert gams_summary["solve_status_code"] == 7
     assert gams_summary["solve_status_text"] == "LICENSING PROBLEM"
+
+
+def test_detect_input_kind_does_not_treat_arbitrary_yaml_as_tableir(
+    tmp_path: Path,
+) -> None:
+    vedalang_path = tmp_path / "model.veda.yaml"
+    vedalang_path.write_text("id: m\n", encoding="utf-8")
+
+    tableir_path = tmp_path / "model.tableir.yaml"
+    tableir_path.write_text("files: []\n", encoding="utf-8")
+
+    generic_yaml = tmp_path / "manifest.yaml"
+    generic_yaml.write_text("foo: bar\n", encoding="utf-8")
+
+    assert detect_input_kind(vedalang_path) == "vedalang"
+    assert detect_input_kind(tableir_path) == "tableir"
+    assert detect_input_kind(generic_yaml) == "unknown"
+
+
+def test_run_pipeline_fails_fast_on_unknown_input_kind(tmp_path: Path) -> None:
+    generic_yaml = tmp_path / "manifest.yaml"
+    generic_yaml.write_text("foo: bar\n", encoding="utf-8")
+
+    result = run_pipeline(generic_yaml, no_solver=True)
+
+    assert result.success is False
+    assert "input" in result.steps
+    assert result.steps["input"].success is False
+    assert result.steps["input"].errors

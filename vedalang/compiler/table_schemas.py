@@ -222,7 +222,6 @@ def apply_manual_layouts(schemas: dict[str, VedaTableSchema]) -> None:
             "ire_price", "act_bnd", "cap_bnd", "ncap_bnd", "share-o", "share-i",
             "commodity-in", "commodity-out", "commodity", "attribute", "value",
         })
-
     # ~TFM_DINS - long format
     if "tfm_dins" in schemas:
         schemas["tfm_dins"].layout = VedaTableLayout(
@@ -341,6 +340,26 @@ def apply_constraints(
             if fields:
                 # Lowercase field names to match canonical column names
                 schema.require_any_of.append({f.lower() for f in fields})
+
+    # ~FI_T bound rows (act_bnd/cap_bnd/etc.) are valid rows without commodity flow
+    # columns, so widen all require_any_of groups accordingly after constraints load.
+    fi_t_schema = schemas.get("fi_t")
+    if fi_t_schema is not None and fi_t_schema.require_any_of:
+        bound_columns = {
+            "act_bnd",
+            "cap_bnd",
+            "ncap_bnd",
+            "act_cost",
+            "ncap_cost",
+            "ncap_fom",
+            "ncap_tlife",
+            "ire_price",
+            "share-o",
+            "share-i",
+        }
+        fi_t_schema.require_any_of = [
+            group | bound_columns for group in fi_t_schema.require_any_of
+        ]
 
 
 def load_attribute_master(

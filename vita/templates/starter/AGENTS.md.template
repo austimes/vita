@@ -11,6 +11,7 @@ project-locally:
 - `https://github.com/austimes/vita/tree/main/skills/vedalang-dsl-cli`
 - `https://github.com/austimes/vita/tree/main/skills/vita-experiment-loop`
 - `https://github.com/austimes/vita/tree/main/skills/vedalang-modeling-conventions`
+- `https://github.com/austimes/vita/tree/main/skills/visual-explainer`
 
 Steps:
 
@@ -36,7 +37,7 @@ Vita runs the scientific method as an agentic loop:
 1. **Ask a question** about an energy system
 2. **Design experiments** — write VedaLang model variants and an experiment manifest
 3. **Run the deterministic pipeline** — `vita experiment stage → run → summarize`
-4. **Interpret results** — read the evidence, write structured reasoning
+4. **Narrate the evidence** — use the visual-explainer skill to write a report
 5. **Iterate** — refine models, add variants, go around until the question is answered
 
 Every step produces documented, reproducible artifacts.
@@ -68,12 +69,8 @@ vita experiment stage <manifest>.experiment.yaml --out experiments/ --agent-mode
 vita experiment run experiments/<id> --agent-mode --json
 vita experiment summarize experiments/<id> --agent-mode --json
 
-# Validate agentic artifacts
+# Validate planning brief
 vita experiment validate-brief experiments/<id> --agent-mode
-vita experiment validate-interpretation experiments/<id> --agent-mode
-
-# Generate HTML presentation
-vita experiment present experiments/<id> --agent-mode
 ```
 
 ## Single Run vs Experiment
@@ -97,14 +94,11 @@ vita experiment present experiments/<id> --agent-mode
 7. `vita experiment run <dir> --agent-mode --json`
 8. `vita experiment summarize <dir> --agent-mode --json`
 
-### Phase 3: Interpret (Your Job)
-9. Read the evidence: `conclusions/summary.json`, `diffs/*/diff.json`, `runs/*/results.json`
-10. Reason about what the results mean — WHY did things change?
-11. Write `conclusions/interpretation.json` — structured reasoning chain
-12. Run `vita experiment validate-interpretation --agent-mode` — must pass
-
-### Phase 4: Present (Deterministic)
-13. `vita experiment present <dir> --agent-mode`
+### Phase 3: Narrate (Your Job, using visual-explainer)
+9. Read the evidence: `planning/brief.json`, `conclusions/summary.json`, `diffs/*/diff.json`, `runs/*/results.json`
+10. Use the visual-explainer skill to write `report/index.html`
+11. Tell the story: research question → hypothesis → experiment design → key findings → reasoning chain → conclusions
+12. Every claim must trace to a concrete artifact; include a reproducibility appendix
 
 ## Project Layout
 

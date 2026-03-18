@@ -4,7 +4,7 @@ experiments/*/runs/
 experiments/*/diffs/
 experiments/*/analyses/
 experiments/*/conclusions/
-experiments/*/presentation/
+experiments/*/report/
 *.gdx
 *.lst
 

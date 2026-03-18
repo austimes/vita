@@ -108,16 +108,148 @@ _MANIFEST_DICT = {
     ],
 }
 
+_CALIBRATION_CASES = {
+    "baseline": {
+        "run": "single_2025",
+        "objective": 204.54,
+        "gas": 100.0,
+        "eheat": 0.0,
+        "h2": 0.0,
+    },
+    "co2_cap_loose": {
+        "run": "s25_co2_cap_loose",
+        "objective": 207.30,
+        "gas": 80.5,
+        "eheat": 6.8,
+        "h2": 12.7,
+    },
+    "co2_cap_mid": {
+        "run": "s25_co2_cap_mid",
+        "objective": 235.02,
+        "gas": 48.3,
+        "eheat": 39.0,
+        "h2": 12.7,
+    },
+    "co2_cap_tight": {
+        "run": "s25_co2_cap_tight",
+        "objective": 292.90,
+        "gas": 16.1,
+        "eheat": 71.2,
+        "h2": 12.7,
+    },
+    "high_gas_price": {
+        "run": "s25_high_gas_price",
+        "objective": 217.83,
+        "gas": 100.0,
+        "eheat": 0.0,
+        "h2": 0.0,
+    },
+    "high_gas_price_co2_cap_mid": {
+        "run": "s25_high_gas_price_co2_cap_mid",
+        "objective": 241.51,
+        "gas": 48.3,
+        "eheat": 39.0,
+        "h2": 12.7,
+    },
+    "high_h2_price_co2_cap_mid": {
+        "run": "s25_high_h2_price_co2_cap_mid",
+        "objective": 237.58,
+        "gas": 48.3,
+        "eheat": 39.0,
+        "h2": 12.7,
+    },
+}
 
-def _make_results(objective: float) -> dict:
+_CALIBRATION_COMPARISONS: list[tuple[str, str, str]] = [
+    ("baseline_vs_co2_cap_loose", "baseline", "co2_cap_loose"),
+    ("baseline_vs_co2_cap_mid", "baseline", "co2_cap_mid"),
+    ("baseline_vs_co2_cap_tight", "baseline", "co2_cap_tight"),
+    ("baseline_vs_high_gas_price", "baseline", "high_gas_price"),
+    (
+        "baseline_vs_high_gas_price_co2_cap_mid",
+        "baseline",
+        "high_gas_price_co2_cap_mid",
+    ),
+    (
+        "baseline_vs_high_h2_price_co2_cap_mid",
+        "baseline",
+        "high_h2_price_co2_cap_mid",
+    ),
+    (
+        "co2_cap_mid_vs_high_gas_price_co2_cap_mid",
+        "co2_cap_mid",
+        "high_gas_price_co2_cap_mid",
+    ),
+    (
+        "co2_cap_mid_vs_high_h2_price_co2_cap_mid",
+        "co2_cap_mid",
+        "high_h2_price_co2_cap_mid",
+    ),
+    (
+        "high_gas_price_co2_cap_mid_vs_high_h2_price_co2_cap_mid",
+        "high_gas_price_co2_cap_mid",
+        "high_h2_price_co2_cap_mid",
+    ),
+]
+
+
+def _make_results(
+    objective: float,
+    *,
+    gas: float = 0.0,
+    eheat: float = 0.0,
+    h2: float = 0.0,
+) -> dict:
+    var_act = [
+        {
+            "region": "SINGLE",
+            "vintage": "2025",
+            "year": "2025",
+            "process": "PRC_HEAT_GAS",
+            "timeslice": "ANNUAL",
+            "level": gas,
+        },
+        {
+            "region": "SINGLE",
+            "vintage": "2025",
+            "year": "2025",
+            "process": "PRC_HEAT_EHEAT",
+            "timeslice": "ANNUAL",
+            "level": eheat,
+        },
+        {
+            "region": "SINGLE",
+            "vintage": "2025",
+            "year": "2025",
+            "process": "PRC_HEAT_H2",
+            "timeslice": "ANNUAL",
+            "level": h2,
+        },
+    ]
     return {
         "objective": objective,
         "objective_breakdown": {"OBJINV": objective, "OBJFIX": 0.0},
-        "var_act": [],
+        "var_act": var_act,
         "var_ncap": [],
         "var_cap": [],
         "var_flo": [],
     }
+
+
+def _gas_share(results: dict) -> float:
+    """Return gas share as a fraction of total heat activity."""
+    gas = 0.0
+    total = 0.0
+    for row in results.get("var_act", []):
+        process = str(row.get("process", "")).lower()
+        level = float(row.get("level", 0.0))
+        if any(token in process for token in ("gas", "eheat", "h2")):
+            total += level
+            if "gas" in process:
+                gas += level
+    if total == 0.0:
+        return 0.0
+    return gas / total
 
 
 def _make_diff(
@@ -289,6 +421,116 @@ def experiment_dir(tmp_path: Path) -> Path:
     return exp_dir
 
 
+@pytest.fixture()
+def calibrated_experiment_dir(tmp_path: Path) -> Path:
+    """Create a toy-industry calibration fixture with cap ladder + stress runs."""
+    exp_dir = tmp_path / "toy_industry_calibrated"
+    exp_dir.mkdir()
+
+    model_path = tmp_path / "model.veda.yaml"
+    model_path.write_text(_MINIMAL_MODEL)
+
+    variants = [
+        {
+            "id": case_id,
+            "from": "baseline",
+            "run": case_data["run"],
+            "hypothesis": "Calibration fixture variant for regression checks",
+        }
+        for case_id, case_data in _CALIBRATION_CASES.items()
+        if case_id != "baseline"
+    ]
+    comparisons = [
+        {
+            "id": comp_id,
+            "baseline": baseline_id,
+            "variant": variant_id,
+        }
+        for comp_id, baseline_id, variant_id in _CALIBRATION_COMPARISONS
+    ]
+    manifest_dict = {
+        "schema_version": 1,
+        "id": "toy_industry_calibrated",
+        "title": "Toy Industry Calibrated Experiment",
+        "question": "Calibration regression fixture",
+        "baseline": {
+            "id": "baseline",
+            "model": "model.veda.yaml",
+            "run": _CALIBRATION_CASES["baseline"]["run"],
+        },
+        "variants": variants,
+        "comparisons": comparisons,
+        "analyses": [
+            {
+                "id": "main",
+                "question": "Calibration ladder and stress checks",
+                "comparisons": [comp[0] for comp in _CALIBRATION_COMPARISONS],
+            }
+        ],
+    }
+    manifest_path = exp_dir / "manifest.yaml"
+    manifest_path.write_text(yaml.dump(manifest_dict))
+
+    for case_id, case_data in _CALIBRATION_CASES.items():
+        run_dir = exp_dir / "runs" / case_id
+        run_dir.mkdir(parents=True)
+        manifest = RunManifest(
+            run_id=case_data["run"],
+            source="model.veda.yaml",
+            case="scenario",
+            timestamp="2026-03-18T00:38:12Z",
+            solver_status="optimal",
+            objective=case_data["objective"],
+            pipeline_success=True,
+        )
+        write_run_manifest(manifest, run_dir / "manifest.json")
+        (run_dir / "results.json").write_text(
+            json.dumps(
+                _make_results(
+                    case_data["objective"],
+                    gas=case_data["gas"],
+                    eheat=case_data["eheat"],
+                    h2=case_data["h2"],
+                ),
+                indent=2,
+            )
+            + "\n"
+        )
+
+    for comp_id, baseline_id, variant_id in _CALIBRATION_COMPARISONS:
+        diff_dir = exp_dir / "diffs" / comp_id
+        diff_dir.mkdir(parents=True)
+        baseline_obj = _CALIBRATION_CASES[baseline_id]["objective"]
+        variant_obj = _CALIBRATION_CASES[variant_id]["objective"]
+        diff_data = _make_diff(
+            baseline_obj=baseline_obj,
+            variant_obj=variant_obj,
+        )
+        (diff_dir / "diff.json").write_text(json.dumps(diff_data, indent=2) + "\n")
+
+    run_ids = list(_CALIBRATION_CASES)
+    comparison_ids = [comp[0] for comp in _CALIBRATION_COMPARISONS]
+    state = create_experiment_state(
+        experiment_dir=exp_dir,
+        experiment_id="toy_industry_calibrated",
+        manifest_file="manifest.yaml",
+        run_ids=run_ids,
+        comparison_ids=comparison_ids,
+        now_utc=_FIXED_NOW,
+    )
+    state.status = "complete"
+    state.completed_at = "2026-03-18T12:00:00Z"
+    for rid in run_ids:
+        state.run_statuses[rid] = "complete"
+    for cid in comparison_ids:
+        state.diff_statuses[cid] = "complete"
+    state.progress.runs_complete = len(run_ids)
+    state.progress.diffs_complete = len(comparison_ids)
+    save_experiment_state(state, exp_dir)
+
+    return exp_dir
+
+
 # ---------------------------------------------------------------------------
 # generate_summary (integration)
 # ---------------------------------------------------------------------------
@@ -353,6 +595,52 @@ class TestGenerateSummary:
         summary = json.loads(summary_path.read_text())
         assert "summarized_at" in summary
         assert "concluded_at" not in summary
+
+
+class TestToyIndustryCalibrationRegression:
+    def test_cap_ladder_gas_share_declines_monotonically(
+        self,
+        calibrated_experiment_dir: Path,
+    ):
+        shares: dict[str, float] = {}
+        for case_id in ("co2_cap_loose", "co2_cap_mid", "co2_cap_tight"):
+            results_path = calibrated_experiment_dir / "runs" / case_id / "results.json"
+            results = json.loads(results_path.read_text())
+            shares[case_id] = _gas_share(results)
+
+        assert shares["co2_cap_loose"] > shares["co2_cap_mid"]
+        assert shares["co2_cap_mid"] > shares["co2_cap_tight"]
+
+    def test_cap_ladder_objective_impact_increases_with_tightness(
+        self,
+        calibrated_experiment_dir: Path,
+    ):
+        summary_path = generate_summary(calibrated_experiment_dir, now_utc=_FIXED_NOW)
+        summary = json.loads(summary_path.read_text())
+        comparisons = {c["id"]: c for c in summary["comparisons"]}
+
+        loose = abs(comparisons["baseline_vs_co2_cap_loose"]["objective_delta"])
+        mid = abs(comparisons["baseline_vs_co2_cap_mid"]["objective_delta"])
+        tight = abs(comparisons["baseline_vs_co2_cap_tight"]["objective_delta"])
+
+        assert loose < mid < tight
+
+    def test_policy_mid_delta_exceeds_cost_only_high_gas_price_delta(
+        self,
+        calibrated_experiment_dir: Path,
+    ):
+        summary_path = generate_summary(calibrated_experiment_dir, now_utc=_FIXED_NOW)
+        summary = json.loads(summary_path.read_text())
+        comparisons = {c["id"]: c for c in summary["comparisons"]}
+
+        policy_mid_delta = abs(
+            comparisons["baseline_vs_co2_cap_mid"]["objective_delta"]
+        )
+        cost_only_delta = abs(
+            comparisons["baseline_vs_high_gas_price"]["objective_delta"]
+        )
+
+        assert policy_mid_delta > cost_only_delta
 
 
 # ---------------------------------------------------------------------------

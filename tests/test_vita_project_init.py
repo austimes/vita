@@ -14,13 +14,17 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 ROOT_README = PROJECT_ROOT / "README.md"
 CURATED_DEMO_PATHS = [demo.target_relpath for demo in CURATED_STARTER_DEMOS]
 FEATURED_DEMO = Path("models/demos/toy_industry.veda.yaml")
+FEATURED_EXPERIMENT_BASELINE_MODEL = Path(
+    "models/demos/toy_industry_switch_base.veda.yaml"
+)
 FEATURED_COMPANION_MODELS = {
-    Path("models/demos/toy_industry_co2_cap_loose.veda.yaml"),
-    Path("models/demos/toy_industry_co2_cap_mid.veda.yaml"),
-    Path("models/demos/toy_industry_co2_cap_tight.veda.yaml"),
-    Path("models/demos/toy_industry_high_gas_price.veda.yaml"),
-    Path("models/demos/toy_industry_high_gas_price_co2_cap_mid.veda.yaml"),
-    Path("models/demos/toy_industry_high_h2_price_co2_cap_mid.veda.yaml"),
+    Path("models/demos/toy_industry_switch_base.veda.yaml"),
+    Path("models/demos/toy_industry_switch_cap_loose.veda.yaml"),
+    Path("models/demos/toy_industry_switch_cap_mid.veda.yaml"),
+    Path("models/demos/toy_industry_switch_cap_tight.veda.yaml"),
+    Path("models/demos/toy_industry_switch_high_gas_price.veda.yaml"),
+    Path("models/demos/toy_industry_switch_high_gas_price_cap_mid.veda.yaml"),
+    Path("models/demos/toy_industry_switch_high_h2_price_cap_mid.veda.yaml"),
 }
 FEATURED_EXPERIMENT = Path("experiments/demos/toy_industry_core.experiment.yaml")
 
@@ -75,7 +79,7 @@ class TestInitProject:
         ) in readme
         assert (
             "This experiment is a coordinated set of run variations over the "
-            "seeded toy industry model"
+            "seeded toy industry switch model family"
         ) in readme
         assert (
             "vita experiment "
@@ -111,9 +115,11 @@ class TestInitProject:
     ) -> None:
         init_project(tmp_path)
         manifest = load_experiment_manifest(tmp_path / FEATURED_EXPERIMENT)
-        assert manifest.baseline.model == (tmp_path / FEATURED_DEMO).resolve()
+        assert manifest.baseline.model == (
+            tmp_path / FEATURED_EXPERIMENT_BASELINE_MODEL
+        ).resolve()
         assert manifest.variants[0].model == (
-            tmp_path / "models" / "demos" / "toy_industry_co2_cap_loose.veda.yaml"
+            tmp_path / "models" / "demos" / "toy_industry_switch_cap_loose.veda.yaml"
         ).resolve()
 
     def test_agents_md_contains_skill_bootstrap(self, tmp_path: Path) -> None:

@@ -14,6 +14,8 @@ MANIFEST_FILENAME = "manifest.json"
 SOURCE_SNAPSHOT_FILENAME = "model.veda.yaml"
 RESULTS_FILENAME = "results.json"
 SOLVER_DIRNAME = "solver"
+COMPILED_DIRNAME = "compiled"
+DD_DIRNAME = "dd"
 
 RUN_MANIFEST_REQUIRED_FIELDS = (
     "run_id",
@@ -60,6 +62,8 @@ class RunArtifactPaths:
     solver_dir: Path
     gdx_path: Path
     lst_path: Path
+    compiled_dir: Path
+    dd_dir: Path
 
     def to_dict(self) -> dict[str, str]:
         """Return JSON-serializable absolute paths."""
@@ -68,6 +72,8 @@ class RunArtifactPaths:
             "manifest_file": str(self.manifest_path.resolve()),
             "source_snapshot_file": str(self.source_snapshot_path.resolve()),
             "results_file": str(self.results_path.resolve()),
+            "compiled_dir": str(self.compiled_dir.resolve()),
+            "dd_dir": str(self.dd_dir.resolve()),
             "solver_dir": str(self.solver_dir.resolve()),
             "gdx_file": str(self.gdx_path.resolve()),
             "lst_file": str(self.lst_path.resolve()),
@@ -196,6 +202,8 @@ def build_run_artifact_paths(
         solver_dir=solver_dir,
         gdx_path=solver_dir / f"{case}.gdx",
         lst_path=solver_dir / f"{case}.lst",
+        compiled_dir=normalized / COMPILED_DIRNAME,
+        dd_dir=normalized / DD_DIRNAME,
     )
 
 
@@ -325,6 +333,8 @@ def emit_run_artifacts(
         input_kind=input_kind,
         destination=paths.source_snapshot_path,
     )
+    _copy_compiled_artifacts(paths, pipeline_artifacts)
+    _copy_dd_artifacts(paths, pipeline_artifacts)
     _copy_solver_artifacts(paths, run_times_artifacts)
     gdx_candidates = _existing_paths(run_times_artifacts.get("gdx_files", []))
     preferred_gdx = _pick_preferred_gdx(gdx_candidates)
@@ -421,6 +431,52 @@ def _write_source_snapshot(
         "input_kind": input_kind,
     }
     destination.write_text(json.dumps(payload, indent=2) + "\n")
+
+
+def _copy_compiled_artifacts(
+    paths: RunArtifactPaths,
+    pipeline_artifacts: Mapping[str, Any],
+) -> None:
+    """Copy compiled Excel files from the pipeline work directory."""
+    excel_dir_str = pipeline_artifacts.get("excel_dir")
+    if not isinstance(excel_dir_str, str):
+        return
+    excel_dir = Path(excel_dir_str)
+    if not excel_dir.is_dir():
+        return
+    xlsx_files = list(excel_dir.glob("**/*.xlsx"))
+    if not xlsx_files:
+        return
+    paths.compiled_dir.mkdir(parents=True, exist_ok=True)
+    for src in xlsx_files:
+        rel = src.relative_to(excel_dir)
+        dest = paths.compiled_dir / rel
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, dest)
+
+
+def _copy_dd_artifacts(
+    paths: RunArtifactPaths,
+    pipeline_artifacts: Mapping[str, Any],
+) -> None:
+    """Copy DD files and xl2times diagnostics from the pipeline work directory."""
+    dd_dir_str = pipeline_artifacts.get("dd_dir")
+    if not isinstance(dd_dir_str, str):
+        return
+    dd_dir = Path(dd_dir_str)
+    if not dd_dir.is_dir():
+        return
+    dd_files = list(dd_dir.glob("*.dd"))
+    if not dd_files:
+        return
+    paths.dd_dir.mkdir(parents=True, exist_ok=True)
+    for src in dd_files:
+        shutil.copy2(src, paths.dd_dir / src.name)
+
+    # Copy xl2times diagnostics if available next to the DD dir
+    diag_file = dd_dir.parent / "xl2times_diagnostics.json"
+    if diag_file.exists():
+        shutil.copy2(diag_file, paths.dd_dir / "diagnostics.json")
 
 
 def _copy_solver_artifacts(
