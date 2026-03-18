@@ -792,9 +792,26 @@ cat diag.json | jq '.diagnostics[] | {code, severity, message}'
 **MANDATORY WORKFLOW:**
 
 1. **File issues for remaining work** - Create issues for anything that needs follow-up
-2. **Bump versions** - Increment shipped version markers before every push
-   (`pyproject.toml`, `tools/vedalang_lsp/server/server.py`,
-   `tools/vedalang_lsp/extension/package.json`) and update any related tests/docs
+2. **Bump versions before commit** - Increment shipped version markers BEFORE
+   creating the git commit that will be pushed. Do not wait until after commit
+   or after push.
+   Required markers:
+   `pyproject.toml`
+   `vita/version.py`
+   `vedalang/version.py`
+   `tools/vedalang_lsp/server/server.py`
+   `tools/vedalang_lsp/extension/package.json`
+   Update any related tests/docs that assert version strings.
+   Version policy:
+   Bump the shipped release number on every push.
+   Use a final-segment increment for each push (for example `0.4.0 -> 0.4.1`).
+   `vita` and `vedalang` have distinct CLI version markers, but they are not
+   independent release trains:
+   any shipped change to `vedalang` MUST bump both `vedalang` and `vita`
+   version markers.
+   a shipped `vita`-only change MUST bump `vita`; keep `vedalang` aligned with
+   the shared shipped release markers unless there is an explicit repo decision
+   to split them.
 3. **Run quality gates** (if code changed) - Tests, linters, builds
 4. **Commit all completed work** - Stage and commit all intended changes before handoff
 5. **Update issue status** - Close finished work, update in-progress items
@@ -815,6 +832,9 @@ cat diag.json | jq '.diagnostics[] | {code, severity, message}'
 - Work is NOT complete until all intended changes are committed
 - Work is NOT complete until `git push` succeeds
 - Do NOT push shipped code without incrementing the repo/tool version markers
+- Do NOT bump versions after committing; the pushed commit itself must contain
+  the new version markers
+- Any `vedalang` change that ships requires a `vita` version bump as well
 - NEVER leave finished work only in the working tree
 - NEVER stop before pushing - that leaves work stranded locally
 - NEVER say "ready to push when you are" - YOU must push
