@@ -146,6 +146,16 @@ def _seed_curated_starter(target: Path) -> tuple[Path, str]:
         dst = target / demo.target_relpath
         _copy_if_missing(src, dst)
 
+        for companion_filename in demo.companion_asset_filenames:
+            companion_src = TEMPLATES_DIR / companion_filename
+            companion_name = (
+                companion_filename[5:]
+                if companion_filename.startswith("demo.")
+                else companion_filename
+            )
+            companion_dst = dst.parent / companion_name
+            _copy_if_missing(companion_src, companion_dst)
+
         if demo.experiment_asset_filename:
             exp_src = TEMPLATES_DIR / demo.experiment_asset_filename
             exp_dst = (
@@ -247,8 +257,9 @@ def _curated_template_context(
         "starter_experiment_semantics": (
             "The seeded experiment is "
             "`experiments/demos/toy_industry_core.experiment.yaml`: it compares "
-            "the same seeded toy industry model at baseline run `single_2025` "
-            "against variant run `s25_co2_cap`."
+            "the baseline run `single_2025` against six canonical `.veda.yaml` "
+            "variants spanning loose/mid/tight clean-heat policy proxies, "
+            "gas-price stress, and H2 marginal sensitivity."
         ),
         "starter_experiment_note": (
             "This experiment is a coordinated set of run variations over the "
@@ -281,7 +292,7 @@ active model setting.""",
         ),
         "starter_experiment_prompt": (
             "Run the seeded toy industry experiment and explain how "
-            "`s25_co2_cap` changes the result relative to `single_2025`"
+            "`co2_cap_mid` and `high_gas_price` compare against `baseline`"
         ),
         "starter_second_prompt": (
             "Show me the demo catalog and tell me whether I should start with "
@@ -290,8 +301,8 @@ active model setting.""",
         "starter_questions_examples": (
             "- Which of the curated demos is the best starting point for my "
             "question?\n"
-            "- For the toy industry demo, what changes when I switch from "
-            "`single_2025` to `s25_co2_cap`?\n"
+            "- For the toy industry demo, how do `co2_cap_loose`, `co2_cap_mid`, "
+            "and `co2_cap_tight` differ?\n"
             "- How do I add my own model next to the curated demos without "
             "replacing them?"
         ),

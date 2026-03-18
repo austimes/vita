@@ -14,6 +14,14 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 ROOT_README = PROJECT_ROOT / "README.md"
 CURATED_DEMO_PATHS = [demo.target_relpath for demo in CURATED_STARTER_DEMOS]
 FEATURED_DEMO = Path("models/demos/toy_industry.veda.yaml")
+FEATURED_COMPANION_MODELS = {
+    Path("models/demos/toy_industry_co2_cap_loose.veda.yaml"),
+    Path("models/demos/toy_industry_co2_cap_mid.veda.yaml"),
+    Path("models/demos/toy_industry_co2_cap_tight.veda.yaml"),
+    Path("models/demos/toy_industry_high_gas_price.veda.yaml"),
+    Path("models/demos/toy_industry_high_gas_price_co2_cap_mid.veda.yaml"),
+    Path("models/demos/toy_industry_high_h2_price_co2_cap_mid.veda.yaml"),
+}
 FEATURED_EXPERIMENT = Path("experiments/demos/toy_industry_core.experiment.yaml")
 
 
@@ -32,6 +40,8 @@ class TestInitProject:
         assert result["featured_model"] == str(FEATURED_DEMO)
         assert result["featured_run"] == "single_2025"
         for relpath in CURATED_DEMO_PATHS:
+            assert (tmp_path / relpath).exists()
+        for relpath in FEATURED_COMPANION_MODELS:
             assert (tmp_path / relpath).exists()
         assert (tmp_path / FEATURED_EXPERIMENT).exists()
         assert not (tmp_path / "models" / "example.veda.yaml").exists()
@@ -92,7 +102,7 @@ class TestInitProject:
         ) in agents.lower()
         assert (
             "Run the seeded toy industry experiment and explain how "
-            "`s25_co2_cap` changes the result relative to `single_2025`"
+            "`co2_cap_mid` and `high_gas_price` compare against `baseline`"
         ) in agents
         assert "Run the example model and explain the results" not in agents
 
@@ -102,7 +112,9 @@ class TestInitProject:
         init_project(tmp_path)
         manifest = load_experiment_manifest(tmp_path / FEATURED_EXPERIMENT)
         assert manifest.baseline.model == (tmp_path / FEATURED_DEMO).resolve()
-        assert manifest.variants[0].model == (tmp_path / FEATURED_DEMO).resolve()
+        assert manifest.variants[0].model == (
+            tmp_path / "models" / "demos" / "toy_industry_co2_cap_loose.veda.yaml"
+        ).resolve()
 
     def test_agents_md_contains_skill_bootstrap(self, tmp_path: Path) -> None:
         init_project(tmp_path)

@@ -18,6 +18,7 @@ class StarterDemo:
     question: str
     featured: bool = False
     experiment_asset_filename: str | None = None
+    companion_asset_filenames: tuple[str, ...] = ()
 
 
 CURATED_STARTER_DEMOS: tuple[StarterDemo, ...] = (
@@ -61,11 +62,19 @@ CURATED_STARTER_DEMOS: tuple[StarterDemo, ...] = (
         target_relpath=Path("models/demos/toy_industry.veda.yaml"),
         default_run="single_2025",
         question=(
-            "Apply an emissions constraint to industrial heat demand and inspect "
-            "which clean-heat technology is selected."
+            "Test a cap-tightening clean-heat extension ladder and compare policy, "
+            "price, and hydrogen marginal effects."
         ),
         featured=True,
         experiment_asset_filename="experiment.toy_industry_core.experiment.yaml",
+        companion_asset_filenames=(
+            "demo.toy_industry_co2_cap_loose.veda.yaml",
+            "demo.toy_industry_co2_cap_mid.veda.yaml",
+            "demo.toy_industry_co2_cap_tight.veda.yaml",
+            "demo.toy_industry_high_gas_price.veda.yaml",
+            "demo.toy_industry_high_gas_price_co2_cap_mid.veda.yaml",
+            "demo.toy_industry_high_h2_price_co2_cap_mid.veda.yaml",
+        ),
     ),
     StarterDemo(
         id="toy_resources",

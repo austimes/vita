@@ -1,22 +1,24 @@
 schema_version: 1
 id: toy_industry_core
-title: "Toy industry clean-heat technology selection"
+title: "Industrial heat decarbonisation: switching, drivers, and hydrogen marginal"
 question: >
-  Apply an emissions constraint to stylised industrial heat demand; allow gas,
-  e-heat, and H₂. What technology is selected and what is ΔTWh and implied $/t?
+  Apply an emissions-constraining clean-heat policy to stylised industrial heat demand
+  with gas, e-heat, and H2. Track policy-driven switching, separate policy-vs-price
+  drivers, and measure hydrogen marginal contribution under a binding constraint.
 
 extensions:
   - id: A
     question: >
-      What happens when you add a CO₂ constraint? Which technology switches first?
+      As the gas activity cap tightens, where are the switching points across gas,
+      e-heat, and H2?
   - id: B
     question: >
-      Is the carbon price or the clean-heat target the bigger driver of cost
-      and technology choice?
+      Is cost pressure (fuel price) or policy pressure (mid cap) the bigger driver of
+      system cost changes?
   - id: C
     question: >
-      What is the ordered marginal contribution of e-heat, hydrogen, and
-      heat-demand reduction to ΔTWh, ΔMtCO₂, and implied $/t?
+      Under a binding mid cap, what is hydrogen's marginal contribution to objective
+      movement when delivered H2 price increases?
 
 defaults:
   case: scenario
@@ -37,80 +39,149 @@ baseline:
   id: baseline
   model: ../toy_industry.veda.yaml
   run: single_2025
-  notes: Unconstrained single-period baseline (2025)
+  notes: >
+    Calibrated baseline with fixed heat demand and no clean-heat policy proxy active.
 
 variants:
-  - id: co2_cap
+  - id: co2_cap_loose
     from: baseline
-    run: s25_co2_cap
-    hypothesis: CO₂ cap may be non-binding given baseline already prefers clean heat
-    notes: Same model, different run ID activates the CO₂ cap constraint
+    model: ../toy_industry_co2_cap_loose.veda.yaml
+    run: single_2025
+    hypothesis: >
+      Loose policy proxy should trigger a small shift toward clean heat while keeping
+      objective impacts modest.
+    notes: >
+      Current public VedaLang surface does not expose direct ACT_BND authoring;
+      this variant approximates a loose cap by lowering residual gas boiler stock
+      and setting near-zero new gas build allowance.
 
-  - id: high_gas_capex
+  - id: co2_cap_mid
     from: baseline
-    model: ../toy_industry_high_gas_capex.veda.yaml
-    hypothesis: Higher gas boiler capex raises system cost but may not change technology mix
+    model: ../toy_industry_co2_cap_mid.veda.yaml
+    run: single_2025
+    hypothesis: >
+      Mid policy proxy should force stronger substitution from gas toward e-heat.
+    notes: >
+      Proxy uses a tighter residual gas stock clamp and near-zero new gas build.
 
-  - id: high_h2_capex
+  - id: co2_cap_tight
     from: baseline
-    model: ../toy_industry_high_h2_capex.veda.yaml
-    hypothesis: Higher H₂ boiler capex changes H₂ build scale and total system cost
+    model: ../toy_industry_co2_cap_tight.veda.yaml
+    run: single_2025
+    hypothesis: >
+      Tight policy proxy should produce the highest clean-heat pressure and largest
+      objective movement across the cap ladder.
+    notes: >
+      Tightest residual gas stock clamp plus near-zero new gas build.
+
+  - id: high_gas_price
+    from: baseline
+    model: ../toy_industry_high_gas_price.veda.yaml
+    run: single_2025
+    hypothesis: >
+      Cost-only stress (higher gas pathway cost) increases objective without policy
+      tightening.
+
+  - id: high_gas_price_co2_cap_mid
+    from: baseline
+    model: ../toy_industry_high_gas_price_co2_cap_mid.veda.yaml
+    run: single_2025
+    hypothesis: >
+      Combined stress (mid cap + high gas price) should add only modest incremental
+      objective movement beyond policy-only mid cap.
+
+  - id: high_h2_price_co2_cap_mid
+    from: baseline
+    model: ../toy_industry_high_h2_price_co2_cap_mid.veda.yaml
+    run: single_2025
+    hypothesis: >
+      Under mid cap, higher H2 pathway cost isolates hydrogen's marginal objective
+      contribution.
 
 comparisons:
-  - id: baseline_vs_co2_cap
+  - id: baseline_vs_co2_cap_loose
     baseline: baseline
-    variant: co2_cap
+    variant: co2_cap_loose
 
-  - id: baseline_vs_high_gas_capex
+  - id: baseline_vs_co2_cap_mid
     baseline: baseline
-    variant: high_gas_capex
+    variant: co2_cap_mid
 
-  - id: baseline_vs_high_h2_capex
+  - id: baseline_vs_co2_cap_tight
     baseline: baseline
-    variant: high_h2_capex
+    variant: co2_cap_tight
+
+  - id: co2_cap_loose_vs_co2_cap_mid
+    baseline: co2_cap_loose
+    variant: co2_cap_mid
+
+  - id: co2_cap_mid_vs_co2_cap_tight
+    baseline: co2_cap_mid
+    variant: co2_cap_tight
+
+  - id: baseline_vs_high_gas_price
+    baseline: baseline
+    variant: high_gas_price
+
+  - id: baseline_vs_high_gas_price_co2_cap_mid
+    baseline: baseline
+    variant: high_gas_price_co2_cap_mid
+
+  - id: co2_cap_mid_vs_high_gas_price_co2_cap_mid
+    baseline: co2_cap_mid
+    variant: high_gas_price_co2_cap_mid
+
+  - id: co2_cap_mid_vs_high_h2_price_co2_cap_mid
+    baseline: co2_cap_mid
+    variant: high_h2_price_co2_cap_mid
 
 analyses:
-  - id: main
-    question: What technology mix does the solver select, and how does it change across variants?
+  - id: extension_a_switching
+    question: >
+      As the policy proxy tightens, how do gas/e-heat/H2 outcomes move across the
+      ladder?
     comparisons:
-      - baseline_vs_co2_cap
-      - baseline_vs_high_gas_capex
-      - baseline_vs_high_h2_capex
+      - baseline_vs_co2_cap_loose
+      - baseline_vs_co2_cap_mid
+      - baseline_vs_co2_cap_tight
+      - co2_cap_loose_vs_co2_cap_mid
+      - co2_cap_mid_vs_co2_cap_tight
     metrics_of_interest:
       - objective
       - objective_breakdown
+      - var_act
+      - var_ncap
+      - var_cap
+      - var_flo
+
+  - id: extension_b_drivers
+    question: >
+      Compare policy-only, cost-only, and combined stress to isolate dominant objective
+      drivers.
+    comparisons:
+      - baseline_vs_co2_cap_mid
+      - baseline_vs_high_gas_price
+      - baseline_vs_high_gas_price_co2_cap_mid
+      - co2_cap_mid_vs_high_gas_price_co2_cap_mid
+    metrics_of_interest:
+      - objective
+      - objective_breakdown
+      - var_act
       - var_ncap
       - var_cap
 
-  - id: extension_a
-    question: What happens when you add a CO₂ constraint? Which technology switches first?
+  - id: extension_c_hydrogen_marginal
+    question: >
+      Under a binding mid policy proxy, what additional objective movement appears when
+      only H2 pathway cost is stressed?
     comparisons:
-      - baseline_vs_co2_cap
+      - baseline_vs_co2_cap_mid
+      - co2_cap_mid_vs_high_h2_price_co2_cap_mid
+      - baseline_vs_co2_cap_tight
     metrics_of_interest:
       - objective
+      - objective_breakdown
+      - var_act
       - var_ncap
       - var_cap
-
-  - id: extension_b
-    question: Is the carbon price or the clean-heat cost the bigger driver?
-    comparisons:
-      - baseline_vs_high_gas_capex
-      - baseline_vs_high_h2_capex
-    rank_by: "abs(objective.delta)"
-    metrics_of_interest:
-      - objective
-
-  - id: extension_c
-    question: What is the ordered marginal contribution of each clean-heat option?
-    comparisons:
-      - baseline_vs_co2_cap
-      - baseline_vs_high_gas_capex
-      - baseline_vs_high_h2_capex
-    notes: >
-      Full ordered marginal recipe requires composable lever overrides (future).
-      Current proxy uses independent variant diffs ranked by objective delta.
-    rank_by: "abs(objective.delta)"
-    metrics_of_interest:
-      - objective
-      - var_ncap
-      - var_cap
+      - var_flo
