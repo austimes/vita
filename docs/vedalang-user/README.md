@@ -14,7 +14,7 @@ VedaLang Source (.veda.yaml)  →  VEDA Excel (.xlsx)  →  TIMES DD files
 
 ```bash
 # Install the latest CLI tools from GitHub
-uv tool install git+https://github.com/austimes/vedalang
+uv tool install git+https://github.com/austimes/vita
 
 # Start a workspace with a runnable starter model
 vita init my-experiment

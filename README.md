@@ -28,7 +28,7 @@ The agent handles the bookends (framing, hypothesizing, interpreting, iterating)
 
 ```bash
 # Install the latest CLI tools from GitHub
-uv tool install git+https://github.com/austimes/vedalang
+uv tool install git+https://github.com/austimes/vita
 
 # Verify the commands are on PATH
 vita --help
@@ -45,7 +45,7 @@ vedalang validate models/example.veda.yaml --run demo_2025
 vita run models/example.veda.yaml --run demo_2025 --no-solver --json
 ```
 
-Rerun `uv tool install --force git+https://github.com/austimes/vedalang` to refresh to the latest GitHub HEAD.
+Rerun `uv tool install --force git+https://github.com/austimes/vita` to refresh to the latest GitHub HEAD.
 
 Clone the repository only if you want the bundled examples, the agent skill files under `skills/`, or contributor workflows. The quick start above is the supported path for getting `vita` and `vedalang` onto your shell `PATH`.
 
