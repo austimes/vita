@@ -4,6 +4,12 @@ Chronological record of the current repository state.
 
 ## 2026-03-18
 
+- Clarified the `vita init` starter guidance so generated `AGENTS.md`/`README.md`
+  distinguish a single seeded `vita run` from a seeded `vita experiment`, and
+  explain that the toy-industry experiment is a variation set over one seeded
+  model (`single_2025` baseline vs `s25_co2_cap`).
+- Bumped the shipped repo/tool version to `0.4.11` across the Python package
+  and both CLI version markers.
 - Changed `vita init` to default to a curated demo workspace with six packaged
   toy models under `models/demos/`, a seeded toy-industry experiment manifest,
   and starter docs that explain the multi-model workspace flow. Added

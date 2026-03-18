@@ -60,6 +60,14 @@ class TestInitProject:
         assert "Using Your Own Model" in readme
         assert "there is no single\nactive model setting" in readme
         assert (
+            "This runs one existing seeded model/run directly and writes a "
+            "single run directory"
+        ) in readme
+        assert (
+            "This experiment is a coordinated set of run variations over the "
+            "seeded toy industry model"
+        ) in readme
+        assert (
             "vita experiment "
             "experiments/demos/toy_industry_core.experiment.yaml"
         ) in readme
@@ -74,8 +82,16 @@ class TestInitProject:
             "--run single_2025"
         ) in agents
         assert (
-            "Show me the demo catalog and recommend which starter model fits "
-            "my question"
+            "Show me the demo catalog and tell me whether I should start with "
+            "a single seeded run or a seeded experiment"
+        ) in agents
+        assert (
+            "the seeded experiment is "
+            "`experiments/demos/toy_industry_core.experiment.yaml`"
+        ) in agents.lower()
+        assert (
+            "Run the seeded toy industry experiment and explain how "
+            "`s25_co2_cap` changes the result relative to `single_2025`"
         ) in agents
         assert "Run the example model and explain the results" not in agents
 

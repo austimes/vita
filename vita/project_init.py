@@ -218,7 +218,8 @@ def _curated_template_context(
         "gams_status": gams_status,
         "times_status": times_status,
         "starter_intro_prompt": (
-            "Run the toy industry demo and explain which technology is selected"
+            "Run the seeded toy industry model at `single_2025` and explain "
+            "which technology is selected"
         ),
         "starter_validate_command": (
             "vedalang validate "
@@ -231,9 +232,27 @@ def _curated_template_context(
             f"--run {featured_demo.default_run} "
             "--out runs/toy_industry/baseline --json"
         ),
+        "starter_run_semantics": (
+            "In this starter workspace, the seeded single run is "
+            "`models/demos/toy_industry.veda.yaml --run single_2025`."
+        ),
+        "starter_run_note": (
+            "This runs one existing seeded model/run directly and writes a "
+            "single run directory at `runs/toy_industry/baseline`."
+        ),
         "starter_experiment_command": (
             "vita experiment experiments/demos/toy_industry_core.experiment.yaml "
             "--out experiments/ --json"
+        ),
+        "starter_experiment_semantics": (
+            "The seeded experiment is "
+            "`experiments/demos/toy_industry_core.experiment.yaml`: it compares "
+            "the same seeded toy industry model at baseline run `single_2025` "
+            "against variant run `s25_co2_cap`."
+        ),
+        "starter_experiment_note": (
+            "This experiment is a coordinated set of run variations over the "
+            "seeded toy industry model, not a separate model family."
         ),
         "starter_experiment_section": (
             "```bash\n"
@@ -257,12 +276,16 @@ like; Vita does not auto-delete or auto-refresh them. A single Vita workspace ca
 mix many models, experiments, and run directories at once, and there is no single
 active model setting.""",
         "starter_first_prompt": (
-            "What technology mix does the solver select for the toy industry "
-            "demo, and why?"
+            "Run the seeded toy industry model at `single_2025` and explain "
+            "what technology mix it selects"
+        ),
+        "starter_experiment_prompt": (
+            "Run the seeded toy industry experiment and explain how "
+            "`s25_co2_cap` changes the result relative to `single_2025`"
         ),
         "starter_second_prompt": (
-            "Show me the demo catalog and recommend which starter model fits "
-            "my question"
+            "Show me the demo catalog and tell me whether I should start with "
+            "a single seeded run or a seeded experiment"
         ),
         "starter_questions_examples": (
             "- Which of the curated demos is the best starting point for my "
@@ -296,7 +319,24 @@ def _minimal_template_context(
             "vita run models/example.veda.yaml --run demo_2025 --out "
             "runs/example --json"
         ),
+        "starter_run_semantics": (
+            "In this starter workspace, the seeded single run is "
+            "`models/example.veda.yaml --run demo_2025`."
+        ),
+        "starter_run_note": (
+            "This runs the one seeded starter model directly and writes a "
+            "single run directory at `runs/example`."
+        ),
         "starter_experiment_command": "# No seeded experiment in the minimal profile",
+        "starter_experiment_semantics": (
+            "The minimal profile does not seed an experiment manifest; add one "
+            "under `experiments/` when you want baseline/variant comparisons."
+        ),
+        "starter_experiment_note": (
+            "An experiment in Vita is a set of coordinated run variations over "
+            "one question, but you need to author the manifest yourself in the "
+            "minimal profile."
+        ),
         "starter_experiment_section": (
             "The minimal profile does not seed an experiment manifest. Add one under "
             "`experiments/` when you are ready to compare cases."
@@ -315,6 +355,9 @@ Place new model files under `models/`. This minimal starter seeds one example fi
 but the workspace can still hold many models, experiments, and runs at once.""",
         "starter_first_prompt": (
             "What technology mix does the solver select for the example model, and why?"
+        ),
+        "starter_experiment_prompt": (
+            "Design an experiment to test what happens if we double gas prices"
         ),
         "starter_second_prompt": "Run the example model and explain the results",
         "starter_questions_examples": """\

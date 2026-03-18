@@ -41,6 +41,13 @@ Vita runs the scientific method as an agentic loop:
 
 Every step produces documented, reproducible artifacts.
 
+## Single Run vs Experiment
+
+- `vita run <model>.veda.yaml --run <run_id>` executes one concrete model/run pair and writes one run directory. Use it when you want a single answer for one seeded run or when you want to inspect/debug one run in isolation.
+- `vita experiment <manifest>.experiment.yaml` executes a named study: baseline plus one or more variants, then writes coordinated run, diff, summary, and presentation artifacts. Use it when the question is comparative rather than single-case.
+- {starter_run_semantics}
+- {starter_experiment_semantics}
+
 ## Workflow Commands
 
 ```bash
@@ -107,11 +114,15 @@ Featured first run:
 {starter_run_command}
 ```
 
+{starter_run_note}
+
 Seeded experiment:
 
 ```bash
 {starter_experiment_command}
 ```
+
+{starter_experiment_note}
 
 Demo catalog:
 
@@ -124,7 +135,7 @@ Using your own model:
 ## First Prompts to Try
 
 - "{starter_first_prompt}"
-- "Design an experiment to test what happens if we double gas prices"
+- "{starter_experiment_prompt}"
 - "{starter_second_prompt}"
 
 ## VedaLang Quick Reference

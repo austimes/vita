@@ -18,9 +18,13 @@ A Vita project for energy system analysis.
 {starter_run_command}
 ```
 
+{starter_run_note}
+
 ## Seeded Experiment
 
 {starter_experiment_section}
+
+{starter_experiment_note}
 
 ## Demo Catalog
 
