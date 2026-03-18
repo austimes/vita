@@ -42,9 +42,8 @@ class TestInitProject:
             "https://github.com/austimes/vita/tree/main/skills/"
             "vedalang-modeling-conventions" in content
         )
-        assert "into this project, not the global system skill directory" in content
-        assert "appropriate project-local skill" in content
-        assert "Do not install them into a global system skill" in content
+        assert "project-locally for this workspace" in content
+        assert "Install the skills project-locally for this workspace." in content
         assert "Force-refresh the project-local copies before installing" in content
         assert "the skill names that were installed" in content
         assert "the exact install location for each skill" in content

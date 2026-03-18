@@ -6,7 +6,7 @@ This is a Vita project for answering energy system questions through experiments
 ## First-Run Skill Bootstrap
 
 On the first agent turn in this workspace, install and enable these skills from
-the Vita repository into this project, not the global system skill directory:
+the Vita repository project-locally for this workspace:
 
 - `https://github.com/austimes/vita/tree/main/skills/vedalang-dsl-cli`
 - `https://github.com/austimes/vita/tree/main/skills/vita-experiment-loop`
@@ -14,9 +14,7 @@ the Vita repository into this project, not the global system skill directory:
 
 Bootstrap steps:
 
-1. Install the skills into the agent's appropriate project-local skill
-   location for this workspace. Do not install them into a global system skill
-   directory.
+1. Install the skills project-locally for this workspace.
 2. Force-refresh the project-local copies before installing so this workspace
    gets the latest version of each skill even if an older copy already exists.
    If the installer refuses to overwrite an existing skill directory, remove the
@@ -25,7 +23,7 @@ Bootstrap steps:
    the project-local destination explicitly.
 4. Read each installed `SKILL.md` before doing project work.
 5. Install any helper tooling those skills require.
-6. Verify the install by confirming the project-local skill directories exist.
+6. Verify the install by confirming the project-local skill install exists.
 7. Report back to the user with:
    - the skill names that were installed
    - the exact install location for each skill
@@ -35,7 +33,7 @@ Bootstrap steps:
    available. If the agent cannot list skills programmatically, say so clearly.
 9. Tell the user they may want to check in their agent UI or skill listing that
    these project-local skills are available.
-10. Once the project-local skill directories are confirmed, then run:
+10. Once the project-local skill install is confirmed, then run:
 
 ```bash
 vedalang --help
