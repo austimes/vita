@@ -4,6 +4,10 @@ Chronological record of the current repository state.
 
 ## 2026-03-18
 
+- Updated the `vita init` starter `AGENTS.md` bootstrap so agents install Vita
+  skills into the project-local `.codex/skills/` directory, force-refresh
+  stale copies before install, and report installed skill names, paths, and
+  visible in-session availability back to the user.
 - Removed the VedaLang LSP and bundled VS Code/Cursor extension. The project
   is now explicitly CLI-first for model authoring and validation, and Viz owns
   the standalone visualization/viewing workflow.

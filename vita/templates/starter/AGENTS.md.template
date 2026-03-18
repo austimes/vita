@@ -6,7 +6,7 @@ This is a Vita project for answering energy system questions through experiments
 ## First-Run Skill Bootstrap
 
 On the first agent turn in this workspace, install and enable these skills from
-the Vita repository:
+the Vita repository into this project, not the global system skill directory:
 
 - `https://github.com/austimes/vita/tree/main/skills/vedalang-dsl-cli`
 - `https://github.com/austimes/vita/tree/main/skills/vita-experiment-loop`
@@ -14,11 +14,27 @@ the Vita repository:
 
 Bootstrap steps:
 
-1. Fetch each skill with the built-in `skill-installer` system skill, or place
-   them under `~/.codex/skills/` by another supported install path.
-2. Read each installed `SKILL.md` before doing project work.
-3. Install any helper tooling those skills require.
-4. Verify the install by confirming the skill directories exist and then run:
+1. Install the skills into the project-local directory `.codex/skills/`
+   (relative to this workspace). Do not install them into `~/.codex/skills/`.
+2. Force-refresh the project-local copies before installing so this workspace
+   gets the latest version of each skill even if an older copy already exists.
+   If the installer refuses to overwrite an existing skill directory, remove the
+   existing project-local copy and install again.
+3. Fetch each skill with the built-in `skill-installer` system skill and target
+   the project-local destination explicitly.
+4. Read each installed `SKILL.md` before doing project work.
+5. Install any helper tooling those skills require.
+6. Verify the install by confirming the project-local skill directories exist.
+7. Report back to the user with:
+   - the skill names that were installed
+   - the exact install location for each skill
+   - whether a restart is required for the agent to load them
+8. If the agent has a built-in way to list the skills currently available in
+   session, run that listing after install or restart and report what is
+   available. If the agent cannot list skills programmatically, say so clearly.
+9. Tell the user they may want to check in their agent UI or skill listing that
+   these project-local skills are available.
+10. Once the project-local skill directories are confirmed, then run:
 
 ```bash
 vedalang --help
@@ -26,9 +42,9 @@ vita --help
 vedalang validate models/example.veda.yaml --run demo_2025
 ```
 
-5. If a restart is required for the agent to load newly installed skills, tell
+11. If a restart is required for the agent to load newly installed skills, tell
    the user and continue after restart.
-6. Once the skills are confirmed available in-session and the verification
+12. Once the skills are confirmed available in-session and the verification
    commands pass, remove this entire `vita:skill-bootstrap` block from
    `AGENTS.md`.
 

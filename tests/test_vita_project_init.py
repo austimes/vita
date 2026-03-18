@@ -42,6 +42,13 @@ class TestInitProject:
             "https://github.com/austimes/vita/tree/main/skills/"
             "vedalang-modeling-conventions" in content
         )
+        assert "into this project, not the global system skill directory" in content
+        assert ".codex/skills/" in content
+        assert "Do not install them into `~/.codex/skills/`." in content
+        assert "Force-refresh the project-local copies before installing" in content
+        assert "the skill names that were installed" in content
+        assert "the exact install location for each skill" in content
+        assert "list the skills currently available in" in content
         assert "remove this entire `vita:skill-bootstrap` block" in content
 
     def test_with_bd_runs_bd_init(self, tmp_path: Path) -> None:
