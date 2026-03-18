@@ -9,14 +9,6 @@ from pathlib import Path
 import pytest
 import yaml
 
-from vita.experiment_summary import (
-    _build_comparison_summary,
-    _build_key_findings,
-    _build_run_summary,
-    _detect_anomalies,
-    _render_summary_md,
-    generate_summary,
-)
 from vita.experiment_manifest import (
     load_experiment_manifest,
 )
@@ -24,6 +16,14 @@ from vita.experiment_state import (
     create_experiment_state,
     load_experiment_state,
     save_experiment_state,
+)
+from vita.experiment_summary import (
+    _build_comparison_summary,
+    _build_key_findings,
+    _build_run_summary,
+    _detect_anomalies,
+    _render_summary_md,
+    generate_summary,
 )
 from vita.run_artifacts import RunManifest, write_run_manifest
 

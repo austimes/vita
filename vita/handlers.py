@@ -465,6 +465,7 @@ def run_experiment_present_command(args):
     print(f"Presentation generated: {html_path}")
 
 
+
 def run_experiment_status_command(args):
     """Handle 'vita experiment status'."""
     from vita.experiment_state import load_experiment_state
@@ -543,6 +544,7 @@ def run_init_command(args):
         times_src=getattr(args, "times_src", None),
         gams_binary=getattr(args, "gams_binary", None),
         smoke_test=getattr(args, "smoke_test", False),
+        with_bd=getattr(args, "with_bd", False),
     )
 
     print(f"\n✓ Vita project initialized: {result['project_dir']}")
@@ -559,6 +561,13 @@ def run_init_command(args):
         print("  Smoke test: passed ✓")
     elif result.get("smoke_test_passed") is False:
         print("  Smoke test: failed ✗")
+    if result.get("bd_initialized"):
+        print("  Beads (bd): initialized ✓")
+    elif result.get("bd_failed"):
+        print(
+            "  Beads (bd): failed"
+            " (bd not found — install beads to use task tracking)"
+        )
     print()
     print("Next steps:")
     print("  1. Open this directory in your AI agent (Amp, Codex, Claude)")

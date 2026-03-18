@@ -1,0 +1,116 @@
+schema_version: 1
+id: toy_industry_core
+title: "Toy industry clean-heat technology selection"
+question: >
+  Apply an emissions constraint to stylised industrial heat demand; allow gas,
+  e-heat, and H₂. What technology is selected and what is ΔTWh and implied $/t?
+
+extensions:
+  - id: A
+    question: >
+      What happens when you add a CO₂ constraint? Which technology switches first?
+  - id: B
+    question: >
+      Is the carbon price or the clean-heat target the bigger driver of cost
+      and technology choice?
+  - id: C
+    question: >
+      What is the ordered marginal contribution of e-heat, hydrogen, and
+      heat-demand reduction to ΔTWh, ΔMtCO₂, and implied $/t?
+
+defaults:
+  case: scenario
+  no_sankey: true
+  metrics:
+    - objective
+    - objective_breakdown
+    - var_act
+    - var_ncap
+    - var_cap
+    - var_flo
+  checks:
+    require_pipeline_success: true
+    require_solver_status:
+      - optimal
+
+baseline:
+  id: baseline
+  model: ../toy_industry.veda.yaml
+  run: single_2025
+  notes: Unconstrained single-period baseline (2025)
+
+variants:
+  - id: co2_cap
+    from: baseline
+    run: s25_co2_cap
+    hypothesis: CO₂ cap may be non-binding given baseline already prefers clean heat
+    notes: Same model, different run ID activates the CO₂ cap constraint
+
+  - id: high_gas_capex
+    from: baseline
+    model: ../toy_industry_high_gas_capex.veda.yaml
+    hypothesis: Higher gas boiler capex raises system cost but may not change technology mix
+
+  - id: high_h2_capex
+    from: baseline
+    model: ../toy_industry_high_h2_capex.veda.yaml
+    hypothesis: Higher H₂ boiler capex changes H₂ build scale and total system cost
+
+comparisons:
+  - id: baseline_vs_co2_cap
+    baseline: baseline
+    variant: co2_cap
+
+  - id: baseline_vs_high_gas_capex
+    baseline: baseline
+    variant: high_gas_capex
+
+  - id: baseline_vs_high_h2_capex
+    baseline: baseline
+    variant: high_h2_capex
+
+analyses:
+  - id: main
+    question: What technology mix does the solver select, and how does it change across variants?
+    comparisons:
+      - baseline_vs_co2_cap
+      - baseline_vs_high_gas_capex
+      - baseline_vs_high_h2_capex
+    metrics_of_interest:
+      - objective
+      - objective_breakdown
+      - var_ncap
+      - var_cap
+
+  - id: extension_a
+    question: What happens when you add a CO₂ constraint? Which technology switches first?
+    comparisons:
+      - baseline_vs_co2_cap
+    metrics_of_interest:
+      - objective
+      - var_ncap
+      - var_cap
+
+  - id: extension_b
+    question: Is the carbon price or the clean-heat cost the bigger driver?
+    comparisons:
+      - baseline_vs_high_gas_capex
+      - baseline_vs_high_h2_capex
+    rank_by: "abs(objective.delta)"
+    metrics_of_interest:
+      - objective
+
+  - id: extension_c
+    question: What is the ordered marginal contribution of each clean-heat option?
+    comparisons:
+      - baseline_vs_co2_cap
+      - baseline_vs_high_gas_capex
+      - baseline_vs_high_h2_capex
+    notes: >
+      Full ordered marginal recipe requires composable lever overrides (future).
+      Current proxy uses independent variant diffs ranked by objective delta.
+    rank_by: "abs(objective.delta)"
+    metrics_of_interest:
+      - objective
+      - var_ncap
+      - var_cap

@@ -2,6 +2,16 @@
 
 Chronological record of the current repository state.
 
+## 2026-03-18
+
+- Repository hygiene audit (`vedalang-tidn`): fixed broken pytest venv shim,
+  resolved 29 ruff lint violations, added `runs/` to `.gitignore`, fixed
+  README clone URL from `austimes/vedalang` to `austimes/vita`.
+- Removed `docs/project-status/STATUS.md`, `tools/sync_status.py`, and
+  `tests/test_sync_status.py` — STATUS.md duplicated `bd list` and was
+  perpetually out of sync. bd is now the sole source of truth for issue
+  tracking. Cleaned all references in AGENTS.md, skills, and docs.
+
 ## 2026-03-17
 
 - Completed the vita/vedalang CLI surface split (`vedalang-yda` epic).

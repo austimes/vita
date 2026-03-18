@@ -398,6 +398,11 @@ def main() -> None:
         action="store_true",
         help="Run a smoke test after initialization",
     )
+    init_parser.add_argument(
+        "--with-bd",
+        action="store_true",
+        help="Initialize beads (bd) for experiment task tracking",
+    )
 
     args = parser.parse_args()
 

@@ -69,7 +69,11 @@ def _render_html(
         _render_comparisons(summary),
         # --- Agent interpretation (visually separated) ---
         _render_interpretation_section(interpretation) if interpretation else "",
-        _render_question_answers(interpretation) if interpretation else _render_answers(summary),
+        (
+            _render_question_answers(interpretation)
+            if interpretation
+            else _render_answers(summary)
+        ),
         _render_findings(summary),
         _render_hypothesis_outcomes(summary),
         _render_surprises(summary),
@@ -463,7 +467,9 @@ def _render_hypothesis_outcomes(summary: dict) -> str:
 
 
 def _render_surprises(summary: dict) -> str:
-    surprises: list[dict] = summary.get("surprises", summary.get("candidate_anomalies", []))
+    surprises: list[dict] = summary.get(
+        "surprises", summary.get("candidate_anomalies", [])
+    )
     if not surprises:
         return ""
     parts = ['<div class="card"><h2>Surprises</h2>']
@@ -573,7 +579,11 @@ def _render_interpretation_section(interpretation: dict) -> str:
             for i, step in enumerate(reasoning, 1):
                 step_type = step.get("type", "")
                 step_text = escape(str(step.get("text", "")))
-                css_cls = f"reasoning-step {step_type}" if step_type else "reasoning-step"
+                css_cls = (
+                    f"reasoning-step {step_type}"
+                    if step_type
+                    else "reasoning-step"
+                )
                 parts.append(
                     f'<div class="{css_cls}">'
                     f"<strong>{i}.</strong> {step_text}</div>"

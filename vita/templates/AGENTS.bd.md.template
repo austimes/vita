@@ -1,0 +1,54 @@
+
+<!-- vita:bd:start -->
+## Experiment Task Tracking (Beads)
+
+This project uses **beads (bd)** for tracking long-running experiment workflows.
+
+### Task Structure
+
+| Level | Maps To | Example |
+|-------|---------|---------|
+| **Epic** | Research campaign / question | "Assess gas-to-electric switching for IASR MVP" |
+| **Task** | One experiment instance | `toy_industry_sensitivity_pack` |
+| **Subtask** | Major agentic phase | "Interpret baseline vs high-gas results" |
+
+### Workflow
+
+```bash
+# Create an epic for a research campaign
+bd create "Research: <question>" --type feature --priority 2
+
+# Track experiment phases as subtasks
+bd create "Plan experiment: <name>" --type task --priority 2
+bd create "Build/validate model for <name>" --type task --priority 2
+bd create "Execute runs for <name>" --type task --priority 2
+bd create "Interpret results for <name>" --type task --priority 2
+
+# Wire dependencies
+bd dep add <interpret-id> <execute-id>
+bd dep add <execute-id> <build-id>
+bd dep add <build-id> <plan-id>
+
+# Find ready work
+bd ready
+
+# Close completed phases
+bd close <id> --reason "Completed"
+```
+
+### When to Create bd Tasks
+
+Create bd tasks for work that is:
+- **Long-running** — spans multiple agent sessions
+- **Complex** — requires planning, iteration, or debugging
+- **Collaborative** — needs handoff between agents or humans
+
+Do NOT create bd tasks for:
+- Deterministic CLI steps (stage, run, summarize)
+- Quick one-shot operations
+- Work already tracked by Vita's `state.json`
+
+### Key Principle
+
+Vita owns **execution state** (`state.json`, artifacts). Beads owns **coordination** (what's next, blockers, follow-ups). They complement each other — Vita works fully without beads.
+<!-- vita:bd:end -->

@@ -1,71 +1,65 @@
-# Repository Hygiene Audit — 2026-03
+# Repository Hygiene Audit — 2026-03-18
 
 ## Summary
 
-This audit found six actionable hygiene items across documentation drift,
-code quality, and boundary clarity. Core feedback loops are mostly healthy
-(`pytest --collect-only` succeeds; `uv lock --check` passes), but current
-drift in status reporting and a few residual code/documentation smells reduce
-agent-first reliability.
+The repo is in good shape after the recent v0.3 stabilization. All 885 tests pass, no orphaned modules, and examples compile. The main issues are: (1) a broken pytest shim requiring `python -m pytest` workaround, (2) 29 ruff lint violations across vita/ and tests/, (3) `runs/` directory with solver artifacts not gitignored, (4) the `test_experiment_validation.py` F821 undefined name `ExperimentManifest`, and (5) .DS_Store files in the working tree.
 
-## Findings By Category
+## Findings by Category
 
-### Dead Code & Unused Modules
+### 1. Dead Code & Unused Modules
+- **No orphaned modules found.** All Python files are referenced.
+- `vita/experiment_validation.py`: 3 unused local variables (`step_map`, `design_variant_ids`, `design_comp_ids`) — F841
+- `vita/experiment_validation.py`: 1 unused import (`Collection`) — F401
+- `tests/test_experiment_validation.py`: unused `pytest` import — F401
+- `tests/test_vita_project_init.py`: unused `pytest` import — F401
 
-- `tools/veda_run_times/cli.py` appears to be a residual CLI surface after the
-  vita split. It is not wired through `pyproject.toml` scripts and has no
-  inbound references from repository code.
+### 2. Stale Tests
+- **All 885 tests pass**, 29 skipped (expected: missing GDX/minisystem fixtures).
+- `tests/test_experiment_validation.py:68` — F821: `ExperimentManifest` used as quoted return type but never imported. Should import from `vita.experiment_manifest`.
+- **Pytest shim broken**: `uv run pytest` fails with `ModuleNotFoundError: No module named 'yaml'` while `uv run python -m pytest` works fine. The `.venv/bin/pytest` shim is stale and doesn't resolve pyyaml.
 
-### Stale Tests
+### 3. Stale Experiments
+- **No `experiments/` directory exists.** Clean.
 
-- `uv run pytest --collect-only -q` succeeds (760 tests collected).
-- No untracked unconditional `skip`/`xfail` markers were found; current skips
-  are environment-gated (`skipif`) and appear intentional.
+### 4. Documentation Drift
+- `STATUS.md` says "No open issues. All 274 bd issues are closed" but bd actually has 1 open issue (`vedalang-q2x`).
+- `README.md` references `git clone https://github.com/austimes/vedalang.git` but the repo is now `austimes/vita`.
 
-### Stale Experiments
+### 5. Code Quality — Ruff Violations
+- **22 errors in vita/ + tools/**, **7 errors in tests/** (29 total)
+- Breakdown: 15× E501 (line too long), 4× F841 (unused variable), 3× F401 (unused import), 2× I001 (unsorted imports), 1× F821 (undefined name), 1× UP037 (quoted annotation)
+- 6 auto-fixable with `--fix`.
 
-- `experiments/` directory is absent in this checkout; this category is
-  currently not applicable.
+### 6. Fixture & Example Hygiene
+- `vedalang validate` passes for quickstart example.
+- `output/` directory contains stale CSV artifacts (gitignored, harmless).
+- `runs/` directory contains solver output artifacts (GDX, LST) — **not gitignored**, untracked but could accidentally be committed.
 
-### Documentation Drift
-
-- `docs/project-status/STATUS.md` still reports `vedalang-uet` items as open,
-  while `bd list` reports zero open issues.
-- `docs/vedalang-user/tutorial.md` and
-  `docs/vedalang-design-agent/known_answer_tests.md` contain hardcoded
-  machine-local absolute paths (`/Users/gre538/...`).
-
-### Code Quality
-
-- `uv run ruff check . --exclude xl2times --exclude times` fails with
-  `F821 Undefined name RunContext` in `vedalang/compiler/backend.py`.
-- `tools/veda_dev/sankey.py` and `tools/veda_dev/times_results.py` duplicate
-  `find_gdxdump` and `dump_symbol_csv` helper logic.
-
-### Fixture & Example Hygiene
-
-- A naive compile sweep (`vedalang compile <file> --out ...`) reports failures
-  for multi-run examples because they require explicit `--run` selection.
-  The examples compile successfully when iterated per declared run id.
-
-### Agent-First Assessment
+### 7. Agent-First Repository Assessment
 
 | Criterion | Score | Notes |
 |-----------|-------|-------|
-| Discoverability | 4/5 | Repo shape and top-level docs are clear, but status drift hurts trust. |
-| Self-documenting | 4/5 | Schema and examples are strong; absolute local links reduce portability. |
-| Feedback loops | 4/5 | Collect-only and lock checks are clean; Ruff regression weakens baseline. |
-| Minimal ambiguity | 3/5 | Multi-run compile expectations are not explicit in hygiene scripts. |
-| Clean boundaries | 3/5 | Residual `veda_run_times` CLI module blurs post-split ownership. |
-| Onboarding speed | 4/5 | Good command ergonomics, with some drift in status/docs. |
+| Discoverability | 5/5 | AGENTS.md is comprehensive, CLI tools well-documented |
+| Self-documenting | 5/5 | Schema-first design, clear naming |
+| Feedback loops | 4/5 | Pytest shim broken; workaround needed |
+| Minimal ambiguity | 4/5 | Clean after v0.3 reset |
+| Clean boundaries | 5/5 | vedalang/vita/tools well-separated |
+| Onboarding speed | 4/5 | Would be 5/5 if pytest shim worked |
 
-Overall: **3.7 / 5**
+### 8. Configuration & Build Hygiene
+- `.DS_Store` files present in working tree (gitignored, not tracked — cosmetic).
+- `runs/` not in `.gitignore` — risk of accidental commit of large GDX files.
+- `uv.lock` is up to date.
+- No hardcoded absolute paths found.
+
+### 9. Issue Tracker Hygiene
+- bd database had to be rebuilt (dolt database directory was empty). Recovered from JSONL backup.
+- STATUS.md out of sync with bd (claims 0 open, actually 1 open).
 
 ## Recommendation
 
-Prioritize the following in order:
-
-1. Restore quality baseline by fixing the Ruff `RunContext` regression.
-2. Re-sync `STATUS.md` with `bd` and remove hardcoded local paths from docs.
-3. Clean split residue by resolving/removing dead `veda_run_times` CLI surface
-   and deduplicating shared GDX helper utilities.
+1. **Fix pytest shim** — `uv sync --reinstall` or rebuild the venv
+2. **Fix ruff violations** — auto-fix 6, manually fix remaining 23
+3. **Add `runs/` to .gitignore** — prevent accidental commit of solver artifacts
+4. **Fix test_experiment_validation.py** — add missing `ExperimentManifest` import
+5. **Remove STATUS.md** — duplicates `bd list`, perpetually drifts; bd is the sole source of truth

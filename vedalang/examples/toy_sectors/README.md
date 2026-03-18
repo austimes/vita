@@ -124,6 +124,12 @@ demand; allow gas, e-heat, and H₂. What technology is selected and what is
   - C: What is the ordered marginal contribution of e-heat, hydrogen, and
     heat-demand reduction to ΔTWh, ΔMtCO2, and implied $/t?
 
+Declarative experiment manifest:
+
+```bash
+vita experiment vedalang/examples/toy_sectors/experiments/toy_industry_core.experiment.yaml
+```
+
 Current reproducible Vita loop:
 
 ```bash

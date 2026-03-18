@@ -5,10 +5,9 @@ from __future__ import annotations
 import copy
 from pathlib import Path
 
-import pytest
 import yaml
 
-from vita.experiment_manifest import load_experiment_manifest
+from vita.experiment_manifest import ExperimentManifest, load_experiment_manifest
 from vita.experiment_validation import (
     ValidationResult,
     render_brief_md,
@@ -62,10 +61,12 @@ _MANIFEST_DICT = {
 }
 
 _LONG_TEXT = "This is a sufficiently long substantive text for validation checks."
-_LONG_TEXT_32 = "This text is long enough for thirty-two character minimum checks easily."
+_LONG_TEXT_32 = (
+    "This text is long enough for thirty-two character minimum checks easily."
+)
 
 
-def _make_manifest(tmp_path: Path) -> "ExperimentManifest":
+def _make_manifest(tmp_path: Path) -> ExperimentManifest:
     """Write manifest + model to tmp_path and load."""
     model_path = tmp_path / "model.veda.yaml"
     model_path.write_text(_MINIMAL_MODEL)
@@ -372,7 +373,10 @@ class TestBriefValidation:
         brief["variants"][0]["hypothesis"]["confirmation_criteria"] = []
         result = validate_brief(brief, manifest)
         assert not result.valid
-        assert any("confirmation_criteria must not be empty" in e for e in result.errors)
+        assert any(
+            "confirmation_criteria must not be empty" in e
+            for e in result.errors
+        )
 
 
 # ---------------------------------------------------------------------------

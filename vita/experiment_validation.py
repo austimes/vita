@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Collection
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -138,12 +137,6 @@ def validate_brief(
         )
 
     # 5. Cross-reference resolution
-    design_variant_ids = set(
-        brief.get("design_summary", {}).get("variant_ids", [])
-    )
-    design_comp_ids = set(
-        brief.get("design_summary", {}).get("comparison_ids", [])
-    )
     for cp in brief.get("comparison_plan", []):
         cid = cp.get("comparison_id", "")
         if cid not in expected_comp_ids and cid not in extra_comps:
@@ -156,10 +149,16 @@ def validate_brief(
         brief, "mechanism_chains", "variants[].hypothesis.mechanism_chains", result
     )
     _check_duplicate_ids(
-        brief, "confirmation_criteria", "variants[].hypothesis.confirmation_criteria", result
+        brief,
+        "confirmation_criteria",
+        "variants[].hypothesis.confirmation_criteria",
+        result,
     )
     _check_duplicate_ids(
-        brief, "refutation_criteria", "variants[].hypothesis.refutation_criteria", result
+        brief,
+        "refutation_criteria",
+        "variants[].hypothesis.refutation_criteria",
+        result,
     )
 
     design_step_ids: list[str] = []
@@ -172,7 +171,10 @@ def validate_brief(
         )
 
     # 7. Substance checks
-    _check_substance(brief, "research.scope", _get_nested(brief, "research", "scope"), result)
+    _check_substance(
+        brief, "research.scope",
+        _get_nested(brief, "research", "scope"), result,
+    )
     _check_substance(
         brief, "design_summary.approach",
         _get_nested(brief, "design_summary", "approach"), result,
@@ -180,25 +182,50 @@ def validate_brief(
 
     for i, v in enumerate(brief.get("variants", [])):
         vid = v.get("variant_id", f"[{i}]")
-        _check_substance(brief, f"variants[{vid}].change_summary", v.get("change_summary"), result)
-        _check_substance(brief, f"variants[{vid}].why_this_variant", v.get("why_this_variant"), result)
+        _check_substance(
+            brief, f"variants[{vid}].change_summary",
+            v.get("change_summary"), result,
+        )
+        _check_substance(
+            brief, f"variants[{vid}].why_this_variant",
+            v.get("why_this_variant"), result,
+        )
 
         hyp = v.get("hypothesis", {})
-        _check_substance(brief, f"variants[{vid}].hypothesis.statement", hyp.get("statement"), result)
+        _check_substance(
+            brief, f"variants[{vid}].hypothesis.statement",
+            hyp.get("statement"), result,
+        )
 
         for mc in hyp.get("mechanism_chains", []):
             mcid = mc.get("id", "?")
-            _check_substance(brief, f"variants[{vid}].mechanism_chains[{mcid}].cause", mc.get("cause"), result)
-            _check_substance(brief, f"variants[{vid}].mechanism_chains[{mcid}].effect", mc.get("effect"), result)
-            _check_substance(brief, f"variants[{vid}].mechanism_chains[{mcid}].because", mc.get("because"), result)
+            pfx = f"variants[{vid}].mechanism_chains[{mcid}]"
+            _check_substance(
+                brief, f"{pfx}.cause",
+                mc.get("cause"), result,
+            )
+            _check_substance(
+                brief, f"{pfx}.effect",
+                mc.get("effect"), result,
+            )
+            _check_substance(
+                brief, f"{pfx}.because",
+                mc.get("because"), result,
+            )
 
     for cp in brief.get("comparison_plan", []):
         cpid = cp.get("comparison_id", "?")
-        _check_substance(brief, f"comparison_plan[{cpid}].purpose", cp.get("purpose"), result)
+        _check_substance(
+            brief, f"comparison_plan[{cpid}].purpose",
+            cp.get("purpose"), result,
+        )
 
     for step in brief.get("design_reasoning_steps", []):
         sid = step.get("id", "?")
-        _check_substance(brief, f"design_reasoning_steps[{sid}].statement", step.get("statement"), result)
+        _check_substance(
+            brief, f"design_reasoning_steps[{sid}].statement",
+            step.get("statement"), result,
+        )
 
     # 8. Non-empty mechanism_chains and confirmation_criteria
     for i, v in enumerate(brief.get("variants", [])):
@@ -514,7 +541,9 @@ def render_brief_md(brief: dict) -> str:
                 lines.append("**Confirmation criteria:**")
                 lines.append("")
                 for cc in ccs:
-                    lines.append(f"- **{cc.get('id', '?')}:** {cc.get('description', '')}")
+                    cc_id = cc.get('id', '?')
+                    cc_desc = cc.get('description', '')
+                    lines.append(f"- **{cc_id}:** {cc_desc}")
                 lines.append("")
 
             rcs = hyp.get("refutation_criteria", [])
@@ -522,7 +551,9 @@ def render_brief_md(brief: dict) -> str:
                 lines.append("**Refutation criteria:**")
                 lines.append("")
                 for rc in rcs:
-                    lines.append(f"- **{rc.get('id', '?')}:** {rc.get('description', '')}")
+                    rc_id = rc.get('id', '?')
+                    rc_desc = rc.get('description', '')
+                    lines.append(f"- **{rc_id}:** {rc_desc}")
                 lines.append("")
 
     # Comparison Plan
@@ -751,7 +782,6 @@ def _check_conclusion_reachability(
     if not steps:
         return
 
-    step_map = {s["id"]: s for s in steps if "id" in s}
     observation_ids = {
         s["id"] for s in steps if s.get("kind") == "observation"
     }

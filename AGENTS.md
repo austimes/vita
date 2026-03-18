@@ -93,7 +93,7 @@ uv run xl2times <args>
 - It serves as the validation oracle — its behavior defines correctness
 - Changes to `xl2times/` require strong justification (e.g., critical bug blocking development)
 - Prefer workarounds in VedaLang tooling over modifying xl2times
-- **All changes MUST be documented in [XL2TIMES_CHANGES.md](XL2TIMES_CHANGES.md)** with date, commit, description, and reason
+- **All changes MUST be documented in [XL2TIMES_CHANGES.md](xl2times/XL2TIMES_CHANGES.md)** with date, commit, description, and reason
 
 # VEDA DevTools - Agent Instructions
 
@@ -785,41 +785,6 @@ cat diag.json | jq '.diagnostics[] | {code, severity, message}'
 
 ---
 
-## Keeping STATUS.md Updated
-
-The living status document is [`docs/project-status/STATUS.md`](docs/project-status/STATUS.md). Keep it in sync with `bd` issues.
-
-### When to Update STATUS.md
-
-- **At session start** — Run `uv run python tools/sync_conventions.py --check` and
-  fix drift with `uv run python tools/sync_conventions.py` before any other work
-- **When closing issues** — Move from "Open Tasks" to completed section
-- **When creating issues** — Add to appropriate section
-- **On phase transitions** — Update "Current Phase" section
-
-### Quick Sync Commands
-
-```bash
-# Generate status summary from bd issues
-# Note: verify against bd JSON until vedalang-txa.7.6 lands.
-uv run python tools/sync_status.py
-
-# Show current open issues
-bd list --all --json | jq '.[] | select(.status=="open") | {id, priority, issue_type, title}'
-
-# Count closed issues
-bd list --all --json | jq '[.[] | select(.status=="closed")] | length'
-```
-
-### What to Update
-
-1. **Open Tasks table** — Must match `bd list --all --json | jq '.[] | select(.status=="open")'`
-2. **Closed count** — Update "X issues closed" number
-3. **Current Phase** — Update when epic completes
-4. **Capabilities table** — Add new features as implemented
-
----
-
 ## Landing the Plane (Session Completion)
 
 **When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
@@ -830,8 +795,7 @@ bd list --all --json | jq '[.[] | select(.status=="closed")] | length'
 2. **Run quality gates** (if code changed) - Tests, linters, builds
 3. **Commit all completed work** - Stage and commit all intended changes before handoff
 4. **Update issue status** - Close finished work, update in-progress items
-5. **Update STATUS.md** - Sync with current bd issue state
-6. **PUSH TO REMOTE** - This is MANDATORY:
+5. **PUSH TO REMOTE** - This is MANDATORY:
    ```bash
    git add -A
    git commit -m "<clear summary>"
@@ -840,9 +804,9 @@ bd list --all --json | jq '[.[] | select(.status=="closed")] | length'
    git push
    git status  # MUST show "up to date with origin"
    ```
-7. **Clean up** - Clear stashes, prune remote branches
-8. **Verify** - All changes committed AND pushed
-9. **Hand off** - Provide context for next session
+6. **Clean up** - Clear stashes, prune remote branches
+7. **Verify** - All changes committed AND pushed
+8. **Hand off** - Provide context for next session
 
 **CRITICAL RULES:**
 - Work is NOT complete until all intended changes are committed

@@ -16,6 +16,7 @@ def init_project(
     times_src: Path | None = None,
     gams_binary: str | None = None,
     smoke_test: bool = False,
+    with_bd: bool = False,
 ) -> dict:
     """Bootstrap a new Vita project directory.
 
@@ -24,6 +25,8 @@ def init_project(
     - gams_detected: bool
     - times_src_detected: bool
     - smoke_test_passed: bool | None
+    - bd_initialized: bool (only when with_bd=True)
+    - bd_failed: bool (only when with_bd=True)
     """
     target = target_dir.resolve()
 
@@ -76,12 +79,23 @@ def init_project(
     if smoke_test and gams_path and times_path:
         smoke_test_passed = _run_smoke_test(target / "models" / "example.veda.yaml")
 
-    return {
+    result = {
         "project_dir": target,
         "gams_detected": gams_path is not None,
         "times_src_detected": times_path is not None,
         "smoke_test_passed": smoke_test_passed,
     }
+
+    # Initialize beads (bd) for task tracking
+    if with_bd:
+        if _init_beads(target):
+            result["bd_initialized"] = True
+            _append_bd_template(target / "AGENTS.md")
+        else:
+            result["bd_initialized"] = False
+            result["bd_failed"] = True
+
+    return result
 
 
 def _detect_gams(explicit: str | None) -> str | None:
@@ -148,6 +162,36 @@ def _write_env(
         f"TIMES_SRC={times_path or '# /path/to/TIMES_model'}",
     ]
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def _init_beads(target: Path) -> bool:
+    """Run ``bd init`` in the target directory.
+
+    Returns True on success, False on failure.
+    """
+    try:
+        subprocess.run(
+            ["bd", "init"],
+            cwd=str(target),
+            capture_output=True,
+            timeout=30,
+            check=True,
+        )
+    except (
+        subprocess.CalledProcessError,
+        FileNotFoundError,
+        subprocess.TimeoutExpired,
+    ):
+        return False
+    return True
+
+
+def _append_bd_template(agents_md_path: Path) -> None:
+    """Append the bd workflow template to an existing AGENTS.md."""
+    bd_template_path = TEMPLATES_DIR.parent / "AGENTS.bd.md.template"
+    bd_content = bd_template_path.read_text(encoding="utf-8")
+    with agents_md_path.open("a", encoding="utf-8") as f:
+        f.write(bd_content)
 
 
 def _run_smoke_test(model_path: Path) -> bool:

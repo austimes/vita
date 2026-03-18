@@ -18,7 +18,7 @@ Performs a comprehensive audit of the vedalang repository and creates actionable
 - `docs/` — PRDs, status, design-agent docs, user docs, reference
 - `rules/` — pattern library, decision tree, constraints
 - `veda/` — VEDA support files
-- Root files — `AGENTS.md`, `HISTORY.md`, `STATUS.md`, `pyproject.toml`, `README.md`
+- Root files — `AGENTS.md`, `HISTORY.md`, `pyproject.toml`, `README.md`
 
 **ALWAYS IGNORE these directories (they are embedded third-party codebases):**
 - `xl2times/` — third-party validation oracle, never audit
@@ -67,7 +67,6 @@ Experiments in `experiments/` are design agent outputs from Phase 1. For each:
 ### 4. Documentation Drift
 
 - **AGENTS.md vs reality:** Do the phase descriptions, design challenge table, and tool descriptions match the current codebase?
-- **STATUS.md vs bd issues:** Run `bd list --all` and compare against STATUS.md — are they in sync?
 - **HISTORY.md completeness:** Are recent schema changes and features documented?
 - **docs/vedalang-user/:** Does user documentation match current schema?
 - **docs/vedalang-design-agent/:** Are design agent docs current?

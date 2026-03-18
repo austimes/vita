@@ -90,7 +90,6 @@ You must prefer **minimal, backward-compatible changes** and reuse existing patt
 You have access to:
 
 - `vedalang/schema/vedalang.schema.json` — the VedaLang source schema.
-- `docs/project-status/STATUS.md` — high-level status and roadmap.
 - `docs/vedalang-design-agent/schema_evolution.md` — schema change policy (read and respect its spirit).
 - `rules/patterns.yaml` — pattern library (e.g., power plants, commodities, scenarios).
 - `vedalang validate` — main validation / feedback loop.
@@ -258,7 +257,7 @@ veda_exploration_session:
 ### 4.2. Consider Schema Extension When (all/most apply):
 
 1. **Repeated failure after 2–3 modeling attempts** - Still hit HARD_FAILURE due to structural issues
-2. **Primitive is on the roadmap but unsupported** - STATUS.md flags it as "Not implemented"
+2. **Primitive is on the roadmap but unsupported** - check `bd list` for tracking status
 3. **Workarounds cause semantic distortion** - Confusing or brittle models
 4. **You can propose a minimal, targeted addition** - Small, backward-compatible change with concrete example
 
