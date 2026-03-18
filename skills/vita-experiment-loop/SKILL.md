@@ -255,9 +255,14 @@ reading all evidence.
 }
 ```
 
-**Required:** Every comparison must have reasoning steps with at least one
-`observation` and one `conclusion`, connected via `depends_on`. All evidence
-refs must point to valid entries in `evidence_index`.
+**Required:**
+
+- `question_answers` must include one entry with `question_id: "Q"` answering the
+  top-level research `question` from the manifest, **plus** one entry per analysis ID
+  defined in `analyses[]`. The validator checks all expected question IDs are present.
+- Every comparison must have reasoning steps with at least one
+  `observation` and one `conclusion`, connected via `depends_on`. All evidence
+  refs must point to valid entries in `evidence_index`.
 
 ## Reasoning Steps
 

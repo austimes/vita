@@ -511,6 +511,18 @@ def _render_limitations(summary: dict) -> str:
 # ---------------------------------------------------------------------------
 
 
+def _extract_text(value: object, *keys: str) -> str:
+    """Extract text from a value that might be a string or a dict."""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, dict):
+        for key in keys:
+            if key in value:
+                return str(value[key])
+        return str(next(iter(value.values()), ""))
+    return str(value) if value else ""
+
+
 def _render_brief_section(brief: dict) -> str:
     """Render experiment design section from brief.json."""
     if not brief:
@@ -530,7 +542,7 @@ def _render_brief_section(brief: dict) -> str:
         if change_summary:
             parts.append(f"<p><strong>Change:</strong> {escape(change_summary)}</p>")
 
-        hypothesis = var.get("hypothesis", "")
+        hypothesis = _extract_text(var.get("hypothesis", ""), "statement")
         if hypothesis:
             parts.append(f"<p><strong>Hypothesis:</strong> {escape(hypothesis)}</p>")
 
@@ -551,27 +563,45 @@ def _render_interpretation_section(interpretation: dict) -> str:
         return ""
     parts = ['<div class="interpretation-card"><h2>Agent Interpretation</h2>']
 
-    exec_summary = interpretation.get("executive_summary", "")
-    overall_conf = interpretation.get("overall_confidence", "")
+    raw_summary = interpretation.get("executive_summary", "")
+    if isinstance(raw_summary, dict):
+        exec_summary = _extract_text(raw_summary, "answer", "short_answer")
+        overall_conf = raw_summary.get("confidence", interpretation.get("overall_confidence", ""))
+    else:
+        exec_summary = raw_summary
+        overall_conf = interpretation.get("overall_confidence", "")
     if exec_summary:
         badge = _confidence_badge(overall_conf) if overall_conf else ""
         parts.append(f"<p>{escape(exec_summary)} {badge}</p>")
 
-    comparisons: list[dict] = interpretation.get("comparisons", [])
+    comparisons: list[dict] = (
+        interpretation.get("comparison_interpretations")
+        or interpretation.get("comparisons")
+        or []
+    )
     for comp in comparisons:
-        cid = escape(str(comp.get("id", "")))
+        cid = escape(str(comp.get("comparison_id", comp.get("id", ""))))
         parts.append(f"<h3>{cid}</h3>")
 
         takeaway = comp.get("takeaway", "")
         if takeaway:
             parts.append(f"<p><em>{escape(takeaway)}</em></p>")
 
-        hyp_assessment = comp.get("hypothesis_assessment", "")
-        if hyp_assessment:
-            badge = _hypothesis_badge(hyp_assessment)
-            parts.append(
-                f"<p><strong>Hypothesis:</strong> {badge}</p>"
-            )
+        raw_hyp = comp.get("hypothesis_assessment", "")
+        if raw_hyp:
+            if isinstance(raw_hyp, dict):
+                verdict = raw_hyp.get("verdict", "")
+                statement = raw_hyp.get("statement", "")
+                badge = _hypothesis_badge(verdict) if verdict else ""
+                label = escape(statement) if statement else ""
+                parts.append(
+                    f"<p><strong>Hypothesis:</strong> {label} {badge}</p>"
+                )
+            else:
+                badge = _hypothesis_badge(raw_hyp)
+                parts.append(
+                    f"<p><strong>Hypothesis:</strong> {badge}</p>"
+                )
 
         reasoning: list[dict] = comp.get("reasoning_chain", [])
         if reasoning:
@@ -595,14 +625,20 @@ def _render_interpretation_section(interpretation: dict) -> str:
                 f"<p><strong>Primary mechanism:</strong> {escape(mechanism)}</p>"
             )
 
-        surprises: list[str] = comp.get("surprises", [])
+        surprises: list = comp.get("surprises", [])
         if surprises:
             parts.append("<p><strong>Surprises:</strong></p><ul>")
             for s in surprises:
-                parts.append(f"<li>{escape(str(s))}</li>")
+                text = _extract_text(s, "description") if isinstance(s, dict) else str(s)
+                parts.append(f"<li>{escape(text)}</li>")
             parts.append("</ul>")
 
-    synthesis = interpretation.get("synthesis", "")
+    raw_synthesis = (
+        interpretation.get("cross_comparison_synthesis")
+        or interpretation.get("synthesis")
+        or ""
+    )
+    synthesis = _extract_text(raw_synthesis, "narrative") if raw_synthesis else ""
     if synthesis:
         parts.append(f"<h3>Synthesis</h3><p>{escape(synthesis)}</p>")
 

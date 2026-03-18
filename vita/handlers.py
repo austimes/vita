@@ -390,7 +390,7 @@ def run_experiment_plan_command(args):
 
     state = plan_experiment(args.manifest, args.out)
     _print_status(
-        "Experiment Planned",
+        "Experiment Staged",
         [
             ("Experiment", state.experiment_id),
             ("Status", state.status),
@@ -398,7 +398,7 @@ def run_experiment_plan_command(args):
             ("Comparisons", str(state.progress.diffs_total)),
         ],
         level="success",
-        status=("planned", "success"),
+        status=("staged", "success"),
     )
 
 
@@ -628,8 +628,9 @@ def run_experiment_full_command(args):
         status=("staged", "success"),
     )
 
+    experiment_dir = args.out / state.experiment_id
     result = run_experiment(
-        state.experiment_dir,
+        experiment_dir,
         resume=False,
         force=False,
         json_output=getattr(args, "json_output", False),

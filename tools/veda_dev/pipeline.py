@@ -624,9 +624,11 @@ def run_pipeline(
             sankey_result.skipped = True
         result.steps["sankey"] = sankey_result
 
-        # Aggregate success
+        # Aggregate success — sankey is non-essential post-processing
         result.success = all(
-            step.success or step.skipped for step in result.steps.values()
+            step.success or step.skipped
+            for name, step in result.steps.items()
+            if name != "sankey"
         )
 
         # Collect top-level artifacts
