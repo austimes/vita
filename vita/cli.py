@@ -1,10 +1,12 @@
 """CLI for Vita: run, analyze, and explain VEDA/TIMES experiments."""
 
 import argparse
+import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
 
+from tools.cli_ui import StyledArgumentParser
 from vita.handlers import (
     run_diff_command,
     run_experiment_full_command,
@@ -21,14 +23,19 @@ from vita.handlers import (
     run_times_results_command,
     run_update_command,
 )
+from vita.version import VITA_CLI_VERSION
 
 
-def main() -> None:
-    """Run the Vita CLI entrypoint."""
-    load_dotenv()
-    parser = argparse.ArgumentParser(
+def build_parser() -> argparse.ArgumentParser:
+    """Build the Vita CLI parser."""
+    parser = StyledArgumentParser(
         prog="vita",
         description="Vita (VEDA Insight & TIMES Analysis) CLI",
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {VITA_CLI_VERSION}",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -316,9 +323,7 @@ def main() -> None:
     exp_run_parser.add_argument(
         "--force", action="store_true", help="Re-run everything"
     )
-    exp_run_parser.add_argument(
-        "--json", action="store_true", dest="json_output"
-    )
+    exp_run_parser.add_argument("--json", action="store_true", dest="json_output")
 
     # vita experiment summarize
     exp_summarize_parser = exp_subparsers.add_parser(
@@ -327,31 +332,21 @@ def main() -> None:
     exp_summarize_parser.add_argument(
         "experiment_dir", type=Path, help="Experiment directory"
     )
-    exp_summarize_parser.add_argument(
-        "--json", action="store_true", dest="json_output"
-    )
+    exp_summarize_parser.add_argument("--json", action="store_true", dest="json_output")
 
     # vita experiment validate-brief
     exp_vb_parser = exp_subparsers.add_parser(
         "validate-brief", help="Run brief validation gate"
     )
-    exp_vb_parser.add_argument(
-        "experiment_dir", type=Path, help="Experiment directory"
-    )
-    exp_vb_parser.add_argument(
-        "--json", action="store_true", dest="json_output"
-    )
+    exp_vb_parser.add_argument("experiment_dir", type=Path, help="Experiment directory")
+    exp_vb_parser.add_argument("--json", action="store_true", dest="json_output")
 
     # vita experiment validate-interpretation
     exp_vi_parser = exp_subparsers.add_parser(
         "validate-interpretation", help="Run interpretation validation gate"
     )
-    exp_vi_parser.add_argument(
-        "experiment_dir", type=Path, help="Experiment directory"
-    )
-    exp_vi_parser.add_argument(
-        "--json", action="store_true", dest="json_output"
-    )
+    exp_vi_parser.add_argument("experiment_dir", type=Path, help="Experiment directory")
+    exp_vi_parser.add_argument("--json", action="store_true", dest="json_output")
 
     # vita experiment present
     exp_present_parser = exp_subparsers.add_parser(
@@ -368,9 +363,7 @@ def main() -> None:
     exp_status_parser.add_argument(
         "experiment_dir", type=Path, help="Experiment directory"
     )
-    exp_status_parser.add_argument(
-        "--json", action="store_true", dest="json_output"
-    )
+    exp_status_parser.add_argument("--json", action="store_true", dest="json_output")
 
     # vita init
     init_parser = subparsers.add_parser(
@@ -414,7 +407,18 @@ def main() -> None:
         ),
     )
 
-    args = parser.parse_args()
+    return parser
+
+
+def main() -> None:
+    """Run the Vita CLI entrypoint."""
+    load_dotenv()
+    parser = build_parser()
+    argv = sys.argv[1:]
+    if not argv:
+        parser.print_help()
+        return
+    args = parser.parse_args(argv)
 
     if args.command == "init":
         run_init_command(args)
@@ -447,7 +451,7 @@ def main() -> None:
             # Convenience mode: vita experiment <manifest.yaml>
             run_experiment_full_command(args)
         else:
-            exp_parser.print_help()
+            parser.parse_args(["experiment", "--help"])
 
 
 if __name__ == "__main__":

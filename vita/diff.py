@@ -9,6 +9,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from rich.console import Group
+
+from tools.cli_ui import data_table, message_panel, render_to_text, status_panel
 from vita.run_artifacts import (
     RunArtifactError,
     RunManifest,
@@ -117,41 +120,72 @@ def format_run_diff_console(diff_payload: Mapping[str, Any], *, limit: int = 20)
     if not isinstance(baseline, Mapping) or not isinstance(variant, Mapping):
         raise RunDiffError("Invalid diff payload: missing baseline/variant identity")
 
-    lines = [
-        (
-            "Vita Run Diff: "
-            f"{baseline.get('run_id', 'baseline')} ({baseline.get('run_dir')}) -> "
-            f"{variant.get('run_id', 'variant')} ({variant.get('run_dir')})"
-        ),
-        "=" * 80,
+    sections = [
+        status_panel(
+            "Vita Run Diff",
+            [
+                (
+                    "Baseline",
+                    f"{baseline.get('run_id', 'baseline')} ({baseline.get('run_dir')})",
+                ),
+                (
+                    "Variant",
+                    f"{variant.get('run_id', 'variant')} ({variant.get('run_dir')})",
+                ),
+            ],
+            status=("delta", "info"),
+        )
     ]
 
     objective = diff_payload.get("objective")
     if isinstance(objective, Mapping):
-        lines.append(
-            "Objective: "
-            f"baseline={_fmt_float(objective.get('baseline'))} "
-            f"variant={_fmt_float(objective.get('variant'))} "
-            f"delta={_fmt_signed(objective.get('delta'))} "
-            f"pct={_fmt_pct(objective.get('pct_delta'))}"
+        sections.append(
+            status_panel(
+                "Objective",
+                [
+                    ("baseline", _fmt_float(objective.get("baseline"))),
+                    ("variant", _fmt_float(objective.get("variant"))),
+                    ("delta", _fmt_signed(objective.get("delta"))),
+                    ("pct", _fmt_pct(objective.get("pct_delta"))),
+                ],
+                status=(
+                    "changed",
+                    "success" if float(objective.get("delta") or 0) == 0 else "warning",
+                ),
+            )
         )
 
     objective_breakdown = diff_payload.get("objective_breakdown")
     if isinstance(objective_breakdown, Mapping):
         rows = objective_breakdown.get("rows")
         if isinstance(rows, list) and rows:
-            lines.append("")
-            lines.append("Objective Breakdown")
-            lines.append("-------------------")
+            display_rows: list[list[str]] = []
             for row in rows[:limit]:
                 if not isinstance(row, Mapping):
                     continue
-                component = row.get("component", "(unknown)")
-                delta = _fmt_signed(row.get("delta"))
-                status = row.get("status")
-                lines.append(f"{component}: {delta} ({status})")
+                display_rows.append(
+                    [
+                        str(row.get("component", "(unknown)")),
+                        _fmt_signed(row.get("delta")),
+                        str(row.get("status") or ""),
+                    ]
+                )
+            sections.append(
+                data_table(
+                    "Objective Breakdown",
+                    ["Component", "Delta", "Status"],
+                    display_rows,
+                    empty_message="No changed components",
+                )
+            )
             if len(rows) > limit:
-                lines.append(f"... showing {limit} of {len(rows)} components")
+                sections.append(
+                    message_panel(
+                        "Objective Breakdown",
+                        [f"Showing {limit} of {len(rows)} components"],
+                        level="muted",
+                    )
+                )
 
     tables = diff_payload.get("tables")
     if isinstance(tables, Mapping):
@@ -159,47 +193,68 @@ def format_run_diff_console(diff_payload: Mapping[str, Any], *, limit: int = 20)
             table_delta = tables.get(metric)
             if not isinstance(table_delta, Mapping):
                 continue
-            lines.append("")
-            lines.append(metric.upper())
-            lines.append("-" * len(metric))
-
             totals = table_delta.get("totals")
             status_counts = table_delta.get("status_counts")
-            if isinstance(totals, Mapping):
-                lines.append(
-                    "Totals: "
-                    f"baseline={_fmt_float(totals.get('baseline'))} "
-                    f"variant={_fmt_float(totals.get('variant'))} "
-                    f"delta={_fmt_signed(totals.get('delta'))} "
-                    f"pct={_fmt_pct(totals.get('pct_delta'))}"
-                )
-            if isinstance(status_counts, Mapping):
-                lines.append(
-                    "Rows: "
-                    f"changed={status_counts.get('changed', 0)} "
-                    f"added={status_counts.get('added', 0)} "
-                    f"removed={status_counts.get('removed', 0)}"
-                )
-
             rows = table_delta.get("rows")
-            if not isinstance(rows, list) or not rows:
-                lines.append("(no changed rows)")
-                continue
-
-            for row in rows[:limit]:
-                if not isinstance(row, Mapping):
-                    continue
-                key = row.get("key")
-                key_text = _format_row_key(key)
-                lines.append(
-                    f"{key_text}: delta={_fmt_signed(row.get('delta_level'))} "
-                    f"pct={_fmt_pct(row.get('pct_delta'))} "
-                    f"status={row.get('status')}"
+            metric_rows: list[list[str]] = []
+            if isinstance(rows, list):
+                for row in rows[:limit]:
+                    if not isinstance(row, Mapping):
+                        continue
+                    metric_rows.append(
+                        [
+                            _format_row_key(row.get("key")),
+                            _fmt_signed(row.get("delta_level")),
+                            _fmt_pct(row.get("pct_delta")),
+                            str(row.get("status") or ""),
+                        ]
+                    )
+            sections.append(
+                status_panel(
+                    metric.upper(),
+                    [
+                        (
+                            "Totals",
+                            (
+                                f"baseline={_fmt_float(totals.get('baseline'))} "
+                                f"variant={_fmt_float(totals.get('variant'))} "
+                                f"delta={_fmt_signed(totals.get('delta'))} "
+                                f"pct={_fmt_pct(totals.get('pct_delta'))}"
+                                if isinstance(totals, Mapping)
+                                else "n/a"
+                            ),
+                        ),
+                        (
+                            "Rows",
+                            (
+                                f"changed={status_counts.get('changed', 0)} "
+                                f"added={status_counts.get('added', 0)} "
+                                f"removed={status_counts.get('removed', 0)}"
+                                if isinstance(status_counts, Mapping)
+                                else "n/a"
+                            ),
+                        ),
+                    ],
                 )
-            if len(rows) > limit:
-                lines.append(f"... showing {limit} of {len(rows)} changed rows")
+            )
+            sections.append(
+                data_table(
+                    metric.upper(),
+                    ["Key", "Delta", "Pct", "Status"],
+                    metric_rows,
+                    empty_message="No changed rows",
+                )
+            )
+            if isinstance(rows, list) and len(rows) > limit:
+                sections.append(
+                    message_panel(
+                        metric.upper(),
+                        [f"Showing {limit} of {len(rows)} changed rows"],
+                        level="muted",
+                    )
+                )
 
-    return "\n".join(lines)
+    return str(render_to_text(Group(*sections)))
 
 
 def _load_run_artifacts(run_dir: Path) -> LoadedRunArtifacts:
@@ -218,8 +273,7 @@ def _load_run_artifacts(run_dir: Path) -> LoadedRunArtifacts:
 
     if not isinstance(payload, Mapping):
         raise RunDiffError(
-            "Invalid results payload: "
-            f"expected object in {paths.results_path}"
+            f"Invalid results payload: expected object in {paths.results_path}"
         )
 
     return LoadedRunArtifacts(

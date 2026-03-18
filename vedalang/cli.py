@@ -25,6 +25,7 @@ import jsonschema
 import yaml
 from yaml.nodes import MappingNode, Node, SequenceNode
 
+from tools.cli_ui import StyledArgumentParser, print_message
 from vedalang.compiler.compiler import (
     SemanticValidationError,
     compile_vedalang_bundle,
@@ -49,6 +50,7 @@ from vedalang.lint.registry import (
     checks_for_engine,
     normalize_categories,
 )
+from vedalang.version import VEDALANG_CLI_VERSION
 from vedalang.versioning import CHECK_OUTPUT_VERSION, DSL_VERSION
 
 FMT_DIR_IGNORES = {
@@ -63,10 +65,16 @@ FMT_DIR_IGNORES = {
 }
 
 
-def main():
-    parser = argparse.ArgumentParser(
+def build_parser() -> argparse.ArgumentParser:
+    """Build the VedaLang CLI parser."""
+    parser = StyledArgumentParser(
         prog="vedalang",
         description="VedaLang CLI - author and validate energy system models",
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {VEDALANG_CLI_VERSION}",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -78,7 +86,16 @@ def main():
     _add_res_parser(subparsers)
     _add_viz_parser(subparsers)
 
-    args = parser.parse_args()
+    return parser
+
+
+def main():
+    parser = build_parser()
+    argv = sys.argv[1:]
+    if not argv:
+        parser.print_help()
+        return
+    args = parser.parse_args(argv)
 
     if args.command == "lint":
         sys.exit(cmd_lint(args))
@@ -285,6 +302,8 @@ def _add_validate_parser(subparsers):
     p.add_argument(
         "--keep-workdir", action="store_true", help="Keep temp directory for debugging"
     )
+
+
 def _add_res_parser(subparsers):
     p = subparsers.add_parser(
         "res",
@@ -314,8 +333,7 @@ def _add_res_parser(subparsers):
         choices=["scoped", "collapse_scope"],
         default=None,
         help=(
-            "Commodity rendering mode (default: collapse_scope except "
-            "instance= scoped)"
+            "Commodity rendering mode (default: collapse_scope except instance= scoped)"
         ),
     )
     common.add_argument(
@@ -387,9 +405,7 @@ def _add_viz_parser(subparsers):
         help="Optional path to VedaLang source (.veda.yaml)",
     )
     p.add_argument("--port", type=int, default=8765, help="Server port (default: 8765)")
-    p.add_argument(
-        "--no-browser", action="store_true", help="Don't auto-open browser"
-    )
+    p.add_argument("--no-browser", action="store_true", help="Don't auto-open browser")
     p.add_argument(
         "--run",
         default=None,
@@ -505,9 +521,7 @@ def cmd_lint(args) -> int:
     )
     run_category_set = set(run_categories)
     checks_run = [
-        c.check_id
-        for c in checks_for_engine("code")
-        if c.category in run_category_set
+        c.check_id for c in checks_for_engine("code") if c.category in run_category_set
     ]
 
     diagnostics: list[dict] = []
@@ -714,9 +728,7 @@ def cmd_llm_lint(args) -> int:
         if "store_path" in result.extras and result.extras["store_path"] is not None:
             unit_store_path = result.extras["store_path"]
         unit_results.extend(result.extras.get("unit_results", []))
-        unit_skipped_components.extend(
-            result.extras.get("unit_skipped_components", [])
-        )
+        unit_skipped_components.extend(result.extras.get("unit_skipped_components", []))
         llm_runs.extend(result.extras.get("llm_runs", []))
 
     _attach_source_positions(diagnostics, source=source, file_path=file_path)
@@ -1162,16 +1174,21 @@ def _format_finding_rich(finding: dict, index: int, total: int):
                 lang = part.get("lang") or "text"
                 code_txt = part.get("code") or ""
                 syn = Syntax(
-                    code_txt, lang, theme="monokai",
-                    line_numbers=False, word_wrap=False,
+                    code_txt,
+                    lang,
+                    theme="monokai",
+                    line_numbers=False,
+                    word_wrap=False,
                 )
-                body_items.append(Panel(
-                    syn,
-                    title=lang,
-                    border_style="dim",
-                    box=box.ROUNDED,
-                    padding=(0, 1),
-                ))
+                body_items.append(
+                    Panel(
+                        syn,
+                        title=lang,
+                        border_style="dim",
+                        box=box.ROUNDED,
+                        padding=(0, 1),
+                    )
+                )
 
     return Panel(
         Group(*body_items),
@@ -1232,12 +1249,14 @@ def _output_lint_result(
                     Text("LLM model", style="dim"),
                     Text(llm_model, style="dim"),
                 )
-            console.print(Panel(
-                header_tbl,
-                box=box.ROUNDED,
-                border_style="blue",
-                padding=(1, 1),
-            ))
+            console.print(
+                Panel(
+                    header_tbl,
+                    box=box.ROUNDED,
+                    border_style="blue",
+                    padding=(1, 1),
+                )
+            )
 
             # Findings
             if diagnostics:
@@ -1288,12 +1307,14 @@ def _output_lint_result(
             )
             summary_tbl.add_row(left, right)
 
-            console.print(Panel(
-                summary_tbl,
-                box=box.ROUNDED,
-                border_style="green" if success else "red",
-                padding=(1, 1),
-            ))
+            console.print(
+                Panel(
+                    summary_tbl,
+                    box=box.ROUNDED,
+                    border_style="green" if success else "red",
+                    padding=(1, 1),
+                )
+            )
 
             if summary is not None:
                 skipped = summary.get("skipped_categories", [])
@@ -1488,8 +1509,7 @@ def _canonicalize_value(value: Any, path: tuple[str, ...]) -> Any:
 
         if all(isinstance(item, dict) for item in canonical_items):
             if any(
-                any(k in item for k in FMT_LIST_SORT_KEYS)
-                for item in canonical_items
+                any(k in item for k in FMT_LIST_SORT_KEYS) for item in canonical_items
             ):
                 return sorted(canonical_items, key=_sequence_mapping_sort_key)
 
@@ -1846,11 +1866,15 @@ def cmd_compile(args) -> int:
         lint_exit = cmd_lint(lint_args)
         if lint_exit == 2:
             if output_json:
-                print(json.dumps({
-                    "success": False,
-                    "source": str(file_path),
-                    "error": "Lint errors prevent compilation",
-                }))
+                print(
+                    json.dumps(
+                        {
+                            "success": False,
+                            "source": str(file_path),
+                            "error": "Lint errors prevent compilation",
+                        }
+                    )
+                )
             return 2
         print()
 
@@ -1922,6 +1946,7 @@ def cmd_compile(args) -> int:
 
     if tableir_path:
         import yaml
+
         tableir_path.parent.mkdir(parents=True, exist_ok=True)
         with open(tableir_path, "w") as f:
             yaml.dump(tableir, f, default_flow_style=False, sort_keys=False)
@@ -1929,19 +1954,25 @@ def cmd_compile(args) -> int:
 
     if out_dir:
         from tools.veda_emit_excel import emit_excel
+
         out_dir.mkdir(parents=True, exist_ok=True)
         paths = emit_excel(tableir, out_dir, validate=False)
         created_files.extend(str(p) for p in paths)
 
     if output_json:
-        print(json.dumps({
-            "dsl_version": source.get("dsl_version", DSL_VERSION),
-            "artifact_version": CHECK_OUTPUT_VERSION,
-            "success": True,
-            "source": str(file_path),
-            "run_id": bundle.run_id,
-            "files": created_files,
-        }, indent=2))
+        print(
+            json.dumps(
+                {
+                    "dsl_version": source.get("dsl_version", DSL_VERSION),
+                    "artifact_version": CHECK_OUTPUT_VERSION,
+                    "success": True,
+                    "source": str(file_path),
+                    "run_id": bundle.run_id,
+                    "files": created_files,
+                },
+                indent=2,
+            )
+        )
     else:
         print(f"Compiled {file_path}:")
         for f in created_files:
@@ -2115,7 +2146,7 @@ def _error(
             payload["suggestion"] = suggestion
         print(json.dumps(payload))
     else:
-        print(f"Error: {message}", file=sys.stderr)
+        print_message("Error", [message], level="error", stream="stderr")
 
 
 def _viz_pid_file(port: int) -> Path:
@@ -2265,9 +2296,7 @@ def _cmd_viz_status(port: int) -> int:
 
     if listener_pid:
         if _pid_looks_like_viz(listener_pid):
-            print(
-                f"viz-like process is listening on port {port} (pid {listener_pid}),"
-            )
+            print(f"viz-like process is listening on port {port} (pid {listener_pid}),")
             print("but no matching pid file is present.")
             return 1
         print(f"Port {port} is in use by pid {listener_pid} (not identified as viz).")

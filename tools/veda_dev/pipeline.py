@@ -11,6 +11,15 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from rich.console import Group
+
+from tools.cli_ui import (
+    data_table,
+    message_panel,
+    render_to_text,
+    status_panel,
+    step_log,
+)
 from vedalang.versioning import DSL_VERSION, PIPELINE_OUTPUT_VERSION
 
 
@@ -222,7 +231,7 @@ def run_pipeline(
                 from vedalang.heuristics.linter import run_heuristics
 
                 if verbose:
-                    print(f"[heuristics] Checking {input_path}")
+                    print(step_log("heuristics", f"Checking {input_path}"))
 
                 vedalang_source = load_vedalang(input_path)
                 issues = run_heuristics(vedalang_source)
@@ -237,7 +246,7 @@ def run_pipeline(
                         heuristics_result.warnings.append(issue.message)
 
                 if verbose and issues:
-                    print(f"[heuristics] Found {len(issues)} issue(s)")
+                    print(step_log("heuristics", f"Found {len(issues)} issue(s)"))
             except Exception as e:
                 heuristics_result.success = False
                 heuristics_result.errors.append(str(e))
@@ -256,12 +265,11 @@ def run_pipeline(
                 )
 
                 if verbose:
-                    print(f"[compile] Compiling {input_path}")
+                    print(step_log("compile", f"Compiling {input_path}"))
 
                 # Reuse source if already loaded, otherwise load fresh
                 source = (
-                    vedalang_source if vedalang_source
-                    else load_vedalang(input_path)
+                    vedalang_source if vedalang_source else load_vedalang(input_path)
                 )
                 bundle = compile_vedalang_bundle(
                     source,
@@ -302,7 +310,7 @@ def run_pipeline(
                     compile_result.artifacts["explain_file"] = str(explain_file)
                 if verbose:
                     count = compile_result.artifacts["file_count"]
-                    print(f"[compile] Created TableIR with {count} files")
+                    print(step_log("compile", f"Created TableIR with {count} files"))
             except ResolutionError as e:
                 compile_result.success = False
                 compile_result.errors.append(f"{e.code}: {e.message}")
@@ -332,7 +340,7 @@ def run_pipeline(
                 from tools.veda_emit_excel import emit_excel, load_tableir
 
                 if verbose:
-                    print(f"[emit_excel] Emitting from {tableir_file}")
+                    print(step_log("emit_excel", f"Emitting from {tableir_file}"))
 
                 tableir = load_tableir(tableir_file)
                 excel_dir = work_dir / "excel"
@@ -342,7 +350,9 @@ def run_pipeline(
                 emit_result.artifacts["excel_files"] = [str(p) for p in created]
                 emit_result.artifacts["file_count"] = len(created)
                 if verbose:
-                    print(f"[emit_excel] Created {len(created)} Excel file(s)")
+                    print(
+                        step_log("emit_excel", f"Created {len(created)} Excel file(s)")
+                    )
             except Exception as e:
                 emit_result.success = False
                 emit_result.errors.append(str(e))
@@ -380,6 +390,7 @@ def run_pipeline(
                 if not regions and tableir_file and tableir_file.exists():
                     # Try to extract from TableIR - look for BOOKREGIONS_MAP
                     import yaml
+
                     with open(tableir_file) as f:
                         tir = yaml.safe_load(f)
                     for file_spec in tir.get("files", []):
@@ -388,8 +399,7 @@ def run_pipeline(
                                 if table.get("tag") == "~BOOKREGIONS_MAP":
                                     rows = table.get("rows", [])
                                     region_set = {
-                                        r.get("region") for r in rows
-                                        if r.get("region")
+                                        r.get("region") for r in rows if r.get("region")
                                     }
                                     regions = ",".join(sorted(region_set))
                                     break
@@ -414,11 +424,9 @@ def run_pipeline(
                 ]
 
                 if verbose:
-                    print(f"[xl2times] Running: {' '.join(cmd)}")
+                    print(step_log("xl2times", f"Running: {' '.join(cmd)}"))
 
-                proc = subprocess.run(
-                    cmd, capture_output=True, text=True
-                )
+                proc = subprocess.run(cmd, capture_output=True, text=True)
 
                 xl2times_result.artifacts["dd_dir"] = str(dd_dir)
                 xl2times_result.artifacts["command"] = " ".join(cmd)
@@ -442,7 +450,7 @@ def run_pipeline(
                     if proc.stderr:
                         xl2times_result.errors.append(proc.stderr[-500:])
                 elif verbose:
-                    print(f"[xl2times] DD files written to {dd_dir}")
+                    print(step_log("xl2times", f"DD files written to {dd_dir}"))
             except Exception as e:
                 xl2times_result.success = False
                 xl2times_result.errors.append(str(e))
@@ -481,7 +489,12 @@ def run_pipeline(
                     )
                 else:
                     if verbose:
-                        print(f"[run_times] Using TIMES source: {effective_times_src}")
+                        print(
+                            step_log(
+                                "run_times",
+                                f"Using TIMES source: {effective_times_src}",
+                            )
+                        )
 
                     # Run GAMS in a subdirectory of our work_dir
                     gams_work_dir = work_dir / "gams"
@@ -580,7 +593,7 @@ def run_pipeline(
 
                 if gdx_file and gdx_file.exists():
                     if verbose:
-                        print(f"[sankey] Generating from {gdx_file}")
+                        print(step_log("sankey", f"Generating from {gdx_file}"))
 
                     sankey = extract_sankey_multi(gdx_path=gdx_file)
 
@@ -600,7 +613,7 @@ def run_pipeline(
                         sankey_result.artifacts["regions"] = len(sankey.regions)
 
                         if verbose:
-                            print(f"[sankey] Created {sankey_file}")
+                            print(step_log("sankey", f"Created {sankey_file}"))
                 else:
                     sankey_result.skipped = True
                     sankey_result.warnings.append("GDX file not found")
@@ -801,54 +814,49 @@ def _format_run_times_failure(step: StepResult) -> list[str]:
 
 def format_result_table(result: PipelineResult) -> str:
     """Format pipeline result as a human-readable table."""
-    status = "✓ PASS" if result.success else "✗ FAIL"
-
-    lines = [
-        f"Work dir: {result.work_dir}",
-        "",
-        "┌" + "─" * 65 + "┐",
-        "│ veda-dev pipeline results" + " " * 39 + "│",
-        "├" + "─" * 65 + "┤",
-        f"│ Input: {result.input_path[:55]}".ljust(66) + "│",
-        f"│ Kind: {result.input_kind}".ljust(66) + "│",
-        "├" + "─" * 65 + "┤",
+    sections = [
+        status_panel(
+            "Pipeline Summary",
+            [
+                ("Input", result.input_path),
+                ("Kind", result.input_kind),
+                ("Work dir", result.work_dir),
+            ],
+            level="success" if result.success else "error",
+            status=("pass", "success") if result.success else ("fail", "error"),
+        )
     ]
 
+    step_rows: list[list[str]] = []
     for name, step in result.steps.items():
         if step.skipped:
-            step_status = "⊘ skip"
+            step_status = "skip"
         elif step.success:
-            step_status = "✓ ok"
+            step_status = "ok"
         else:
-            step_status = "✗ fail"
-
-        # Add step-specific details
+            step_status = "fail"
         detail = _format_step_detail(name, step)
-        if detail:
-            step_line = f"│ {name:15} {step_status:8} ({detail})"
-        else:
-            step_line = f"│ {name:15} {step_status}"
-        lines.append(step_line[:65].ljust(66) + "│")
+        step_rows.append([name, step_status, detail or ""])
+    sections.append(
+        data_table("Pipeline Steps", ["Step", "Status", "Detail"], step_rows)
+    )
 
-    lines.append("├" + "─" * 65 + "┤")
-    lines.append(f"│ Overall: {status}".ljust(66) + "│")
-    lines.append("└" + "─" * 65 + "┘")
-
-    # Show errors
     all_errors = []
     for name, step in result.steps.items():
         for err in step.errors:
             all_errors.append(f"[{name}] {err}")
 
     if all_errors:
-        lines.append("")
-        lines.append("Errors:")
-        for err in all_errors[:10]:
-            lines.append(f"  - {err[:70]}")
+        sections.append(message_panel("Errors", all_errors[:10], level="error"))
 
     run_times_step = result.steps.get("run_times")
     if run_times_step and not run_times_step.skipped and not run_times_step.success:
-        lines.append("")
-        lines.extend(_format_run_times_failure(run_times_step))
+        sections.append(
+            message_panel(
+                "Run-times diagnostics",
+                _format_run_times_failure(run_times_step),
+                level="warning",
+            )
+        )
 
-    return "\n".join(lines)
+    return str(render_to_text(Group(*sections)))

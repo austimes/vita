@@ -7,6 +7,10 @@ from io import StringIO
 from pathlib import Path
 from typing import Any
 
+from rich.console import Group
+
+from tools.cli_ui import data_table, message_panel, render_to_text, status_panel
+
 from .gdx_utils import dump_symbol_csv, find_gdxdump
 
 VALUE_COLUMNS = ("VAL", "VALUE", "LEVEL", "L")
@@ -76,13 +80,7 @@ def parse_csv(csv_text: str) -> list[dict[str, str]]:
 def _normalize_header(header: str | None) -> str:
     if not header:
         return ""
-    return (
-        header.strip()
-        .strip('"')
-        .replace("-", "_")
-        .replace(" ", "_")
-        .upper()
-    )
+    return header.strip().strip('"').replace("-", "_").replace(" ", "_").upper()
 
 
 def _normalize_row(row: dict[str, str]) -> dict[str, str]:
@@ -213,9 +211,7 @@ def extract_results(
 
     gdxdump = find_gdxdump()
     if not gdxdump:
-        results.errors.append(
-            "gdxdump not found. Set GDXDUMP env var or install GAMS."
-        )
+        results.errors.append("gdxdump not found. Set GDXDUMP env var or install GAMS.")
         return results
 
     if not gdx_path.exists():
@@ -446,100 +442,100 @@ def format_table(
 
 def format_results_console(results: TimesResults, limit: int = 20) -> str:
     """Format results for console display."""
-    lines = []
-
-    # Header
-    lines.append(f"TIMES Results: {results.gdx_path}")
-    lines.append("=" * 60)
-
-    # Objective
+    sections = []
+    summary_rows = [("GDX", str(results.gdx_path))]
     if results.objective is not None:
-        lines.append(f"Objective value: {results.objective:.2f}")
+        summary_rows.append(("Objective value", f"{results.objective:.2f}"))
     if results.objective_breakdown:
         breakdown = ", ".join(
-            f"{k}={v:.2f}" for k, v in results.objective_breakdown.items() if v != 0
+            f"{key}={value:.2f}"
+            for key, value in results.objective_breakdown.items()
+            if value != 0
         )
         if breakdown:
-            lines.append(f"  Breakdown: {breakdown}")
-    lines.append("")
+            summary_rows.append(("Breakdown", breakdown))
+    sections.append(
+        status_panel(
+            "TIMES Results",
+            summary_rows,
+            level="info",
+            status=("ready", "success")
+            if not results.errors
+            else ("issues", "warning"),
+        )
+    )
 
-    # VAR_ACT
-    lines.append(
-        format_table(
+    def _rows(data: list[dict[str, Any]], cols: list[str]) -> list[list[str]]:
+        display_rows = data[:limit] if limit > 0 else data
+        return [
+            [
+                (
+                    f"{row.get(col, ''):.2f}"
+                    if isinstance(row.get(col), float)
+                    else str(row.get(col, ""))
+                )
+                for col in cols
+            ]
+            for row in display_rows
+        ]
+
+    sections.append(
+        data_table(
             "Process Activity (VAR_ACT)",
-            results.var_act,
-            ["year", "process", "timeslice", "level"],
-            limit,
+            ["Year", "Process", "Timeslice", "Level"],
+            _rows(results.var_act, ["year", "process", "timeslice", "level"]),
+            empty_message="No non-zero rows",
         )
     )
-    lines.append("")
-
-    # VAR_NCAP
-    lines.append(
-        format_table(
+    sections.append(
+        data_table(
             "New Capacity (VAR_NCAP)",
-            results.var_ncap,
-            ["year", "process", "level"],
-            limit,
+            ["Year", "Process", "Level"],
+            _rows(results.var_ncap, ["year", "process", "level"]),
+            empty_message="No non-zero rows",
         )
     )
-    lines.append("")
-
-    # VAR_CAP
-    lines.append(
-        format_table(
+    sections.append(
+        data_table(
             "Installed Capacity (VAR_CAP)",
-            results.var_cap,
-            ["year", "process", "level"],
-            limit,
+            ["Year", "Process", "Level"],
+            _rows(results.var_cap, ["year", "process", "level"]),
+            empty_message="No non-zero rows",
         )
     )
-    lines.append("")
 
-    # Commodity flows (if present)
     if results.var_flo:
         flow_symbol = results.var_flo_source or "VAR_FLO"
-        lines.append(
-            format_table(
+        sections.append(
+            data_table(
                 f"Commodity Flows ({flow_symbol})",
-                results.var_flo,
-                ["year", "process", "commodity", "level"],
-                limit,
+                ["Year", "Process", "Commodity", "Level"],
+                _rows(results.var_flo, ["year", "process", "commodity", "level"]),
             )
         )
-        lines.append("")
 
-    # PAR_PASTI (input: past investments with vintage)
     if results.par_pasti:
-        lines.append(
-            format_table(
+        sections.append(
+            data_table(
                 "Past Investments (PAR_PASTI)",
-                results.par_pasti,
-                ["vintage", "process", "capacity"],
-                limit,
+                ["Vintage", "Process", "Capacity"],
+                _rows(results.par_pasti, ["vintage", "process", "capacity"]),
             )
         )
-        lines.append("")
 
-    # PAR_RESID (input: residual/stock capacity)
     if results.par_resid:
-        lines.append(
-            format_table(
+        sections.append(
+            data_table(
                 "Residual Capacity (PAR_RESID)",
-                results.par_resid,
-                ["year", "process", "capacity"],
-                limit,
+                ["Year", "Process", "Capacity"],
+                _rows(results.par_resid, ["year", "process", "capacity"]),
             )
         )
-        lines.append("")
 
-    # Errors
     if results.errors:
-        lines.append("Errors:")
-        for err in results.errors:
-            lines.append(f"  - {err}")
+        sections.append(message_panel("Errors", results.errors, level="error"))
 
-    return "\n".join(lines)
+    return str(render_to_text(Group(*sections)))
 
 
 def save_results(

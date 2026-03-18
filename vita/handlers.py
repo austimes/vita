@@ -11,12 +11,34 @@ from pathlib import Path
 from urllib.error import URLError
 from urllib.request import urlopen
 
+from rich.console import Group
+
+from tools.cli_ui import message_panel, print_message, print_renderable, status_panel
+
 UPDATE_TOOL_SOURCE = "git+https://github.com/austimes/vita@main"
 UPDATED_TOOL_COMMANDS = ("vita", "vedalang", "vedalang-dev")
 UPDATE_TOOL_PACKAGE = "veda-devtools"
 UPDATE_VERSION_URL = (
     "https://raw.githubusercontent.com/austimes/vita/main/pyproject.toml"
 )
+
+
+def _print_error(message: str) -> None:
+    print_message("Error", [message], level="error", stream="stderr")
+
+
+def _print_warning(message: str) -> None:
+    print_message("Warning", [message], level="warning", stream="stderr")
+
+
+def _print_status(
+    title: str,
+    rows: list[tuple[str, str]],
+    *,
+    level: str = "info",
+    status: tuple[str, str] | None = None,
+) -> None:
+    print_renderable(status_panel(title, rows, level=level, status=status))
 
 
 def run_pipeline_command(args):
@@ -31,7 +53,7 @@ def run_pipeline_command(args):
         gdx_path = work_dir / "gams" / f"{args.case}.gdx"
 
         if not gdx_path.exists():
-            print(f"Error: GDX file not found: {gdx_path}", file=sys.stderr)
+            _print_error(f"GDX file not found: {gdx_path}")
             sys.exit(2)
 
         results = extract_results(gdx_path=gdx_path)
@@ -44,7 +66,7 @@ def run_pipeline_command(args):
         sys.exit(0 if not results.errors else 2)
 
     if not args.input.exists():
-        print(f"Error: Input not found: {args.input}", file=sys.stderr)
+        _print_error(f"Input not found: {args.input}")
         sys.exit(2)
 
     # Suppress verbose output when JSON is requested (to keep stdout clean)
@@ -136,7 +158,7 @@ def run_times_results_command(args):
     from vita.run_artifacts import RunArtifactError, resolve_run_artifacts
 
     if args.run_dir and args.gdx != Path("tmp/gams/scenario.gdx"):
-        print("Error: Use either --run or --gdx, not both", file=sys.stderr)
+        _print_error("Use either --run or --gdx, not both")
         sys.exit(2)
 
     gdx_path = args.gdx
@@ -145,7 +167,7 @@ def run_times_results_command(args):
             run_paths = resolve_run_artifacts(args.run_dir, require_solver=True)
             gdx_path = run_paths.gdx_path
         except RunArtifactError as exc:
-            print(f"Error: {exc}", file=sys.stderr)
+            _print_error(str(exc))
             sys.exit(2)
 
     year_filter = None
@@ -162,13 +184,18 @@ def run_times_results_command(args):
 
     if results.errors:
         for err in results.errors:
-            print(f"Error: {err}", file=sys.stderr)
+            _print_error(err)
         sys.exit(2)
 
     if args.save:
         created = save_results(results, args.save)
         if not args.quiet:
-            print(f"Saved results to: {', '.join(str(p) for p in created)}")
+            _print_status(
+                "Results Saved",
+                [("Paths", ", ".join(str(p) for p in created))],
+                level="success",
+                status=("saved", "success"),
+            )
 
     if not args.quiet:
         if args.json_output:
@@ -195,7 +222,7 @@ def run_diff_command(args):
             focus_processes=focus_processes or None,
         )
     except (RunDiffError, ValueError) as exc:
-        print(f"Error: {exc}", file=sys.stderr)
+        _print_error(str(exc))
         sys.exit(2)
 
     if args.json_output:
@@ -217,7 +244,7 @@ def run_sankey_command(args):
     from vita.run_artifacts import RunArtifactError, resolve_run_artifacts
 
     if args.run_dir and args.gdx != Path("tmp/gams/scenario.gdx"):
-        print("Error: Use either --run or --gdx, not both", file=sys.stderr)
+        _print_error("Use either --run or --gdx, not both")
         sys.exit(2)
 
     gdx_path = args.gdx
@@ -226,28 +253,36 @@ def run_sankey_command(args):
             run_paths = resolve_run_artifacts(args.run_dir, require_solver=True)
             gdx_path = run_paths.gdx_path
         except RunArtifactError as exc:
-            print(f"Error: {exc}", file=sys.stderr)
+            _print_error(str(exc))
             sys.exit(2)
 
     if not gdx_path.exists():
-        print(f"Error: GDX file not found: {gdx_path}", file=sys.stderr)
+        _print_error(f"GDX file not found: {gdx_path}")
         sys.exit(2)
 
     # Handle list options
     if args.list_years:
         years = get_available_years(gdx_path)
         if years:
-            print("Available years:", ", ".join(years))
+            _print_status(
+                "Available Years",
+                [("Years", ", ".join(years))],
+                status=("listed", "success"),
+            )
         else:
-            print("No flow data found in GDX file")
+            print_message("Sankey", ["No flow data found in GDX file"], level="warning")
         sys.exit(0)
 
     if args.list_regions:
         regions = get_available_regions(gdx_path)
         if regions:
-            print("Available regions:", ", ".join(regions))
+            _print_status(
+                "Available Regions",
+                [("Regions", ", ".join(regions))],
+                status=("listed", "success"),
+            )
         else:
-            print("No flow data found in GDX file")
+            print_message("Sankey", ["No flow data found in GDX file"], level="warning")
         sys.exit(0)
 
     # For HTML format, use interactive mode by default (unless --static)
@@ -262,20 +297,30 @@ def run_sankey_command(args):
 
         if sankey.errors:
             for err in sankey.errors:
-                print(f"Error: {err}", file=sys.stderr)
+                _print_error(err)
             sys.exit(2)
 
         if not sankey.years or not sankey.regions:
-            print("Warning: No flow data found in GDX file", file=sys.stderr)
+            _print_warning("No flow data found in GDX file")
             sys.exit(1)
 
         output = sankey.to_html_interactive()
         output_path = args.output or Path("sankey.html")
         output_path.write_text(output)
-        print(f"Saved interactive HTML to: {output_path}")
-        print(f"  Years: {len(sankey.years)} ({sankey.years[0]} - {sankey.years[-1]})")
-        print(f"  Regions: {len(sankey.regions)} ({', '.join(sankey.regions)})")
-        print(f"Open in browser: file://{output_path.absolute()}")
+        _print_status(
+            "Interactive Sankey Saved",
+            [
+                ("Path", str(output_path)),
+                (
+                    "Years",
+                    f"{len(sankey.years)} ({sankey.years[0]} - {sankey.years[-1]})",
+                ),
+                ("Regions", f"{len(sankey.regions)} ({', '.join(sankey.regions)})"),
+                ("Open", f"file://{output_path.absolute()}"),
+            ],
+            level="success",
+            status=("saved", "success"),
+        )
         sys.exit(0)
 
     # Static mode: single year/region
@@ -288,11 +333,11 @@ def run_sankey_command(args):
 
     if sankey.errors:
         for err in sankey.errors:
-            print(f"Error: {err}", file=sys.stderr)
+            _print_error(err)
         sys.exit(2)
 
     if not sankey.links:
-        print("Warning: No flow data found for specified year/region", file=sys.stderr)
+        _print_warning("No flow data found for specified year/region")
         sys.exit(1)
 
     # Generate output
@@ -300,7 +345,12 @@ def run_sankey_command(args):
         output = json.dumps(sankey.to_dict(), indent=2)
         if args.output:
             args.output.write_text(output)
-            print(f"Saved JSON to: {args.output}")
+            _print_status(
+                "Sankey JSON Saved",
+                [("Path", str(args.output))],
+                level="success",
+                status=("saved", "success"),
+            )
         else:
             print(output)
 
@@ -308,7 +358,12 @@ def run_sankey_command(args):
         output = sankey.to_mermaid()
         if args.output:
             args.output.write_text(output)
-            print(f"Saved Mermaid to: {args.output}")
+            _print_status(
+                "Sankey Mermaid Saved",
+                [("Path", str(args.output))],
+                level="success",
+                status=("saved", "success"),
+            )
         else:
             print(output)
 
@@ -316,8 +371,15 @@ def run_sankey_command(args):
         output = sankey.to_html()
         output_path = args.output or Path("sankey.html")
         output_path.write_text(output)
-        print(f"Saved static HTML to: {output_path}")
-        print(f"Open in browser: file://{output_path.absolute()}")
+        _print_status(
+            "Static Sankey Saved",
+            [
+                ("Path", str(output_path)),
+                ("Open", f"file://{output_path.absolute()}"),
+            ],
+            level="success",
+            status=("saved", "success"),
+        )
 
     sys.exit(0)
 
@@ -327,10 +389,17 @@ def run_experiment_plan_command(args):
     from vita.experiment_runner import plan_experiment
 
     state = plan_experiment(args.manifest, args.out)
-    print(f"Experiment planned: {state.experiment_id}")
-    print(f"  Status: {state.status}")
-    print(f"  Runs: {state.progress.runs_total}")
-    print(f"  Comparisons: {state.progress.diffs_total}")
+    _print_status(
+        "Experiment Planned",
+        [
+            ("Experiment", state.experiment_id),
+            ("Status", state.status),
+            ("Runs", str(state.progress.runs_total)),
+            ("Comparisons", str(state.progress.diffs_total)),
+        ],
+        level="success",
+        status=("planned", "success"),
+    )
 
 
 def run_experiment_run_command(args):
@@ -357,11 +426,18 @@ def run_experiment_run_command(args):
             )
         )
     else:
-        print(f"Experiment: {result.state.experiment_id}")
-        print(f"  Status: {result.state.status}")
         p = result.state.progress
-        print(f"  Runs: {p.runs_complete}/{p.runs_total} complete")
-        print(f"  Diffs: {p.diffs_complete}/{p.diffs_total} complete")
+        _print_status(
+            "Experiment Run",
+            [
+                ("Experiment", result.state.experiment_id),
+                ("Status", result.state.status),
+                ("Runs", f"{p.runs_complete}/{p.runs_total} complete"),
+                ("Diffs", f"{p.diffs_complete}/{p.diffs_total} complete"),
+            ],
+            level="success" if result.success else "warning",
+            status=("complete", "success") if result.success else ("issues", "warning"),
+        )
     sys.exit(0 if result.success else 2)
 
 
@@ -376,7 +452,12 @@ def run_experiment_summarize_command(args):
 
         print(json_mod.dumps({"summary_json": str(summary_path)}, indent=2))
     else:
-        print(f"Summary generated: {summary_path}")
+        _print_status(
+            "Summary Generated",
+            [("Summary", str(summary_path))],
+            level="success",
+            status=("saved", "success"),
+        )
 
 
 def run_experiment_validate_brief_command(args):
@@ -391,7 +472,7 @@ def run_experiment_validate_brief_command(args):
 
     brief_path = experiment_dir / "planning" / "brief.json"
     if not brief_path.exists():
-        print(f"Error: brief.json not found: {brief_path}", file=sys.stderr)
+        _print_error(f"brief.json not found: {brief_path}")
         sys.exit(2)
 
     brief = json_mod.loads(brief_path.read_text(encoding="utf-8"))
@@ -404,14 +485,30 @@ def run_experiment_validate_brief_command(args):
     if getattr(args, "json_output", False):
         print(json_mod.dumps(result.to_dict(), indent=2))
     else:
-        if result.valid:
-            print(f"Brief validation passed ({len(result.warnings)} warnings)")
-        else:
-            print(f"Brief validation FAILED ({len(result.errors)} errors)")
-            for err in result.errors:
-                print(f"  ERROR: {err}")
-        for w in result.warnings:
-            print(f"  WARNING: {w}")
+        rows = [
+            ("Errors", str(len(result.errors))),
+            ("Warnings", str(len(result.warnings))),
+        ]
+        panel_level = "success" if result.valid else "error"
+        panel_status = ("passed", "success") if result.valid else ("failed", "error")
+        extras = [f"ERROR: {err}" for err in result.errors] + [
+            f"WARNING: {warn}" for warn in result.warnings
+        ]
+        print_renderable(
+            Group(
+                status_panel(
+                    "Brief Validation",
+                    rows,
+                    level=panel_level,
+                    status=panel_status,
+                ),
+                message_panel(
+                    "Diagnostics",
+                    extras or ["No diagnostics"],
+                    level="warning" if extras else "muted",
+                ),
+            )
+        )
 
     sys.exit(0 if result.valid else 2)
 
@@ -428,15 +525,10 @@ def run_experiment_validate_interpretation_command(args):
 
     interpretation_path = experiment_dir / "conclusions" / "interpretation.json"
     if not interpretation_path.exists():
-        print(
-            f"Error: interpretation.json not found: {interpretation_path}",
-            file=sys.stderr,
-        )
+        _print_error(f"interpretation.json not found: {interpretation_path}")
         sys.exit(2)
 
-    interpretation = json_mod.loads(
-        interpretation_path.read_text(encoding="utf-8")
-    )
+    interpretation = json_mod.loads(interpretation_path.read_text(encoding="utf-8"))
 
     summary_path = experiment_dir / "conclusions" / "summary.json"
     summary = {}
@@ -453,18 +545,30 @@ def run_experiment_validate_interpretation_command(args):
     if getattr(args, "json_output", False):
         print(json_mod.dumps(result.to_dict(), indent=2))
     else:
-        if result.valid:
-            print(
-                f"Interpretation validation passed ({len(result.warnings)} warnings)"
+        rows = [
+            ("Errors", str(len(result.errors))),
+            ("Warnings", str(len(result.warnings))),
+        ]
+        panel_level = "success" if result.valid else "error"
+        panel_status = ("passed", "success") if result.valid else ("failed", "error")
+        extras = [f"ERROR: {err}" for err in result.errors] + [
+            f"WARNING: {warn}" for warn in result.warnings
+        ]
+        print_renderable(
+            Group(
+                status_panel(
+                    "Interpretation Validation",
+                    rows,
+                    level=panel_level,
+                    status=panel_status,
+                ),
+                message_panel(
+                    "Diagnostics",
+                    extras or ["No diagnostics"],
+                    level="warning" if extras else "muted",
+                ),
             )
-        else:
-            print(
-                f"Interpretation validation FAILED ({len(result.errors)} errors)"
-            )
-            for err in result.errors:
-                print(f"  ERROR: {err}")
-        for w in result.warnings:
-            print(f"  WARNING: {w}")
+        )
 
     sys.exit(0 if result.valid else 2)
 
@@ -474,8 +578,12 @@ def run_experiment_present_command(args):
     from vita.experiment_presentation import generate_presentation
 
     html_path = generate_presentation(args.experiment_dir)
-    print(f"Presentation generated: {html_path}")
-
+    _print_status(
+        "Presentation Generated",
+        [("HTML", str(html_path))],
+        level="success",
+        status=("saved", "success"),
+    )
 
 
 def run_experiment_status_command(args):
@@ -486,17 +594,21 @@ def run_experiment_status_command(args):
     if getattr(args, "json_output", False):
         print(json.dumps(state.to_dict(), indent=2))
     else:
-        print(f"Experiment: {state.experiment_id}")
-        print(f"  Status: {state.status}")
         p = state.progress
-        print(
-            f"  Runs: {p.runs_complete}/{p.runs_total} complete, {p.runs_failed} failed"
-        )
-        print(f"  Diffs: {p.diffs_complete}/{p.diffs_total} complete")
+        rows = [
+            ("Experiment", state.experiment_id),
+            ("Status", state.status),
+            (
+                "Runs",
+                f"{p.runs_complete}/{p.runs_total} complete, {p.runs_failed} failed",
+            ),
+            ("Diffs", f"{p.diffs_complete}/{p.diffs_total} complete"),
+        ]
         if state.completed_at:
-            print(f"  Completed: {state.completed_at}")
+            rows.append(("Completed", str(state.completed_at)))
         if state.concluded_at:
-            print(f"  Concluded: {state.concluded_at}")
+            rows.append(("Concluded", str(state.concluded_at)))
+        _print_status("Experiment Status", rows, status=("status", "info"))
 
 
 def run_experiment_full_command(args):
@@ -505,9 +617,16 @@ def run_experiment_full_command(args):
     from vita.experiment_summary import generate_summary
 
     state = plan_experiment(args.manifest, args.out)
-    print(f"Experiment staged: {state.experiment_id}")
-    print(f"  Runs: {state.progress.runs_total}")
-    print(f"  Comparisons: {state.progress.diffs_total}")
+    _print_status(
+        "Experiment Staged",
+        [
+            ("Experiment", state.experiment_id),
+            ("Runs", str(state.progress.runs_total)),
+            ("Comparisons", str(state.progress.diffs_total)),
+        ],
+        level="success",
+        status=("staged", "success"),
+    )
 
     result = run_experiment(
         state.experiment_dir,
@@ -530,11 +649,18 @@ def run_experiment_full_command(args):
             )
         )
     else:
-        print(f"Experiment: {result.state.experiment_id}")
-        print(f"  Status: {result.state.status}")
         p = result.state.progress
-        print(f"  Runs: {p.runs_complete}/{p.runs_total} complete")
-        print(f"  Diffs: {p.diffs_complete}/{p.diffs_total} complete")
+        _print_status(
+            "Experiment Run",
+            [
+                ("Experiment", result.state.experiment_id),
+                ("Status", result.state.status),
+                ("Runs", f"{p.runs_complete}/{p.runs_total} complete"),
+                ("Diffs", f"{p.diffs_complete}/{p.diffs_total} complete"),
+            ],
+            level="success" if result.success else "warning",
+            status=("complete", "success") if result.success else ("issues", "warning"),
+        )
 
     if not result.success:
         sys.exit(2)
@@ -542,7 +668,12 @@ def run_experiment_full_command(args):
     summary_path = generate_summary(result.experiment_dir)
     # DO NOT auto-present or auto-conclude — those require agentic artifacts
     if not getattr(args, "json_output", False):
-        print(f"  Summary: {summary_path}")
+        _print_status(
+            "Experiment Summary",
+            [("Summary", str(summary_path))],
+            level="success",
+            status=("saved", "success"),
+        )
 
     sys.exit(0)
 
@@ -558,33 +689,50 @@ def run_init_command(args):
         smoke_test=getattr(args, "smoke_test", False),
         with_bd=getattr(args, "with_bd", False),
     )
-
-    print(f"\n✓ Vita project initialized: {result['project_dir']}")
-    print()
-    if result["gams_detected"]:
-        print("  GAMS: detected")
-    else:
-        print("  GAMS: not found (set GAMS_BINARY in .env)")
-    if result["times_src_detected"]:
-        print("  TIMES source: detected")
-    else:
-        print("  TIMES source: not found (set TIMES_SRC in .env)")
+    rows = [
+        ("Project", str(result["project_dir"])),
+        (
+            "GAMS",
+            "detected"
+            if result["gams_detected"]
+            else "not found (set GAMS_BINARY in .env)",
+        ),
+        (
+            "TIMES source",
+            "detected"
+            if result["times_src_detected"]
+            else "not found (set TIMES_SRC in .env)",
+        ),
+    ]
     if result.get("smoke_test_passed") is True:
-        print("  Smoke test: passed ✓")
+        rows.append(("Smoke test", "passed"))
     elif result.get("smoke_test_passed") is False:
-        print("  Smoke test: failed ✗")
+        rows.append(("Smoke test", "failed"))
     if result.get("bd_initialized"):
-        print("  Beads (bd): initialized ✓")
+        rows.append(("Beads (bd)", "initialized"))
     elif result.get("bd_failed"):
-        print(
-            "  Beads (bd): failed"
-            " (bd not found — install beads to use task tracking)"
+        rows.append(
+            ("Beads (bd)", "failed (bd not found - install beads to use task tracking)")
         )
-    print()
-    print("Next steps:")
-    print("  1. Open this directory in your AI agent (Amp, Codex, Claude)")
-    print("  2. The agent will read AGENTS.md and understand the workflow")
-    print('  3. Ask: "Run the example model and explain the results"')
+    print_renderable(
+        Group(
+            status_panel(
+                "Vita Project Initialized",
+                rows,
+                level="success",
+                status=("ready", "success"),
+            ),
+            message_panel(
+                "Next Steps",
+                [
+                    "1. Open this directory in your AI agent (Amp, Codex, Claude)",
+                    "2. The agent will read AGENTS.md and understand the workflow",
+                    '3. Ask: "Run the example model and explain the results"',
+                ],
+                level="info",
+            ),
+        )
+    )
 
 
 def run_update_command(_args):
@@ -596,47 +744,83 @@ def run_update_command(_args):
         comparison = _compare_versions(installed_version, latest_version)
         if comparison >= 0:
             if comparison == 0:
-                print(
-                    "vita and vedalang are already up to date "
-                    f"(version {installed_version})."
+                print_message(
+                    "CLI Tools",
+                    [
+                        "vita and vedalang are already up to date "
+                        f"(version {installed_version})."
+                    ],
+                    level="success",
                 )
             else:
-                print(
-                    "Installed vita tools are newer than GitHub main "
-                    f"({installed_version} > {latest_version}); skipping refresh."
+                print_message(
+                    "CLI Tools",
+                    [
+                        "Installed vita tools are newer than GitHub main "
+                        f"({installed_version} > {latest_version}); skipping refresh."
+                    ],
+                    level="warning",
                 )
             sys.exit(0)
 
-        print(
-            "Updating vita tool package from GitHub main "
-            f"({installed_version} -> {latest_version})."
+        print_message(
+            "CLI Tools",
+            [
+                "Updating vita tool package from GitHub main "
+                f"({installed_version} -> {latest_version})."
+            ],
+            level="info",
         )
     elif latest_version is None:
-        print("Could not determine the latest GitHub main version; refreshing anyway.")
+        print_message(
+            "CLI Tools",
+            ["Could not determine the latest GitHub main version; refreshing anyway."],
+            level="warning",
+        )
     else:
-        print(
-            "Could not determine the installed vita tool version; refreshing from "
-            "GitHub main."
+        print_message(
+            "CLI Tools",
+            [
+                "Could not determine the installed vita tool version; "
+                "refreshing from GitHub main."
+            ],
+            level="warning",
         )
 
     command = ["uv", "tool", "install", "--force", UPDATE_TOOL_SOURCE]
-    print("Refreshing CLI tools from GitHub main:")
-    print(f"  {' '.join(command)}")
+    print_renderable(
+        Group(
+            message_panel(
+                "CLI Tools",
+                ["Refreshing CLI tools from GitHub main:"],
+                level="info",
+            ),
+            status_panel(
+                "Refresh Command",
+                [("Command", " ".join(command))],
+                level="info",
+                status=("run", "info"),
+            ),
+        )
+    )
 
     try:
         result = subprocess.run(command, check=False)
     except FileNotFoundError:
-        print("Error: uv was not found on PATH.", file=sys.stderr)
+        _print_error("uv was not found on PATH.")
         sys.exit(2)
 
     if result.returncode != 0:
         sys.exit(result.returncode)
 
-    print()
-    print(
-        "Refreshed commands: "
-        + ", ".join(UPDATED_TOOL_COMMANDS)
-        + " (vita and vedalang come from the same tool package)."
+    print_message(
+        "CLI Tools Refreshed",
+        [
+            "Refreshed commands: "
+            + ", ".join(UPDATED_TOOL_COMMANDS)
+            + " (vita and vedalang come from the same tool package)."
+        ],
+        level="success",
     )
     sys.exit(0)
 
