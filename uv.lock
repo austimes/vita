@@ -1308,8 +1308,8 @@ wheels = [
 ]
 
 [[package]]
-name = "veda-devtools"
-version = "0.4.4"
+name = "vita"
+version = "0.4.6"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi" },

@@ -1,7 +1,7 @@
 [project]
-name = "veda-devtools"
-version = "0.4.4"
-description = "A typed DSL (VedaLang) that compiles to VEDA tables for TIMES energy models"
+name = "VITA"
+version = "0.4.6"
+description = "VITA is a toolkit for authoring, validating, running, and analyzing TIMES energy models, including the VedaLang DSL"
 requires-python = ">=3.11"
 dependencies = [
     "pyyaml>=6.0",

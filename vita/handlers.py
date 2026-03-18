@@ -17,7 +17,7 @@ from tools.cli_ui import message_panel, print_message, print_renderable, status_
 
 UPDATE_TOOL_SOURCE = "git+https://github.com/austimes/vita@main"
 UPDATED_TOOL_COMMANDS = ("vita", "vedalang", "vedalang-dev")
-UPDATE_TOOL_PACKAGE = "veda-devtools"
+UPDATE_TOOL_PACKAGE = "VITA"
 UPDATE_VERSION_URL = (
     "https://raw.githubusercontent.com/austimes/vita/main/pyproject.toml"
 )
@@ -711,9 +711,8 @@ def run_init_command(args):
     if result.get("bd_initialized"):
         rows.append(("Beads (bd)", "initialized"))
     elif result.get("bd_failed"):
-        rows.append(
-            ("Beads (bd)", "failed (bd not found - install beads to use task tracking)")
-        )
+        bd_error = result.get("bd_error") or "bd initialization failed"
+        rows.append(("Beads (bd)", f"failed ({bd_error})"))
     print_renderable(
         Group(
             status_panel(
@@ -826,7 +825,7 @@ def run_update_command(_args):
 
 
 def _get_installed_tool_version() -> str | None:
-    """Return the installed veda-devtools package version, if available."""
+    """Return the installed VITA package version, if available."""
     try:
         return importlib.metadata.version(UPDATE_TOOL_PACKAGE)
     except importlib.metadata.PackageNotFoundError:
