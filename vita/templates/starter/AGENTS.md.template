@@ -14,8 +14,9 @@ the Vita repository into this project, not the global system skill directory:
 
 Bootstrap steps:
 
-1. Install the skills into the project-local directory `.codex/skills/`
-   (relative to this workspace). Do not install them into `~/.codex/skills/`.
+1. Install the skills into the agent's appropriate project-local skill
+   location for this workspace. Do not install them into a global system skill
+   directory.
 2. Force-refresh the project-local copies before installing so this workspace
    gets the latest version of each skill even if an older copy already exists.
    If the installer refuses to overwrite an existing skill directory, remove the
