@@ -1,3 +1,3 @@
 """Version markers for the Vita CLI surface."""
 
-VITA_CLI_VERSION = "0.4.0"
+VITA_CLI_VERSION = "0.4.1"

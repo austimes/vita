@@ -331,7 +331,6 @@ vedalang/
 │   ├── veda_check/              # Model validation utilities
 │   ├── veda_patterns/           # Pattern library tools
 │   ├── veda_run_times/          # Internal TIMES solver runner used by vita
-│   └── vedalang_lsp/            # Language server protocol
 ├── rules/
 │   ├── patterns.yaml            # Concept → VedaLang templates
 │   ├── decision_tree.yaml       # Intent routing
@@ -421,27 +420,6 @@ These remain available for validation:
 # Validate Excel through xl2times
 xl2times model.xlsx --case base --diagnostics-json diag.json
 ```
-
-### VedaLang LSP Extension (Cursor/VS Code)
-
-The LSP has two parts: a **Python server** (`tools/vedalang_lsp/server/`) and a **TypeScript extension** (`tools/vedalang_lsp/extension/`). The Mermaid RES diagram is rendered server-side in Python — the extension just displays it.
-
-**Rebuilding after TypeScript changes:**
-
-```bash
-# 1. Compile TypeScript
-cd tools/vedalang_lsp/extension && bun run compile
-
-# 2. Copy compiled JS to the installed extension (Cursor)
-EXT_DIR=$(ls -d ~/.cursor/extensions/austimes.vedalang-* | sort | tail -n1)
-cp tools/vedalang_lsp/extension/out/*.js "$EXT_DIR/out/"
-
-# 3. Reload window: Cmd+Shift+P → "Developer: Reload Window"
-```
-
-**Important:** Cursor loads the extension from the installed `~/.cursor/extensions/austimes.vedalang-*/` directory, NOT from the repo's `out/` directory. After `bun run compile`, you MUST copy the built JS files to the installed extension path. For VS Code, the equivalent path is `~/.vscode/extensions/`.
-
-Python server changes (e.g., `tools/vedalang_lsp/server/server.py`) take effect on window reload without any build step.
 
 ## TableIR Example
 
@@ -799,8 +777,6 @@ cat diag.json | jq '.diagnostics[] | {code, severity, message}'
    `pyproject.toml`
    `vita/version.py`
    `vedalang/version.py`
-   `tools/vedalang_lsp/server/server.py`
-   `tools/vedalang_lsp/extension/package.json`
    Update any related tests/docs that assert version strings.
    Version policy:
    Bump the shipped release number on every push.

@@ -11,7 +11,7 @@ Performs a comprehensive audit of the vedalang repository and creates actionable
 
 **Audit these directories:**
 - `vedalang/` — core language, compiler, schema, examples, heuristics
-- `tools/` — dev CLI, emitter, check, patterns, LSP, and Vita command handlers
+- `tools/` — dev CLI, emitter, check, patterns, and Vita command handlers
 - `tests/` — all test files and fixtures
 - `experiments/` — design agent experiment outputs
 - `fixtures/` — golden test fixtures

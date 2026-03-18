@@ -4,6 +4,11 @@ Chronological record of the current repository state.
 
 ## 2026-03-18
 
+- Removed the VedaLang LSP and bundled VS Code/Cursor extension. The project
+  is now explicitly CLI-first for model authoring and validation, and Viz owns
+  the standalone visualization/viewing workflow.
+- Bumped the shipped repo/tool version to `0.4.1` across the Python package
+  and both CLI version markers.
 - Bumped the shipped repo/tool version to `0.3.1` across the Python package,
   LSP server, and VS Code extension metadata.
 - Made `vita update` version-aware: it now compares the installed tool package

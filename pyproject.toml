@@ -1,6 +1,6 @@
 [project]
 name = "veda-devtools"
-version = "0.4.0"
+version = "0.4.1"
 description = "A typed DSL (VedaLang) that compiles to VEDA tables for TIMES energy models"
 requires-python = ">=3.11"
 dependencies = [
@@ -21,9 +21,6 @@ dependencies = [
     "uvicorn>=0.40.0",
     "websockets>=15.0.1",
     "watchdog>=6.0.0",
-    # LSP server dependencies
-    "pygls>=1.3.0",
-    "lsprotocol>=2024.0.0",
     "openai>=2.21.0",
     "rich>=13.0",
     "pint>=0.25.2",

@@ -1,4 +1,4 @@
-"""Unified RES query engine for CLI, LSP, and web clients."""
+"""Unified RES query engine for CLI and web clients."""
 
 from __future__ import annotations
 

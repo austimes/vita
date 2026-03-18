@@ -1,10 +1,6 @@
 import json
 
-from lsprotocol import types
-
-from tests.test_lsp import MockTextDocument
 from tests.test_vedalang_cli import run_vedalang
-from tools.vedalang_lsp.server.server import server, validate_document
 from vedalang.compiler.diagnostics import collect_diagnostics
 from vedalang.compiler.source_maps import attach_source_positions
 from vedalang.lint.code_categories import run_core
@@ -493,8 +489,8 @@ def test_collect_public_diagnostics_flags_missing_res_explorer_descriptions():
     assert all(d["severity"] == "error" for d in missing_description_diags)
 
 
-def test_lsp_validate_document_uses_diagnostics():
-    doc = MockTextDocument(
+def test_collect_diagnostics_uses_public_compiler_diagnostics():
+    source_text = (
         "\n".join(
             [
                 'dsl_version: "0.3"',
@@ -504,22 +500,45 @@ def test_lsp_validate_document_uses_diagnostics():
                 "    energy_form: secondary",
                 "technologies:",
                 "  - id: gas_heater",
-                "    description: LSP fixture gas-heater technology.",
+                "    description: Diagnostic fixture gas-heater technology.",
                 "    provides: electricity",
                 "technology_roles:",
                 "  - id: gas_heater",
-                "    description: LSP fixture role for electricity service.",
+                "    description: Diagnostic fixture role for electricity service.",
                 "    primary_service: electricity",
                 "    technologies: [gas_heater]",
             ]
         )
         + "\n"
     )
+    source = {
+        "dsl_version": "0.3",
+        "commodities": [
+            {"id": "electricity", "type": "energy", "energy_form": "secondary"}
+        ],
+        "technologies": [
+            {
+                "id": "gas_heater",
+                "description": "Diagnostic fixture gas-heater technology.",
+                "provides": "electricity",
+            }
+        ],
+        "technology_roles": [
+            {
+                "id": "gas_heater",
+                "description": "Diagnostic fixture role for electricity service.",
+                "primary_service": "electricity",
+                "technologies": ["gas_heater"],
+            }
+        ],
+    }
 
-    diagnostics = validate_document(server, doc)
-    errors = [d for d in diagnostics if d.severity == types.DiagnosticSeverity.Error]
-    assert any(d.code == "E004" for d in errors)
-    assert all("Missing required 'model' key" not in d.message for d in diagnostics)
+    diagnostics = collect_diagnostics(source)
+    attach_source_positions(diagnostics, source=source, source_text=source_text)
+
+    errors = [d for d in diagnostics if d["severity"] == "error"]
+    assert any(d["code"] == "E004" for d in errors)
+    assert all("Missing required 'model' key" not in d["message"] for d in diagnostics)
 
 
 def test_run_core_skips_legacy_xref_checks_for_public_source():

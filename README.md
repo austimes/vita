@@ -347,7 +347,6 @@ vedalang/
 │   ├── veda_check/        # Model validation utilities
 │   ├── veda_patterns/     # Pattern library tools
 │   ├── veda_run_times/    # Internal TIMES solver runner used by vita
-│   └── vedalang_lsp/      # Language server protocol
 ├── xl2times/              # Local fork of xl2times (Excel → DD)
 ├── rules/                 # Pattern library
 ├── skills/                # Agent skills (DSL, modeling, experiments)
