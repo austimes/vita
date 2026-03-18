@@ -25,6 +25,24 @@ from vita.handlers import (
 )
 from vita.version import VITA_CLI_VERSION
 
+_EXPERIMENT_SUBCOMMANDS = frozenset({
+    "stage", "run", "summarize", "validate-brief",
+    "validate-interpretation", "present", "status",
+})
+
+
+def _rewrite_experiment_argv(argv: list[str]) -> list[str]:
+    """Rewrite convenience-mode argv so argparse can dispatch correctly.
+
+    ``vita experiment manifest.yaml --out dir`` becomes
+    ``vita experiment _full manifest.yaml --out dir``.
+    """
+    if len(argv) >= 2 and argv[0] == "experiment":
+        token = argv[1]
+        if token not in _EXPERIMENT_SUBCOMMANDS and not token.startswith("-"):
+            return ["experiment", "_full", *argv[1:]]
+    return argv
+
 
 def build_parser() -> argparse.ArgumentParser:
     """Build the Vita CLI parser."""
@@ -280,24 +298,13 @@ def build_parser() -> argparse.ArgumentParser:
         "experiment",
         help="Run declarative experiments from manifest files",
     )
-    exp_parser.add_argument(
-        "manifest",
-        nargs="?",
-        type=Path,
-        help="Path to experiment.yaml manifest (convenience mode)",
-    )
-    exp_parser.add_argument(
-        "--out",
-        type=Path,
-        help="Output directory (convenience mode, default: experiments/<id>)",
-    )
-    exp_parser.add_argument(
-        "--json",
-        action="store_true",
-        dest="json_output",
-        help="Output as JSON (convenience mode)",
-    )
     exp_subparsers = exp_parser.add_subparsers(dest="exp_command")
+
+    # Hidden convenience mode: vita experiment <manifest.yaml> --out <dir> --json
+    exp_full_parser = exp_subparsers.add_parser("_full", help=argparse.SUPPRESS)
+    exp_full_parser.add_argument("manifest", type=Path, help="Path to experiment.yaml manifest")
+    exp_full_parser.add_argument("--out", type=Path, help="Output directory")
+    exp_full_parser.add_argument("--json", action="store_true", dest="json_output", help="Output as JSON")
 
     # vita experiment stage
     exp_stage_parser = exp_subparsers.add_parser(
@@ -427,6 +434,7 @@ def main() -> None:
     if not argv:
         parser.print_help()
         return
+    argv = _rewrite_experiment_argv(argv)
     args = parser.parse_args(argv)
 
     if args.command == "init":
@@ -442,7 +450,9 @@ def main() -> None:
     elif args.command == "diff":
         run_diff_command(args)
     elif args.command == "experiment":
-        if args.exp_command == "stage":
+        if args.exp_command == "_full":
+            run_experiment_full_command(args)
+        elif args.exp_command == "stage":
             run_experiment_plan_command(args)
         elif args.exp_command == "run":
             run_experiment_run_command(args)
@@ -456,9 +466,6 @@ def main() -> None:
             run_experiment_present_command(args)
         elif args.exp_command == "status":
             run_experiment_status_command(args)
-        elif args.exp_command is None and args.manifest is not None:
-            # Convenience mode: vita experiment <manifest.yaml>
-            run_experiment_full_command(args)
         else:
             parser.parse_args(["experiment", "--help"])
 

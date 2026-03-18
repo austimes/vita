@@ -5,35 +5,20 @@ This is a Vita project for answering energy system questions through experiments
 <!-- vita:skill-bootstrap:start -->
 ## First-Run Skill Bootstrap
 
-On the first agent turn in this workspace, install and enable these skills from
-the Vita repository project-locally for this workspace:
+On the first agent turn in this workspace, install and enable these skills
+project-locally:
 
 - `https://github.com/austimes/vita/tree/main/skills/vedalang-dsl-cli`
 - `https://github.com/austimes/vita/tree/main/skills/vita-experiment-loop`
 - `https://github.com/austimes/vita/tree/main/skills/vedalang-modeling-conventions`
 
-Bootstrap steps:
+Steps:
 
-1. Install the skills project-locally for this workspace.
-2. Force-refresh the project-local copies before installing so this workspace
-   gets the latest version of each skill even if an older copy already exists.
-   If the installer refuses to overwrite an existing skill directory, remove the
-   existing project-local copy and install again.
-3. Fetch each skill with the built-in `skill-installer` system skill and target
-   the project-local destination explicitly.
-4. Read each installed `SKILL.md` before doing project work.
-5. Install any helper tooling those skills require.
-6. Verify the install by confirming the project-local skill install exists.
-7. Report back to the user with:
-   - the skill names that were installed
-   - the exact install location for each skill
-   - whether a restart is required for the agent to load them
-8. If the agent has a built-in way to list the skills currently available in
-   session, run that listing after install or restart and report what is
-   available. If the agent cannot list skills programmatically, say so clearly.
-9. Tell the user they may want to check in their agent UI or skill listing that
-   these project-local skills are available.
-10. Once the project-local skill install is confirmed, then run:
+1. Install each skill project-locally using `amp skill add <url>`.
+   If a skill is already installed, remove it first with `amp skill remove <name>`
+   then re-add to get the latest version.
+2. Read each installed `SKILL.md` before doing project work.
+3. Verify the setup:
 
 ```bash
 vedalang --help
@@ -41,13 +26,7 @@ vita --help
 {starter_validate_command}
 ```
 
-11. If a restart is required for the agent to load newly installed skills, tell
-   the user and continue after restart.
-12. Once the skills are confirmed available in-session and the verification
-   commands pass, remove this entire `vita:skill-bootstrap` block from
-   `AGENTS.md`.
-
-Confirm when the skills are ready.
+Once verified, remove this entire `vita:skill-bootstrap` block from `AGENTS.md`.
 <!-- vita:skill-bootstrap:end -->
 
 ## How It Works

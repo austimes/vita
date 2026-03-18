@@ -23,22 +23,22 @@ generation agents.
 
 ```bash
 # Normalize YAML formatting first
-uv run vedalang fmt model.veda.yaml
+vedalang fmt model.veda.yaml
 
 # Fast structural checks
-uv run vedalang lint model.veda.yaml
+vedalang lint model.veda.yaml
 
 # Full end-to-end validation
-uv run vedalang validate model.veda.yaml --run <run_id>
+vedalang validate model.veda.yaml --run <run_id>
 
 # Compile only
-uv run vedalang compile model.veda.yaml --run <run_id> --out output/
+vedalang compile model.veda.yaml --run <run_id> --out output/
 
 # Full pipeline without solver
-uv run vita run model.veda.yaml --run <run_id> --no-solver --json
+vita run model.veda.yaml --run <run_id> --no-solver --json
 
 # Compare baseline vs variant run artifacts
-uv run vita diff runs/<study>/baseline runs/<study>/variant --json
+vita diff runs/<study>/baseline runs/<study>/variant --json
 ```
 
 ## CLI Boundary

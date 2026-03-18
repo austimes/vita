@@ -18,36 +18,43 @@ commodities:
 technologies:
   - id: gas_boiler
     description: Gas-fired boiler for industrial heat production.
+    fixed_om: 8 AUD2024/kW/year
     inputs:
       - commodity: natural_gas
         basis: HHV
+    investment_cost: 220 AUD2024/kW
+    lifetime: 25 year
     outputs:
       - commodity: industrial_heat
-    lifetime: 25 year
     performance:
       kind: efficiency
       value: 0.85
     provides: industrial_heat
+    variable_om: 3 AUD2024/MWh
 
   - id: electric_heater
     description: Electric resistance heater for industrial heat.
+    fixed_om: 4 AUD2024/kW/year
     inputs:
       - commodity: electricity
+    investment_cost: 90 AUD2024/kW
     lifetime: 20 year
     performance:
       kind: efficiency
       value: 0.95
     provides: industrial_heat
+    variable_om: 1 AUD2024/MWh
 
   - id: gas_import
     description: Natural gas import/supply process.
+    lifetime: 100 year
     outputs:
       - commodity: natural_gas
-    lifetime: 100 year
     performance:
       kind: efficiency
       value: 1.0
     provides: gas_supply
+    variable_om: 8 AUD2024/MWh
 
 technology_roles:
   - id: heat_supply

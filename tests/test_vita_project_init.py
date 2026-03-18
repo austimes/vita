@@ -105,12 +105,9 @@ class TestInitProject:
             "https://github.com/austimes/vita/tree/main/skills/"
             "vedalang-modeling-conventions" in content
         )
-        assert "project-locally for this workspace" in content
-        assert "Install the skills project-locally for this workspace." in content
-        assert "Force-refresh the project-local copies before installing" in content
-        assert "the skill names that were installed" in content
-        assert "the exact install location for each skill" in content
-        assert "list the skills currently available in" in content
+        assert "project-locally" in content
+        assert "amp skill add" in content
+        assert "amp skill remove" in content
         assert "remove this entire `vita:skill-bootstrap` block" in content
 
     def test_smoke_test_uses_curated_featured_demo(self, tmp_path: Path) -> None:

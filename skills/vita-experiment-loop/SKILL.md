@@ -20,14 +20,14 @@ bookends** (planning brief + interpretation) around a **deterministic core**
 2. Design the experiment: choose variants, form hypotheses, plan comparisons.
 3. Write `manifest.yaml` following experiment manifest schema.
 4. **Write `planning/brief.json`** (MANDATORY — see schema below).
-5. **Run `uv run vita experiment validate-brief <experiment_dir>`** — do not
+5. **Run `vita experiment validate-brief <experiment_dir>`** — do not
    continue until validation passes.
 
 ### Phase 2: Execute (Deterministic)
 
-6. Stage: `uv run vita experiment stage manifest.yaml --out <dir>`
-7. Run: `uv run vita experiment run <experiment_dir> --json`
-8. Summarize: `uv run vita experiment summarize <experiment_dir> --json`
+6. Stage: `vita experiment stage manifest.yaml --out <dir>`
+7. Run: `vita experiment run <experiment_dir> --json`
+8. Summarize: `vita experiment summarize <experiment_dir> --json`
 
 ### Phase 3: Interpret (Agentic)
 
@@ -38,12 +38,12 @@ bookends** (planning brief + interpretation) around a **deterministic core**
    - `analyses/run_matrix.json` — cross-case comparison matrix
 10. Reason about what the results mean: WHY did things change? What mechanisms?
 11. **Write `conclusions/interpretation.json`** (MANDATORY — see schema below).
-12. **Run `uv run vita experiment validate-interpretation <experiment_dir>`** —
+12. **Run `vita experiment validate-interpretation <experiment_dir>`** —
     do not continue until validation passes.
 
 ### Phase 4: Present (Deterministic)
 
-13. `uv run vita experiment present <experiment_dir>`
+13. `vita experiment present <experiment_dir>`
 14. Open `presentation/index.html` in browser.
 
 ### Agent Checklist
@@ -62,7 +62,7 @@ bookends** (planning brief + interpretation) around a **deterministic core**
 
 For the full deterministic pipeline (stage + run + summarize):
 ```bash
-uv run vita experiment manifest.yaml --out experiments/ --json
+vita experiment manifest.yaml --out experiments/ --json
 ```
 This does NOT produce interpretation or presentation — those require agentic
 steps.
@@ -302,17 +302,17 @@ Use for "which lever matters most?" requests:
 
 ```bash
 # Stage + run + summarize (deterministic)
-uv run vita experiment vedalang/examples/toy_sectors/experiments/toy_industry_core.experiment.yaml --out experiments/ --json
+vita experiment vedalang/examples/toy_sectors/experiments/toy_industry_core.experiment.yaml --out experiments/ --json
 
 # Or step by step:
-uv run vita experiment stage vedalang/examples/toy_sectors/experiments/toy_industry_core.experiment.yaml --out experiments/
-uv run vita experiment run experiments/toy_industry_core --json
-uv run vita experiment summarize experiments/toy_industry_core --json
+vita experiment stage vedalang/examples/toy_sectors/experiments/toy_industry_core.experiment.yaml --out experiments/
+vita experiment run experiments/toy_industry_core --json
+vita experiment summarize experiments/toy_industry_core --json
 
 # Validate agentic artifacts
-uv run vita experiment validate-brief experiments/toy_industry_core
-uv run vita experiment validate-interpretation experiments/toy_industry_core
+vita experiment validate-brief experiments/toy_industry_core
+vita experiment validate-interpretation experiments/toy_industry_core
 
 # Generate presentation
-uv run vita experiment present experiments/toy_industry_core
+vita experiment present experiments/toy_industry_core
 ```

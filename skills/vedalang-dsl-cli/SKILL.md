@@ -15,10 +15,10 @@ Read first:
 
 Then execute with this order:
 1. Author/edit model YAML (`.veda.yaml`)
-2. Format: `uv run vedalang fmt <model>.veda.yaml`
-3. Lint quickly: `uv run vedalang lint <model>.veda.yaml`
-4. Full validation: `uv run vedalang validate <model>.veda.yaml --run <run_id>`
-5. If needed, compile only: `uv run vedalang compile <model>.veda.yaml --run <run_id> --out <dir>`
+2. Format: `vedalang fmt <model>.veda.yaml`
+3. Lint quickly: `vedalang lint <model>.veda.yaml`
+4. Full validation: `vedalang validate <model>.veda.yaml --run <run_id>`
+5. If needed, compile only: `vedalang compile <model>.veda.yaml --run <run_id> --out <dir>`
 
 For experiment execution, comparative analysis, and narrative output, switch to
 the `vita-experiment-loop` skill.
