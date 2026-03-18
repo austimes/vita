@@ -4,6 +4,12 @@ Chronological record of the current repository state.
 
 ## 2026-03-18
 
+- Changed `vita init` to default to a curated demo workspace with six packaged
+  toy models under `models/demos/`, a seeded toy-industry experiment manifest,
+  and starter docs that explain the multi-model workspace flow. Added
+  `--starter-profile minimal` to preserve the old single-file starter path.
+- Bumped the shipped repo/tool version to `0.4.7` across the Python package
+  and both CLI version markers.
 - Updated the `vita init` starter `AGENTS.md` bootstrap so agents install Vita
   skills project-locally for the workspace, force-refresh stale copies before
   install, and report installed skill names, paths, and visible in-session

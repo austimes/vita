@@ -38,7 +38,7 @@ Bootstrap steps:
 ```bash
 vedalang --help
 vita --help
-vedalang validate models/example.veda.yaml --run demo_2025
+{starter_validate_command}
 ```
 
 11. If a restart is required for the agent to load newly installed skills, tell
@@ -117,16 +117,36 @@ vita experiment present experiments/<id>
 
 ## Project Layout
 
-- `models/` — VedaLang model files (.veda.yaml)
-- `experiments/` — Experiment outputs (manifests, runs, diffs, conclusions)
-- `runs/` — Individual run artifacts
-- `notes/` — Research questions and planning notes
+{starter_project_layout_note}
+
+## Starter Assets
+
+Featured first run:
+
+```bash
+{starter_validate_command}
+{starter_run_command}
+```
+
+Seeded experiment:
+
+```bash
+{starter_experiment_command}
+```
+
+Demo catalog:
+
+{starter_demo_catalog}
+
+Using your own model:
+
+{starter_using_your_own_model}
 
 ## First Prompts to Try
 
-- "What technology mix does the solver select for the example model, and why?"
+- "{starter_first_prompt}"
 - "Design an experiment to test what happens if we double gas prices"
-- "Run the example model and explain the results"
+- "{starter_second_prompt}"
 
 ## VedaLang Quick Reference
 

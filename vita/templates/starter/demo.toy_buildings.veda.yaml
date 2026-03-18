@@ -1,0 +1,181 @@
+dsl_version: "0.3"
+
+commodities:
+  - id: co2
+    type: emission
+
+  - id: electricity
+    type: energy
+    energy_form: secondary
+
+  - id: electricity_supply
+    type: service
+
+  - id: gas_supply
+    type: service
+
+  - id: natural_gas
+    type: energy
+    energy_form: primary
+
+  - id: space_heat
+    type: service
+
+technologies:
+  - id: gas_heater
+    description: gas_heater provides space_heat by transforming natural_gas.
+    inputs:
+      - commodity: natural_gas
+        basis: HHV
+    emissions:
+      - commodity: co2
+        factor: 0.056 t/GJ
+    investment_cost: 30 AUD2024/kW
+    lifetime: 20 year
+    performance:
+      kind: efficiency
+      value: 0.9
+    provides: space_heat
+
+  - id: grid_import
+    description:
+      grid_import provides electricity_supply as a primary supply or conversion
+      technology.
+    outputs:
+      - commodity: electricity
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: electricity_supply
+    variable_om: 25 AUD2024/MWh
+
+  - id: heat_pump
+    description: heat_pump provides space_heat by transforming electricity.
+    inputs:
+      - commodity: electricity
+    investment_cost: 150 AUD2024/kW
+    lifetime: 20 year
+    performance:
+      kind: cop
+      value: 3.0
+    provides: space_heat
+
+  - id: pipeline_import
+    description: pipeline_import provides gas_supply as a primary supply or conversion
+      technology.
+    outputs:
+      - commodity: natural_gas
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: gas_supply
+    variable_om: 8 AUD2024/MWh
+
+technology_roles:
+  - id: electricity_supply
+    description:
+      "electricity_supply groups technologies that deliver electricity_supply:
+      grid_import."
+    primary_service: electricity_supply
+    technologies:
+      - grid_import
+
+  - id: gas_supply
+    description: "gas_supply groups technologies that deliver gas_supply: pipeline_import."
+    primary_service: gas_supply
+    technologies:
+      - pipeline_import
+
+  - id: space_heat_supply
+    description:
+      "space_heat_supply groups technologies that deliver space_heat: gas_heater
+      and heat_pump."
+    primary_service: space_heat
+    technologies:
+      - gas_heater
+      - heat_pump
+    transitions:
+      - cost: 25 AUD2024/kW
+        from: gas_heater
+        kind: retrofit
+        to: heat_pump
+
+spatial_layers:
+  - id: geo_demo
+    geometry_file: data/regions.geojson
+    key: region_id
+    kind: polygon
+
+region_partitions:
+  - id: single_region
+    layer: geo_demo
+    mapping:
+      kind: constant
+      value: SINGLE
+    members:
+      - SINGLE
+
+fleets:
+  - id: electricity_supply
+    description:
+      electricity_supply represents distributed assets for role electricity_supply
+      using direct allocation.
+    distribution:
+      method: direct
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 120 MW
+            year: 2025
+          technology: grid_import
+    technology_role: electricity_supply
+
+  - id: gas_supply
+    description: gas_supply represents distributed assets for role gas_supply using
+      direct allocation.
+    distribution:
+      method: direct
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 120 MW
+            year: 2025
+          technology: pipeline_import
+    technology_role: gas_supply
+
+  - id: residential_heat
+    description:
+      residential_heat represents distributed assets for role space_heat_supply
+      using direct allocation.
+    available_technologies:
+      - gas_heater
+      - heat_pump
+    distribution:
+      method: direct
+    new_build_limits:
+      - max_new_capacity: 60 MW
+        technology: heat_pump
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 80 MW
+            year: 2025
+          technology: gas_heater
+
+        - metric: installed_capacity
+          observed:
+            value: 10 MW
+            year: 2025
+          technology: heat_pump
+    technology_role: space_heat_supply
+
+runs:
+  - id: single_2025
+    base_year: 2025
+    currency_year: 2024
+    region_partition: single_region

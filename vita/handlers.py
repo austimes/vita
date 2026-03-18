@@ -687,10 +687,12 @@ def run_init_command(args):
         times_src=getattr(args, "times_src", None),
         gams_binary=getattr(args, "gams_binary", None),
         smoke_test=getattr(args, "smoke_test", False),
+        starter_profile=getattr(args, "starter_profile", "curated"),
         with_bd=getattr(args, "with_bd", False),
     )
     rows = [
         ("Project", str(result["project_dir"])),
+        ("Starter", result["starter_profile"]),
         (
             "GAMS",
             "detected"
@@ -713,6 +715,24 @@ def run_init_command(args):
     elif result.get("bd_failed"):
         bd_error = result.get("bd_error") or "bd initialization failed"
         rows.append(("Beads (bd)", f"failed ({bd_error})"))
+
+    if result.get("featured_model") and result.get("featured_run"):
+        rows.append(("Featured demo", result["featured_model"]))
+        rows.append(("Featured run", result["featured_run"]))
+
+    if result["starter_profile"] == "curated":
+        next_steps = [
+            "1. Open this directory in your AI agent (Amp, Codex, Claude)",
+            '2. Ask: "Run the toy industry demo and explain the results"',
+            '3. Ask: "Show me the demo catalog and recommend a starter model"',
+        ]
+    else:
+        next_steps = [
+            "1. Open this directory in your AI agent (Amp, Codex, Claude)",
+            "2. The agent will read AGENTS.md and understand the workflow",
+            '3. Ask: "Run the example model and explain the results"',
+        ]
+
     print_renderable(
         Group(
             status_panel(
@@ -723,11 +743,7 @@ def run_init_command(args):
             ),
             message_panel(
                 "Next Steps",
-                [
-                    "1. Open this directory in your AI agent (Amp, Codex, Claude)",
-                    "2. The agent will read AGENTS.md and understand the workflow",
-                    '3. Ask: "Run the example model and explain the results"',
-                ],
+                next_steps,
                 level="info",
             ),
         )

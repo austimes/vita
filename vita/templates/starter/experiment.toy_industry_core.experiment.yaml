@@ -1,0 +1,55 @@
+schema_version: 1
+id: toy_industry_core
+title: "Toy industry clean-heat technology selection"
+question: >
+  Apply an emissions constraint to stylised industrial heat demand; allow gas,
+  e-heat, and H2. What technology is selected and what is the implied cost and
+  emissions change?
+
+defaults:
+  case: scenario
+  no_sankey: true
+  metrics:
+    - objective
+    - objective_breakdown
+    - var_act
+    - var_ncap
+    - var_cap
+    - var_flo
+  checks:
+    require_pipeline_success: true
+    require_solver_status:
+      - optimal
+
+baseline:
+  id: baseline
+  model: ../../models/demos/toy_industry.veda.yaml
+  run: single_2025
+  notes: Unconstrained single-period baseline (2025)
+
+variants:
+  - id: co2_cap
+    from: baseline
+    run: s25_co2_cap
+    hypothesis: >
+      Turning on the CO2 cap should show whether the baseline clean-heat mix is
+      already policy-compliant or whether the constraint changes build choices.
+    notes: Same model, different run ID activates the CO2 cap constraint.
+
+comparisons:
+  - id: baseline_vs_co2_cap
+    baseline: baseline
+    variant: co2_cap
+
+analyses:
+  - id: main
+    question: >
+      What technology mix does the solver select, and how does it change when
+      the CO2 cap is activated?
+    comparisons:
+      - baseline_vs_co2_cap
+    metrics_of_interest:
+      - objective
+      - objective_breakdown
+      - var_ncap
+      - var_cap

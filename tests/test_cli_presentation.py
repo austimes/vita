@@ -39,6 +39,7 @@ def test_vita_build_parser_help_has_styled_sections() -> None:
     assert "Commands" in help_text
     assert "Options" in help_text
     assert "run" in help_text
+    assert "init" in help_text
 
 
 def test_vedalang_build_parser_help_has_styled_sections() -> None:
@@ -100,3 +101,13 @@ def test_force_color_enables_ansi_sequences(monkeypatch) -> None:
     monkeypatch.setenv("NO_COLOR", "")
     rendered = str(render_to_text(Text("hello", style="bold red")))
     assert "\x1b[" in rendered
+
+
+def test_vita_init_parser_accepts_starter_profile() -> None:
+    parser = vita_cli.build_parser()
+    args = parser.parse_args(
+        ["init", "demo-workspace", "--starter-profile", "minimal"]
+    )
+    assert args.command == "init"
+    assert args.target == Path("demo-workspace")
+    assert args.starter_profile == "minimal"

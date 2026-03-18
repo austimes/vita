@@ -1,0 +1,238 @@
+dsl_version: "0.3"
+
+commodities:
+  - id: biodiesel
+    type: energy
+    energy_form: primary
+
+  - id: biodiesel_supply
+    type: service
+
+  - id: co2
+    type: emission
+
+  - id: diesel
+    type: energy
+    energy_form: primary
+
+  - id: diesel_supply
+    type: service
+
+  - id: electricity
+    type: energy
+    energy_form: secondary
+
+  - id: electricity_supply
+    type: service
+
+  - id: haul_work
+    type: service
+
+technologies:
+  - id: biodiesel_haul
+    description: biodiesel_haul provides haul_work by transforming biodiesel.
+    inputs:
+      - commodity: biodiesel
+        basis: HHV
+    lifetime: 15 year
+    performance:
+      kind: efficiency
+      value: 0.35
+    provides: haul_work
+
+  - id: biodiesel_import
+    description:
+      biodiesel_import provides biodiesel_supply as a primary supply or conversion
+      technology.
+    outputs:
+      - commodity: biodiesel
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: biodiesel_supply
+    variable_om: 20 AUD2024/MWh
+
+  - id: diesel_haul
+    description: diesel_haul provides haul_work by transforming diesel.
+    inputs:
+      - commodity: diesel
+        basis: HHV
+    emissions:
+      - commodity: co2
+        factor: 0.074 t/GJ
+    lifetime: 15 year
+    performance:
+      kind: efficiency
+      value: 0.35
+    provides: haul_work
+
+  - id: diesel_import
+    description: diesel_import provides diesel_supply as a primary supply or conversion
+      technology.
+    outputs:
+      - commodity: diesel
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: diesel_supply
+    variable_om: 12 AUD2024/MWh
+
+  - id: electric_haul
+    description: electric_haul provides haul_work by transforming electricity.
+    inputs:
+      - commodity: electricity
+    investment_cost: 200 AUD2024/kW
+    lifetime: 15 year
+    performance:
+      kind: efficiency
+      value: 0.85
+    provides: haul_work
+
+  - id: electricity_import
+    description: electricity_import provides electricity_supply as a primary supply
+      or conversion technology.
+    outputs:
+      - commodity: electricity
+    lifetime: 100 year
+    performance:
+      kind: efficiency
+      value: 1.0
+    provides: electricity_supply
+    variable_om: 25 AUD2024/MWh
+
+technology_roles:
+  - id: biodiesel_supply
+    description: "biodiesel_supply groups technologies that deliver biodiesel_supply:
+      biodiesel_import."
+    primary_service: biodiesel_supply
+    technologies:
+      - biodiesel_import
+
+  - id: diesel_supply
+    description: "diesel_supply groups technologies that deliver diesel_supply: diesel_import."
+    primary_service: diesel_supply
+    technologies:
+      - diesel_import
+
+  - id: electricity_supply
+    description:
+      "electricity_supply groups technologies that deliver electricity_supply:
+      electricity_import."
+    primary_service: electricity_supply
+    technologies:
+      - electricity_import
+
+  - id: haul_service
+    description: "haul_service groups technologies that deliver haul_work: diesel_haul,
+      biodiesel_haul, and electric_haul."
+    primary_service: haul_work
+    technologies:
+      - diesel_haul
+      - biodiesel_haul
+      - electric_haul
+    transitions:
+      - cost: 35 AUD2024/kW
+        from: diesel_haul
+        kind: retrofit
+        to: electric_haul
+
+spatial_layers:
+  - id: geo_demo
+    geometry_file: data/regions.geojson
+    key: region_id
+    kind: polygon
+
+region_partitions:
+  - id: single_region
+    layer: geo_demo
+    mapping:
+      kind: constant
+      value: SINGLE
+    members:
+      - SINGLE
+
+fleets:
+  - id: biodiesel_supply
+    description:
+      biodiesel_supply represents distributed assets for role biodiesel_supply
+      using direct allocation.
+    distribution:
+      method: direct
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 80 MW
+            year: 2025
+          technology: biodiesel_import
+    technology_role: biodiesel_supply
+
+  - id: diesel_supply
+    description: diesel_supply represents distributed assets for role diesel_supply
+      using direct allocation.
+    distribution:
+      method: direct
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 120 MW
+            year: 2025
+          technology: diesel_import
+    technology_role: diesel_supply
+
+  - id: electricity_supply
+    description:
+      electricity_supply represents distributed assets for role electricity_supply
+      using direct allocation.
+    distribution:
+      method: direct
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 100 MW
+            year: 2025
+          technology: electricity_import
+    technology_role: electricity_supply
+
+  - id: haul_service
+    description: haul_service represents distributed assets for role haul_service using
+      direct allocation.
+    available_technologies:
+      - diesel_haul
+      - biodiesel_haul
+      - electric_haul
+    distribution:
+      method: direct
+    new_build_limits:
+      - max_new_capacity: 12 MW
+        technology: electric_haul
+    stock:
+      items:
+        - metric: installed_capacity
+          observed:
+            value: 6 MW
+            year: 2025
+          technology: diesel_haul
+
+        - metric: installed_capacity
+          observed:
+            value: 1 MW
+            year: 2025
+          technology: biodiesel_haul
+
+        - metric: installed_capacity
+          observed:
+            value: 1 MW
+            year: 2025
+          technology: electric_haul
+    technology_role: haul_service
+
+runs:
+  - id: single_2025
+    base_year: 2025
+    currency_year: 2024
+    region_partition: single_region

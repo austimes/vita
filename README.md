@@ -38,12 +38,21 @@ vedalang --help
 vita init my-experiment
 cd my-experiment
 
-# Validate the starter model
-vedalang validate models/example.veda.yaml --run demo_2025
+# Validate the featured curated demo
+vedalang validate models/demos/toy_industry.veda.yaml --run single_2025
 
-# Run the starter model without the solver
-vita run models/example.veda.yaml --run demo_2025 --no-solver --json
+# Run the featured curated demo without the solver
+vita run models/demos/toy_industry.veda.yaml --run single_2025 --no-solver --json
+
+# Run the seeded industry experiment
+vita experiment experiments/demos/toy_industry_core.experiment.yaml --out experiments/ --json
 ```
+
+By default, `vita init` creates a workspace with multiple curated demo models
+under `models/demos/`. Add your own models alongside them under `models/`, keep
+or delete the demos whenever you want, and reuse the same workspace for many
+models, experiments, and run directories. Use `vita init --starter-profile minimal`
+if you want the old single-file starter instead.
 
 Run `vita update` to check the installed `vita`/`vedalang` tool package against
 GitHub `main`. If the versions already match, it reports that you are current.

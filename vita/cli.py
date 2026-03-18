@@ -393,6 +393,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="Run a smoke test after initialization",
     )
     init_parser.add_argument(
+        "--starter-profile",
+        choices=["curated", "minimal"],
+        default="curated",
+        help=(
+            "Starter content to seed into the workspace "
+            "(default: curated)"
+        ),
+    )
+    init_parser.add_argument(
         "--with-bd",
         action="store_true",
         help="Initialize beads (bd) for experiment task tracking",
