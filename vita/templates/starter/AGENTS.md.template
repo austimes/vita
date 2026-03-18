@@ -41,42 +41,47 @@ Vita runs the scientific method as an agentic loop:
 
 Every step produces documented, reproducible artifacts.
 
+## Agent CLI Rule
+
+Always pass `--agent-mode` to `vedalang` and `vita`. Add `--json` whenever the
+command supports structured output and you intend to parse the result.
+
+## Workflow Commands
+
+```bash
+# Author and validate models
+vedalang validate models/<model>.veda.yaml --run <run_id> --agent-mode --json
+vedalang lint models/<model>.veda.yaml --agent-mode --json
+vedalang fmt models/<model>.veda.yaml --agent-mode
+
+# Run a single model
+vita run models/<model>.veda.yaml --run <run_id> --out runs/<name> --agent-mode --json
+
+# Compare two runs
+vita diff runs/<baseline> runs/<variant> --agent-mode --json
+
+# Run a full experiment (stage + run + summarize)
+vita experiment experiments/<manifest>.experiment.yaml --out experiments/ --agent-mode --json
+
+# Step-by-step experiment workflow
+vita experiment stage <manifest>.experiment.yaml --out experiments/ --agent-mode
+vita experiment run experiments/<id> --agent-mode --json
+vita experiment summarize experiments/<id> --agent-mode --json
+
+# Validate agentic artifacts
+vita experiment validate-brief experiments/<id> --agent-mode
+vita experiment validate-interpretation experiments/<id> --agent-mode
+
+# Generate HTML presentation
+vita experiment present experiments/<id> --agent-mode
+```
+
 ## Single Run vs Experiment
 
 - `vita run <model>.veda.yaml --run <run_id>` executes one concrete model/run pair and writes one run directory. Use it when you want a single answer for one seeded run or when you want to inspect/debug one run in isolation.
 - `vita experiment <manifest>.experiment.yaml` executes a named study: baseline plus one or more variants, then writes coordinated run, diff, summary, and presentation artifacts. Use it when the question is comparative rather than single-case.
 - {starter_run_semantics}
 - {starter_experiment_semantics}
-
-## Workflow Commands
-
-```bash
-# Author and validate models
-vedalang validate models/<model>.veda.yaml --run <run_id>
-vedalang lint models/<model>.veda.yaml
-vedalang fmt models/<model>.veda.yaml
-
-# Run a single model
-vita run models/<model>.veda.yaml --run <run_id> --out runs/<name> --json
-
-# Compare two runs
-vita diff runs/<baseline> runs/<variant> --json
-
-# Run a full experiment (stage + run + summarize)
-vita experiment experiments/<manifest>.experiment.yaml --out experiments/ --json
-
-# Step-by-step experiment workflow
-vita experiment stage <manifest>.experiment.yaml --out experiments/
-vita experiment run experiments/<id> --json
-vita experiment summarize experiments/<id> --json
-
-# Validate agentic artifacts
-vita experiment validate-brief experiments/<id>
-vita experiment validate-interpretation experiments/<id>
-
-# Generate HTML presentation
-vita experiment present experiments/<id>
-```
 
 ## Experiment Workflow
 
@@ -85,21 +90,21 @@ vita experiment present experiments/<id>
 2. Design the experiment: choose variants, form hypotheses
 3. Write `manifest.yaml` — the experiment contract
 4. Write `planning/brief.json` — your design rationale with mechanism chains
-5. Run `vita experiment validate-brief` — must pass before continuing
+5. Run `vita experiment validate-brief --agent-mode` — must pass before continuing
 
 ### Phase 2: Execute (Deterministic)
-6. `vita experiment stage <manifest> --out <dir>`
-7. `vita experiment run <dir> --json`
-8. `vita experiment summarize <dir> --json`
+6. `vita experiment stage <manifest> --out <dir> --agent-mode`
+7. `vita experiment run <dir> --agent-mode --json`
+8. `vita experiment summarize <dir> --agent-mode --json`
 
 ### Phase 3: Interpret (Your Job)
 9. Read the evidence: `conclusions/summary.json`, `diffs/*/diff.json`, `runs/*/results.json`
 10. Reason about what the results mean — WHY did things change?
 11. Write `conclusions/interpretation.json` — structured reasoning chain
-12. Run `vita experiment validate-interpretation` — must pass
+12. Run `vita experiment validate-interpretation --agent-mode` — must pass
 
 ### Phase 4: Present (Deterministic)
-13. `vita experiment present <dir>`
+13. `vita experiment present <dir> --agent-mode`
 
 ## Project Layout
 

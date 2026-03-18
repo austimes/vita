@@ -79,8 +79,9 @@ class TestInitProject:
         agents = (tmp_path / "AGENTS.md").read_text()
         assert (
             "vedalang validate models/demos/toy_industry.veda.yaml "
-            "--run single_2025"
+            "--run single_2025 --agent-mode --json"
         ) in agents
+        assert "--agent-mode" in agents
         assert (
             "Show me the demo catalog and tell me whether I should start with "
             "a single seeded run or a seeded experiment"

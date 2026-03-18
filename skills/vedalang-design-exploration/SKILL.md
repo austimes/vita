@@ -16,9 +16,14 @@ Primary protocol:
 Execution contract:
 1. Explore one primitive at a time.
 2. Prefer minimal examples and existing schema/patterns first.
-3. Validate with `uv run vedalang validate ... --json`.
+3. Validate with `uv run vedalang validate ... --agent-mode --json`.
 4. Record structured handoff outcomes before moving to next primitive.
 5. Propose schema changes only after repeated, evidence-backed failures.
+
+Agent rule:
+- Always pass `--agent-mode` to `vedalang` and `vita`.
+- Add `--json` whenever the command supports structured output and you intend
+  to parse it.
 
 This skill is the canonical home of the exploration protocol. The legacy doc at
 `docs/vedalang-design-agent/exploration_prompt.md` is a pointer shim.

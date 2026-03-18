@@ -11,9 +11,7 @@ import sys
 from dataclasses import dataclass
 from typing import Any
 
-from rich import box
 from rich.console import Console, ConsoleOptions, Group, RenderableType, RenderResult
-from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
@@ -22,12 +20,14 @@ _REQUIRED_ARGS_RE = re.compile(r"required: (.+)$")
 _UNICODE_PROBE = "┌─✓→"
 
 _LEVEL_STYLE = {
-    "info": ("cyan", "bold white on cyan"),
-    "success": ("green", "bold white on green"),
-    "warning": ("yellow", "bold black on yellow"),
-    "error": ("red", "bold white on red"),
-    "muted": ("bright_black", "bold white on bright_black"),
+    "info": ("cyan", "INFO"),
+    "success": ("green", "OK"),
+    "warning": ("yellow", "WARN"),
+    "error": ("red", "ERROR"),
+    "muted": ("bright_black", "NOTE"),
 }
+
+_AGENT_MODE = False
 
 
 @dataclass(frozen=True)
@@ -47,6 +47,21 @@ class StyledText(str):
         obj = super().__new__(cls, ansi)
         obj.plain = plain
         return obj
+
+
+def set_agent_mode(enabled: bool) -> None:
+    """Set the active process-wide CLI agent mode."""
+    global _AGENT_MODE
+    _AGENT_MODE = enabled
+
+
+def is_agent_mode_enabled(argv: list[str] | None = None) -> bool:
+    """Return whether agent mode should be used for the current invocation."""
+    if _AGENT_MODE:
+        return True
+    if argv is None:
+        argv = sys.argv[1:]
+    return "--agent-mode" in argv
 
 
 def strip_ansi(text: str) -> str:
@@ -147,35 +162,6 @@ def print_renderable(
     console.print(renderable)
 
 
-def _panel_box(*, stream: str = "stdout"):
-    profile = get_terminal_profile(stream=stream)
-    return box.ROUNDED if profile.unicode else box.ASCII
-
-
-def _status_badge(label: str, level: str) -> Text:
-    _, badge_style = _LEVEL_STYLE[level]
-    return Text.assemble((f" {label.upper()} ", badge_style))
-
-
-def _section_table(
-    title: str, rows: list[tuple[str, str]], *, stream: str = "stdout"
-) -> Table:
-    table = Table(
-        box=box.SIMPLE_HEAD
-        if get_terminal_profile(stream=stream).unicode
-        else box.SIMPLE,
-        show_header=False,
-        expand=True,
-        pad_edge=False,
-    )
-    table.add_column(style="bold")
-    table.add_column(style="default", ratio=1)
-    for label, value in rows:
-        table.add_row(label, value)
-    table.title = f"[bold]{title}[/bold]"
-    return table
-
-
 def _normalize_body(body: str | list[str] | RenderableType) -> RenderableType:
     if isinstance(body, list):
         text = Text()
@@ -189,6 +175,113 @@ def _normalize_body(body: str | list[str] | RenderableType) -> RenderableType:
     return body
 
 
+def _plain_renderable_text(
+    body: str | list[str] | RenderableType,
+    *,
+    stream: str = "stdout",
+) -> str:
+    if isinstance(body, list):
+        return "\n".join(body)
+    if isinstance(body, str):
+        return body
+    return render_to_text(body, stream=stream).plain.rstrip()
+
+
+def _title_text(
+    title: str,
+    *,
+    level: str = "info",
+    status: tuple[str, str] | None = None,
+    subtitle: str | None = None,
+) -> Text:
+    color, label = _LEVEL_STYLE[level]
+    text = Text()
+    if status is not None:
+        text.append(f"[{status[0].upper()}] ", style=f"bold {color}")
+    else:
+        text.append(f"{label}: ", style=f"bold {color}")
+    text.append(title, style=f"bold {color}")
+    if subtitle:
+        text.append(f"  {subtitle}", style="dim")
+    return text
+
+
+def _rows_table(rows: list[tuple[str, str]]) -> Table:
+    table = Table.grid(padding=(0, 2), expand=True)
+    table.add_column(style="bold", no_wrap=True)
+    table.add_column(ratio=1)
+    for label, value in rows:
+        table.add_row(label, value)
+    return table
+
+
+def _plain_message_lines(
+    title: str,
+    body: str | list[str] | RenderableType,
+    *,
+    level: str = "info",
+    subtitle: str | None = None,
+    stream: str = "stdout",
+) -> list[str]:
+    _, label = _LEVEL_STYLE[level]
+    lines = [f"{label}: {title}"]
+    if subtitle:
+        lines.append(f"Subtitle: {subtitle}")
+    body_text = _plain_renderable_text(body, stream=stream).strip()
+    if body_text:
+        lines.extend(body_text.splitlines())
+    return lines
+
+
+def _plain_status_lines(
+    title: str,
+    rows: list[tuple[str, str]],
+    *,
+    level: str = "info",
+    status: tuple[str, str] | None = None,
+    footer: str | None = None,
+) -> list[str]:
+    _, fallback_label = _LEVEL_STYLE[level]
+    prefix = status[0].upper() if status is not None else fallback_label
+    lines = [f"{prefix}: {title}"]
+    lines.extend(f"{label}: {value}" for label, value in rows)
+    if footer:
+        lines.append(footer)
+    return lines
+
+
+def _format_plain_table(
+    title: str,
+    columns: list[str],
+    rows: list[list[str]],
+    *,
+    empty_message: str = "(no rows)",
+) -> str:
+    lines = [title]
+    if not rows:
+        lines.append(empty_message)
+        return "\n".join(lines)
+
+    widths = [len(column) for column in columns]
+    for row in rows:
+        for index, value in enumerate(row):
+            widths[index] = max(widths[index], len(str(value)))
+
+    header = "  ".join(
+        f"{column:<{widths[index]}}" for index, column in enumerate(columns)
+    )
+    separator = "  ".join("-" * widths[index] for index in range(len(columns)))
+    lines.extend([header, separator])
+    for row in rows:
+        lines.append(
+            "  ".join(
+                f"{str(value):<{widths[index]}}"
+                for index, value in enumerate(row)
+            )
+        )
+    return "\n".join(lines)
+
+
 def message_panel(
     title: str,
     body: str | list[str] | RenderableType,
@@ -196,18 +289,23 @@ def message_panel(
     level: str = "info",
     stream: str = "stdout",
     subtitle: str | None = None,
-) -> Panel:
-    """Build a styled informational panel."""
-    border_style, _ = _LEVEL_STYLE[level]
-    panel = Panel(
-        _normalize_body(body),
-        title=f"[bold]{title}[/bold]",
-        subtitle=subtitle,
-        border_style=border_style,
-        box=_panel_box(stream=stream),
-        padding=(0, 1),
-    )
-    return panel
+) -> RenderableType:
+    """Build a lightweight informational section."""
+    if is_agent_mode_enabled():
+        return Text(
+            "\n".join(
+                _plain_message_lines(
+                    title, body, level=level, subtitle=subtitle, stream=stream
+                )
+            )
+        )
+    normalized = _normalize_body(body)
+    items: list[RenderableType] = [_title_text(title, level=level, subtitle=subtitle)]
+    if isinstance(normalized, Text):
+        items.append(normalized)
+    else:
+        items.append(normalized)
+    return Group(*items)
 
 
 def status_panel(
@@ -218,25 +316,21 @@ def status_panel(
     stream: str = "stdout",
     status: tuple[str, str] | None = None,
     footer: str | None = None,
-) -> Panel:
-    """Build a compact panel with key/value rows."""
-    content: list[RenderableType] = []
-    if status is not None:
-        badge_grid = Table.grid(padding=(0, 1), expand=True)
-        badge_grid.add_column(no_wrap=True)
-        badge_grid.add_column(ratio=1)
-        badge_grid.add_row(_status_badge(status[0], status[1]), "")
-        content.append(badge_grid)
-    content.append(_section_table(title, rows, stream=stream))
+) -> RenderableType:
+    """Build a compact status section."""
+    if is_agent_mode_enabled():
+        return Text(
+            "\n".join(
+                _plain_status_lines(
+                    title, rows, level=level, status=status, footer=footer
+                )
+            )
+        )
+    items: list[RenderableType] = [_title_text(title, level=level, status=status)]
+    items.append(_rows_table(rows))
     if footer:
-        content.append(Text(footer, style="bright_black"))
-    border_style, _ = _LEVEL_STYLE[level]
-    return Panel(
-        Group(*content),
-        border_style=border_style,
-        box=_panel_box(stream=stream),
-        padding=(0, 1),
-    )
+        items.append(Text(footer, style="bright_black"))
+    return Group(*items)
 
 
 def data_table(
@@ -246,15 +340,24 @@ def data_table(
     *,
     stream: str = "stdout",
     empty_message: str = "(no rows)",
-) -> Panel:
+) -> RenderableType:
     """Build a tabular section for human-readable CLI output."""
+    if is_agent_mode_enabled():
+        return Text(
+            _format_plain_table(
+                title,
+                columns,
+                rows,
+                empty_message=empty_message,
+            )
+        )
+
     table = Table(
-        box=box.MINIMAL_DOUBLE_HEAD
-        if get_terminal_profile(stream=stream).unicode
-        else box.SIMPLE,
+        box=None,
         expand=True,
         show_lines=False,
         pad_edge=False,
+        header_style="bold cyan",
     )
     for column in columns:
         table.add_column(column, overflow="fold")
@@ -263,17 +366,14 @@ def data_table(
             table.add_row(*row)
     else:
         table.add_row(empty_message, *[""] * (len(columns) - 1))
-    return Panel(
-        table,
-        title=f"[bold]{title}[/bold]",
-        border_style="cyan",
-        box=_panel_box(stream=stream),
-        padding=(0, 1),
-    )
+
+    return Group(Text(title, style="bold cyan"), table)
 
 
 def step_log(step: str, message: str) -> str:
     """Format a verbose step log line for the active terminal."""
+    if is_agent_mode_enabled():
+        return f"{step.upper():>10}  {message}"
     text = Text.assemble(
         (f"{step.upper():>10}", "bold cyan"),
         ("  ", ""),
@@ -290,7 +390,14 @@ def print_message(
     stream: str = "stdout",
     subtitle: str | None = None,
 ) -> None:
-    """Render and print a simple panel."""
+    """Render and print a simple message block."""
+    if is_agent_mode_enabled():
+        handle = _stream_handle(stream)
+        lines = _plain_message_lines(
+            title, body, level=level, subtitle=subtitle, stream=stream
+        )
+        handle.write("\n".join(lines) + "\n")
+        return
     print_renderable(
         message_panel(title, body, level=level, stream=stream, subtitle=subtitle),
         stream=stream,
@@ -305,11 +412,18 @@ class StyledArgumentParser(argparse.ArgumentParser):
         return super().add_subparsers(**kwargs)
 
     def format_help(self) -> str:
+        if is_agent_mode_enabled():
+            return argparse.ArgumentParser.format_help(self)
         return str(render_to_text(self._build_help_renderable(), stream="stdout"))
 
     def error(self, message: str) -> None:
         usage = argparse.ArgumentParser.format_usage(self).strip()
         suggestion = self._suggestion_for_error(message)
+        if is_agent_mode_enabled():
+            text = f"{usage}\n{self.prog}: error: {message}\n"
+            if suggestion:
+                text += f"hint: {suggestion}\n"
+            self.exit(2, text)
         renderable = self._build_error_renderable(
             message=message, usage=usage, suggestion=suggestion
         )
@@ -317,29 +431,18 @@ class StyledArgumentParser(argparse.ArgumentParser):
 
     def _build_help_renderable(self) -> RenderableType:
         rows: list[RenderableType] = []
-        title = Text(self.prog, style="bold cyan")
+        rows.append(Text(self.prog, style="bold cyan"))
         description = (self.description or "").strip()
-        header = Table.grid(expand=True)
-        header.add_column(ratio=1)
-        header.add_row(title)
         if description:
-            header.add_row(Text(description, style="default"))
+            rows.append(Text(description, style="default"))
+        rows.append(Text(""))
+        rows.append(Text("Usage", style="bold"))
         rows.append(
-            Panel(
-                header,
-                border_style="cyan",
-                box=_panel_box(stream="stdout"),
-                padding=(0, 1),
-            )
-        )
-        rows.append(
-            message_panel(
-                "Usage",
-                argparse.ArgumentParser.format_usage(self)
+            Text(
+                "  "
+                + argparse.ArgumentParser.format_usage(self)
                 .strip()
-                .replace("usage: ", ""),
-                level="muted",
-                stream="stdout",
+                .replace("usage: ", "")
             )
         )
 
@@ -351,7 +454,7 @@ class StyledArgumentParser(argparse.ArgumentParser):
             if action.help == argparse.SUPPRESS:
                 continue
             if isinstance(action, argparse._SubParsersAction):
-                rows.append(self._subcommand_panel(action))
+                rows.extend(self._subcommand_section(action))
                 continue
 
             help_text = formatter._expand_help(action) if action.help else ""
@@ -362,19 +465,16 @@ class StyledArgumentParser(argparse.ArgumentParser):
                 positionals.append((invocation, help_text))
 
         if positionals:
-            rows.append(self._rows_panel("Arguments", positionals))
+            rows.extend(self._rows_section("Arguments", positionals))
         if options:
-            rows.append(self._rows_panel("Options", options))
+            rows.extend(self._rows_section("Options", options))
 
-        rows.append(
-            Text(
-                f"Try: {self.prog} <command> --help",
-                style="bright_black",
-            )
-        )
+        rows.append(Text(f"Try: {self.prog} <command> --help", style="bright_black"))
         return Group(*rows)
 
-    def _subcommand_panel(self, action: argparse._SubParsersAction) -> Panel:
+    def _subcommand_section(
+        self, action: argparse._SubParsersAction
+    ) -> list[RenderableType]:
         rows: list[tuple[str, str]] = []
         help_by_name = {
             choice_action.dest: choice_action.help or ""
@@ -385,13 +485,13 @@ class StyledArgumentParser(argparse.ArgumentParser):
                 continue
             summary = help_by_name.get(name) or (parser.description or "").strip()
             rows.append((name, summary))
-        return self._rows_panel("Commands", rows)
+        return self._rows_section("Commands", rows)
 
-    def _rows_panel(self, title: str, rows: list[tuple[str, str]]) -> Panel:
+    def _rows_section(
+        self, title: str, rows: list[tuple[str, str]]
+    ) -> list[RenderableType]:
         table = Table(
-            box=box.SIMPLE_HEAD
-            if get_terminal_profile(stream="stdout").unicode
-            else box.SIMPLE,
+            box=None,
             show_header=False,
             expand=True,
             pad_edge=False,
@@ -400,13 +500,7 @@ class StyledArgumentParser(argparse.ArgumentParser):
         table.add_column(ratio=1)
         for left, right in rows:
             table.add_row(left, right)
-        return Panel(
-            table,
-            title=f"[bold]{title}[/bold]",
-            border_style="cyan",
-            box=_panel_box(stream="stdout"),
-            padding=(0, 1),
-        )
+        return [Text(""), Text(title, style="bold"), table]
 
     def _action_invocation(self, action: argparse.Action) -> str:
         formatter = self._get_formatter()
@@ -428,24 +522,14 @@ class StyledArgumentParser(argparse.ArgumentParser):
         suggestion: str | None,
     ) -> RenderableType:
         rows: list[RenderableType] = [
-            Panel(
-                Group(
-                    _status_badge("error", "error"),
-                    Text(message, style="default"),
-                ),
-                title=f"[bold]{self.prog}[/bold]",
-                border_style="red",
-                box=_panel_box(stream="stderr"),
-                padding=(0, 1),
-            ),
-            message_panel(
-                "Usage", usage.replace("usage: ", ""), level="muted", stream="stderr"
-            ),
+            _title_text("CLI Error", level="error", status=("error", "error")),
+            Text(message),
+            Text(""),
+            Text("Usage", style="bold"),
+            Text(f"  {usage.replace('usage: ', '')}", style="default"),
         ]
         if suggestion:
-            rows.append(
-                message_panel("Hint", suggestion, level="info", stream="stderr")
-            )
+            rows.extend([Text(""), Text(f"Hint: {suggestion}", style="cyan")])
         return Group(*rows)
 
     def _suggestion_for_error(self, message: str) -> str | None:
@@ -500,4 +584,7 @@ class StyledArgumentParser(argparse.ArgumentParser):
     def __rich_console__(
         self, console: Console, options: ConsoleOptions
     ) -> RenderResult:
+        if is_agent_mode_enabled():
+            yield Text(argparse.ArgumentParser.format_help(self))
+            return
         yield self._build_help_renderable()

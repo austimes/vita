@@ -25,7 +25,13 @@ import jsonschema
 import yaml
 from yaml.nodes import MappingNode, Node, SequenceNode
 
-from tools.cli_ui import StyledArgumentParser, print_message
+from tools.cli_ui import (
+    StyledArgumentParser,
+    is_agent_mode_enabled,
+    make_console,
+    print_message,
+    set_agent_mode,
+)
 from vedalang.compiler.compiler import (
     SemanticValidationError,
     compile_vedalang_bundle,
@@ -65,11 +71,27 @@ FMT_DIR_IGNORES = {
 }
 
 
+def _agent_mode_parent() -> argparse.ArgumentParser:
+    parent = argparse.ArgumentParser(add_help=False)
+    parent.add_argument(
+        "--agent-mode",
+        action="store_true",
+        help="Use plain agent-oriented output",
+    )
+    return parent
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the VedaLang CLI parser."""
+    agent_parent = _agent_mode_parent()
     parser = StyledArgumentParser(
         prog="vedalang",
         description="VedaLang CLI - author and validate energy system models",
+    )
+    parser.add_argument(
+        "--agent-mode",
+        action="store_true",
+        help="Use plain agent-oriented output",
     )
     parser.add_argument(
         "--version",
@@ -78,13 +100,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    _add_lint_parser(subparsers)
-    _add_llm_lint_parser(subparsers)
-    _add_fmt_parser(subparsers)
-    _add_compile_parser(subparsers)
-    _add_validate_parser(subparsers)
-    _add_res_parser(subparsers)
-    _add_viz_parser(subparsers)
+    _add_lint_parser(subparsers, agent_parent)
+    _add_llm_lint_parser(subparsers, agent_parent)
+    _add_fmt_parser(subparsers, agent_parent)
+    _add_compile_parser(subparsers, agent_parent)
+    _add_validate_parser(subparsers, agent_parent)
+    _add_res_parser(subparsers, agent_parent)
+    _add_viz_parser(subparsers, agent_parent)
 
     return parser
 
@@ -96,6 +118,7 @@ def main():
         parser.print_help()
         return
     args = parser.parse_args(argv)
+    set_agent_mode(getattr(args, "agent_mode", False))
 
     if args.command == "lint":
         sys.exit(cmd_lint(args))
@@ -118,11 +141,12 @@ def main():
         sys.exit(cmd_viz(args))
 
 
-def _add_lint_parser(subparsers):
+def _add_lint_parser(subparsers, agent_parent):
     p = subparsers.add_parser(
         "lint",
         help="Lint a VedaLang source file",
         description="Run deterministic lint checks with category selection.",
+        parents=[agent_parent],
     )
     p.add_argument(
         "file",
@@ -163,7 +187,7 @@ def _add_lint_parser(subparsers):
     )
 
 
-def _add_llm_lint_parser(subparsers):
+def _add_llm_lint_parser(subparsers, agent_parent):
     p = subparsers.add_parser(
         "llm-lint",
         help="Run advisory LLM lint checks by category",
@@ -171,6 +195,7 @@ def _add_llm_lint_parser(subparsers):
             "Run LLM-backed lint checks using the shared lint taxonomy. "
             "Unsupported categories are reported as skipped."
         ),
+        parents=[agent_parent],
     )
     p.add_argument("file", type=Path, help="Path to VedaLang source (.veda.yaml)")
     p.add_argument(
@@ -237,11 +262,12 @@ def _add_llm_lint_parser(subparsers):
     p.add_argument("--json", action="store_true", help="Output JSON format")
 
 
-def _add_compile_parser(subparsers):
+def _add_compile_parser(subparsers, agent_parent):
     p = subparsers.add_parser(
         "compile",
         help="Compile VedaLang to Excel",
         description="Compile VedaLang source to TableIR and emit Excel files.",
+        parents=[agent_parent],
     )
     p.add_argument("file", type=Path, help="Path to VedaLang source (.veda.yaml)")
     p.add_argument("--out", type=Path, help="Output directory for Excel files")
@@ -259,7 +285,7 @@ def _add_compile_parser(subparsers):
     p.add_argument("--json", action="store_true", help="Output JSON format")
 
 
-def _add_fmt_parser(subparsers):
+def _add_fmt_parser(subparsers, agent_parent):
     p = subparsers.add_parser(
         "fmt",
         help="Format VedaLang YAML source files",
@@ -267,6 +293,7 @@ def _add_fmt_parser(subparsers):
             "Format .veda.yaml files using Prettier. "
             "Use --check for non-mutating CI checks."
         ),
+        parents=[agent_parent],
     )
     p.add_argument(
         "paths",
@@ -282,11 +309,12 @@ def _add_fmt_parser(subparsers):
     p.add_argument("--json", action="store_true", help="Output JSON format")
 
 
-def _add_validate_parser(subparsers):
+def _add_validate_parser(subparsers, agent_parent):
     p = subparsers.add_parser(
         "validate",
         help="Compile and validate with xl2times",
         description="Compile and run xl2times validation for the selected run.",
+        parents=[agent_parent],
     )
     p.add_argument("file", type=Path, help="Path to VedaLang source (.veda.yaml)")
     p.add_argument(
@@ -304,17 +332,18 @@ def _add_validate_parser(subparsers):
     )
 
 
-def _add_res_parser(subparsers):
+def _add_res_parser(subparsers, agent_parent):
     p = subparsers.add_parser(
         "res",
         help="Query RES graph views (agent-first JSON API)",
         description=(
             "Unified RES query interface for source/compiled graph projections."
         ),
+        parents=[agent_parent],
     )
     res_subparsers = p.add_subparsers(dest="res_command", required=True)
 
-    common = argparse.ArgumentParser(add_help=False)
+    common = argparse.ArgumentParser(add_help=False, parents=[agent_parent])
     common.add_argument("file", type=Path, help="Path to VedaLang source (.veda.yaml)")
     common.add_argument(
         "--mode",
@@ -392,11 +421,12 @@ def _add_res_parser(subparsers):
     mermaid.add_argument("--json", action="store_true", help="Output JSON format")
 
 
-def _add_viz_parser(subparsers):
+def _add_viz_parser(subparsers, agent_parent):
     p = subparsers.add_parser(
         "viz",
         help="Visualize the Reference Energy System",
         description="Open a real-time browser visualization of the RES.",
+        parents=[agent_parent],
     )
     p.add_argument(
         "file",
@@ -1032,107 +1062,49 @@ def _attach_source_positions(
             diag["location"] = diag["path"]
 
 
-def _split_fenced_code_blocks(text: str) -> list[dict]:
-    """Split a markdown-ish string into alternating text/code segments."""
-    import re
-
-    if not text:
-        return []
-
-    fence_re = re.compile(
-        r"```(?P<lang>[a-zA-Z0-9_+-]*)\n(?P<code>.*?)\n```", re.DOTALL
-    )
-    out: list[dict] = []
-    pos = 0
-    for m in fence_re.finditer(text):
-        if m.start() > pos:
-            chunk = text[pos : m.start()]
-            if chunk.strip():
-                out.append({"kind": "text", "text": chunk.strip("\n")})
-        lang = (m.group("lang") or "").strip() or "text"
-        code = (m.group("code") or "").rstrip("\n")
-        out.append({"kind": "code", "lang": lang, "code": code})
-        pos = m.end()
-
-    tail = text[pos:]
-    if tail.strip():
-        out.append({"kind": "text", "text": tail.strip("\n")})
-
-    return out
+def _lint_severity_style(severity: str) -> str:
+    severity = severity.lower().strip()
+    if severity in {"critical", "error"}:
+        return "bold red"
+    if severity == "warning":
+        return "bold yellow"
+    return "bold cyan"
 
 
-def _format_finding_rich(finding: dict, index: int, total: int):
-    """Render a single lint/LLM finding as a Rich Panel."""
-    from rich import box
-    from rich.console import Group
-    from rich.markdown import Markdown
-    from rich.panel import Panel
-    from rich.rule import Rule
-    from rich.syntax import Syntax
-    from rich.table import Table
-    from rich.text import Text
-
-    severity_raw = (finding.get("severity") or "warning").lower().strip()
+def _format_finding_text(
+    finding: dict, *, include_index: str | None = None
+) -> list[str]:
+    severity = (finding.get("severity") or "warning").upper()
     code = finding.get("code") or "UNKNOWN"
     category = finding.get("category")
-    message = finding.get("message") or ""
+    message = (finding.get("message") or "").strip()
     location = finding.get("location")
     line = finding.get("line")
     column = finding.get("column")
     source_excerpt = finding.get("source_excerpt")
     suggestion = finding.get("suggestion")
 
-    if severity_raw in ("critical", "error"):
-        badge_text = severity_raw.upper()
-        badge_style = "bold white on red"
-        border_style = "red"
-    elif severity_raw == "warning":
-        badge_text = "WARNING"
-        badge_style = "bold black on yellow"
-        border_style = "yellow"
-    else:
-        badge_text = "SUGGESTION"
-        badge_style = "bold black on cyan"
-        border_style = "cyan"
-
-    # Header row: badge + code + category | index
-    header = Table.grid(padding=(0, 1))
-    header.expand = True
-    header.add_column("left", ratio=1)
-    header.add_column("right", justify="right")
-
-    left_bits = Text.assemble(
-        (f" {badge_text} ", badge_style),
-        ("  ", ""),
-        (f"[{code}]", "bold"),
-    )
+    head = f"{severity} [{code}]"
     if category:
-        left_bits.append(f"  ({category})", style="dim")
+        head += f" ({category})"
+    if include_index:
+        head += f" {include_index}"
 
-    header.add_row(left_bits, Text(f"{index}/{total}", style="dim"))
-
-    body_items: list = [header]
-
+    lines = [head]
     if location:
         if isinstance(line, int) and isinstance(column, int):
-            body_items.append(
-                Text(f"Location: {location} (line {line}:{column})", style="dim")
-            )
+            lines.append(f"Location: {location} (line {line}:{column})")
         elif isinstance(line, int):
-            body_items.append(Text(f"Location: {location} (line {line})", style="dim"))
+            lines.append(f"Location: {location} (line {line})")
         else:
-            body_items.append(Text(f"Location: {location}", style="dim"))
-
-    body_items.append(Rule(style="dim"))
-
-    # Message — render markdown for inline `code` formatting
-    body_items.append(Markdown(message.strip() or " ", code_theme="monokai"))
+            lines.append(f"Location: {location}")
+    if message:
+        lines.append(f"Message: {message}")
 
     if isinstance(source_excerpt, dict):
         excerpt_lines = source_excerpt.get("lines") or []
         if isinstance(excerpt_lines, list) and excerpt_lines:
-            body_items.append(Rule("Source", style="dim"))
-            block = Text()
+            lines.append("Source:")
             caret_line = source_excerpt.get("caret_line")
             caret_column = source_excerpt.get("caret_column")
             for row in excerpt_lines:
@@ -1140,62 +1112,21 @@ def _format_finding_rich(finding: dict, index: int, total: int):
                 line_text = row.get("text")
                 if not isinstance(line_no, int) or not isinstance(line_text, str):
                     continue
-                block.append(f"{line_no:>5} | ", style="dim")
-                block.append(line_text)
-                block.append("\n")
+                lines.append(f"  {line_no:>5} | {line_text}")
                 if (
                     isinstance(caret_line, int)
                     and caret_line == line_no
                     and isinstance(caret_column, int)
                 ):
-                    block.append("      | ", style="dim")
-                    block.append(" " * max(0, caret_column - 1))
-                    block.append("^", style="bold red")
-                    block.append("\n")
-            if block:
-                body_items.append(
-                    Panel(
-                        block,
-                        border_style="dim",
-                        box=box.ROUNDED,
-                        padding=(0, 1),
-                    )
-                )
+                    lines.append(f"        | {' ' * max(0, caret_column - 1)}^")
 
-    # Fix / suggestion section
     if suggestion:
-        body_items.append(Rule("Fix", style="green"))
-        for part in _split_fenced_code_blocks(suggestion):
-            if part["kind"] == "text":
-                txt = part["text"].strip()
-                if txt:
-                    body_items.append(Markdown(txt, code_theme="monokai"))
-            else:
-                lang = part.get("lang") or "text"
-                code_txt = part.get("code") or ""
-                syn = Syntax(
-                    code_txt,
-                    lang,
-                    theme="monokai",
-                    line_numbers=False,
-                    word_wrap=False,
-                )
-                body_items.append(
-                    Panel(
-                        syn,
-                        title=lang,
-                        border_style="dim",
-                        box=box.ROUNDED,
-                        padding=(0, 1),
-                    )
-                )
+        lines.append("Fix:")
+        lines.extend(
+            f"  {line}" if line else "" for line in str(suggestion).splitlines()
+        )
 
-    return Panel(
-        Group(*body_items),
-        border_style=border_style,
-        box=box.ROUNDED,
-        padding=(1, 1),
-    )
+    return [line for line in lines if line != ""]
 
 
 def _output_lint_result(
@@ -1227,125 +1158,96 @@ def _output_lint_result(
             result["summary"] = summary
         print(json.dumps(result, indent=2))
     else:
-        try:
-            from rich import box
-            from rich.console import Console
-            from rich.panel import Panel
-            from rich.table import Table
-            from rich.text import Text
-
-            console = Console()
-
-            # Header panel
-            header_tbl = Table.grid(expand=True)
-            header_tbl.add_column("left", ratio=1)
-            header_tbl.add_column("right", justify="right")
-            header_tbl.add_row(
-                Text("VedaLang Lint", style="bold"),
-                Text(str(file_path), style="dim"),
-            )
+        if is_agent_mode_enabled():
+            print(f"LINT: {file_path}")
             if llm_model:
-                header_tbl.add_row(
-                    Text("LLM model", style="dim"),
-                    Text(llm_model, style="dim"),
-                )
-            console.print(
-                Panel(
-                    header_tbl,
-                    box=box.ROUNDED,
-                    border_style="blue",
-                    padding=(1, 1),
-                )
-            )
-
-            # Findings
+                print(f"LLM model: {llm_model}")
             if diagnostics:
                 total = len(diagnostics)
-                for i, d in enumerate(diagnostics, start=1):
-                    console.print(_format_finding_rich(d, i, total))
-                    console.print()
-
-            # Summary bar
-            summary_tbl = Table.grid(expand=True)
-            summary_tbl.add_column("left", ratio=1)
-            summary_tbl.add_column("right", justify="right")
-
-            left = Text.assemble(
-                ("Summary: ", "bold"),
-                (
-                    f"{errors} error(s)",
-                    "bold red" if errors else "dim",
-                ),
-                ("  ", ""),
-                (
-                    f"{warnings} warning(s)",
-                    "bold yellow" if warnings else "dim",
-                ),
-            )
-
-            sev_counts: dict[str, int] = {}
-            for d in diagnostics:
-                sev = (d.get("severity") or "warning").lower().strip()
-                sev_counts[sev] = sev_counts.get(sev, 0) + 1
-            if sev_counts.get("critical"):
-                left.append("  ")
-                left.append(
-                    f"{sev_counts['critical']} critical",
-                    style="bold red",
-                )
-            if sev_counts.get("suggestion"):
-                left.append("  ")
-                left.append(
-                    f"{sev_counts['suggestion']} suggestion(s)",
-                    style="bold cyan",
-                )
-
-            right = (
-                Text("✓ OK", style="bold green")
-                if success
-                else Text("✗ Issues found", style="bold red")
-            )
-            summary_tbl.add_row(left, right)
-
-            console.print(
-                Panel(
-                    summary_tbl,
-                    box=box.ROUNDED,
-                    border_style="green" if success else "red",
-                    padding=(1, 1),
-                )
-            )
-
-            if summary is not None:
-                skipped = summary.get("skipped_categories", [])
-                if skipped:
-                    console.print(f"Skipped categories: {', '.join(skipped)}")
-
-        except ImportError:
-            # Plain-text fallback
-            if diagnostics:
-                for d in diagnostics:
-                    severity = d["severity"].upper()
-                    code = d["code"]
-                    msg = d["message"]
-                    loc = d.get("location", "")
-                    loc_str = f" ({loc})" if loc else ""
-                    print(f"{severity} [{code}]{loc_str}: {msg}")
-                    suggestion = d.get("suggestion")
-                    if suggestion:
-                        print(f"  ↳ Fix: {suggestion}")
-                print()
-
-            print(f"Lint: {errors} error(s), {warnings} warning(s)")
+                for index, diagnostic in enumerate(diagnostics, start=1):
+                    if index > 1:
+                        print()
+                    for line in _format_finding_text(
+                        diagnostic, include_index=f"({index}/{total})"
+                    ):
+                        print(line)
+            print()
+            print(f"Summary: {errors} error(s), {warnings} warning(s)")
             if summary is not None and summary.get("skipped_categories"):
                 print(
                     "Skipped categories: "
                     + ", ".join(summary.get("skipped_categories", []))
                 )
-            if llm_model:
-                print(f"LLM model: {llm_model}")
             if success:
-                print(f"✓ {file_path}")
+                print(f"Status: OK ({file_path})")
+        else:
+            from rich.text import Text
+
+            console = make_console()
+            console.print(Text("VedaLang Lint", style="bold cyan"))
+            console.print(Text(str(file_path), style="dim"))
+            if llm_model:
+                console.print(Text(f"LLM model: {llm_model}", style="dim"))
+
+            if diagnostics:
+                total = len(diagnostics)
+                for index, diagnostic in enumerate(diagnostics, start=1):
+                    if index > 1:
+                        console.print()
+                    header = _format_finding_text(
+                        diagnostic, include_index=f"({index}/{total})"
+                    )
+                    if not header:
+                        continue
+                    console.print(
+                        Text(
+                            header[0],
+                            style=_lint_severity_style(
+                                diagnostic.get("severity", "warning")
+                            ),
+                        )
+                    )
+                    for line in header[1:]:
+                        style = "dim" if line.startswith("Location:") else "default"
+                        console.print(Text(line, style=style))
+
+            console.print()
+            summary_text = Text.assemble(
+                ("Summary: ", "bold"),
+                (f"{errors} error(s)", "bold red" if errors else "dim"),
+                ("  ", ""),
+                (f"{warnings} warning(s)", "bold yellow" if warnings else "dim"),
+            )
+            sev_counts: dict[str, int] = {}
+            for diagnostic in diagnostics:
+                sev = (diagnostic.get("severity") or "warning").lower().strip()
+                sev_counts[sev] = sev_counts.get(sev, 0) + 1
+            if sev_counts.get("critical"):
+                summary_text.append("  ")
+                summary_text.append(
+                    f"{sev_counts['critical']} critical",
+                    style="bold red",
+                )
+            if sev_counts.get("suggestion"):
+                summary_text.append("  ")
+                summary_text.append(
+                    f"{sev_counts['suggestion']} suggestion(s)", style="bold cyan"
+                )
+            console.print(summary_text)
+            console.print(
+                Text(
+                    "Status: OK" if success else "Status: Issues found",
+                    style="bold green" if success else "bold red",
+                )
+            )
+            if summary is not None and summary.get("skipped_categories"):
+                console.print(
+                    Text(
+                        "Skipped categories: "
+                        + ", ".join(summary.get("skipped_categories", [])),
+                        style="dim",
+                    )
+                )
 
     if errors > 0:
         return 2

@@ -224,13 +224,13 @@ def _curated_template_context(
         "starter_validate_command": (
             "vedalang validate "
             f"{featured_demo.target_relpath.as_posix()} "
-            f"--run {featured_demo.default_run}"
+            f"--run {featured_demo.default_run} --agent-mode --json"
         ),
         "starter_run_command": (
             "vita run "
             f"{featured_demo.target_relpath.as_posix()} "
             f"--run {featured_demo.default_run} "
-            "--out runs/toy_industry/baseline --json"
+            "--out runs/toy_industry/baseline --agent-mode --json"
         ),
         "starter_run_semantics": (
             "In this starter workspace, the seeded single run is "
@@ -242,7 +242,7 @@ def _curated_template_context(
         ),
         "starter_experiment_command": (
             "vita experiment experiments/demos/toy_industry_core.experiment.yaml "
-            "--out experiments/ --json"
+            "--out experiments/ --agent-mode --json"
         ),
         "starter_experiment_semantics": (
             "The seeded experiment is "
@@ -258,7 +258,7 @@ def _curated_template_context(
             "```bash\n"
             "# Run the seeded industry experiment\n"
             "vita experiment experiments/demos/toy_industry_core.experiment.yaml "
-            "--out experiments/ --json\n"
+            "--out experiments/ --agent-mode --json\n"
             "```"
         ),
         "starter_demo_catalog": "\n".join(demo_catalog_lines),
@@ -313,11 +313,12 @@ def _minimal_template_context(
             "Run the example model and explain what technologies are selected"
         ),
         "starter_validate_command": (
-            "vedalang validate models/example.veda.yaml --run demo_2025"
+            "vedalang validate models/example.veda.yaml --run demo_2025 "
+            "--agent-mode --json"
         ),
         "starter_run_command": (
             "vita run models/example.veda.yaml --run demo_2025 --out "
-            "runs/example --json"
+            "runs/example --agent-mode --json"
         ),
         "starter_run_semantics": (
             "In this starter workspace, the seeded single run is "

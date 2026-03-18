@@ -98,6 +98,13 @@ class TestVitaHelp:
         assert "--from" in result.stdout
         assert "--out" in result.stdout
 
+    def test_vita_run_help_agent_mode(self):
+        """Run subcommand accepts --agent-mode and stays unboxed."""
+        result = run_vita("run", "--agent-mode", "--help")
+        assert result.returncode == 0
+        assert "--agent-mode" in result.stdout
+        assert "╭" not in result.stdout
+
     def test_vita_results_help(self):
         """Results subcommand --help works."""
         result = run_vita("results", "--help")
@@ -128,6 +135,13 @@ class TestVitaHelp:
         assert result.returncode == 0
         assert "github main" in result.stdout.lower()
         assert "when main is newer" in result.stdout.lower()
+
+    def test_vita_experiment_run_help_agent_mode(self):
+        """Experiment subcommands accept --agent-mode."""
+        result = run_vita("experiment", "run", "--agent-mode", "--help")
+        assert result.returncode == 0
+        assert "--agent-mode" in result.stdout
+        assert "╭" not in result.stdout
 
 
 class TestEmitExcel:
@@ -202,6 +216,15 @@ class TestVitaRun:
         assert result.returncode in (0, 2)
         stdout = result.stdout
         assert "PASS" in stdout or "FAIL" in stdout or "pipeline" in stdout.lower()
+        assert "╭" not in stdout
+
+    def test_vita_run_no_solver_agent_mode(self):
+        """Agent mode produces plain run output."""
+        result = run_vita("run", str(MINI_PLANT), "--no-solver", "--agent-mode")
+        assert result.returncode in (0, 2)
+        stdout = result.stdout
+        assert "PASS: Pipeline Summary" in stdout or "FAIL: Pipeline Summary" in stdout
+        assert "╭" not in stdout
 
     def test_vita_run_pipeline_json(self):
         """Vita run with --json outputs valid JSON."""
@@ -211,6 +234,16 @@ class TestVitaRun:
         data = json.loads(result.stdout)
         assert data["dsl_version"] == "0.3"
         assert data["artifact_version"] == "1.0.0"
+        assert "success" in data
+        assert "steps" in data
+
+    def test_vita_run_pipeline_agent_mode_json(self):
+        """Agent mode preserves the vita run JSON payload."""
+        result = run_vita(
+            "run", str(MINI_PLANT), "--no-solver", "--agent-mode", "--json"
+        )
+        assert result.returncode in (0, 2)
+        data = json.loads(result.stdout)
         assert "success" in data
         assert "steps" in data
 
@@ -390,6 +423,13 @@ class TestVitaRun:
         assert statuses["gas_boiler"] == "changed"
         assert statuses["electric_heater"] == "added"
         assert statuses["h2_boiler"] == "removed"
+
+        agent_result = run_vita(
+            "diff", str(baseline_dir), str(variant_dir), "--agent-mode", "--json"
+        )
+        assert agent_result.returncode == 0
+        agent_payload = json.loads(agent_result.stdout)
+        assert agent_payload["objective"]["delta"] == 20.0
 
     def test_vita_diff_focus_and_metric_filters(self, tmp_path):
         """vita diff applies process focus and metric filtering."""

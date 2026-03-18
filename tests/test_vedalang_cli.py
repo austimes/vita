@@ -29,6 +29,16 @@ class TestLint:
         result = run_vedalang("lint", str(MINI_PLANT))
         assert result.returncode in (0, 1)
         assert "error(s)" in result.stdout
+        assert "╭" not in result.stdout
+
+    def test_vedalang_lint_agent_mode_plain_output(self):
+        """Agent mode uses plain line-oriented lint output."""
+        result = run_vedalang("lint", str(MINI_PLANT), "--agent-mode")
+        assert result.returncode in (0, 1)
+        assert "LINT:" in result.stdout
+        assert "Summary:" in result.stdout
+        assert "╭" not in result.stdout
+        assert "│" not in result.stdout
 
     def test_vedalang_lint_json(self):
         """Lint with --json outputs valid JSON structure."""
@@ -46,6 +56,14 @@ class TestLint:
         assert "summary" in data
         assert isinstance(data["diagnostics"], list)
         assert data["success"] is True
+
+    def test_vedalang_lint_agent_mode_json(self):
+        """Agent mode preserves the JSON payload for lint."""
+        result = run_vedalang("lint", "--agent-mode", "--json", str(MINI_PLANT))
+        assert result.returncode in (0, 1)
+        data = json.loads(result.stdout)
+        assert data["source"].endswith("mini_plant.veda.yaml")
+        assert "diagnostics" in data
 
     def test_vedalang_lint_heuristic_warning(self):
         """Lint detects heuristic warnings on minisystem.veda.yaml."""
@@ -296,6 +314,23 @@ class TestCompile:
         assert "files" in data
         assert data["success"] is True
 
+    def test_vedalang_compile_agent_mode_json(self, tmp_path):
+        """Agent mode preserves the compile JSON payload."""
+        out_dir = tmp_path / "excel_out"
+        result = run_vedalang(
+            "compile",
+            str(MINI_PLANT),
+            "--out",
+            str(out_dir),
+            "--agent-mode",
+            "--json",
+            "--no-lint",
+        )
+        assert result.returncode == 0
+        data = json.loads(result.stdout)
+        assert data["success"] is True
+        assert "files" in data
+
     def test_vedalang_compile_json_rejects_legacy_process_syntax(self, tmp_path):
         """Compile JSON rejects the legacy top-level processes public DSL."""
         src = tmp_path / "legacy_compile.veda.yaml"
@@ -390,6 +425,14 @@ class TestValidate:
         assert "total_rows" in data
         assert "diagnostics" in data
 
+    def test_vedalang_validate_agent_mode_json(self):
+        """Agent mode preserves the validate JSON payload."""
+        result = run_vedalang("validate", "--agent-mode", "--json", str(MINI_PLANT))
+        assert result.returncode in (0, 1, 2)
+        data = json.loads(result.stdout)
+        assert "tables" in data
+        assert "diagnostics" in data
+
     def test_vedalang_validate_json_rejects_legacy_process_syntax(self, tmp_path):
         """Validate JSON surfaces deterministic legacy public DSL diagnostics."""
         src = tmp_path / "legacy_validate.veda.yaml"
@@ -473,6 +516,13 @@ class TestHelp:
         result = run_vedalang("validate", "--help")
         assert result.returncode == 0
         assert "validate" in result.stdout.lower()
+
+    def test_vedalang_validate_help_agent_mode(self):
+        """Validate subcommand accepts --agent-mode."""
+        result = run_vedalang("validate", "--agent-mode", "--help")
+        assert result.returncode == 0
+        assert "--agent-mode" in result.stdout
+        assert "╭" not in result.stdout
 
     def test_vedalang_fmt_help(self):
         """Fmt subcommand help works."""

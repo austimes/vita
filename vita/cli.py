@@ -6,7 +6,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from tools.cli_ui import StyledArgumentParser
+from tools.cli_ui import StyledArgumentParser, set_agent_mode
 from vita.handlers import (
     run_diff_command,
     run_experiment_full_command,
@@ -31,24 +31,55 @@ _EXPERIMENT_SUBCOMMANDS = frozenset({
 })
 
 
+def _agent_mode_parent() -> argparse.ArgumentParser:
+    parent = argparse.ArgumentParser(add_help=False)
+    parent.add_argument(
+        "--agent-mode",
+        action="store_true",
+        help="Use plain agent-oriented output",
+    )
+    return parent
+
+
 def _rewrite_experiment_argv(argv: list[str]) -> list[str]:
     """Rewrite convenience-mode argv so argparse can dispatch correctly.
 
     ``vita experiment manifest.yaml --out dir`` becomes
     ``vita experiment _full manifest.yaml --out dir``.
     """
-    if len(argv) >= 2 and argv[0] == "experiment":
-        token = argv[1]
+    command_index = None
+    for index, token in enumerate(argv):
+        if token.startswith("-"):
+            continue
+        command_index = index
+        break
+
+    if (
+        command_index is not None
+        and argv[command_index] == "experiment"
+        and len(argv) > command_index + 1
+    ):
+        token = argv[command_index + 1]
         if token not in _EXPERIMENT_SUBCOMMANDS and not token.startswith("-"):
-            return ["experiment", "_full", *argv[1:]]
+            return [
+                *argv[: command_index + 1],
+                "_full",
+                *argv[command_index + 1 :],
+            ]
     return argv
 
 
 def build_parser() -> argparse.ArgumentParser:
     """Build the Vita CLI parser."""
+    agent_parent = _agent_mode_parent()
     parser = StyledArgumentParser(
         prog="vita",
         description="Vita (VEDA Insight & TIMES Analysis) CLI",
+    )
+    parser.add_argument(
+        "--agent-mode",
+        action="store_true",
+        help="Use plain agent-oriented output",
     )
     parser.add_argument(
         "--version",
@@ -60,6 +91,7 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser = subparsers.add_parser(
         "run",
         help="Run full VedaLang -> TIMES pipeline",
+        parents=[agent_parent],
     )
     run_parser.add_argument("input", type=Path, help="Input file or directory")
     run_parser.add_argument(
@@ -135,6 +167,7 @@ def build_parser() -> argparse.ArgumentParser:
     results_parser = subparsers.add_parser(
         "results",
         help="Extract and display TIMES results from GDX",
+        parents=[agent_parent],
     )
     results_parser.add_argument(
         "--run",
@@ -190,6 +223,7 @@ def build_parser() -> argparse.ArgumentParser:
     sankey_parser = subparsers.add_parser(
         "sankey",
         help="Generate Sankey diagram from TIMES results",
+        parents=[agent_parent],
     )
     sankey_parser.add_argument(
         "--run",
@@ -251,6 +285,7 @@ def build_parser() -> argparse.ArgumentParser:
     diff_parser = subparsers.add_parser(
         "diff",
         help="Compare two Vita run directories",
+        parents=[agent_parent],
     )
     diff_parser.add_argument(
         "baseline_run",
@@ -297,18 +332,30 @@ def build_parser() -> argparse.ArgumentParser:
     exp_parser = subparsers.add_parser(
         "experiment",
         help="Run declarative experiments from manifest files",
+        parents=[agent_parent],
     )
     exp_subparsers = exp_parser.add_subparsers(dest="exp_command")
 
     # Hidden convenience mode: vita experiment <manifest.yaml> --out <dir> --json
-    exp_full_parser = exp_subparsers.add_parser("_full", help=argparse.SUPPRESS)
-    exp_full_parser.add_argument("manifest", type=Path, help="Path to experiment.yaml manifest")
+    exp_full_parser = exp_subparsers.add_parser(
+        "_full", help=argparse.SUPPRESS, parents=[agent_parent]
+    )
+    exp_full_parser.add_argument(
+        "manifest", type=Path, help="Path to experiment.yaml manifest"
+    )
     exp_full_parser.add_argument("--out", type=Path, help="Output directory")
-    exp_full_parser.add_argument("--json", action="store_true", dest="json_output", help="Output as JSON")
+    exp_full_parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="json_output",
+        help="Output as JSON",
+    )
 
     # vita experiment stage
     exp_stage_parser = exp_subparsers.add_parser(
-        "stage", help="Stage experiment inputs and create directory structure"
+        "stage",
+        help="Stage experiment inputs and create directory structure",
+        parents=[agent_parent],
     )
     exp_stage_parser.add_argument(
         "manifest", type=Path, help="Path to experiment.yaml manifest"
@@ -319,7 +366,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     # vita experiment run
     exp_run_parser = exp_subparsers.add_parser(
-        "run", help="Execute pending runs and diffs"
+        "run", help="Execute pending runs and diffs", parents=[agent_parent]
     )
     exp_run_parser.add_argument(
         "experiment_dir", type=Path, help="Experiment directory"
@@ -334,7 +381,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     # vita experiment summarize
     exp_summarize_parser = exp_subparsers.add_parser(
-        "summarize", help="Extract evidence summary from completed runs"
+        "summarize",
+        help="Extract evidence summary from completed runs",
+        parents=[agent_parent],
     )
     exp_summarize_parser.add_argument(
         "experiment_dir", type=Path, help="Experiment directory"
@@ -343,21 +392,25 @@ def build_parser() -> argparse.ArgumentParser:
 
     # vita experiment validate-brief
     exp_vb_parser = exp_subparsers.add_parser(
-        "validate-brief", help="Run brief validation gate"
+        "validate-brief",
+        help="Run brief validation gate",
+        parents=[agent_parent],
     )
     exp_vb_parser.add_argument("experiment_dir", type=Path, help="Experiment directory")
     exp_vb_parser.add_argument("--json", action="store_true", dest="json_output")
 
     # vita experiment validate-interpretation
     exp_vi_parser = exp_subparsers.add_parser(
-        "validate-interpretation", help="Run interpretation validation gate"
+        "validate-interpretation",
+        help="Run interpretation validation gate",
+        parents=[agent_parent],
     )
     exp_vi_parser.add_argument("experiment_dir", type=Path, help="Experiment directory")
     exp_vi_parser.add_argument("--json", action="store_true", dest="json_output")
 
     # vita experiment present
     exp_present_parser = exp_subparsers.add_parser(
-        "present", help="Regenerate HTML presentation"
+        "present", help="Regenerate HTML presentation", parents=[agent_parent]
     )
     exp_present_parser.add_argument(
         "experiment_dir", type=Path, help="Experiment directory"
@@ -365,7 +418,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     # vita experiment status
     exp_status_parser = exp_subparsers.add_parser(
-        "status", help="Show experiment lifecycle status"
+        "status", help="Show experiment lifecycle status", parents=[agent_parent]
     )
     exp_status_parser.add_argument(
         "experiment_dir", type=Path, help="Experiment directory"
@@ -376,6 +429,7 @@ def build_parser() -> argparse.ArgumentParser:
     init_parser = subparsers.add_parser(
         "init",
         help="Bootstrap a new Vita project directory",
+        parents=[agent_parent],
     )
     init_parser.add_argument(
         "target",
@@ -417,6 +471,7 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser(
         "update",
         help="Refresh installed vita and vedalang tools when GitHub main is newer",
+        parents=[agent_parent],
         description=(
             "Check the installed vita and vedalang tool package against GitHub "
             "main and refresh it with uv tool install --force when main is newer."
@@ -436,6 +491,7 @@ def main() -> None:
         return
     argv = _rewrite_experiment_argv(argv)
     args = parser.parse_args(argv)
+    set_agent_mode(getattr(args, "agent_mode", False))
 
     if args.command == "init":
         run_init_command(args)

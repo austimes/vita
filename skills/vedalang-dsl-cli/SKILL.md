@@ -15,15 +15,17 @@ Read first:
 
 Then execute with this order:
 1. Author/edit model YAML (`.veda.yaml`)
-2. Format: `vedalang fmt <model>.veda.yaml`
-3. Lint quickly: `vedalang lint <model>.veda.yaml`
-4. Full validation: `vedalang validate <model>.veda.yaml --run <run_id>`
-5. If needed, compile only: `vedalang compile <model>.veda.yaml --run <run_id> --out <dir>`
+2. Format: `vedalang fmt <model>.veda.yaml --agent-mode`
+3. Lint quickly: `vedalang lint <model>.veda.yaml --agent-mode --json`
+4. Full validation: `vedalang validate <model>.veda.yaml --run <run_id> --agent-mode --json`
+5. If needed, compile only: `vedalang compile <model>.veda.yaml --run <run_id> --out <dir> --agent-mode --json`
 
 For experiment execution, comparative analysis, and narrative output, switch to
 the `vita-experiment-loop` skill.
 
 Hard rules:
+- Always pass `--agent-mode` to `vedalang` and `vita`.
+- Add `--json` whenever the command supports structured output and you intend to parse the result.
 - Treat schema as authoritative for valid syntax.
 - Use canonical modeling conventions from
   `skills/vedalang-modeling-conventions/references/modeling-conventions.md`.

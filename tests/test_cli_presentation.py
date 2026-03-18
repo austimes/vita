@@ -15,6 +15,7 @@ from vita import cli as vita_cli
 from vita.version import VITA_CLI_VERSION
 
 ROOT = Path(__file__).resolve().parent.parent
+BOX_CHARS = ("╭", "╰", "│", "┌", "└")
 
 
 def _run_cli(
@@ -32,6 +33,11 @@ def _run_cli(
     )
 
 
+def _assert_no_box_chars(text: str) -> None:
+    for char in BOX_CHARS:
+        assert char not in text
+
+
 def test_vita_build_parser_help_has_styled_sections() -> None:
     help_text = strip_ansi(vita_cli.build_parser().format_help())
     assert "Vita (VEDA Insight & TIMES Analysis) CLI" in help_text
@@ -40,6 +46,7 @@ def test_vita_build_parser_help_has_styled_sections() -> None:
     assert "Options" in help_text
     assert "run" in help_text
     assert "init" in help_text
+    _assert_no_box_chars(help_text)
 
 
 def test_vedalang_build_parser_help_has_styled_sections() -> None:
@@ -49,6 +56,7 @@ def test_vedalang_build_parser_help_has_styled_sections() -> None:
     assert "Commands" in help_text
     assert "Options" in help_text
     assert "validate" in help_text
+    _assert_no_box_chars(help_text)
 
 
 def test_vita_invalid_command_shows_suggestion() -> None:
@@ -57,6 +65,16 @@ def test_vita_invalid_command_shows_suggestion() -> None:
     assert result.returncode == 2
     assert "invalid choice" in stderr
     assert "Did you mean `update`?" in stderr
+    _assert_no_box_chars(stderr)
+
+
+def test_vita_invalid_command_agent_mode_is_plain() -> None:
+    result = _run_cli("vita", "--agent-mode", "updat")
+    stderr = strip_ansi(result.stderr)
+    assert result.returncode == 2
+    assert "usage:" in stderr.lower()
+    assert "vita: error: argument command" in stderr
+    _assert_no_box_chars(stderr)
 
 
 def test_vita_no_args_shows_help() -> None:
@@ -65,6 +83,7 @@ def test_vita_no_args_shows_help() -> None:
     assert result.returncode == 0
     assert "Vita (VEDA Insight & TIMES Analysis) CLI" in stdout
     assert "Commands" in stdout
+    _assert_no_box_chars(stdout)
 
 
 def test_vedalang_no_args_shows_help() -> None:
@@ -73,6 +92,25 @@ def test_vedalang_no_args_shows_help() -> None:
     assert result.returncode == 0
     assert "VedaLang CLI - author and validate energy system models" in stdout
     assert "Commands" in stdout
+    _assert_no_box_chars(stdout)
+
+
+def test_vita_agent_mode_help_is_plain() -> None:
+    result = _run_cli("vita", "--agent-mode", "--help")
+    stdout = strip_ansi(result.stdout)
+    assert result.returncode == 0
+    assert "usage: vita" in stdout.lower()
+    assert "--agent-mode" in stdout
+    _assert_no_box_chars(stdout)
+
+
+def test_vedalang_agent_mode_help_is_plain() -> None:
+    result = _run_cli("vedalang", "--agent-mode", "--help")
+    stdout = strip_ansi(result.stdout)
+    assert result.returncode == 0
+    assert "usage: vedalang" in stdout.lower()
+    assert "--agent-mode" in stdout
+    _assert_no_box_chars(stdout)
 
 
 def test_vita_version_flag() -> None:

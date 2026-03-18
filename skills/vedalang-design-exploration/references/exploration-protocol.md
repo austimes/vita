@@ -98,17 +98,22 @@ Commands:
 
 ```bash
 # Validate a VedaLang model (primary oracle)
-uv run vedalang validate model.veda.yaml --json
+uv run vedalang validate model.veda.yaml --agent-mode --json
 
 # Lint for heuristic issues
-uv run vedalang lint model.veda.yaml --json
+uv run vedalang lint model.veda.yaml --agent-mode --json
 
 # Compile only
-uv run vedalang compile model.veda.yaml --tableir tableir.yaml
+uv run vedalang compile model.veda.yaml --tableir tableir.yaml --agent-mode --json
 
 # Emit Excel from TableIR
 uv run vedalang-dev emit-excel tableir.yaml --out excel_out/
 ```
+
+Agent rule:
+- Always pass `--agent-mode` to `vedalang` and `vita`.
+- Add `--json` whenever the command supports structured output and you intend
+  to parse it.
 
 ---
 
@@ -152,7 +157,7 @@ For each primitive `P`, follow this **standard loop**:
 
 ### Step 4: Run Toolchain and Collect Feedback
 ```bash
-uv run vedalang validate vedalang/examples/model_{primitive}.veda.yaml --json
+uv run vedalang validate vedalang/examples/model_{primitive}.veda.yaml --agent-mode --json
 ```
 
 Categorize result:

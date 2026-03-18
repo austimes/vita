@@ -23,28 +23,31 @@ generation agents.
 
 ```bash
 # Normalize YAML formatting first
-vedalang fmt model.veda.yaml
+vedalang fmt model.veda.yaml --agent-mode
 
 # Fast structural checks
-vedalang lint model.veda.yaml
+vedalang lint model.veda.yaml --agent-mode --json
 
 # Full end-to-end validation
-vedalang validate model.veda.yaml --run <run_id>
+vedalang validate model.veda.yaml --run <run_id> --agent-mode --json
 
 # Compile only
-vedalang compile model.veda.yaml --run <run_id> --out output/
+vedalang compile model.veda.yaml --run <run_id> --out output/ --agent-mode --json
 
 # Full pipeline without solver
-vita run model.veda.yaml --run <run_id> --no-solver --json
+vita run model.veda.yaml --run <run_id> --no-solver --agent-mode --json
 
 # Compare baseline vs variant run artifacts
-vita diff runs/<study>/baseline runs/<study>/variant --json
+vita diff runs/<study>/baseline runs/<study>/variant --agent-mode --json
 ```
 
 ## CLI Boundary
 
 - Use `vedalang` for author/lint/compile/validate actions on `.veda.yaml`.
 - Use `vita` for run execution, solver outputs, experiment diffs, and results narratives.
+- Agents should always pass `--agent-mode` to `vedalang` and `vita`.
+- Add `--json` whenever the command supports structured output and the response
+  will be consumed programmatically.
 - For toy-sector workflows, keep `--no-sankey` on `vita run` unless Sankey
   support is explicitly confirmed.
 
