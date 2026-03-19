@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Any
 
@@ -37,6 +38,27 @@ def _quantity_dict(quantity: ParsedQuantity) -> dict[str, Any]:
 
 def _sorted_dict(items: dict[str, Any]) -> dict[str, Any]:
     return {key: items[key] for key in sorted(items)}
+
+
+def _default_model_years(base_year: int) -> list[int]:
+    return sorted({base_year, base_year + 10})
+
+
+def _sanitize_uc_token(value: str) -> str:
+    token = re.sub(r"[^A-Za-z0-9]+", "_", value).strip("_")
+    return token or "VALUE"
+
+
+def _retrofit_uc_symbol(
+    role_instance_id: str,
+    from_technology: str,
+    to_technology: str,
+) -> str:
+    return (
+        f"UC_RET_{_sanitize_uc_token(role_instance_id)}"
+        f"_{_sanitize_uc_token(from_technology)}"
+        f"_{_sanitize_uc_token(to_technology)}"
+    )
 
 
 def emit_csir(
@@ -321,6 +343,7 @@ def emit_csir(
         "dsl_version": DSL_VERSION,
         "run_id": run.run_id,
         "base_year": run.base_year,
+        "model_years": _default_model_years(run.base_year),
         "currency_year": run.currency_year,
         "region_partition": run.region_partition,
         "model_regions": list(run.model_regions),
@@ -354,6 +377,7 @@ def emit_csir(
         "technology_role_instances": sorted(
             role_instances, key=lambda item: item["id"]
         ),
+        "policy_activations": [],
         "zone_opportunities": zone_opportunities,
         "networks": networks,
     }
@@ -439,9 +463,19 @@ def lower_csir_to_cpir(
     """Lower CSIR semantic objects to deterministic CPIR process objects."""
     processes: list[dict[str, Any]] = []
     transitions: list[dict[str, Any]] = []
+    user_constraints: list[dict[str, Any]] = []
     network_arcs: list[dict[str, Any]] = []
     explain_objects: dict[str, Any] = {}
     explain_traces: dict[str, Any] = {}
+    model_years = sorted(
+        {
+            int(year)
+            for year in (
+                csir.get("model_years")
+                or _default_model_years(int(csir.get("base_year", 0)))
+            )
+        }
+    )
 
     for role_instance in csir.get("technology_role_instances", []):
         role = graph.technology_roles[role_instance["technology_role"]]
@@ -493,24 +527,77 @@ def lower_csir_to_cpir(
                 f"T::{role_instance['id']}::"
                 f"{transition.from_technology}->{transition.to_technology}"
             )
+            from_process = f"P::{role_instance['id']}::{transition.from_technology}"
+            to_process = f"P::{role_instance['id']}::{transition.to_technology}"
+            cost = (
+                _quantity_dict(parse_quantity(transition.cost))
+                if transition.cost is not None
+                else None
+            )
             transitions.append(
                 {
                     "id": edge_id,
                     "source_role_instance": role_instance["id"],
-                    "from_process": (
-                        f"P::{role_instance['id']}::{transition.from_technology}"
-                    ),
-                    "to_process": (
-                        f"P::{role_instance['id']}::{transition.to_technology}"
-                    ),
+                    "from_process": from_process,
+                    "to_process": to_process,
                     "kind": transition.kind,
-                    "cost": (
-                        _quantity_dict(parse_quantity(transition.cost))
-                        if transition.cost is not None
-                        else None
-                    ),
+                    "cost": cost,
                 }
             )
+            if transition.kind == "retrofit":
+                user_constraint_id = f"UC::{edge_id}"
+                user_constraint = {
+                    "id": user_constraint_id,
+                    "kind": "retrofit_transition",
+                    "uc_n": _retrofit_uc_symbol(
+                        role_instance_id=role_instance["id"],
+                        from_technology=transition.from_technology,
+                        to_technology=transition.to_technology,
+                    ),
+                    "description": (
+                        "Retrofit "
+                        f"{transition.from_technology} -> {transition.to_technology}"
+                    ),
+                    "source_role_instance": role_instance["id"],
+                    "transition_id": edge_id,
+                    "uc_sets": {"R_E": "AllRegions", "T_E": ""},
+                    "rows": [
+                        {
+                            "region": role_instance["model_region"],
+                            "process": from_process,
+                            "side": "IN",
+                            "uc_act": 1.0,
+                        },
+                        {
+                            "region": role_instance["model_region"],
+                            "process": to_process,
+                            "side": "OUT",
+                            "uc_act": 1.0,
+                        },
+                        *[
+                            {
+                                "region": role_instance["model_region"],
+                                "year": year,
+                                "limtype": "UP",
+                                "uc_rhsrt": 0.0,
+                            }
+                            for year in model_years
+                        ],
+                    ],
+                }
+                if cost is not None:
+                    user_constraint["cost"] = cost
+                user_constraints.append(user_constraint)
+                trace_id = f"trace.lower.{user_constraint_id}"
+                explain_objects[user_constraint_id] = {
+                    "generated_from": {"transition": edge_id},
+                    "trace_ids": [trace_id],
+                }
+                explain_traces[trace_id] = {
+                    "kind": "retrofit_transition_to_user_constraint",
+                    "transition": edge_id,
+                    "user_constraint": user_constraint_id,
+                }
     for opportunity in csir.get("zone_opportunities", []):
         process_id = (
             f"P::zone_opportunity::{opportunity['id']}::{opportunity['technology']}"
@@ -578,9 +665,11 @@ def lower_csir_to_cpir(
         "artifact_version": ARTIFACT_VERSION,
         "dsl_version": DSL_VERSION,
         "run_id": csir["run_id"],
+        "model_years": model_years,
         "model_regions": list(csir["model_regions"]),
         "processes": sorted(processes, key=lambda item: item["id"]),
         "transitions": sorted(transitions, key=lambda item: item["id"]),
+        "user_constraints": sorted(user_constraints, key=lambda item: item["id"]),
         "network_arcs": sorted(network_arcs, key=lambda item: item["id"]),
     }
     explain = {

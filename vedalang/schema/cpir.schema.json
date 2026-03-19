@@ -9,9 +9,11 @@
     "artifact_version",
     "dsl_version",
     "run_id",
+    "model_years",
     "model_regions",
     "processes",
     "transitions",
+    "user_constraints",
     "network_arcs"
   ],
   "properties": {
@@ -19,6 +21,7 @@
     "artifact_version": {"type": "string"},
     "dsl_version": {"const": "0.3"},
     "run_id": {"type": "string"},
+    "model_years": {"type": "array", "items": {"type": "integer"}},
     "model_regions": {"type": "array", "items": {"type": "string"}},
     "processes": {
       "type": "array",
@@ -51,6 +54,37 @@
       }
     },
     "transitions": {"type": "array", "items": {"type": "object"}},
+    "user_constraints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "kind",
+          "uc_n",
+          "description",
+          "source_role_instance",
+          "transition_id",
+          "uc_sets",
+          "rows"
+        ],
+        "properties": {
+          "id": {"type": "string"},
+          "kind": {"type": "string"},
+          "uc_n": {"type": "string"},
+          "description": {"type": "string"},
+          "source_role_instance": {"type": "string"},
+          "transition_id": {"type": "string"},
+          "uc_sets": {
+            "type": "object",
+            "additionalProperties": {"type": "string"}
+          },
+          "cost": {"type": "object"},
+          "rows": {"type": "array", "items": {"type": "object"}}
+        }
+      }
+    },
     "network_arcs": {"type": "array", "items": {"type": "object"}}
   }
 }

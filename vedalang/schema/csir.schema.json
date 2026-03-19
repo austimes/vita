@@ -10,6 +10,7 @@
     "dsl_version",
     "run_id",
     "base_year",
+    "model_years",
     "currency_year",
     "region_partition",
     "model_regions",
@@ -17,6 +18,7 @@
     "technology_roles",
     "sites",
     "technology_role_instances",
+    "policy_activations",
     "zone_opportunities",
     "networks"
   ],
@@ -26,6 +28,7 @@
     "dsl_version": {"const": "0.3"},
     "run_id": {"type": "string"},
     "base_year": {"type": "integer"},
+    "model_years": {"type": "array", "items": {"type": "integer"}},
     "currency_year": {"type": "integer"},
     "region_partition": {"type": "string"},
     "model_regions": {"type": "array", "items": {"type": "string"}},
@@ -117,6 +120,33 @@
               }
             }
           }
+        }
+      }
+    },
+    "policy_activations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "policy_id": {"type": "string"},
+          "kind": {"type": "string"},
+          "selected_case": {"type": "string"},
+          "emission_commodity": {"type": "string"},
+          "budgets": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["year", "amount", "unit"],
+              "properties": {
+                "year": {"type": "integer"},
+                "amount": {"type": "number"},
+                "unit": {"type": "string"}
+              }
+            }
+          },
+          "role_instances": {"type": "array", "items": {"type": "string"}}
         }
       }
     },
