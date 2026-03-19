@@ -593,21 +593,18 @@ def lower_bundle_to_tableir(
         rpt_opt_rows.append(
             {
                 "attribute": "RPT_OPT",
-                "other_indexes": "FLO",
-                "stage": "3",
-                "value": 1,
+                "other_indexes": "FLO~3",
+                "allregions": 1,
             }
         )
     constants_tables = [
         {"tag": "~TFM_INS", "rows": gdrate_rows},
         {"tag": "~TFM_INS", "rows": yrfr_rows},
     ]
-    if rpt_opt_rows:
-        constants_tables.append({"tag": "~TFM_INS", "rows": rpt_opt_rows})
     reporting_notes = [
         "Run-scoped reporting options",
         (
-            "RPT_OPT rows on the constants sheet are preserved as VEDA-style "
+            "RPT_OPT rows on this sheet are preserved as VEDA-style "
             "syssettings inputs for parity with VEDA and VEDA Online."
         ),
         (
@@ -616,10 +613,14 @@ def lower_bundle_to_tableir(
             "RUN-file layer in this pipeline."
         ),
         (
-            "Current emitted option: RPT_OPT('FLO','3') = 1 when "
+            "Current emitted option uses Other_Indexes = FLO~3 with an "
+            "all-regions value of 1 when "
             "runs[].reporting.value_flows is enabled."
         ),
     ]
+    reporting_tables = (
+        [{"tag": "~TFM_INS", "rows": rpt_opt_rows}] if rpt_opt_rows else []
+    )
 
     process_workbook_sheets: list[dict[str, Any]] = [
         {
@@ -665,7 +666,7 @@ def lower_bundle_to_tableir(
                     {
                         "name": "Reporting",
                         "notes": reporting_notes,
-                        "tables": [],
+                        "tables": reporting_tables,
                     },
                 ],
             },

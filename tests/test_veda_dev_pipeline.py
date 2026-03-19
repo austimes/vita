@@ -163,16 +163,15 @@ def test_run_option_lines_from_excel_dir_reads_emitted_rpt_opt_rows(
                 "path": "syssettings.xlsx",
                 "sheets": [
                     {
-                        "name": "constants",
+                        "name": "Reporting",
                         "tables": [
                             {
                                 "tag": "~TFM_INS",
                                 "rows": [
                                     {
                                         "attribute": "RPT_OPT",
-                                        "other_indexes": "FLO",
-                                        "stage": "3",
-                                        "value": 1,
+                                        "other_indexes": "FLO~3",
+                                        "allregions": 1,
                                     }
                                 ],
                             }
@@ -197,7 +196,7 @@ def test_run_option_lines_from_excel_dir_supports_compound_other_indexes(
                 "path": "syssettings.xlsx",
                 "sheets": [
                     {
-                        "name": "constants",
+                        "name": "Reporting",
                         "tables": [
                             {
                                 "tag": "~TFM_INS",
@@ -205,7 +204,7 @@ def test_run_option_lines_from_excel_dir_supports_compound_other_indexes(
                                     {
                                         "attribute": "RPT_OPT",
                                         "other_indexes": "FLO~3",
-                                        "value": 1,
+                                        "allregions": 1,
                                     }
                                 ],
                             }

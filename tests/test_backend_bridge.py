@@ -386,9 +386,8 @@ def test_compile_public_bundle_enables_value_flow_reporting_by_default():
     assert rpt_opt_rows == [
         {
             "attribute": "RPT_OPT",
-            "other_indexes": "FLO",
-            "stage": "3",
-            "value": 1,
+            "other_indexes": "FLO~3",
+            "allregions": 1,
         }
     ]
 
@@ -421,11 +420,31 @@ def test_compile_public_bundle_adds_reporting_note_sheet() -> None:
     reporting_sheet = next(
         sheet for sheet in syssettings["sheets"] if sheet["name"] == "Reporting"
     )
+    constants_sheet = next(
+        sheet for sheet in syssettings["sheets"] if sheet["name"] == "constants"
+    )
+    reporting_rows = [
+        row
+        for table in reporting_sheet["tables"]
+        for row in table.get("rows", [])
+        if row.get("attribute") == "RPT_OPT"
+    ]
 
-    assert reporting_sheet["tables"] == []
+    assert reporting_rows == [
+        {
+            "attribute": "RPT_OPT",
+            "other_indexes": "FLO~3",
+            "allregions": 1,
+        }
+    ]
     assert reporting_sheet["notes"][0] == "Run-scoped reporting options"
     assert any("VEDA and VEDA Online" in note for note in reporting_sheet["notes"])
     assert any("scenario.run" in note for note in reporting_sheet["notes"])
+    assert not any(
+        row.get("attribute") == "RPT_OPT"
+        for table in constants_sheet["tables"]
+        for row in table.get("rows", [])
+    )
 
 
 def _tableir_with_injected_user_constraints() -> dict:

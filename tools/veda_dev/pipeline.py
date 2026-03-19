@@ -195,6 +195,14 @@ def _normalize_rpt_opt_parts(
     return item, subgroup
 
 
+def _rpt_opt_value(row: dict[str, Any]) -> Any:
+    """Return the numeric value for an RPT_OPT row across supported layouts."""
+    for key in ("value", "allregions", "AllRegions"):
+        if key in row:
+            return row.get(key)
+    return None
+
+
 def _run_option_lines_from_tableir(tableir: dict[str, Any] | None) -> list[str]:
     """Build solver RUN-file statements from emitted syssettings RPT_OPT rows."""
     if not tableir:
@@ -215,7 +223,7 @@ def _run_option_lines_from_tableir(tableir: dict[str, Any] | None) -> list[str]:
                         row.get("other_indexes"),
                         row.get("stage"),
                     )
-                    value = row.get("value")
+                    value = _rpt_opt_value(row)
                     if (
                         normalized is None
                         or value in (None, "", 0, 0.0, "0")
@@ -306,7 +314,7 @@ def _run_option_lines_from_excel_dir(excel_dir: Path | None) -> list[str]:
                         row.get("other_indexes"),
                         row.get("stage"),
                     )
-                    value = row.get("value")
+                    value = _rpt_opt_value(row)
                     if (
                         normalized is None
                         or value in (None, "", 0, 0.0, "0")
