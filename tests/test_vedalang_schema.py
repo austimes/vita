@@ -361,3 +361,51 @@ def test_minimal_reference_package_validates() -> None:
         "region_partitions": deepcopy(valid_public_source()["region_partitions"]),
     }
     jsonschema.validate(data, load_schema())
+
+
+def test_policy_requires_budget_or_cases() -> None:
+    data = valid_public_source()
+    data["policies"] = [
+        {
+            "id": "co2_cap",
+            "kind": "emissions_budget",
+            "emission_commodity": "co2",
+        }
+    ]
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(data, load_schema())
+
+
+def test_policy_cases_require_non_empty_budgets() -> None:
+    data = valid_public_source()
+    data["policies"] = [
+        {
+            "id": "co2_cap",
+            "kind": "emissions_budget",
+            "emission_commodity": "co2",
+            "cases": [{"id": "co2_cap_case", "budgets": []}],
+        }
+    ]
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(data, load_schema())
+
+
+def test_policy_schema_accepts_case_budget_shape() -> None:
+    data = valid_public_source()
+    data["policies"] = [
+        {
+            "id": "co2_cap",
+            "kind": "emissions_budget",
+            "emission_commodity": "co2",
+            "cases": [
+                {
+                    "id": "co2_cap_case",
+                    "budgets": [
+                        {"year": 2025, "value": "0.5 Mt"},
+                        {"year": 2030, "value": "0.4 Mt"},
+                    ],
+                }
+            ],
+        }
+    ]
+    jsonschema.validate(data, load_schema())

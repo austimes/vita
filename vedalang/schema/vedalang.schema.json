@@ -59,6 +59,12 @@
         "$ref": "#/$defs/temporal_index_series"
       }
     },
+    "policies": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/policy"
+      }
+    },
     "region_partitions": {
       "type": "array",
       "items": {
@@ -147,6 +153,11 @@
     {
       "required": [
         "temporal_index_series"
+      ]
+    },
+    {
+      "required": [
+        "policies"
       ]
     },
     {
@@ -280,6 +291,9 @@
           "$ref": "#/$defs/ref_array"
         },
         "temporal_index_series": {
+          "$ref": "#/$defs/ref_array"
+        },
+        "policies": {
           "$ref": "#/$defs/ref_array"
         },
         "region_partitions": {
@@ -753,6 +767,102 @@
           "$ref": "#/$defs/description_field"
         }
       }
+    },
+    "policy_budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "year",
+        "value"
+      ],
+      "properties": {
+        "year": {
+          "type": "integer",
+          "minimum": 1900
+        },
+        "value": {
+          "$ref": "#/$defs/quantity"
+        }
+      }
+    },
+    "policy_case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "budgets"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/public_identifier"
+        },
+        "budgets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/policy_budget"
+          },
+          "minItems": 1
+        },
+        "description": {
+          "$ref": "#/$defs/description_field"
+        }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "emission_commodity"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/public_identifier"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "emissions_budget"
+          ]
+        },
+        "emission_commodity": {
+          "$ref": "#/$defs/commodity_identifier"
+        },
+        "budgets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/policy_budget"
+          },
+          "minItems": 1
+        },
+        "cases": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/policy_case"
+          },
+          "minItems": 1
+        },
+        "description": {
+          "$ref": "#/$defs/description_field"
+        }
+      },
+      "allOf": [
+        {
+          "oneOf": [
+            {
+              "required": [
+                "budgets"
+              ]
+            },
+            {
+              "required": [
+                "cases"
+              ]
+            }
+          ]
+        }
+      ]
     },
     "partition_mapping": {
       "oneOf": [

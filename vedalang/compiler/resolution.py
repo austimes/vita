@@ -13,6 +13,7 @@ from .ast import (
     FacilityDecl,
     FleetDecl,
     NetworkDecl,
+    PolicyDecl,
     RegionPartitionDecl,
     RunDecl,
     SiteDecl,
@@ -80,6 +81,7 @@ class ResolvedDefinitionGraph:
     spatial_layers: dict[str, SpatialLayerDecl]
     spatial_measure_sets: dict[str, SpatialMeasureSetDecl]
     temporal_index_series: dict[str, TemporalIndexSeriesDecl]
+    policies: dict[str, PolicyDecl]
     region_partitions: dict[str, RegionPartitionDecl]
     zone_overlays: dict[str, ZoneOverlayDecl]
     sites: dict[str, SiteDecl]
@@ -97,6 +99,9 @@ class RunContext:
     currency_year: int
     region_partition: str
     model_regions: tuple[str, ...]
+    include_cases: tuple[str, ...]
+    enable_policies: tuple[str, ...]
+    source_ref: str
 
 
 @dataclass(frozen=True)
@@ -138,6 +143,21 @@ class ResolvedZoneOpportunity:
 class ResolvedAssetNewBuildLimit:
     technology: str
     max_new_capacity: ParsedQuantity
+
+
+@dataclass(frozen=True)
+class ResolvedPolicyBudget:
+    year: int
+    value: ParsedQuantity
+
+
+@dataclass(frozen=True)
+class ResolvedPolicyActivation:
+    policy_id: str
+    kind: str
+    emission_commodity: str
+    selected_case: str | None
+    budgets: tuple[ResolvedPolicyBudget, ...]
 
 
 def parse_quantity(value: str | int | float) -> ParsedQuantity:
@@ -195,6 +215,7 @@ def _object_maps(source: SourceDocument) -> dict[str, dict[str, Any]]:
             source.temporal_index_series,
             "temporal_index_series",
         ),
+        "policies": _by_id(source.policies, "policy"),
         "region_partitions": _by_id(source.region_partitions, "region_partition"),
         "zone_overlays": _by_id(source.zone_overlays, "zone_overlay"),
         "sites": _by_id(source.sites, "site"),
@@ -226,6 +247,8 @@ def _package_dependency_refs(kind: str, item: Any) -> list[tuple[str, str]]:
         return [("technologies", ref) for ref in item.applies_to]
     if kind == "spatial_measure_sets":
         return [("spatial_layers", item.layer)]
+    if kind == "policies":
+        return [("commodities", item.emission_commodity)]
     if kind == "region_partitions":
         return [("spatial_layers", item.layer)]
     if kind == "zone_overlays":
@@ -417,6 +440,20 @@ def _qualify_imported_object(
             description=item.description,
             source_ref=item.source_ref,
         )
+    if kind == "policies":
+        return PolicyDecl(
+            id=_qualify_id(alias, item.id),
+            kind=item.kind,
+            emission_commodity=_qualify_ref(
+                alias,
+                item.emission_commodity,
+                candidates["commodities"],
+            ),
+            budgets=item.budgets,
+            cases=item.cases,
+            description=item.description,
+            source_ref=item.source_ref,
+        )
     if kind == "region_partitions":
         return RegionPartitionDecl(
             id=_qualify_id(alias, item.id),
@@ -535,13 +572,144 @@ def resolve_run(graph: ResolvedDefinitionGraph, run_id: str) -> RunContext:
             partition.id,
             "region_partition does not define a member set",
         )
-    return RunContext(
+    for asset in (*graph.facilities.values(), *graph.fleets.values()):
+        for policy_id in asset.policies:
+            if policy_id not in graph.policies:
+                raise ResolutionError(
+                    "E027",
+                    asset.id,
+                    f"asset references undefined policy '{policy_id}'",
+                    location=asset.source_ref.path,
+                )
+    for policy_id in run.enable_policies:
+        if policy_id not in graph.policies:
+            raise ResolutionError(
+                "E027",
+                run.id,
+                f"run enables undefined policy '{policy_id}'",
+                location=run.source_ref.path,
+            )
+    context = RunContext(
         run_id=run.id,
         base_year=run.base_year,
         currency_year=run.currency_year,
         region_partition=run.region_partition,
         model_regions=tuple(model_regions),
+        include_cases=tuple(run.include_cases),
+        enable_policies=tuple(run.enable_policies),
+        source_ref=run.source_ref.path,
     )
+    # Force policy validation at run-resolution time so diagnostics fail early.
+    resolve_policy_activations(graph, context)
+    return context
+
+
+def _resolved_policy_budgets(
+    *,
+    policy_id: str,
+    points: tuple[Any, ...],
+    location: str,
+) -> tuple[ResolvedPolicyBudget, ...]:
+    seen_years: set[int] = set()
+    budgets: list[ResolvedPolicyBudget] = []
+    for point in points:
+        if point.year in seen_years:
+            raise ResolutionError(
+                "E030",
+                policy_id,
+                f"duplicate budget year '{point.year}' in policy budget",
+                location=location,
+            )
+        seen_years.add(point.year)
+        budgets.append(
+            ResolvedPolicyBudget(
+                year=point.year,
+                value=parse_quantity(point.value),
+            )
+        )
+    return tuple(sorted(budgets, key=lambda item: item.year))
+
+
+def resolve_policy_activations(
+    graph: ResolvedDefinitionGraph,
+    run: RunContext,
+) -> tuple[ResolvedPolicyActivation, ...]:
+    """Resolve run-enabled policies and selected policy-case budgets."""
+    activations: list[ResolvedPolicyActivation] = []
+    selected_cases = set(run.include_cases)
+    for policy_id in run.enable_policies:
+        policy = graph.policies[policy_id]
+        commodity = graph.commodities.get(policy.emission_commodity)
+        if commodity is None or commodity.type != "emission":
+            raise ResolutionError(
+                "E028",
+                policy.id,
+                (
+                    "emissions_budget policy must reference a "
+                    "commodity with type 'emission'"
+                ),
+                location=policy.source_ref.path,
+            )
+
+        matching_cases = [
+            case
+            for case in policy.cases
+            if case.id in selected_cases
+        ]
+        if len(matching_cases) > 1:
+            raise ResolutionError(
+                "E029",
+                policy.id,
+                "run.include_cases selects multiple cases for the same policy",
+                location=run.source_ref,
+            )
+        if matching_cases:
+            selected_case = matching_cases[0]
+            budgets = _resolved_policy_budgets(
+                policy_id=policy.id,
+                points=selected_case.budgets,
+                location=selected_case.source_ref.path,
+            )
+            activations.append(
+                ResolvedPolicyActivation(
+                    policy_id=policy.id,
+                    kind=policy.kind,
+                    emission_commodity=policy.emission_commodity,
+                    selected_case=selected_case.id,
+                    budgets=budgets,
+                )
+            )
+            continue
+
+        if policy.budgets:
+            budgets = _resolved_policy_budgets(
+                policy_id=policy.id,
+                points=policy.budgets,
+                location=policy.source_ref.path,
+            )
+            activations.append(
+                ResolvedPolicyActivation(
+                    policy_id=policy.id,
+                    kind=policy.kind,
+                    emission_commodity=policy.emission_commodity,
+                    selected_case=None,
+                    budgets=budgets,
+                )
+            )
+            continue
+
+        if policy.cases:
+            # Case-based policy with no matching selected case is inert for this run.
+            continue
+
+        raise ResolutionError(
+            "E031",
+            policy.id,
+            "enabled policy has no budgets to activate",
+            location=policy.source_ref.path,
+        )
+
+    return tuple(sorted(activations, key=lambda item: item.policy_id))
 
 
 def resolve_sites(

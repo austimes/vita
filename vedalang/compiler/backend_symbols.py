@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from .artifacts import ResolvedArtifacts
@@ -22,6 +23,12 @@ def commodity_symbol(commodity_id: str) -> str:
 
 def run_symbol(run_id: str) -> str:
     return f"RUN_{run_id}"
+
+
+def user_constraint_symbol(constraint_id: str) -> str:
+    """Build a deterministic backend-safe symbol for user constraints."""
+    stem = re.sub(r"[^A-Za-z0-9]+", "_", str(constraint_id)).strip("_")
+    return f"UC_{stem or 'AUTO'}"
 
 
 def trade_sheet_name(commodity_id: str) -> str:

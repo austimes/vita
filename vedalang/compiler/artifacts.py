@@ -18,6 +18,7 @@ from .resolution import (
     parse_quantity,
     resolve_asset_new_build_limits,
     resolve_asset_stock,
+    resolve_policy_activations,
     resolve_sites,
     resolve_zone_opportunities,
 )
@@ -61,6 +62,16 @@ def _retrofit_uc_symbol(
     )
 
 
+def _emissions_budget_uc_symbol(
+    policy_id: str,
+    model_region: str,
+) -> str:
+    return (
+        f"UC_EMS_{_sanitize_uc_token(policy_id)}"
+        f"_{_sanitize_uc_token(model_region)}"
+    )
+
+
 def emit_csir(
     graph: ResolvedDefinitionGraph,
     run: RunContext,
@@ -78,6 +89,7 @@ def emit_csir(
         site_zone_memberships=site_zone_memberships,
     )
     resolved_zone_opportunities = resolve_zone_opportunities(graph, run, resolved_sites)
+    policy_activations = resolve_policy_activations(graph, run)
     explain_objects: dict[str, Any] = {}
     explain_traces: dict[str, Any] = {}
     role_instances: list[dict[str, Any]] = []
@@ -377,7 +389,42 @@ def emit_csir(
         "technology_role_instances": sorted(
             role_instances, key=lambda item: item["id"]
         ),
-        "policy_activations": [],
+        "policy_activations": [
+            {
+                "policy_id": activation.policy_id,
+                "kind": activation.kind,
+                "selected_case": activation.selected_case,
+                "emission_commodity": activation.emission_commodity,
+                "budgets": [
+                    {
+                        "year": budget.year,
+                        **_quantity_dict(budget.value),
+                    }
+                    for budget in activation.budgets
+                ],
+                "role_instances": sorted(
+                    [
+                        role_instance["id"]
+                        for role_instance in role_instances
+                        if role_instance["source_asset"].startswith("facilities.")
+                        and activation.policy_id
+                        in graph.facilities[
+                            role_instance["source_asset"].split(".", 1)[1]
+                        ].policies
+                    ]
+                    + [
+                        role_instance["id"]
+                        for role_instance in role_instances
+                        if role_instance["source_asset"].startswith("fleets.")
+                        and activation.policy_id
+                        in graph.fleets[
+                            role_instance["source_asset"].split(".", 1)[1]
+                        ].policies
+                    ]
+                ),
+            }
+            for activation in policy_activations
+        ],
         "zone_opportunities": zone_opportunities,
         "networks": networks,
     }
@@ -598,6 +645,113 @@ def lower_csir_to_cpir(
                     "transition": edge_id,
                     "user_constraint": user_constraint_id,
                 }
+
+    processes_by_id = {process["id"]: process for process in processes}
+    for activation in csir.get("policy_activations", []):
+        if not isinstance(activation, dict):
+            continue
+        if activation.get("kind") != "emissions_budget":
+            continue
+        emission_commodity = str(activation.get("emission_commodity", ""))
+        budgets = [
+            budget
+            for budget in (activation.get("budgets") or [])
+            if isinstance(budget, dict)
+        ]
+        if not budgets:
+            continue
+
+        role_instance_ids = {
+            str(role_instance_id)
+            for role_instance_id in (activation.get("role_instances") or [])
+            if role_instance_id is not None
+        }
+        if not role_instance_ids:
+            continue
+
+        processes_by_region: dict[str, list[str]] = {}
+        for process_id, process in processes_by_id.items():
+            source_role_instance = process.get("source_role_instance")
+            if source_role_instance not in role_instance_ids:
+                continue
+            if not any(
+                flow.get("direction") == "emission"
+                and flow.get("commodity") == emission_commodity
+                for flow in process.get("flows", [])
+            ):
+                continue
+            region = str(process.get("model_region"))
+            processes_by_region.setdefault(region, []).append(process_id)
+
+        for region, region_process_ids in sorted(processes_by_region.items()):
+            uc_id = (
+                f"UC::POLICY::{activation.get('policy_id')}::{region}"
+            )
+            uc_n = _emissions_budget_uc_symbol(
+                str(activation.get("policy_id", "policy")),
+                region,
+            )
+            rows: list[dict[str, Any]] = []
+            for process_id in sorted(region_process_ids):
+                rows.append(
+                    {
+                        "region": region,
+                        "process": process_id,
+                        "commodity": emission_commodity,
+                        "side": "OUT",
+                        "top_check": "O",
+                        "uc_comprd": 1.0,
+                    }
+                )
+            for budget in sorted(
+                budgets,
+                key=lambda item: int(item.get("year", 0)),
+            ):
+                year_value = budget.get("year")
+                amount_value = budget.get("amount")
+                if not isinstance(year_value, int):
+                    continue
+                if not isinstance(amount_value, (int, float)):
+                    continue
+                rows.append(
+                    {
+                        "region": region,
+                        "year": year_value,
+                        "limtype": "UP",
+                        "uc_rhsrt": float(amount_value),
+                    }
+                )
+
+            user_constraints.append(
+                {
+                    "id": uc_id,
+                    "kind": "emissions_budget",
+                    "uc_n": uc_n,
+                    "description": (
+                        "Emissions budget "
+                        f"{activation.get('policy_id')} for {region}"
+                    ),
+                    "source_policy": activation.get("policy_id"),
+                    "selected_case": activation.get("selected_case"),
+                    "emission_commodity": emission_commodity,
+                    "uc_sets": {"R_E": "AllRegions", "T_E": ""},
+                    "rows": rows,
+                }
+            )
+            trace_id = f"trace.lower.{uc_id}"
+            explain_objects[uc_id] = {
+                "generated_from": {
+                    "policy": activation.get("policy_id"),
+                    "model_region": region,
+                },
+                "trace_ids": [trace_id],
+            }
+            explain_traces[trace_id] = {
+                "kind": "emissions_budget_to_user_constraint",
+                "policy": activation.get("policy_id"),
+                "model_region": region,
+                "user_constraint": uc_id,
+            }
     for opportunity in csir.get("zone_opportunities", []):
         process_id = (
             f"P::zone_opportunity::{opportunity['id']}::{opportunity['technology']}"

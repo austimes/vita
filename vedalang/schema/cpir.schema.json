@@ -64,8 +64,6 @@
           "kind",
           "uc_n",
           "description",
-          "source_role_instance",
-          "transition_id",
           "uc_sets",
           "rows"
         ],
@@ -76,6 +74,9 @@
           "description": {"type": "string"},
           "source_role_instance": {"type": "string"},
           "transition_id": {"type": "string"},
+          "source_policy": {"type": "string"},
+          "selected_case": {"type": ["string", "null"]},
+          "emission_commodity": {"type": "string"},
           "uc_sets": {
             "type": "object",
             "additionalProperties": {"type": "string"}

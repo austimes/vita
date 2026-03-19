@@ -14,6 +14,7 @@ from .backend_symbols import (
     run_symbol,
     trade_process_pattern,
     trade_sheet_name,
+    user_constraint_symbol,
 )
 from .backend_symbols import (
     process_symbol as build_process_symbol,
@@ -303,6 +304,103 @@ def _trade_link_files(
     return files
 
 
+def _model_years(cpir: dict[str, Any], *, base_year: int) -> list[int]:
+    years: set[int] = {base_year}
+    raw = cpir.get("model_years")
+    if isinstance(raw, list):
+        for value in raw:
+            if isinstance(value, bool):
+                continue
+            if isinstance(value, int):
+                years.add(value)
+                continue
+            if isinstance(value, str):
+                normalized = value.strip()
+                if normalized.isdigit():
+                    years.add(int(normalized))
+    if len(years) == 1:
+        years.add(base_year + 10)
+    return sorted(years)
+
+
+def _lower_user_constraints_to_tables(
+    user_constraints: list[dict[str, Any]],
+    *,
+    process_symbols: dict[str, str],
+    commodity_symbols: dict[str, str],
+    model_years: list[int],
+) -> list[dict[str, Any]]:
+    tables: list[dict[str, Any]] = []
+    for index, user_constraint in enumerate(user_constraints):
+        if not isinstance(user_constraint, dict):
+            continue
+        rows: list[dict[str, Any]] = []
+        uc_name = str(
+            user_constraint.get("uc_n")
+            or user_constraint_symbol(str(user_constraint.get("id", f"{index}")))
+        )
+        description = user_constraint.get("description")
+        raw_rows = user_constraint.get("rows")
+        if not isinstance(raw_rows, list):
+            raw_rows = []
+        for raw_row in raw_rows:
+            if not isinstance(raw_row, dict):
+                continue
+            lowered_row: dict[str, Any] = {}
+            attribute_name = raw_row.get("attribute")
+            attribute_value = raw_row.get("value")
+            for key, value in raw_row.items():
+                if value is None:
+                    continue
+                if key in {"attribute", "value"}:
+                    continue
+                if key == "process" and isinstance(value, str):
+                    lowered_row[key] = process_symbols.get(value, value)
+                    continue
+                if key == "commodity" and isinstance(value, str):
+                    lowered_row[key] = commodity_symbols.get(value, value)
+                    continue
+                if key == "year" and isinstance(value, str):
+                    normalized = value.strip()
+                    lowered_row[key] = (
+                        int(normalized) if normalized.isdigit() else value
+                    )
+                    continue
+                lowered_row[key] = value
+
+            if (
+                isinstance(attribute_name, str)
+                and attribute_name.strip()
+                and attribute_value is not None
+            ):
+                lowered_row[attribute_name.strip().lower()] = attribute_value
+
+            if "uc_n" not in lowered_row:
+                lowered_row["uc_n"] = uc_name
+            if description and "uc_description" not in lowered_row:
+                lowered_row["uc_description"] = str(description)
+
+            has_rhs = any(str(column).startswith("uc_rhs") for column in lowered_row)
+            if has_rhs and "year" not in lowered_row:
+                for model_year in model_years:
+                    expanded = dict(lowered_row)
+                    expanded["year"] = model_year
+                    rows.append(expanded)
+                continue
+            rows.append(lowered_row)
+
+        table: dict[str, Any] = {"tag": "~UC_T", "rows": rows}
+        uc_sets = user_constraint.get("uc_sets")
+        if isinstance(uc_sets, dict):
+            table["uc_sets"] = {
+                str(key): str(value)
+                for key, value in uc_sets.items()
+                if value is not None
+            }
+        tables.append(table)
+    return tables
+
+
 def lower_bundle_to_tableir(
     *,
     source: dict[str, Any],
@@ -459,12 +557,21 @@ def lower_bundle_to_tableir(
         fi_t_rows.extend(emission_rows)
 
     start_year = artifacts.csir["base_year"]
+    model_years = _model_years(artifacts.cpir, base_year=start_year)
+    uc_tables = _lower_user_constraints_to_tables(
+        artifacts.cpir.get("user_constraints", []),
+        process_symbols=process_symbols,
+        commodity_symbols=commodity_symbols,
+        model_years=model_years,
+    )
     bookregions_rows = [
         {"bookname": bookname, "region": region} for region in model_regions
     ]
     startyear_rows = [{"value": start_year}]
-    milestoneyears_rows = [{"type": "Endyear", "year": start_year + 10}]
-    milestoneyears_rows.append({"type": "milestoneyear", "year": start_year})
+    milestoneyears_rows = [{"type": "Endyear", "year": max(model_years)}]
+    milestoneyears_rows.extend(
+        {"type": "milestoneyear", "year": year} for year in model_years
+    )
     currencies_rows = [{"currency": "USD"}]
     gdrate_rows = [
         {"region": region, "attribute": "G_DRATE", "currency": "USD", "value": 0.05}
@@ -474,6 +581,24 @@ def lower_bundle_to_tableir(
         {"region": region, "attribute": "YRFR", "timeslice": "AN", "value": 1.0}
         for region in model_regions
     ]
+
+    process_workbook_sheets: list[dict[str, Any]] = [
+        {
+            "name": "Processes",
+            "tables": [
+                {"tag": "~FI_PROCESS", "rows": process_rows},
+                {"tag": "~FI_T", "rows": fi_t_rows},
+                {"tag": "~TFM_INS", "rows": tfm_rows},
+            ],
+        }
+    ]
+    if uc_tables:
+        process_workbook_sheets.append(
+            {
+                "name": "UserConstraints",
+                "tables": uc_tables,
+            }
+        )
 
     tableir = {
         "files": [
@@ -505,16 +630,7 @@ def lower_bundle_to_tableir(
             },
             {
                 "path": f"vt_{bookname.lower()}_{run_id.lower()}.xlsx",
-                "sheets": [
-                    {
-                        "name": "Processes",
-                        "tables": [
-                            {"tag": "~FI_PROCESS", "rows": process_rows},
-                            {"tag": "~FI_T", "rows": fi_t_rows},
-                            {"tag": "~TFM_INS", "rows": tfm_rows},
-                        ],
-                    }
-                ],
+                "sheets": process_workbook_sheets,
             },
             *_trade_link_files(
                 artifacts.cpir.get("network_arcs", []),

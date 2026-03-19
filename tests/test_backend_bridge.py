@@ -1,7 +1,24 @@
-import jsonschema
+import json
+from copy import deepcopy
+from pathlib import Path
 
+import jsonschema
+import yaml
+
+from tools.veda_check import run_check
 from vedalang.compiler import compile_vedalang_bundle
+from vedalang.compiler.artifacts import ResolvedArtifacts, build_run_artifacts
+from vedalang.compiler.ast import parse_source
+from vedalang.compiler.backend import lower_bundle_to_tableir
 from vedalang.compiler.compiler import load_tableir_schema
+from vedalang.compiler.resolution import resolve_imports, resolve_run
+
+SCHEMA_DIR = Path(__file__).parent.parent / "vedalang" / "schema"
+
+
+def _load_schema(name: str) -> dict:
+    with open(SCHEMA_DIR / name) as f:
+        return json.load(f)
 
 
 def _sample_source(
@@ -189,6 +206,16 @@ def _table_rows(tableir: dict, tag: str) -> list[dict]:
     return rows
 
 
+def _tables_for_tag(tableir: dict, tag: str) -> list[dict]:
+    tables: list[dict] = []
+    for file_spec in tableir.get("files", []):
+        for sheet in file_spec.get("sheets", []):
+            for table in sheet.get("tables", []):
+                if table.get("tag") == tag:
+                    tables.append(table)
+    return tables
+
+
 def test_compile_public_bundle_emits_artifacts_and_trade_links():
     bundle = compile_vedalang_bundle(
         _sample_source(),
@@ -200,6 +227,12 @@ def test_compile_public_bundle_emits_artifacts_and_trade_links():
     assert bundle.cpir is not None
     assert bundle.explain is not None
     jsonschema.validate(bundle.tableir, load_tableir_schema())
+    jsonschema.validate(bundle.csir, _load_schema("csir.schema.json"))
+    jsonschema.validate(bundle.cpir, _load_schema("cpir.schema.json"))
+    assert bundle.csir["model_years"] == [2025, 2035]
+    assert bundle.csir["policy_activations"] == []
+    assert bundle.cpir["model_years"] == [2025, 2035]
+    assert len(bundle.cpir["user_constraints"]) == 1
 
     fi_process_rows = _table_rows(bundle.tableir, "~FI_PROCESS")
     tfm_rows = _table_rows(bundle.tableir, "~TFM_INS")
@@ -226,6 +259,52 @@ def test_compile_public_bundle_emits_artifacts_and_trade_links():
         if any(table.get("tag") == "~TRADELINKS" for table in sheet.get("tables", []))
     }
     assert trade_sheet_names == {"U_electricity"}
+
+
+def test_compile_public_bundle_lowers_retrofit_transition_to_cpir_user_constraint():
+    bundle = compile_vedalang_bundle(
+        _sample_source(),
+        selected_run="toy_states_2025",
+    )
+
+    user_constraints = bundle.cpir.get("user_constraints", [])
+    assert len(user_constraints) == 1
+    retrofit_uc = user_constraints[0]
+    assert retrofit_uc["kind"] == "retrofit_transition"
+    assert retrofit_uc["transition_id"] == (
+        "T::role_instance.brisbane_heat@QLD::gas_heater->heat_pump"
+    )
+    assert retrofit_uc["uc_n"] == (
+        "UC_RET_role_instance_brisbane_heat_QLD_gas_heater_heat_pump"
+    )
+    assert retrofit_uc["uc_sets"] == {"R_E": "AllRegions", "T_E": ""}
+    assert retrofit_uc["cost"] == {"amount": 70.0, "unit": "AUD2024/kW"}
+    assert retrofit_uc["rows"] == [
+        {
+            "region": "QLD",
+            "process": "P::role_instance.brisbane_heat@QLD::gas_heater",
+            "side": "IN",
+            "uc_act": 1.0,
+        },
+        {
+            "region": "QLD",
+            "process": "P::role_instance.brisbane_heat@QLD::heat_pump",
+            "side": "OUT",
+            "uc_act": 1.0,
+        },
+        {
+            "region": "QLD",
+            "year": 2025,
+            "limtype": "UP",
+            "uc_rhsrt": 0.0,
+        },
+        {
+            "region": "QLD",
+            "year": 2035,
+            "limtype": "UP",
+            "uc_rhsrt": 0.0,
+        },
+    ]
 
 
 def test_compile_public_bundle_allocates_fleet_stock_with_custom_weights():
@@ -293,3 +372,98 @@ def test_compile_public_bundle_lowers_activity_bound_to_act_bnd():
         and row.get("act_bnd") == 0.06
         for row in fi_t_rows
     )
+
+
+def _tableir_with_injected_user_constraints() -> dict:
+    source = _sample_source()
+    parsed = parse_source(source)
+    graph = resolve_imports(parsed, {})
+    run = resolve_run(graph, "toy_states_2025")
+    artifacts = build_run_artifacts(graph, run)
+
+    cpir = deepcopy(artifacts.cpir)
+    cpir["model_years"] = [2025, 2030, 2035]
+    gas_process = next(
+        process
+        for process in cpir["processes"]
+        if process["technology"] == "gas_heater"
+    )
+    cpir["user_constraints"] = [
+        {
+            "id": "UC::RETROFIT::toy",
+            "uc_n": "UC_RETROFIT_TOY",
+            "description": "Synthetic retrofit link for backend UC emission tests",
+            "uc_sets": {"R_E": "QLD", "T_E": ""},
+            "rows": [
+                {
+                    "region": gas_process["model_region"],
+                    "process": gas_process["id"],
+                    "side": "IN",
+                    "uc_act": 1.0,
+                },
+                {
+                    "region": gas_process["model_region"],
+                    "commodity": "co2",
+                    "side": "OUT",
+                    "attribute": "uc_comprd",
+                    "value": 1.0,
+                },
+                {
+                    "region": gas_process["model_region"],
+                    "limtype": "UP",
+                    "uc_rhsrt": 0.4,
+                },
+            ],
+        }
+    ]
+    rewritten_artifacts = ResolvedArtifacts(
+        csir=artifacts.csir,
+        cpir=cpir,
+        explain=artifacts.explain,
+    )
+    return lower_bundle_to_tableir(
+        source=source,
+        graph=graph,
+        artifacts=rewritten_artifacts,
+    )
+
+
+def test_lower_bundle_emits_uc_tables_from_cpir_user_constraints():
+    tableir = _tableir_with_injected_user_constraints()
+
+    uc_tables = _tables_for_tag(tableir, "~UC_T")
+    assert len(uc_tables) == 1
+    assert uc_tables[0].get("uc_sets") == {"R_E": "QLD", "T_E": ""}
+
+    uc_rows = uc_tables[0]["rows"]
+    assert uc_rows
+    assert all("value" not in row for row in uc_rows)
+    assert any(row.get("uc_comprd") == 1.0 for row in uc_rows)
+    assert any(
+        row.get("process") == "PRC_FAC_brisbane_heat_gas_heater"
+        for row in uc_rows
+    )
+    assert any(row.get("commodity") == "COM_co2" for row in uc_rows)
+
+    rhs_years = sorted(
+        row["year"]
+        for row in uc_rows
+        if row.get("uc_rhsrt") is not None
+    )
+    assert rhs_years == [2025, 2030, 2035]
+
+    milestone_rows = _table_rows(tableir, "~MILESTONEYEARS")
+    assert any(row == {"type": "Endyear", "year": 2035} for row in milestone_rows)
+    assert {
+        row["year"] for row in milestone_rows if row.get("type") == "milestoneyear"
+    } == {2025, 2030, 2035}
+
+
+def test_injected_uc_tableir_passes_run_check(tmp_path):
+    tableir = _tableir_with_injected_user_constraints()
+    path = tmp_path / "uc_backend_fixture.tableir.yaml"
+    path.write_text(yaml.safe_dump(tableir, sort_keys=False), encoding="utf-8")
+
+    result = run_check(path, from_tableir=True)
+    assert result.success
+    assert result.errors == 0

@@ -4,6 +4,7 @@ from pathlib import Path
 import jsonschema
 
 from tests.test_resolution import _packages_and_model
+from vedalang.compiler import parse_source
 from vedalang.compiler.artifacts import build_run_artifacts
 from vedalang.compiler.resolution import resolve_imports, resolve_run
 
@@ -113,3 +114,110 @@ def test_cpir_contains_transitions_and_network_arcs():
         if process.get("source_zone_opportunity") == "qld_central_rez_heat"
     )
     assert opportunity_process["max_new_capacity"]["amount"] == 1500.0
+
+
+def test_emissions_budget_policy_activation_lowers_to_cpir_user_constraint():
+    source = {
+        "dsl_version": "0.3",
+        "commodities": [
+            {"id": "co2", "type": "emission"},
+            {"id": "ng", "type": "energy", "energy_form": "primary"},
+            {"id": "heat", "type": "service"},
+        ],
+        "technologies": [
+            {
+                "id": "gas_boil",
+                "provides": "heat",
+                "inputs": [{"commodity": "ng", "basis": "HHV"}],
+                "emissions": [{"commodity": "co2", "factor": "0.056 t/GJ"}],
+            }
+        ],
+        "technology_roles": [
+            {
+                "id": "heat_sup",
+                "primary_service": "heat",
+                "technologies": ["gas_boil"],
+            }
+        ],
+        "spatial_layers": [
+            {
+                "id": "geo_demo",
+                "kind": "polygon",
+                "key": "region_id",
+                "geometry_file": "data/regions.geojson",
+            }
+        ],
+        "region_partitions": [
+            {
+                "id": "single_region",
+                "layer": "geo_demo",
+                "members": ["SINGLE"],
+                "mapping": {"kind": "constant", "value": "SINGLE"},
+            }
+        ],
+        "fleets": [
+            {
+                "id": "heat_sup_fleet",
+                "technology_role": "heat_sup",
+                "distribution": {"method": "direct"},
+                "policies": ["co2_cap"],
+                "description": "Policy-linked fleet fixture.",
+            }
+        ],
+        "policies": [
+            {
+                "id": "co2_cap",
+                "kind": "emissions_budget",
+                "emission_commodity": "co2",
+                "cases": [
+                    {
+                        "id": "co2_cap_case",
+                        "budgets": [
+                            {"year": 2025, "value": "0.5 Mt"},
+                            {"year": 2030, "value": "0.4 Mt"},
+                        ],
+                    }
+                ],
+            }
+        ],
+        "runs": [
+            {
+                "id": "s25_co2_cap",
+                "base_year": 2025,
+                "currency_year": 2024,
+                "region_partition": "single_region",
+                "enable_policies": ["co2_cap"],
+                "include_cases": ["co2_cap_case"],
+            }
+        ],
+    }
+
+    graph = resolve_imports(parse_source(source), {})
+    run = resolve_run(graph, "s25_co2_cap")
+    artifacts = build_run_artifacts(graph, run)
+
+    assert artifacts.csir["policy_activations"]
+    activation = artifacts.csir["policy_activations"][0]
+    assert activation["policy_id"] == "co2_cap"
+    assert activation["selected_case"] == "co2_cap_case"
+    assert activation["budgets"] == [
+        {"year": 2025, "amount": 0.5, "unit": "Mt"},
+        {"year": 2030, "amount": 0.4, "unit": "Mt"},
+    ]
+
+    emissions_ucs = [
+        uc
+        for uc in artifacts.cpir["user_constraints"]
+        if uc.get("kind") == "emissions_budget"
+    ]
+    assert len(emissions_ucs) == 1
+    uc = emissions_ucs[0]
+    assert uc["source_policy"] == "co2_cap"
+    assert uc["selected_case"] == "co2_cap_case"
+    assert uc["emission_commodity"] == "co2"
+    assert any(row.get("uc_comprd") == 1.0 for row in uc["rows"])
+    rhs_rows = [row for row in uc["rows"] if row.get("uc_rhsrt") is not None]
+    assert rhs_rows == [
+        {"region": "SINGLE", "year": 2025, "limtype": "UP", "uc_rhsrt": 0.5},
+        {"region": "SINGLE", "year": 2030, "limtype": "UP", "uc_rhsrt": 0.4},
+    ]

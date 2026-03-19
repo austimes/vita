@@ -18,6 +18,7 @@ def valid_public_source() -> dict:
             {"id": "natural_gas", "type": "energy", "energy_form": "primary"},
             {"id": "electricity", "type": "energy", "energy_form": "secondary"},
             {"id": "space_heat", "type": "service"},
+            {"id": "co2", "type": "emission"},
         ],
         "technologies": [
             {
@@ -87,6 +88,22 @@ def valid_public_source() -> dict:
                 "id": "demo_national_dwelling_stock_index",
                 "unit": "index",
                 "values": {"2023": 1.0, "2025": 1.04},
+            }
+        ],
+        "policies": [
+            {
+                "id": "co2_cap",
+                "kind": "emissions_budget",
+                "emission_commodity": "co2",
+                "cases": [
+                    {
+                        "id": "co2_cap_case",
+                        "budgets": [
+                            {"year": 2025, "value": "0.5 Mt"},
+                            {"year": 2030, "value": "0.4 Mt"},
+                        ],
+                    }
+                ],
             }
         ],
         "region_partitions": [
@@ -199,6 +216,9 @@ def test_parse_public_source_returns_typed_document() -> None:
         == "installed_capacity"
     )
     assert ast.sites[0].location.point == {"lat": -23.842, "lon": 151.248}
+    assert ast.policies[0].id == "co2_cap"
+    assert ast.policies[0].cases[0].id == "co2_cap_case"
+    assert ast.policies[0].cases[0].budgets[1].year == 2030
     assert ast.facilities[0].stock.items[0].metric == "installed_capacity"
     assert ast.facilities[0].new_build_limits[0].technology == "heat_heat_pump"
     assert ast.fleets[0].distribution.weight_by == "demo_abs_demography.dwelling_stock"
@@ -224,6 +244,12 @@ def test_parse_public_source_keeps_structural_source_paths() -> None:
     assert (
         ast.facilities[0].new_build_limits[0].source_ref.path
         == "facilities[0].new_build_limits[0]"
+    )
+    assert ast.policies[0].source_ref.path == "policies[0]"
+    assert ast.policies[0].cases[0].source_ref.path == "policies[0].cases[0]"
+    assert (
+        ast.policies[0].cases[0].budgets[1].source_ref.path
+        == "policies[0].cases[0].budgets[1]"
     )
     assert ast.fleets[0].distribution.source_ref.path == "fleets[0].distribution"
     assert ast.networks[0].links[0].source_ref.path == "networks[0].links[0]"

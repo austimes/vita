@@ -154,6 +154,32 @@ class TemporalIndexSeriesDecl:
 
 
 @dataclass(frozen=True)
+class PolicyBudgetPoint:
+    year: int
+    value: str | int | float
+    source_ref: SourceRef
+
+
+@dataclass(frozen=True)
+class PolicyCaseDecl:
+    id: str
+    budgets: tuple[PolicyBudgetPoint, ...]
+    description: str | None
+    source_ref: SourceRef
+
+
+@dataclass(frozen=True)
+class PolicyDecl:
+    id: str
+    kind: str
+    emission_commodity: str
+    budgets: tuple[PolicyBudgetPoint, ...]
+    cases: tuple[PolicyCaseDecl, ...]
+    description: str | None
+    source_ref: SourceRef
+
+
+@dataclass(frozen=True)
 class PartitionMapping:
     kind: str
     file: str | None
@@ -349,6 +375,7 @@ class SourceDocument:
     spatial_layers: tuple[SpatialLayerDecl, ...]
     spatial_measure_sets: tuple[SpatialMeasureSetDecl, ...]
     temporal_index_series: tuple[TemporalIndexSeriesDecl, ...]
+    policies: tuple[PolicyDecl, ...]
     region_partitions: tuple[RegionPartitionDecl, ...]
     zone_overlays: tuple[ZoneOverlayDecl, ...]
     sites: tuple[SiteDecl, ...]
@@ -439,6 +466,20 @@ def _parse_observed_value(data: dict[str, Any], path: str) -> ObservedValue:
         value=data["value"],
         year=int(data["year"]),
         source_ref=_source_ref(path),
+    )
+
+
+def _parse_policy_budget_points(
+    values: Any,
+    path: str,
+) -> tuple[PolicyBudgetPoint, ...]:
+    return tuple(
+        PolicyBudgetPoint(
+            year=int(item["year"]),
+            value=item["value"],
+            source_ref=_source_ref(f"{path}[{idx}]"),
+        )
+        for idx, item in enumerate(values or [])
     )
 
 
@@ -668,6 +709,38 @@ def parse_source(source: dict[str, Any]) -> SourceDocument:
                 source_ref=_source_ref(f"temporal_index_series[{idx}]"),
             )
             for idx, item in enumerate(source.get("temporal_index_series") or [])
+        ),
+        policies=tuple(
+            PolicyDecl(
+                id=str(item["id"]),
+                kind=str(item["kind"]),
+                emission_commodity=str(item["emission_commodity"]),
+                budgets=_parse_policy_budget_points(
+                    item.get("budgets"),
+                    f"policies[{idx}].budgets",
+                ),
+                cases=tuple(
+                    PolicyCaseDecl(
+                        id=str(case["id"]),
+                        budgets=_parse_policy_budget_points(
+                            case.get("budgets"),
+                            f"policies[{idx}].cases[{case_idx}].budgets",
+                        ),
+                        description=(
+                            str(case["description"])
+                            if case.get("description")
+                            else None
+                        ),
+                        source_ref=_source_ref(f"policies[{idx}].cases[{case_idx}]"),
+                    )
+                    for case_idx, case in enumerate(item.get("cases") or [])
+                ),
+                description=(
+                    str(item["description"]) if item.get("description") else None
+                ),
+                source_ref=_source_ref(f"policies[{idx}]"),
+            )
+            for idx, item in enumerate(source.get("policies") or [])
         ),
         region_partitions=tuple(
             RegionPartitionDecl(
