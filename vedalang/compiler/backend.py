@@ -604,6 +604,22 @@ def lower_bundle_to_tableir(
     ]
     if rpt_opt_rows:
         constants_tables.append({"tag": "~TFM_INS", "rows": rpt_opt_rows})
+    reporting_notes = [
+        "Run-scoped reporting options",
+        (
+            "RPT_OPT rows on the constants sheet are preserved as VEDA-style "
+            "syssettings inputs for parity with VEDA and VEDA Online."
+        ),
+        (
+            "During vita solver runs, matching RPT_OPT rows are mirrored into "
+            "scenario.run because TIMES reporting options are activated from the "
+            "RUN-file layer in this pipeline."
+        ),
+        (
+            "Current emitted option: RPT_OPT('FLO','3') = 1 when "
+            "runs[].reporting.value_flows is enabled."
+        ),
+    ]
 
     process_workbook_sheets: list[dict[str, Any]] = [
         {
@@ -645,6 +661,11 @@ def lower_bundle_to_tableir(
                     {
                         "name": "constants",
                         "tables": constants_tables,
+                    },
+                    {
+                        "name": "Reporting",
+                        "notes": reporting_notes,
+                        "tables": [],
                     },
                 ],
             },

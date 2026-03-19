@@ -407,6 +407,27 @@ def test_compile_public_bundle_can_disable_value_flow_reporting():
     assert rpt_opt_rows == []
 
 
+def test_compile_public_bundle_adds_reporting_note_sheet() -> None:
+    bundle = compile_vedalang_bundle(
+        _sample_source(),
+        selected_run="toy_states_2025",
+    )
+
+    syssettings = next(
+        file_spec
+        for file_spec in bundle.tableir["files"]
+        if file_spec["path"] == "syssettings.xlsx"
+    )
+    reporting_sheet = next(
+        sheet for sheet in syssettings["sheets"] if sheet["name"] == "Reporting"
+    )
+
+    assert reporting_sheet["tables"] == []
+    assert reporting_sheet["notes"][0] == "Run-scoped reporting options"
+    assert any("VEDA and VEDA Online" in note for note in reporting_sheet["notes"])
+    assert any("scenario.run" in note for note in reporting_sheet["notes"])
+
+
 def _tableir_with_injected_user_constraints() -> dict:
     source = _sample_source()
     parsed = parse_source(source)

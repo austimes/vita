@@ -42,6 +42,13 @@
           "type": "string",
           "description": "Name of the worksheet (Excel tab name)"
         },
+        "notes": {
+          "type": "array",
+          "description": "Optional free-text lines emitted directly onto the worksheet before any VEDA tables. Useful for human-readable documentation tabs.",
+          "items": {
+            "type": "string"
+          }
+        },
         "tables": {
           "type": "array",
           "description": "List of VEDA tables on this worksheet",

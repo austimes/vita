@@ -101,3 +101,36 @@ def test_uc_sets_emitted_before_table():
         assert ws.cell(3, 1).value == "~UC_T"
         # Row 4: header
         assert ws.cell(4, 1).value == "uc_n"
+
+
+def test_sheet_notes_emit_before_tables_with_blank_separator():
+    """Worksheet notes should render as plain text before tagged tables."""
+    tableir = {
+        "files": [
+            {
+                "path": "notes_test.xlsx",
+                "sheets": [
+                    {
+                        "name": "Reporting",
+                        "notes": [
+                            "Run-scoped reporting options",
+                            "RPT_OPT rows are mirrored into scenario.run.",
+                        ],
+                        "tables": [{"tag": "~FI_TEST", "rows": [{"col1": "value1"}]}],
+                    }
+                ],
+            }
+        ]
+    }
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        created = emit_excel(tableir, Path(tmpdir))
+        wb = load_workbook(created[0])
+        ws = wb["Reporting"]
+
+        assert ws.cell(1, 1).value == "Run-scoped reporting options"
+        assert ws.cell(2, 1).value == "RPT_OPT rows are mirrored into scenario.run."
+        assert ws.cell(3, 1).value is None
+        assert ws.cell(4, 1).value == "~FI_TEST"
+        assert ws.cell(5, 1).value == "col1"
+        assert ws.cell(6, 1).value == "value1"

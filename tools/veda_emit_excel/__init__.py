@@ -67,6 +67,12 @@ def emit_excel(tableir: dict, out_dir: Path, validate: bool = True) -> list[Path
             ws = wb.create_sheet(title=sheet_spec["name"])
 
             current_row = 1
+            for note in sheet_spec.get("notes", []):
+                ws.cell(row=current_row, column=1, value=note)
+                current_row += 1
+            if sheet_spec.get("notes"):
+                current_row += 1
+
             for table in sheet_spec.get("tables", []):
                 # Emit ~UC_SETS declarations before the table tag if present
                 uc_sets = table.get("uc_sets", {})

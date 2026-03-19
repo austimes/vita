@@ -11,6 +11,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from openpyxl import load_workbook
 from rich.console import Group
 
 from tools.cli_ui import (
@@ -178,16 +179,144 @@ def _extract_licensing_excerpt(lst_file: Path, *, max_lines: int = 6) -> list[st
     return excerpt
 
 
-def _run_option_lines_from_csir(csir: dict[str, Any] | None) -> list[str]:
-    """Build solver RUN-file statements from compile-time reporting settings."""
-    if not csir:
+def _normalize_rpt_opt_parts(
+    other_indexes: Any,
+    stage: Any,
+) -> tuple[str, str] | None:
+    """Normalize RPT_OPT item/subgroup from split or compound TableIR forms."""
+    item = str(other_indexes or "").strip()
+    subgroup = str(stage or "").strip()
+
+    if "~" in item and not subgroup:
+        item, subgroup = (part.strip() for part in item.split("~", 1))
+
+    if not item or not subgroup:
+        return None
+    return item, subgroup
+
+
+def _run_option_lines_from_tableir(tableir: dict[str, Any] | None) -> list[str]:
+    """Build solver RUN-file statements from emitted syssettings RPT_OPT rows."""
+    if not tableir:
         return []
 
-    reporting = csir.get("reporting") or {}
     lines: list[str] = []
-    if reporting.get("value_flows", True):
-        lines.append("RPT_OPT('FLO','3') = 1;")
+    for file_spec in tableir.get("files", []):
+        if file_spec.get("path") != "syssettings.xlsx":
+            continue
+        for sheet in file_spec.get("sheets", []):
+            for table in sheet.get("tables", []):
+                if table.get("tag") != "~TFM_INS":
+                    continue
+                for row in table.get("rows", []):
+                    if row.get("attribute") != "RPT_OPT":
+                        continue
+                    normalized = _normalize_rpt_opt_parts(
+                        row.get("other_indexes"),
+                        row.get("stage"),
+                    )
+                    value = row.get("value")
+                    if (
+                        normalized is None
+                        or value in (None, "", 0, 0.0, "0")
+                    ):
+                        continue
+                    item, subgroup = normalized
+                    lines.append(f"RPT_OPT('{item}','{subgroup}') = {value};")
     return lines
+
+
+def _iter_sheet_tables(sheet: Any) -> list[tuple[str, list[dict[str, Any]]]]:
+    """Parse emitter-style tagged tables from a worksheet."""
+    tables: list[tuple[str, list[dict[str, Any]]]] = []
+    row_idx = 1
+    max_row = sheet.max_row
+
+    while row_idx <= max_row:
+        first_cell = sheet.cell(row=row_idx, column=1).value
+        if not (isinstance(first_cell, str) and first_cell.startswith("~")):
+            row_idx += 1
+            continue
+
+        tag = first_cell.strip()
+        row_idx += 1
+
+        if tag in {"~STARTYEAR", "~ACTIVEPDEF"}:
+            scalar_rows: list[dict[str, Any]] = []
+            while row_idx <= max_row:
+                value = sheet.cell(row=row_idx, column=1).value
+                if value is None:
+                    break
+                scalar_rows.append({"value": value})
+                row_idx += 1
+            tables.append((tag, scalar_rows))
+            row_idx += 1
+            continue
+
+        headers: list[str] = []
+        col_idx = 1
+        while True:
+            value = sheet.cell(row=row_idx, column=col_idx).value
+            if value is None:
+                break
+            headers.append(str(value))
+            col_idx += 1
+        row_idx += 1
+
+        rows: list[dict[str, Any]] = []
+        while row_idx <= max_row:
+            first_value = sheet.cell(row=row_idx, column=1).value
+            if first_value is None:
+                break
+            row: dict[str, Any] = {}
+            for header_idx, header in enumerate(headers, start=1):
+                cell_value = sheet.cell(row=row_idx, column=header_idx).value
+                if cell_value is not None:
+                    row[header] = cell_value
+            rows.append(row)
+            row_idx += 1
+
+        tables.append((tag, rows))
+        row_idx += 1
+
+    return tables
+
+
+def _run_option_lines_from_excel_dir(excel_dir: Path | None) -> list[str]:
+    """Build solver RUN-file statements from emitted syssettings workbooks."""
+    if excel_dir is None:
+        return []
+
+    workbook_path = excel_dir / "syssettings.xlsx"
+    if not workbook_path.exists():
+        return []
+
+    workbook = load_workbook(workbook_path, data_only=True, read_only=True)
+    try:
+        lines: list[str] = []
+        for sheet_name in workbook.sheetnames:
+            sheet = workbook[sheet_name]
+            for tag, rows in _iter_sheet_tables(sheet):
+                if tag != "~TFM_INS":
+                    continue
+                for row in rows:
+                    if row.get("attribute") != "RPT_OPT":
+                        continue
+                    normalized = _normalize_rpt_opt_parts(
+                        row.get("other_indexes"),
+                        row.get("stage"),
+                    )
+                    value = row.get("value")
+                    if (
+                        normalized is None
+                        or value in (None, "", 0, 0.0, "0")
+                    ):
+                        continue
+                    item, subgroup = normalized
+                    lines.append(f"RPT_OPT('{item}','{subgroup}') = {value};")
+        return lines
+    finally:
+        workbook.close()
 
 
 def run_pipeline(
@@ -247,7 +376,7 @@ def run_pipeline(
         excel_dir: Path | None = None
         dd_dir: Path | None = None
         vedalang_source: dict | None = None
-        compiled_csir: dict[str, Any] | None = None
+        compiled_tableir: dict[str, Any] | None = None
 
         # Step 0: Heuristics (VedaLang only)
         heuristics_result = StepResult()
@@ -304,8 +433,8 @@ def run_pipeline(
                     measure_weights=measure_weights,
                     custom_weights=custom_weights,
                 )
-                compiled_csir = bundle.csir
                 tableir = bundle.tableir
+                compiled_tableir = tableir
 
                 tableir_file = work_dir / "model.tableir.yaml"
                 import yaml
@@ -370,6 +499,7 @@ def run_pipeline(
                     print(step_log("emit_excel", f"Emitting from {tableir_file}"))
 
                 tableir = load_tableir(tableir_file)
+                compiled_tableir = tableir
                 excel_dir = work_dir / "excel"
                 created = emit_excel(tableir, excel_dir, validate=False)
 
@@ -525,7 +655,11 @@ def run_pipeline(
 
                     # Run GAMS in a subdirectory of our work_dir
                     gams_work_dir = work_dir / "gams"
-                    run_option_lines = _run_option_lines_from_csir(compiled_csir)
+                    run_option_lines = _run_option_lines_from_excel_dir(excel_dir)
+                    if not run_option_lines:
+                        run_option_lines = _run_option_lines_from_tableir(
+                            compiled_tableir
+                        )
                     times_result = run_times(
                         dd_dir=dd_dir,
                         case=case,

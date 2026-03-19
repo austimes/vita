@@ -99,7 +99,9 @@ runs:
 - `fleets`: generic or distributed stock, using `distribution.method: direct`
   for toy single-region models
 - `runs`: compile-time selection of base year, currency year, region partition,
-  and optional reporting toggles such as `reporting.value_flows`
+  and optional reporting toggles such as `reporting.value_flows`. When enabled,
+  VedaLang emits the matching `RPT_OPT` control into `syssettings.xlsx` and
+  documents it on the workbook's `Reporting` tab.
 
 ## Step 2: Validate the Model
 

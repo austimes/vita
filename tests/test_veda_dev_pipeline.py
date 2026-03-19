@@ -6,10 +6,12 @@ from tools.veda_dev.pipeline import (
     PipelineResult,
     StepResult,
     _format_step_detail,
+    _run_option_lines_from_excel_dir,
     detect_input_kind,
     format_result_table,
     run_pipeline,
 )
+from tools.veda_emit_excel import emit_excel
 
 
 def _licensing_diag() -> dict:
@@ -150,3 +152,70 @@ def test_run_pipeline_fails_fast_on_unknown_input_kind(tmp_path: Path) -> None:
     assert "input" in result.steps
     assert result.steps["input"].success is False
     assert result.steps["input"].errors
+
+
+def test_run_option_lines_from_excel_dir_reads_emitted_rpt_opt_rows(
+    tmp_path: Path,
+) -> None:
+    tableir = {
+        "files": [
+            {
+                "path": "syssettings.xlsx",
+                "sheets": [
+                    {
+                        "name": "constants",
+                        "tables": [
+                            {
+                                "tag": "~TFM_INS",
+                                "rows": [
+                                    {
+                                        "attribute": "RPT_OPT",
+                                        "other_indexes": "FLO",
+                                        "stage": "3",
+                                        "value": 1,
+                                    }
+                                ],
+                            }
+                        ],
+                    }
+                ],
+            }
+        ]
+    }
+
+    emit_excel(tableir, tmp_path, validate=False)
+
+    assert _run_option_lines_from_excel_dir(tmp_path) == ["RPT_OPT('FLO','3') = 1;"]
+
+
+def test_run_option_lines_from_excel_dir_supports_compound_other_indexes(
+    tmp_path: Path,
+) -> None:
+    tableir = {
+        "files": [
+            {
+                "path": "syssettings.xlsx",
+                "sheets": [
+                    {
+                        "name": "constants",
+                        "tables": [
+                            {
+                                "tag": "~TFM_INS",
+                                "rows": [
+                                    {
+                                        "attribute": "RPT_OPT",
+                                        "other_indexes": "FLO~3",
+                                        "value": 1,
+                                    }
+                                ],
+                            }
+                        ],
+                    }
+                ],
+            }
+        ]
+    }
+
+    emit_excel(tableir, tmp_path, validate=False)
+
+    assert _run_option_lines_from_excel_dir(tmp_path) == ["RPT_OPT('FLO','3') = 1;"]
