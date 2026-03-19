@@ -359,6 +359,9 @@ def emit_csir(
         "currency_year": run.currency_year,
         "region_partition": run.region_partition,
         "model_regions": list(run.model_regions),
+        "reporting": {
+            "value_flows": run.reporting_value_flows,
+        },
         "commodities": [
             {
                 "id": commodity.id,

@@ -178,6 +178,18 @@ def _extract_licensing_excerpt(lst_file: Path, *, max_lines: int = 6) -> list[st
     return excerpt
 
 
+def _run_option_lines_from_csir(csir: dict[str, Any] | None) -> list[str]:
+    """Build solver RUN-file statements from compile-time reporting settings."""
+    if not csir:
+        return []
+
+    reporting = csir.get("reporting") or {}
+    lines: list[str] = []
+    if reporting.get("value_flows", True):
+        lines.append("RPT_OPT('FLO','3') = 1;")
+    return lines
+
+
 def run_pipeline(
     input_path: Path,
     *,
@@ -235,6 +247,7 @@ def run_pipeline(
         excel_dir: Path | None = None
         dd_dir: Path | None = None
         vedalang_source: dict | None = None
+        compiled_csir: dict[str, Any] | None = None
 
         # Step 0: Heuristics (VedaLang only)
         heuristics_result = StepResult()
@@ -291,6 +304,7 @@ def run_pipeline(
                     measure_weights=measure_weights,
                     custom_weights=custom_weights,
                 )
+                compiled_csir = bundle.csir
                 tableir = bundle.tableir
 
                 tableir_file = work_dir / "model.tableir.yaml"
@@ -511,6 +525,7 @@ def run_pipeline(
 
                     # Run GAMS in a subdirectory of our work_dir
                     gams_work_dir = work_dir / "gams"
+                    run_option_lines = _run_option_lines_from_csir(compiled_csir)
                     times_result = run_times(
                         dd_dir=dd_dir,
                         case=case,
@@ -520,6 +535,7 @@ def run_pipeline(
                         work_dir=gams_work_dir,
                         keep_workdir=True,  # We manage cleanup ourselves
                         verbose=verbose,
+                        run_option_lines=run_option_lines,
                     )
 
                     run_times_result.success = times_result.success
@@ -540,6 +556,10 @@ def run_pipeline(
                     run_times_result.artifacts["gams_command"] = " ".join(
                         times_result.gams_command
                     )
+                    if run_option_lines:
+                        run_times_result.artifacts["run_option_lines"] = (
+                            run_option_lines
+                        )
                     if times_result.stdout:
                         run_times_result.artifacts["gams_stdout_tail"] = _tail_text(
                             times_result.stdout

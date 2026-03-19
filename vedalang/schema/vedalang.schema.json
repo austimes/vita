@@ -1522,6 +1522,9 @@
         "temporal_partition": {
           "$ref": "#/$defs/identifier"
         },
+        "reporting": {
+          "$ref": "#/$defs/run_reporting"
+        },
         "include_cases": {
           "$ref": "#/$defs/ref_array"
         },
@@ -1530,6 +1533,15 @@
         },
         "description": {
           "$ref": "#/$defs/description_field"
+        }
+      }
+    },
+    "run_reporting": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "value_flows": {
+          "type": "boolean"
         }
       }
     }

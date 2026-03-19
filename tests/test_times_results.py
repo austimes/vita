@@ -97,6 +97,8 @@ def test_extract_results_handles_header_variants(
         }
     ]
     assert results.var_flo_source == "VAR_FLO"
+    assert results.val_flo == []
+    assert results.val_flo_source is None
 
 
 @patch("tools.veda_dev.times_results.dump_symbol_csv")
@@ -227,6 +229,48 @@ def test_extract_results_switching_tables_fall_back_to_toy_par_symbols(
     assert [row["process"] for row in results.var_cap] == ["P_H2"]
     assert [row["process"] for row in results.var_flo] == ["P_H2"]
     assert results.var_flo_source == "PAR_FLOM"
+    assert results.val_flo == []
+    assert results.val_flo_source is None
+
+
+@patch("tools.veda_dev.times_results.dump_symbol_csv")
+@patch("tools.veda_dev.times_results.find_gdxdump")
+def test_extract_results_value_flows_use_annual_default_timeslice(
+    mock_find,
+    mock_dump,
+    tmp_path,
+):
+    """VAL_FLO rows normalize missing timeslice columns to ANNUAL."""
+    mock_find.return_value = "/usr/bin/gdxdump"
+
+    symbol_csv = {
+        "VAL_FLO": (
+            '"R","ALLYEAR","P","C","Val"\n'
+            '"REG1","2020","P_DEV","COM_ELEC",8.0'
+        ),
+    }
+
+    def _mock_dump(_gdx_path, symbol, _gdxdump):
+        return symbol_csv.get(symbol)
+
+    mock_dump.side_effect = _mock_dump
+
+    gdx_path = tmp_path / "scenario.gdx"
+    gdx_path.touch()
+
+    results = extract_results(gdx_path, include_flows=True, limit=0)
+
+    assert results.val_flo_source == "VAL_FLO"
+    assert results.val_flo == [
+        {
+            "region": "REG1",
+            "year": "2020",
+            "process": "P_DEV",
+            "commodity": "COM_ELEC",
+            "timeslice": "ANNUAL",
+            "level": 8.0,
+        }
+    ]
 
 
 @patch("tools.veda_dev.times_results.dump_symbol_csv")

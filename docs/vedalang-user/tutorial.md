@@ -85,6 +85,8 @@ runs:
     base_year: 2025
     currency_year: 2024
     region_partition: toy_region
+    reporting:
+      value_flows: false
 ```
 
 ### What Each Section Does
@@ -96,7 +98,8 @@ runs:
 - `region_partitions`: how underlying spatial members are grouped into model regions
 - `fleets`: generic or distributed stock, using `distribution.method: direct`
   for toy single-region models
-- `runs`: compile-time selection of base year, currency year, and region partition
+- `runs`: compile-time selection of base year, currency year, region partition,
+  and optional reporting toggles such as `reporting.value_flows`
 
 ## Step 2: Validate the Model
 

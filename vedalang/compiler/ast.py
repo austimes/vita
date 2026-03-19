@@ -358,6 +358,7 @@ class RunDecl:
     currency_year: int
     region_partition: str
     temporal_partition: str | None
+    reporting_value_flows: bool
     include_cases: tuple[str, ...]
     enable_policies: tuple[str, ...]
     description: str | None
@@ -966,6 +967,9 @@ def parse_source(source: dict[str, Any]) -> SourceDocument:
                     str(item["temporal_partition"])
                     if item.get("temporal_partition")
                     else None
+                ),
+                reporting_value_flows=bool(
+                    (item.get("reporting") or {}).get("value_flows", True)
                 ),
                 include_cases=_tuple_strings(item.get("include_cases")),
                 enable_policies=_tuple_strings(item.get("enable_policies")),

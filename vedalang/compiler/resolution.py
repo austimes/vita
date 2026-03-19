@@ -99,6 +99,7 @@ class RunContext:
     currency_year: int
     region_partition: str
     model_regions: tuple[str, ...]
+    reporting_value_flows: bool
     include_cases: tuple[str, ...]
     enable_policies: tuple[str, ...]
     source_ref: str
@@ -595,6 +596,7 @@ def resolve_run(graph: ResolvedDefinitionGraph, run_id: str) -> RunContext:
         currency_year=run.currency_year,
         region_partition=run.region_partition,
         model_regions=tuple(model_regions),
+        reporting_value_flows=run.reporting_value_flows,
         include_cases=tuple(run.include_cases),
         enable_policies=tuple(run.enable_policies),
         source_ref=run.source_ref.path,

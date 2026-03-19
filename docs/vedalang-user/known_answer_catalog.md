@@ -24,6 +24,7 @@ Status values below reflect current `bd` state as of 2026-03-15.
 | KA12 | `test_ka12_temporal_growth_scales_supply_activity` | `ka12_temporal_growth_annual.veda.yaml` | Annual-growth base-year adjustment scales solved activity over a ten-year run shift | `VAR_ACT(GAS_SUPPLY, 2030)` is `8.17962622217` and `(KA12 / KA01-2020 baseline)` equals `1.1^10` | Implemented (`vedalang-rh9.4.3`) |
 | KA13 | `test_ka13_constraint_edge_exposes_actionable_solver_diagnostics` | `ka08_build_limit_tight.veda.yaml` (stressed bound fixture) | Tight build-limit edge case now verifies solver diagnostics artifacts are populated and bound metadata is visible when constraints are active | Asserts `summary.ok`, model/solve status codes, `gams_command`/`lst_file`/diagnostics path presence, compiled `NCAP_BND(IFB)=0`, and near-zero solved `IFB` activity | Implemented (`vedalang-rh9.3.3`) |
 | KA14 | `test_ka14_run_selection_changes_solved_activity` | `ka14_run_selection_multi_run.veda.yaml` | Selecting different run IDs from one multi-run source yields deterministic solved-output differences | `run=reg1_2020` gives `3.1536`, `run=reg1_2030` gives `6.3072`, and ratio is exactly `2.0` | Implemented (`vedalang-rh9.4.3`) |
+| KA15 | `test_vita_run_respects_value_flow_reporting_toggle` | `ka15_value_flow_reporting_toggle.veda.yaml` | Run-scoped `reporting.value_flows` controls whether the solver scaffold injects `RPT_OPT(FLO,3)=1` for the selected run | Default run solves with `RPT_OPT(FLO,1)=1` and `RPT_OPT(FLO,3)=1` visible in the solved GDX; reporting-off run leaves `RPT_OPT` unset | Implemented (`vedalang-2ckt`) |
 
 ## VedaLang To VEDA/TIMES Mapping
 
@@ -44,7 +45,7 @@ The suite validates model semantics through the full path:
 | `networks[*].links[*]` directional transfer links | `suppxls/trades` `~TRADELINKS` topology plus generated trade processes in solved GDX | KA10 asserts region-scoped `VAR_ACT` supplier dominance flips between open and constrained network directions |
 | `facilities[*].stock.adjust_to_base_year.using` with `annual_growth` | Run-specific adjusted stock in CSIR/CPIR lowered to `PRC_RESID` for selected base year | KA12 solved activity ratio check against `1.1^10` baseline scaling |
 | `temporal_index_series[*]` + run-specific base year | Index-ratio adjustment of stock before lowering for selected run (`reg1_2020` vs `reg1_2030`) | KA14 solved-level delta and ratio assertions across selected run IDs |
-| `runs[*]` (`base_year`, `region_partition`) | `syssettings.xlsx` run/year context (`~STARTYEAR`, `~BOOKREGIONS_MAP`) and region-scoped DD generation | Year/region slices in `VAR_ACT` rows used by assertions |
+| `runs[*]` (`base_year`, `region_partition`, `reporting.value_flows`) | `syssettings.xlsx` run/year context (`~STARTYEAR`, `~BOOKREGIONS_MAP`) plus reporting controls (`~TFM_INS` `RPT_OPT(FLO,3)=1`), with the solver scaffold mirroring that as a RUN-file `RPT_OPT('FLO','3') = 1;` assignment | Year/region slices in `VAR_ACT` rows and run-scoped reporting control in solved artifacts |
 
 ## Per-Test Mapping Notes
 

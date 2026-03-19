@@ -32,6 +32,14 @@
     "currency_year": {"type": "integer"},
     "region_partition": {"type": "string"},
     "model_regions": {"type": "array", "items": {"type": "string"}},
+    "reporting": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value_flows"],
+      "properties": {
+        "value_flows": {"type": "boolean"}
+      }
+    },
     "commodities": {
       "type": "array",
       "items": {

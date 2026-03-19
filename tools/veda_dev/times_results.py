@@ -33,6 +33,7 @@ ACTIVITY_SYMBOL_PREFERENCE = ("VAR_ACT", "PAR_ACTM", "PAR_ACT")
 NEW_CAPACITY_SYMBOL_PREFERENCE = ("VAR_NCAP", "PAR_NCAPM", "PAR_NCAP")
 INSTALLED_CAPACITY_SYMBOL_PREFERENCE = ("VAR_CAP", "PAR_CAPM", "PAR_NCAPM")
 FLOW_SYMBOL_PREFERENCE = ("VAR_FLO", "PAR_FLO", "PAR_FLOM")
+VALUE_FLOW_SYMBOL_PREFERENCE = ("VAL_FLO",)
 
 ParsedSymbolRow = tuple[dict[str, str], float, str, str]
 
@@ -49,6 +50,8 @@ class TimesResults:
     var_cap: list[dict[str, Any]] = field(default_factory=list)
     var_flo: list[dict[str, Any]] = field(default_factory=list)
     var_flo_source: str | None = None
+    val_flo: list[dict[str, Any]] = field(default_factory=list)
+    val_flo_source: str | None = None
     par_pasti: list[dict[str, Any]] = field(default_factory=list)  # NCAP_PASTI input
     par_resid: list[dict[str, Any]] = field(default_factory=list)  # PRC_RESID input
     errors: list[str] = field(default_factory=list)
@@ -63,6 +66,8 @@ class TimesResults:
             "var_cap": self.var_cap,
             "var_flo": self.var_flo,
             "var_flo_source": self.var_flo_source,
+            "val_flo": self.val_flo,
+            "val_flo_source": self.val_flo_source,
             "par_pasti": self.par_pasti,
             "par_resid": self.par_resid,
             "errors": self.errors,
@@ -120,6 +125,11 @@ def _apply_limit(rows: list[dict[str, Any]], limit: int | None) -> list[dict[str
     return rows[:limit]
 
 
+def _normalize_timeslice(row: dict[str, str], *, default: str = "") -> str:
+    timeslice = _get_field(row, *TIMESLICE_COLUMNS)
+    return timeslice or default
+
+
 def _extract_nonzero_rows_from_symbols(
     *,
     gdx_path: Path,
@@ -165,9 +175,11 @@ def _extract_flow_rows(
     *,
     gdx_path: Path,
     gdxdump: str,
+    symbol_preference: tuple[str, ...],
     process_filter: list[str] | None,
     year_filter: list[str] | None,
     limit: int | None,
+    default_timeslice: str = "",
 ) -> tuple[str | None, list[dict[str, Any]]]:
     """Extract solved flow rows using a deterministic symbol fallback order.
 
@@ -177,7 +189,7 @@ def _extract_flow_rows(
     symbol, source_rows = _extract_nonzero_rows_from_symbols(
         gdx_path=gdx_path,
         gdxdump=gdxdump,
-        symbol_preference=FLOW_SYMBOL_PREFERENCE,
+        symbol_preference=symbol_preference,
         process_filter=process_filter,
         year_filter=year_filter,
     )
@@ -190,7 +202,7 @@ def _extract_flow_rows(
             "year": year,
             "process": process,
             "commodity": _get_field(row, *COMMODITY_COLUMNS),
-            "timeslice": _get_field(row, *TIMESLICE_COLUMNS),
+            "timeslice": _normalize_timeslice(row, default=default_timeslice),
             "level": val,
         }
         for row, val, process, year in source_rows
@@ -313,9 +325,22 @@ def extract_results(
         ) = _extract_flow_rows(
             gdx_path=gdx_path,
             gdxdump=gdxdump,
+            symbol_preference=FLOW_SYMBOL_PREFERENCE,
             process_filter=process_filter,
             year_filter=year_filter,
             limit=limit,
+        )
+        (
+            results.val_flo_source,
+            results.val_flo,
+        ) = _extract_flow_rows(
+            gdx_path=gdx_path,
+            gdxdump=gdxdump,
+            symbol_preference=VALUE_FLOW_SYMBOL_PREFERENCE,
+            process_filter=process_filter,
+            year_filter=year_filter,
+            limit=limit,
+            default_timeslice="ANNUAL",
         )
 
     # Extract NCAP_PASTI (past investments / existing capacity with vintage)
@@ -514,6 +539,16 @@ def format_results_console(results: TimesResults, limit: int = 20) -> str:
             )
         )
 
+    if results.val_flo:
+        value_flow_symbol = results.val_flo_source or "VAL_FLO"
+        sections.append(
+            data_table(
+                f"Value Flows ({value_flow_symbol})",
+                ["Year", "Process", "Commodity", "Level"],
+                _rows(results.val_flo, ["year", "process", "commodity", "level"]),
+            )
+        )
+
     if results.par_pasti:
         sections.append(
             data_table(
@@ -565,6 +600,7 @@ def save_results(
                     "objective": results.objective,
                     "objective_breakdown": results.objective_breakdown,
                     "var_flo_source": results.var_flo_source,
+                    "val_flo_source": results.val_flo_source,
                 },
                 f,
                 indent=2,
@@ -577,6 +613,7 @@ def save_results(
             ("var_ncap", results.var_ncap),
             ("var_cap", results.var_cap),
             ("var_flo", results.var_flo),
+            ("val_flo", results.val_flo),
             ("par_pasti", results.par_pasti),
             ("par_resid", results.par_resid),
         ]:

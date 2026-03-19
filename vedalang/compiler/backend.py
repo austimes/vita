@@ -588,6 +588,22 @@ def lower_bundle_to_tableir(
         {"region": region, "attribute": "YRFR", "timeslice": "AN", "value": 1.0}
         for region in model_regions
     ]
+    rpt_opt_rows: list[dict[str, Any]] = []
+    if artifacts.csir.get("reporting", {}).get("value_flows", True):
+        rpt_opt_rows.append(
+            {
+                "attribute": "RPT_OPT",
+                "other_indexes": "FLO",
+                "stage": "3",
+                "value": 1,
+            }
+        )
+    constants_tables = [
+        {"tag": "~TFM_INS", "rows": gdrate_rows},
+        {"tag": "~TFM_INS", "rows": yrfr_rows},
+    ]
+    if rpt_opt_rows:
+        constants_tables.append({"tag": "~TFM_INS", "rows": rpt_opt_rows})
 
     process_workbook_sheets: list[dict[str, Any]] = [
         {
@@ -628,10 +644,7 @@ def lower_bundle_to_tableir(
                     },
                     {
                         "name": "constants",
-                        "tables": [
-                            {"tag": "~TFM_INS", "rows": gdrate_rows},
-                            {"tag": "~TFM_INS", "rows": yrfr_rows},
-                        ],
+                        "tables": constants_tables,
                     },
                 ],
             },

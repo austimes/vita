@@ -374,6 +374,39 @@ def test_compile_public_bundle_lowers_activity_bound_to_act_bnd():
     )
 
 
+def test_compile_public_bundle_enables_value_flow_reporting_by_default():
+    bundle = compile_vedalang_bundle(
+        _sample_source(),
+        selected_run="toy_states_2025",
+    )
+
+    tfm_rows = _table_rows(bundle.tableir, "~TFM_INS")
+    rpt_opt_rows = [row for row in tfm_rows if row.get("attribute") == "RPT_OPT"]
+
+    assert rpt_opt_rows == [
+        {
+            "attribute": "RPT_OPT",
+            "other_indexes": "FLO",
+            "stage": "3",
+            "value": 1,
+        }
+    ]
+
+
+def test_compile_public_bundle_can_disable_value_flow_reporting():
+    source = deepcopy(_sample_source())
+    source["runs"][0]["reporting"] = {"value_flows": False}
+    bundle = compile_vedalang_bundle(
+        source,
+        selected_run="toy_states_2025",
+    )
+
+    tfm_rows = _table_rows(bundle.tableir, "~TFM_INS")
+    rpt_opt_rows = [row for row in tfm_rows if row.get("attribute") == "RPT_OPT"]
+
+    assert rpt_opt_rows == []
+
+
 def _tableir_with_injected_user_constraints() -> dict:
     source = _sample_source()
     parsed = parse_source(source)
