@@ -651,6 +651,17 @@ def resolve_policy_activations(
                 location=policy.source_ref.path,
             )
 
+        seen_case_ids: set[str] = set()
+        for case in policy.cases:
+            if case.id in seen_case_ids:
+                raise ResolutionError(
+                    "E032",
+                    policy.id,
+                    f"duplicate case id '{case.id}' in policy",
+                    location=case.source_ref.path,
+                )
+            seen_case_ids.add(case.id)
+
         matching_cases = [
             case
             for case in policy.cases
@@ -699,8 +710,12 @@ def resolve_policy_activations(
             continue
 
         if policy.cases:
-            # Case-based policy with no matching selected case is inert for this run.
-            continue
+            raise ResolutionError(
+                "E031",
+                policy.id,
+                "enabled case-based policy has no selected case in run.include_cases",
+                location=run.source_ref,
+            )
 
         raise ResolutionError(
             "E031",

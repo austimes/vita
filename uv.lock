@@ -1293,7 +1293,7 @@ wheels = [
 
 [[package]]
 name = "vita"
-version = "0.4.16"
+version = "0.4.17"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi" },

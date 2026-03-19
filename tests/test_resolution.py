@@ -834,6 +834,148 @@ def test_resolve_run_fails_when_multiple_cases_selected_for_policy():
         resolve_run(graph, "single_2025")
 
 
+def test_resolve_run_fails_when_case_based_policy_not_selected():
+    source = parse_source(
+        {
+            "dsl_version": "0.3",
+            "commodities": [
+                {"id": "co2", "type": "emission"},
+                {"id": "space_heat", "type": "service"},
+            ],
+            "technologies": [
+                {
+                    "id": "heater",
+                    "provides": "space_heat",
+                    "emissions": [{"commodity": "co2", "factor": "0.1 t/GJ"}],
+                }
+            ],
+            "technology_roles": [
+                {
+                    "id": "heat_supply",
+                    "primary_service": "space_heat",
+                    "technologies": ["heater"],
+                }
+            ],
+            "policies": [
+                {
+                    "id": "co2_cap",
+                    "kind": "emissions_budget",
+                    "emission_commodity": "co2",
+                    "cases": [
+                        {
+                            "id": "cap_a",
+                            "budgets": [{"year": 2025, "value": "1 Mt"}],
+                        }
+                    ],
+                }
+            ],
+            "spatial_layers": [
+                {
+                    "id": "geo_demo",
+                    "kind": "polygon",
+                    "key": "region_id",
+                    "geometry_file": "data/regions.geojson",
+                }
+            ],
+            "region_partitions": [
+                {
+                    "id": "single_region",
+                    "layer": "geo_demo",
+                    "members": ["SINGLE"],
+                    "mapping": {"kind": "constant", "value": "SINGLE"},
+                }
+            ],
+            "runs": [
+                {
+                    "id": "single_2025",
+                    "base_year": 2025,
+                    "currency_year": 2024,
+                    "region_partition": "single_region",
+                    "enable_policies": ["co2_cap"],
+                    "include_cases": ["dem_base"],
+                }
+            ],
+        }
+    )
+    graph = resolve_imports(source, {})
+
+    with pytest.raises(ResolutionError, match="E031"):
+        resolve_run(graph, "single_2025")
+
+
+def test_resolve_run_fails_on_duplicate_policy_case_ids():
+    source = parse_source(
+        {
+            "dsl_version": "0.3",
+            "commodities": [
+                {"id": "co2", "type": "emission"},
+                {"id": "space_heat", "type": "service"},
+            ],
+            "technologies": [
+                {
+                    "id": "heater",
+                    "provides": "space_heat",
+                    "emissions": [{"commodity": "co2", "factor": "0.1 t/GJ"}],
+                }
+            ],
+            "technology_roles": [
+                {
+                    "id": "heat_supply",
+                    "primary_service": "space_heat",
+                    "technologies": ["heater"],
+                }
+            ],
+            "policies": [
+                {
+                    "id": "co2_cap",
+                    "kind": "emissions_budget",
+                    "emission_commodity": "co2",
+                    "cases": [
+                        {
+                            "id": "cap_a",
+                            "budgets": [{"year": 2025, "value": "1 Mt"}],
+                        },
+                        {
+                            "id": "cap_a",
+                            "budgets": [{"year": 2030, "value": "0.8 Mt"}],
+                        },
+                    ],
+                }
+            ],
+            "spatial_layers": [
+                {
+                    "id": "geo_demo",
+                    "kind": "polygon",
+                    "key": "region_id",
+                    "geometry_file": "data/regions.geojson",
+                }
+            ],
+            "region_partitions": [
+                {
+                    "id": "single_region",
+                    "layer": "geo_demo",
+                    "members": ["SINGLE"],
+                    "mapping": {"kind": "constant", "value": "SINGLE"},
+                }
+            ],
+            "runs": [
+                {
+                    "id": "single_2025",
+                    "base_year": 2025,
+                    "currency_year": 2024,
+                    "region_partition": "single_region",
+                    "enable_policies": ["co2_cap"],
+                    "include_cases": ["cap_a"],
+                }
+            ],
+        }
+    )
+    graph = resolve_imports(source, {})
+
+    with pytest.raises(ResolutionError, match="E032"):
+        resolve_run(graph, "single_2025")
+
+
 def test_allocate_direct_fleet_defaults_to_single_region_and_copies_stock():
     source = parse_source(
         {
