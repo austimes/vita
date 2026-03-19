@@ -330,6 +330,10 @@ def _lower_user_constraints_to_tables(
     commodity_symbols: dict[str, str],
     model_years: list[int],
 ) -> list[dict[str, Any]]:
+    side_aliases = {
+        "IN": "LHS",
+        "OUT": "RHS",
+    }
     tables: list[dict[str, Any]] = []
     for index, user_constraint in enumerate(user_constraints):
         if not isinstance(user_constraint, dict):
@@ -359,6 +363,9 @@ def _lower_user_constraints_to_tables(
                     continue
                 if key == "commodity" and isinstance(value, str):
                     lowered_row[key] = commodity_symbols.get(value, value)
+                    continue
+                if key == "side" and isinstance(value, str):
+                    lowered_row[key] = side_aliases.get(value.strip().upper(), value)
                     continue
                 if key == "year" and isinstance(value, str):
                     normalized = value.strip()

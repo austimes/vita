@@ -155,7 +155,8 @@ def create_app(
             raise HTTPException(status_code=400, detail="No VedaLang file selected.")
 
         request["file"] = str(selected)
-        request.setdefault("run", state.initial_run)
+        if not request.get("run"):
+            request["run"] = state.initial_run
         response = query_res_graph(request)
         return JSONResponse(response)
 

@@ -697,15 +697,49 @@ function formatSectionStatus(status) {
   return text.replace(/_/g, " ");
 }
 
-function formatQueryStatus(status, modeUsed) {
+function formatQueryStatus(status, modeUsed, diagnostics) {
   const statusText = String(status || "");
   if (!statusText || statusText === "ok") {
     return "";
+  }
+  const diags = Array.isArray(diagnostics) ? diagnostics : [];
+  const errorDiag = diags.find((d) => d.severity === "error");
+  if (errorDiag && errorDiag.message) {
+    return errorDiag.message;
+  }
+  const warnDiag = diags.find((d) => d.severity === "warning");
+  if (warnDiag && warnDiag.message) {
+    return warnDiag.message;
   }
   if (modeUsed) {
     return `${statusText} (${modeUsed})`;
   }
   return statusText;
+}
+
+function showGraphEmptyState(message) {
+  const container = document.getElementById("graph");
+  if (!container) return;
+  let overlay = document.getElementById("graphEmptyState");
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "graphEmptyState";
+    overlay.style.cssText =
+      "position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); " +
+      "text-align: center; color: #94a3b8; font-size: 1.1rem; pointer-events: none; " +
+      "z-index: 10; white-space: pre-line;";
+    container.style.position = container.style.position || "relative";
+    container.appendChild(overlay);
+  }
+  overlay.textContent = message;
+  overlay.hidden = false;
+}
+
+function hideGraphEmptyState() {
+  const overlay = document.getElementById("graphEmptyState");
+  if (overlay) {
+    overlay.hidden = true;
+  }
 }
 
 function renderRawDetails(details) {
@@ -1866,6 +1900,7 @@ function initCy() {
 }
 
 function renderGraph(response) {
+  hideGraphEmptyState();
   lastResponse = response;
   const detailNodes = (response.details && response.details.nodes) || {};
   const graphEdges = response.graph.edges || [];
@@ -2341,9 +2376,17 @@ async function runQuery() {
       body: JSON.stringify(getRequest()),
     });
     const data = await response.json();
-    renderGraph(data);
+    const diags = Array.isArray(data.diagnostics) ? data.diagnostics : [];
+    const needsRun = diags.some((d) => d.code === "RUN_SELECTION_REQUIRED");
+    if (needsRun) {
+      showGraphEmptyState("This model has multiple runs.\nSelect a run in the View tab to visualize.");
+      setSidebarTab("view");
+    } else {
+      hideGraphEmptyState();
+      renderGraph(data);
+    }
     updateFacetControls(data);
-    setStatus(formatQueryStatus(data.status, data.mode_used));
+    setStatus(formatQueryStatus(data.status, data.mode_used, data.diagnostics));
   } catch (error) {
     setStatus("Query failed");
     renderDiagnostics([{ severity: "error", message: String(error) }]);

@@ -444,6 +444,9 @@ def test_lower_bundle_emits_uc_tables_from_cpir_user_constraints():
         for row in uc_rows
     )
     assert any(row.get("commodity") == "COM_co2" for row in uc_rows)
+    assert any(row.get("side") == "LHS" for row in uc_rows)
+    assert any(row.get("side") == "RHS" for row in uc_rows)
+    assert all(row.get("side") not in {"IN", "OUT"} for row in uc_rows)
 
     rhs_years = sorted(
         row["year"]

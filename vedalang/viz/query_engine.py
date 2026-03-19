@@ -124,6 +124,29 @@ def _source_runs(source: dict[str, Any]) -> list[str]:
     ]
 
 
+def _source_cases(
+    source: dict[str, Any],
+    *,
+    run_id: str | None = None,
+) -> list[str]:
+    runs = source.get("runs")
+    if not isinstance(runs, list):
+        return []
+    cases: list[str] = []
+    seen: set[str] = set()
+    for run in runs:
+        if not isinstance(run, dict):
+            continue
+        if run_id and str(run.get("id", "")) != run_id:
+            continue
+        for case in run.get("include_cases", []) or []:
+            case_str = str(case)
+            if case_str and case_str not in seen:
+                seen.add(case_str)
+                cases.append(case_str)
+    return sorted(cases)
+
+
 def _source_model_regions(
     source: dict[str, Any],
     *,
@@ -164,6 +187,7 @@ def _facets_for_source(
     if looks_like_supported_source(source):
         facets["runs"] = sorted(_source_runs(source))
         facets["regions"] = sorted(_source_model_regions(source, run_id=run_id))
+        facets["cases"] = _source_cases(source, run_id=run_id)
     return facets
 
 
