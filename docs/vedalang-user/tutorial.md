@@ -82,6 +82,7 @@ fleets:
 # Runs select the base year and regional view to compile.
 runs:
   - id: toy_region_2025
+    veda_book_name: TOYREGION2025
     base_year: 2025
     currency_year: 2024
     region_partition: toy_region
@@ -100,7 +101,7 @@ runs:
   for toy single-region models
 - `runs`: compile-time selection of base year, currency year, region partition,
   and optional reporting toggles such as `reporting.value_flows`. When enabled,
-  VedaLang emits the matching `RPT_OPT` control into `syssettings.xlsx` and
+  VedaLang emits the matching `RPT_OPT` control into `SysSettings.xlsx` and
   documents it on the workbook's `Reporting` tab.
 
 ## Step 2: Validate the Model

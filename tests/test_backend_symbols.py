@@ -81,6 +81,7 @@ def _base_source() -> dict:
         "runs": [
             {
                 "id": "toy_run",
+                "veda_book_name": "TOYRUN",
                 "base_year": 2025,
                 "currency_year": 2024,
                 "region_partition": "toy_partition",
@@ -112,7 +113,7 @@ def test_compile_emits_verbatim_backend_aliases():
     assert {row["process"] for row in fi_process_rows} == {
         "PRC_FAC_home_heat_heater"
     }
-    assert book_regions_rows == [{"bookname": "RUN_toy_run", "region": "REG1"}]
+    assert book_regions_rows == [{"bookname": "TOYRUN", "region": "REG1"}]
 
 
 def test_schema_rejects_dotted_public_ids():

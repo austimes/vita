@@ -133,6 +133,7 @@ zone_opportunities:
 
 runs:
   - id: r2020
+    veda_book_name: R2020
     base_year: 2020
     currency_year: 2024
     region_partition: rp

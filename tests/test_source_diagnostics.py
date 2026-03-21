@@ -27,6 +27,7 @@ def test_public_compile_json_includes_section14_location_metadata(tmp_path):
                 "    technologies: [gas_heater]",
                 "runs:",
                 "  - id: toy_run",
+                "    veda_book_name: TOYRUN",
                 "    base_year: 2025",
                 "    currency_year: 2024",
                 "    region_partition: toy_partition",
@@ -112,6 +113,7 @@ def test_lint_and_validate_emit_e020_for_missing_required_description(tmp_path):
                 "    technology_role: heat_supply",
                 "runs:",
                 "  - id: toy_run",
+                "    veda_book_name: TOYRUN",
                 "    base_year: 2025",
                 "    currency_year: 2024",
                 "    region_partition: toy_partition",
@@ -260,8 +262,12 @@ def test_collect_public_diagnostics_emits_prd_warning_codes():
         "runs": [
             {
                 "id": "toy_run",
+                "veda_book_name": "TOYRUN",
+
                 "base_year": 2025,
+
                 "currency_year": 2024,
+
                 "region_partition": "toy_partition",
             }
         ],
@@ -365,8 +371,12 @@ def test_collect_public_diagnostics_flags_duplicate_rollout_patterns():
         "runs": [
             {
                 "id": "single_2025",
+                "veda_book_name": "SINGLE2025",
+
                 "base_year": 2025,
+
                 "currency_year": 2024,
+
                 "region_partition": "single_region",
             }
         ],
@@ -469,8 +479,12 @@ def test_collect_public_diagnostics_flags_missing_res_explorer_descriptions():
         "runs": [
             {
                 "id": "toy_run",
+                "veda_book_name": "TOYRUN",
+
                 "base_year": 2025,
+
                 "currency_year": 2024,
+
                 "region_partition": "toy_partition",
             }
         ],
@@ -539,6 +553,63 @@ def test_collect_diagnostics_uses_public_compiler_diagnostics():
     errors = [d for d in diagnostics if d["severity"] == "error"]
     assert any(d["code"] == "E004" for d in errors)
     assert all("Missing required 'model' key" not in d["message"] for d in diagnostics)
+
+
+def test_collect_diagnostics_rejects_duplicate_veda_book_names():
+    source = {
+        "dsl_version": "0.3",
+        "commodities": [{"id": "heat", "type": "service"}],
+        "technologies": [
+            {
+                "id": "heater",
+                "description": "heater",
+                "provides": "heat",
+            }
+        ],
+        "technology_roles": [
+            {
+                "id": "heat_supply",
+                "description": "heat supply",
+                "primary_service": "heat",
+                "technologies": ["heater"],
+            }
+        ],
+        "spatial_layers": [
+            {
+                "id": "geo_demo",
+                "kind": "polygon",
+                "key": "region_id",
+                "geometry_file": "data/regions.geojson",
+            }
+        ],
+        "region_partitions": [
+            {
+                "id": "single_region",
+                "layer": "geo_demo",
+                "members": ["SINGLE"],
+                "mapping": {"kind": "constant", "value": "SINGLE"},
+            }
+        ],
+        "runs": [
+            {
+                "id": "run_a",
+                "veda_book_name": "AUS",
+                "base_year": 2025,
+                "currency_year": 2024,
+                "region_partition": "single_region",
+            },
+            {
+                "id": "run_b",
+                "veda_book_name": "AUS",
+                "base_year": 2025,
+                "currency_year": 2024,
+                "region_partition": "single_region",
+            },
+        ],
+    }
+
+    diagnostics = collect_diagnostics(source)
+    assert diagnostics[0]["code"] == "E034"
 
 
 def test_run_core_skips_legacy_xref_checks_for_public_source():
@@ -610,8 +681,12 @@ def test_run_core_skips_legacy_xref_checks_for_public_source():
         "runs": [
             {
                 "id": "toy_run",
+                "veda_book_name": "TOYRUN",
+
                 "base_year": 2025,
+
                 "currency_year": 2024,
+
                 "region_partition": "toy_partition",
             }
         ],

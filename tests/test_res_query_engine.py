@@ -100,8 +100,12 @@ def _write_multi_run_source(path: Path) -> None:
     source["runs"].append(
         {
             "id": "toy_states_alt",
+            "veda_book_name": "TOYSTATESALT",
+
             "base_year": 2025,
+
             "currency_year": 2024,
+
             "region_partition": "toy_states",
         }
     )
@@ -289,8 +293,12 @@ def _emission_contract_source() -> dict:
         "runs": [
             {
                 "id": "single_run",
+                "veda_book_name": "SINGLERUN",
+
                 "base_year": 2025,
+
                 "currency_year": 2024,
+
                 "region_partition": "single_partition",
             }
         ],

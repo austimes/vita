@@ -190,6 +190,7 @@ facilities:
 
 runs:
   - id: two_regions_2020
+    veda_book_name: TWOREGIONS2020
     base_year: 2020
     currency_year: 2024
     region_partition: toy_regions

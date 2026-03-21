@@ -66,8 +66,8 @@ def check_tableir_invariants(tableir: dict) -> list[str]:
     return errors
 
 
-# Tags that use matrix format with dynamic column names (commodity/region names)
-MATRIX_FORMAT_TAGS = {"~TRADELINKS"}
+# Tags that use dynamic column names that are intentionally not lowercase.
+NONCANONICAL_COLUMN_TAGS = {"~TRADELINKS", "~TIMEPERIODS"}
 
 
 def _check_canonical_form(
@@ -84,8 +84,8 @@ def _check_canonical_form(
     """
     errors = []
 
-    # Matrix format tables use commodity/region names as columns - skip case check
-    skip_case_check = tag in MATRIX_FORMAT_TAGS
+    # Some VEDA tags intentionally use dynamic or fixed-case column names.
+    skip_case_check = tag in NONCANONICAL_COLUMN_TAGS
 
     for row_idx, row in enumerate(rows):
         location = f"{file_path}:{sheet_name}:{tag}:row {row_idx + 1}"

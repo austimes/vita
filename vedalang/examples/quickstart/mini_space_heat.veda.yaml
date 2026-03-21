@@ -69,6 +69,7 @@ facilities:
 
 runs:
   - id: toy_region_2025
+    veda_book_name: TOYREGION2025
     base_year: 2025
     currency_year: 2024
     region_partition: toy_region

@@ -354,6 +354,7 @@ class NetworkDecl:
 @dataclass(frozen=True)
 class RunDecl:
     id: str
+    veda_book_name: str
     base_year: int
     currency_year: int
     region_partition: str
@@ -960,6 +961,7 @@ def parse_source(source: dict[str, Any]) -> SourceDocument:
         runs=tuple(
             RunDecl(
                 id=str(item["id"]),
+                veda_book_name=str(item["veda_book_name"]),
                 base_year=int(item["base_year"]),
                 currency_year=int(item["currency_year"]),
                 region_partition=str(item["region_partition"]),

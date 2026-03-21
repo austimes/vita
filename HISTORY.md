@@ -2,6 +2,21 @@
 
 Chronological record of the current repository state.
 
+## 2026-03-21
+
+- Added explicit `runs[*].veda_book_name` to the public VedaLang schema and
+  compile-time diagnostics so VEDA workbook tokens are authored, uppercase,
+  alphanumeric, and unique per model.
+- Aligned emitted Excel artifacts with stricter VEDA desktop conventions:
+  `SysSettings.xlsx`, `VT_<veda_book_name>_ALL_V1.xlsx`, `Region-Time Slices`,
+  `TimePeriods`, annual `~TIMESLICES` as `ANNUAL`, plus compiler-owned
+  `~ACTIVEPDEF` and `~TIMEPERIODS`.
+- Tightened VEDA compatibility validation around workbook casing, VT filename /
+  `~BOOKREGIONS_MAP` matching, timeslice placement, annual token spelling, and
+  required time-period tables while keeping the `xl2times` pipeline green.
+- Bumped the shipped repo/tool version to `0.4.21` across the Python package
+  and both CLI version markers.
+
 ## 2026-03-18
 
 - Clarified the `vita init` starter guidance so generated `AGENTS.md`/`README.md`

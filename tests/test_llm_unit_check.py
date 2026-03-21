@@ -81,8 +81,12 @@ SOURCE = {
     "runs": [
         {
             "id": "r1_2025",
+            "veda_book_name": "R12025",
+
             "base_year": 2025,
+
             "currency_year": 2024,
+
             "region_partition": "single_region",
         }
     ],
@@ -113,8 +117,12 @@ SOURCE_WITH_MONETARY = {
     "runs": [
         {
             "id": "r1_2025",
+            "veda_book_name": "R12025",
+
             "base_year": 2025,
+
             "currency_year": 2024,
+
             "region_partition": "single_region",
         }
     ],

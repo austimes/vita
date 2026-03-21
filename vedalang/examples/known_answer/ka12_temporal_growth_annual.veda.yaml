@@ -114,6 +114,7 @@ facilities:
 
 runs:
   - id: reg1_2030
+    veda_book_name: REG12030
     base_year: 2030
     currency_year: 2024
     region_partition: reg1_partition

@@ -42,8 +42,12 @@ def make_source(**overrides) -> dict:
         "runs": [
             {
                 "id": "reg1_2025",
+                "veda_book_name": "REG12025",
+
                 "base_year": 2025,
+
                 "currency_year": 2024,
+
                 "region_partition": "reg1_partition",
             }
         ],

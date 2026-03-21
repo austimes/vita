@@ -414,6 +414,7 @@ networks:
 
 runs:
   - id: australia_2025
+    veda_book_name: AUSTRALIA2025
     base_year: 2025
     currency_year: 2024
     region_partition: australian_regions

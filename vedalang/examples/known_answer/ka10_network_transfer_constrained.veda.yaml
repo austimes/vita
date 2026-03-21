@@ -118,6 +118,7 @@ networks:
 
 runs:
   - id: ab_2020
+    veda_book_name: AB2020
     base_year: 2020
     currency_year: 2024
     region_partition: p2

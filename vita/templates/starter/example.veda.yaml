@@ -122,6 +122,7 @@ facilities:
 
 runs:
   - id: demo_2025
+    veda_book_name: DEMO2025
     base_year: 2025
     currency_year: 2024
     region_partition: demo_partition

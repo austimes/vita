@@ -472,8 +472,12 @@ class TestViz:
         source["runs"].append(
             {
                 "id": "toy_states_alt",
+                "veda_book_name": "TOYSTATESALT",
+
                 "base_year": 2025,
+
                 "currency_year": 2024,
+
                 "region_partition": "toy_states",
             }
         )

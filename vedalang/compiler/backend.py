@@ -11,7 +11,6 @@ from .artifacts import ResolvedArtifacts, build_run_artifacts
 from .ast import SourceDocument, parse_source
 from .backend_symbols import (
     commodity_symbol,
-    run_symbol,
     trade_process_pattern,
     trade_sheet_name,
     user_constraint_symbol,
@@ -70,10 +69,6 @@ class CompileBundle:
 
 def _commodity_symbol(commodity_id: str) -> str:
     return commodity_symbol(commodity_id)
-
-
-def _run_symbol(run_id: str) -> str:
-    return run_symbol(run_id)
 
 
 def _commodity_csets(type_: str) -> str:
@@ -418,7 +413,7 @@ def lower_bundle_to_tableir(
     run_id = artifacts.csir["run_id"]
     model_regions = list(artifacts.csir["model_regions"])
     default_region = ",".join(model_regions)
-    bookname = _run_symbol(run_id)
+    bookname = str(artifacts.csir["veda_book_name"])
     commodity_symbols = {
         commodity_id: _commodity_symbol(commodity_id)
         for commodity_id, commodity in sorted(graph.commodities.items())
@@ -575,17 +570,30 @@ def lower_bundle_to_tableir(
         {"bookname": bookname, "region": region} for region in model_regions
     ]
     startyear_rows = [{"value": start_year}]
-    milestoneyears_rows = [{"type": "Endyear", "year": max(model_years)}]
+    period_boundaries = sorted(set(model_years))
+    end_year = period_boundaries[-1]
+    milestone_years = period_boundaries[:-1] or [start_year]
+    milestoneyears_rows = [{"type": "Endyear", "year": end_year}]
     milestoneyears_rows.extend(
-        {"type": "milestoneyear", "year": year} for year in model_years
+        {"type": "milestoneyear", "year": year} for year in milestone_years
     )
+    activepdef_rows = [{"value": "Pdef-1"}]
+    timeperiod_rows = [
+        {"Pdef-1": period_boundaries[idx + 1] - year}
+        for idx, year in enumerate(period_boundaries[:-1])
+    ]
     currencies_rows = [{"currency": "USD"}]
     gdrate_rows = [
         {"region": region, "attribute": "G_DRATE", "currency": "USD", "value": 0.05}
         for region in model_regions
     ]
     yrfr_rows = [
-        {"region": region, "attribute": "YRFR", "timeslice": "AN", "value": 1.0}
+        {
+            "region": region,
+            "attribute": "YRFR",
+            "timeslice": "ANNUAL",
+            "value": 1.0,
+        }
         for region in model_regions
     ]
     rpt_opt_rows: list[dict[str, Any]] = []
@@ -643,25 +651,44 @@ def lower_bundle_to_tableir(
     tableir = {
         "files": [
             {
-                "path": "syssettings.xlsx",
+                "path": "SysSettings.xlsx",
                 "sheets": [
                     {
-                        "name": "SysSets",
+                        "name": "Region-Time Slices",
                         "tables": [
                             {"tag": "~BOOKREGIONS_MAP", "rows": bookregions_rows},
-                            {"tag": "~STARTYEAR", "rows": startyear_rows},
-                            {"tag": "~MILESTONEYEARS", "rows": milestoneyears_rows},
-                            {"tag": "~CURRENCIES", "rows": currencies_rows},
-                            {"tag": "~TIMESLICES", "rows": [{"season": "AN"}]},
+                            {
+                                "tag": "~TIMESLICES",
+                                "rows": [
+                                    {
+                                        "season": "ANNUAL",
+                                        "weekly": "",
+                                        "daynite": "",
+                                    }
+                                ],
+                            },
                         ],
+                    },
+                    {
+                        "name": "TimePeriods",
+                        "tables": [
+                            {"tag": "~STARTYEAR", "rows": startyear_rows},
+                            {"tag": "~ACTIVEPDEF", "rows": activepdef_rows},
+                            {"tag": "~TIMEPERIODS", "rows": timeperiod_rows},
+                            {"tag": "~MILESTONEYEARS", "rows": milestoneyears_rows},
+                        ],
+                    },
+                    {
+                        "name": "Constants",
+                        "tables": constants_tables,
+                    },
+                    {
+                        "name": "Defaults",
+                        "tables": [{"tag": "~CURRENCIES", "rows": currencies_rows}],
                     },
                     {
                         "name": "Commodities",
                         "tables": [{"tag": "~FI_COMM", "rows": comm_rows}],
-                    },
-                    {
-                        "name": "constants",
-                        "tables": constants_tables,
                     },
                     {
                         "name": "Reporting",
@@ -671,7 +698,7 @@ def lower_bundle_to_tableir(
                 ],
             },
             {
-                "path": f"vt_{bookname.lower()}_{run_id.lower()}.xlsx",
+                "path": f"VT_{bookname}_ALL_V1.xlsx",
                 "sheets": process_workbook_sheets,
             },
             *_trade_link_files(

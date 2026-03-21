@@ -183,8 +183,12 @@ def test_emissions_budget_policy_activation_lowers_to_cpir_user_constraint():
         "runs": [
             {
                 "id": "s25_co2_cap",
+                "veda_book_name": "S25CO2CAP",
+
                 "base_year": 2025,
+
                 "currency_year": 2024,
+
                 "region_partition": "single_region",
                 "enable_policies": ["co2_cap"],
                 "include_cases": ["co2_cap_case"],

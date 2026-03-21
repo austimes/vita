@@ -210,7 +210,7 @@ def _run_option_lines_from_tableir(tableir: dict[str, Any] | None) -> list[str]:
 
     lines: list[str] = []
     for file_spec in tableir.get("files", []):
-        if file_spec.get("path") != "syssettings.xlsx":
+        if file_spec.get("path") not in {"SysSettings.xlsx", "syssettings.xlsx"}:
             continue
         for sheet in file_spec.get("sheets", []):
             for table in sheet.get("tables", []):
@@ -295,7 +295,9 @@ def _run_option_lines_from_excel_dir(excel_dir: Path | None) -> list[str]:
     if excel_dir is None:
         return []
 
-    workbook_path = excel_dir / "syssettings.xlsx"
+    workbook_path = excel_dir / "SysSettings.xlsx"
+    if not workbook_path.exists():
+        workbook_path = excel_dir / "syssettings.xlsx"
     if not workbook_path.exists():
         return []
 

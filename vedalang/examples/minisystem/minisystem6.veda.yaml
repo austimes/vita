@@ -217,6 +217,7 @@ facilities:
 
 runs:
   - id: single_2020
+    veda_book_name: SINGLE2020
     base_year: 2020
     currency_year: 2024
     region_partition: single_region

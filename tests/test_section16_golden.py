@@ -249,8 +249,12 @@ def _section16_packages_and_model():
             "runs": [
                 {
                     "id": "toy_states_2025",
+                    "veda_book_name": "TOYSTATES2025",
+
                     "base_year": 2025,
+
                     "currency_year": 2024,
+
                     "region_partition": "regions.toy_states_3",
                 }
             ],

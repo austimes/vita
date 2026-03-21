@@ -141,6 +141,7 @@ fleets:
 
 runs:
   - id: ka11_2020
+    veda_book_name: KA112020
     base_year: 2020
     currency_year: 2024
     region_partition: ka11_regions

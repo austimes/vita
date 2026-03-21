@@ -95,6 +95,7 @@ class ResolvedDefinitionGraph:
 @dataclass(frozen=True)
 class RunContext:
     run_id: str
+    veda_book_name: str
     base_year: int
     currency_year: int
     region_partition: str
@@ -592,6 +593,7 @@ def resolve_run(graph: ResolvedDefinitionGraph, run_id: str) -> RunContext:
             )
     context = RunContext(
         run_id=run.id,
+        veda_book_name=run.veda_book_name,
         base_year=run.base_year,
         currency_year=run.currency_year,
         region_partition=run.region_partition,

@@ -104,11 +104,13 @@ facilities:
 
 runs:
   - id: reg1_2020_default
+    veda_book_name: REG12020DEFAULT
     base_year: 2020
     currency_year: 2024
     region_partition: reg1_partition
 
   - id: reg1_2020_reporting_off
+    veda_book_name: REG12020REPORTINGOFF
     base_year: 2020
     currency_year: 2024
     region_partition: reg1_partition

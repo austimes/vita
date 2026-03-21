@@ -238,8 +238,12 @@ def valid_public_source() -> dict:
         "runs": [
             {
                 "id": "toy_states_2025",
+                "veda_book_name": "TOYSTATES2025",
+
                 "base_year": 2025,
+
                 "currency_year": 2024,
+
                 "region_partition": "regions_toy_states_3",
             }
         ],
@@ -248,6 +252,20 @@ def valid_public_source() -> dict:
 
 def test_public_source_validates() -> None:
     jsonschema.validate(valid_public_source(), load_schema())
+
+
+def test_run_requires_veda_book_name() -> None:
+    data = valid_public_source()
+    data["runs"][0].pop("veda_book_name")
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(data, load_schema())
+
+
+def test_run_rejects_invalid_veda_book_name_pattern() -> None:
+    data = valid_public_source()
+    data["runs"][0]["veda_book_name"] = "AUS_1"
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(data, load_schema())
 
 
 def test_missing_all_object_families_rejected() -> None:

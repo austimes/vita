@@ -200,13 +200,13 @@ These category names are currently a compiler/runtime convention for
 `vedalang.schema.json` enum because scenario workbooks are outside the authored
 v0.3 DSL surface.
 
-**Current compiler output:** `syssettings.xlsx` and `vt_{book}_{run}.xlsx` (lowercase)
+**Current compiler output:** `SysSettings.xlsx` and `VT_<veda_book_name>_ALL_V1.xlsx`
 
 **Scenario workbook naming convention when referenced:** `scen_{case}_{category}.xlsx`
 - Example: `scen_baseline_demands.xlsx`, `scen_ambitious_policies.xlsx`
 
 This separation distinguishes between:
-- **Model architecture** (`VT` in VEDA terminology; compiler emits lowercase `vt_*` files): processes, commodities, topology
+- **Model architecture** (`VT` in VEDA terminology; compiler emits `VT_<veda_book_name>_ALL_V1.xlsx`): processes, commodities, topology
 - **Scenario instantiation** (`scen_*` files, when used): demands, prices, policies that instantiate the architecture
 
 ### Explicit Quantities and Basis
@@ -311,6 +311,7 @@ facilities:
 # Runs select the base year and regional view to compile.
 runs:
   - id: toy_region_2025
+    veda_book_name: TOYREGION2025
     base_year: 2025
     currency_year: 2024
     region_partition: toy_region

@@ -17,8 +17,12 @@ def test_compile_sweep_records_expected_run_selection_e002_for_multi_run(tmp_pat
     source["runs"].append(
         {
             "id": "toy_states_alt",
+            "veda_book_name": "TOYSTATESALT",
+
             "base_year": 2025,
+
             "currency_year": 2024,
+
             "region_partition": "toy_states",
         }
     )

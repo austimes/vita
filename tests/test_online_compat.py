@@ -9,13 +9,13 @@ from tools.veda_emit_excel import emit_excel
 from vedalang.compiler.online_compat import validate_online_compat
 
 
-def _make_tableir(tables: list[dict]) -> dict:
+def _make_tableir(tables: list[dict], *, path: str = "test.xlsx", sheet_name: str = "Sheet1") -> dict:
     """Helper to wrap tables in minimal TableIR structure."""
     return {
         "files": [
             {
-                "path": "test.xlsx",
-                "sheets": [{"name": "Sheet1", "tables": tables}],
+                "path": path,
+                "sheets": [{"name": sheet_name, "tables": tables}],
             }
         ]
     }
@@ -59,21 +59,21 @@ class TestYearColumnValidation:
     def test_year_column_string_rejected(self):
         tableir = _make_tableir([
             {"tag": "~FI_T", "rows": [{"PRC": "P1", "year": "2020"}]}
-        ])
+        ], path="VT_TEST_ALL_V1.xlsx")
         errors = validate_online_compat(tableir)
         assert any("'year' must be int" in e for e in errors)
 
     def test_year_column_null_rejected(self):
         tableir = _make_tableir([
             {"tag": "~FI_T", "rows": [{"PRC": "P1", "year": None}]}
-        ])
+        ], path="VT_TEST_ALL_V1.xlsx")
         errors = validate_online_compat(tableir)
         assert any("null 'year'" in e for e in errors)
 
     def test_year_column_int_passes(self):
         tableir = _make_tableir([
             {"tag": "~FI_PROCESS", "rows": [{"PRC": "P1", "year": 2020}]}
-        ])
+        ], path="VT_TEST_ALL_V1.xlsx")
         errors = validate_online_compat(tableir)
         assert errors == []
 
@@ -82,7 +82,7 @@ class TestWideAttributeColumns:
     def test_generic_value_column_rejected(self):
         tableir = _make_tableir([
             {"tag": "~FI_T", "rows": [{"PRC": "P1", "value": 100}]}
-        ])
+        ], path="VT_TEST_ALL_V1.xlsx")
         errors = validate_online_compat(tableir)
         assert len(errors) == 1
         assert "'value' column" in errors[0]
@@ -106,7 +106,7 @@ class TestWideAttributeColumns:
     def test_named_columns_pass(self):
         tableir = _make_tableir([
             {"tag": "~FI_T", "rows": [{"PRC": "P1", "EFF": 0.55}]}
-        ])
+        ], path="VT_TEST_ALL_V1.xlsx")
         errors = validate_online_compat(tableir)
         assert errors == []
 
@@ -151,3 +151,82 @@ class TestEmitExcelIntegration:
         with tempfile.TemporaryDirectory() as tmpdir:
             created = emit_excel(tableir, Path(tmpdir))
             assert len(created) == 1
+
+
+class TestVedaWorkbookContracts:
+    def test_syssettings_requires_exact_filename_and_sheet(self):
+        tableir = {
+            "files": [
+                {
+                    "path": "syssettings.xlsx",
+                    "sheets": [
+                        {
+                            "name": "SysSets",
+                            "tables": [
+                                {
+                                    "tag": "~BOOKREGIONS_MAP",
+                                    "rows": [{"bookname": "AUS", "region": "SINGLE"}],
+                                },
+                                {
+                                    "tag": "~TIMESLICES",
+                                    "rows": [{"season": "ANNUAL", "weekly": "", "daynite": ""}],
+                                },
+                            ],
+                        }
+                    ],
+                }
+            ]
+        }
+        errors = validate_online_compat(tableir)
+        assert any("SysSettings workbook path must be exactly 'SysSettings.xlsx'" in e for e in errors)
+        assert any("missing required 'Region-Time Slices' sheet" in e for e in errors)
+
+    def test_bookname_must_match_vt_filename(self):
+        tableir = {
+            "files": [
+                {
+                    "path": "SysSettings.xlsx",
+                    "sheets": [
+                        {
+                            "name": "Region-Time Slices",
+                            "tables": [
+                                {
+                                    "tag": "~BOOKREGIONS_MAP",
+                                    "rows": [{"bookname": "AUS", "region": "SINGLE"}],
+                                },
+                                {
+                                    "tag": "~TIMESLICES",
+                                    "rows": [{"season": "ANNUAL", "weekly": "", "daynite": ""}],
+                                },
+                            ],
+                        },
+                        {
+                            "name": "TimePeriods",
+                            "tables": [
+                                {"tag": "~STARTYEAR", "rows": [{"value": 2025}]},
+                                {"tag": "~ACTIVEPDEF", "rows": [{"value": "Pdef-1"}]},
+                                {"tag": "~TIMEPERIODS", "rows": [{"Pdef-1": 10}]},
+                                {"tag": "~MILESTONEYEARS", "rows": [{"type": "Endyear", "year": 2035}]},
+                            ],
+                        },
+                        {
+                            "name": "Defaults",
+                            "tables": [{"tag": "~CURRENCIES", "rows": [{"currency": "USD"}]}],
+                        },
+                    ],
+                },
+                {
+                    "path": "VT_NSW_ALL_V1.xlsx",
+                    "sheets": [{"name": "Processes", "tables": [{"tag": "~FI_PROCESS", "rows": []}]}],
+                },
+            ]
+        }
+        errors = validate_online_compat(tableir)
+        assert any("bookname 'AUS' does not match any VT workbook filename" in e for e in errors)
+
+    def test_timeslices_rejects_an_abbreviation(self):
+        tableir = _make_tableir(
+            [{"tag": "~TIMESLICES", "rows": [{"season": "AN", "weekly": "", "daynite": ""}]}]
+        )
+        errors = validate_online_compat(tableir)
+        assert any("annual timeslice must be 'ANNUAL'" in e for e in errors)

@@ -354,6 +354,7 @@ def emit_csir(
         "artifact_version": ARTIFACT_VERSION,
         "dsl_version": DSL_VERSION,
         "run_id": run.run_id,
+        "veda_book_name": run.veda_book_name,
         "base_year": run.base_year,
         "model_years": _default_model_years(run.base_year),
         "currency_year": run.currency_year,

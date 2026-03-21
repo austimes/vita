@@ -1500,6 +1500,7 @@
       "additionalProperties": false,
       "required": [
         "id",
+        "veda_book_name",
         "base_year",
         "currency_year",
         "region_partition"
@@ -1507,6 +1508,10 @@
       "properties": {
         "id": {
           "$ref": "#/$defs/public_identifier"
+        },
+        "veda_book_name": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9]*$"
         },
         "base_year": {
           "type": "integer",

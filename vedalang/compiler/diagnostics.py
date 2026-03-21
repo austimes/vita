@@ -41,6 +41,7 @@ ROLE_IMPL_HINTS = (
 )
 FUEL_HINTS = ("gas", "diesel", "coal", "hydrogen", "biomass", "oil")
 PLACEHOLDER_RE = re.compile(r"(\$\{[^}]+\}|\{\{[^}]+\}\}|=[A-Za-z_(])")
+VEDA_BOOK_NAME_RE = re.compile(r"^[A-Z][A-Z0-9]*$")
 
 
 def _location_of(obj: Any) -> str | None:
@@ -227,6 +228,36 @@ def _validate_unresolved_formulas(graph: ResolvedDefinitionGraph) -> None:
                     UNRESOLVED_FORMULA_MESSAGE,
                     object_id=technology.id,
                 )
+
+
+def _validate_veda_book_names(graph: ResolvedDefinitionGraph) -> None:
+    seen: dict[str, str] = {}
+    for run in graph.runs.values():
+        book_name = run.veda_book_name
+        if not VEDA_BOOK_NAME_RE.fullmatch(book_name):
+            raise _error(
+                "E033",
+                run,
+                "run.veda_book_name must match ^[A-Z][A-Z0-9]*$",
+                object_id=run.id,
+                suggestion=(
+                    "Use an uppercase alphanumeric workbook token like `AUS` or "
+                    "`SINGLE2025`."
+                ),
+            )
+        prior = seen.get(book_name)
+        if prior is not None:
+            raise _error(
+                "E034",
+                run,
+                "run.veda_book_name must be unique within the source model",
+                object_id=run.id,
+                suggestion=(
+                    f"Rename either run '{prior}' or '{run.id}' so their VEDA "
+                    "workbook names differ."
+                ),
+            )
+        seen[book_name] = run.id
 
 
 def _error_missing_required_descriptions(
@@ -583,6 +614,7 @@ def collect_diagnostics(
         _validate_role_contracts(graph)
         _validate_dependency_closure(graph)
         _validate_unresolved_formulas(graph)
+        _validate_veda_book_names(graph)
 
         diagnostics: list[dict[str, Any]] = []
         diagnostics.extend(_error_missing_required_descriptions(graph))

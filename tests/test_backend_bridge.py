@@ -161,6 +161,7 @@ def _sample_source(
         "runs": [
             {
                 "id": "toy_states_2025",
+                "veda_book_name": "TOYSTATES2025",
                 "base_year": 2025,
                 "currency_year": 2024,
                 "region_partition": "toy_states",
@@ -247,6 +248,44 @@ def test_compile_public_bundle_emits_artifacts_and_trade_links():
     assert commodity_keys[0] == "COM_electricity"
     assert trade_rows[0][commodity_keys[0]] == "QLD"
     assert trade_rows[0]["NSW"] == "TU_electricity_QLD_NSW"
+    emitted_paths = {file_spec["path"] for file_spec in bundle.tableir["files"]}
+    assert "SysSettings.xlsx" in emitted_paths
+    assert "VT_TOYSTATES2025_ALL_V1.xlsx" in emitted_paths
+    syssettings = next(
+        file_spec
+        for file_spec in bundle.tableir["files"]
+        if file_spec["path"] == "SysSettings.xlsx"
+    )
+    syssettings_sheets = {sheet["name"] for sheet in syssettings["sheets"]}
+    assert syssettings_sheets >= {
+        "Region-Time Slices",
+        "TimePeriods",
+        "Constants",
+        "Defaults",
+        "Reporting",
+    }
+    region_time_slices = next(
+        sheet
+        for sheet in syssettings["sheets"]
+        if sheet["name"] == "Region-Time Slices"
+    )
+    book_regions_rows = next(
+        table["rows"]
+        for table in region_time_slices["tables"]
+        if table["tag"] == "~BOOKREGIONS_MAP"
+    )
+    assert book_regions_rows == [
+        {"bookname": "TOYSTATES2025", "region": "NSW"},
+        {"bookname": "TOYSTATES2025", "region": "QLD"},
+    ]
+    timeslice_rows = next(
+        table["rows"]
+        for table in region_time_slices["tables"]
+        if table["tag"] == "~TIMESLICES"
+    )
+    assert timeslice_rows == [
+        {"season": "ANNUAL", "weekly": "", "daynite": ""}
+    ]
     process_symbols = {row["process"] for row in fi_process_rows}
     assert process_symbols == {
         "PRC_FAC_brisbane_heat_gas_heater",
@@ -415,13 +454,13 @@ def test_compile_public_bundle_adds_reporting_note_sheet() -> None:
     syssettings = next(
         file_spec
         for file_spec in bundle.tableir["files"]
-        if file_spec["path"] == "syssettings.xlsx"
+        if file_spec["path"] == "SysSettings.xlsx"
     )
     reporting_sheet = next(
         sheet for sheet in syssettings["sheets"] if sheet["name"] == "Reporting"
     )
     constants_sheet = next(
-        sheet for sheet in syssettings["sheets"] if sheet["name"] == "constants"
+        sheet for sheet in syssettings["sheets"] if sheet["name"] == "Constants"
     )
     reporting_rows = [
         row
@@ -532,7 +571,9 @@ def test_lower_bundle_emits_uc_tables_from_cpir_user_constraints():
     assert any(row == {"type": "Endyear", "year": 2035} for row in milestone_rows)
     assert {
         row["year"] for row in milestone_rows if row.get("type") == "milestoneyear"
-    } == {2025, 2030, 2035}
+    } == {2025, 2030}
+    assert _table_rows(tableir, "~ACTIVEPDEF") == [{"value": "Pdef-1"}]
+    assert _table_rows(tableir, "~TIMEPERIODS") == [{"Pdef-1": 5}, {"Pdef-1": 5}]
 
 
 def test_injected_uc_tableir_passes_run_check(tmp_path):

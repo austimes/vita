@@ -109,8 +109,12 @@ def test_viz_server_multi_run_query_uses_selected_run(tmp_path):
     source["runs"].append(
         {
             "id": "toy_states_alt",
+            "veda_book_name": "TOYSTATESALT",
+
             "base_year": 2025,
+
             "currency_year": 2024,
+
             "region_partition": "toy_states",
         }
     )
