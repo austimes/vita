@@ -308,11 +308,16 @@ facilities:
             value: 12 kW
             year: 2025
 
-# Runs select the base year and regional view to compile.
+# Year sets declare the solve years, and runs select one plus the regional view.
+year_sets:
+  - id: pathway_2025_2035
+    start_year: 2025
+    milestone_years: [2025, 2035]
+
 runs:
   - id: toy_region_2025
     veda_book_name: TOYREGION2025
-    base_year: 2025
+    year_set: pathway_2025_2035
     currency_year: 2024
     region_partition: toy_region
 ```

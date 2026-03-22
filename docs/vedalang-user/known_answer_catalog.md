@@ -43,9 +43,9 @@ The suite validates model semantics through the full path:
 | `facilities[*].stock.items[*]` with `metric: annual_activity` on demand devices | Demand-proxy stock lowered through `PRC_RESID` on the demand-side process | KA06/KA07 compare deterministic solved supply/demand activity anchors (`0.8` baseline vs `1.2` spike) and the resulting new-capacity trigger direction |
 | `zone_opportunities[*].max_new_capacity` | Zone-opportunity process rows lowered with opportunity-bound capacity constraints | KA09 checks class-shift behavior via solved activity on `ZONE_OPPORTUNITY` versus role-instance fallback processes |
 | `networks[*].links[*]` directional transfer links | `suppxls/trades` `~TRADELINKS` topology plus generated trade processes in solved GDX | KA10 asserts region-scoped `VAR_ACT` supplier dominance flips between open and constrained network directions |
-| `facilities[*].stock.adjust_to_base_year.using` with `annual_growth` | Run-specific adjusted stock in CSIR/CPIR lowered to `PRC_RESID` for selected base year | KA12 solved activity ratio check against `1.1^10` baseline scaling |
-| `temporal_index_series[*]` + run-specific base year | Index-ratio adjustment of stock before lowering for selected run (`reg1_2020` vs `reg1_2030`) | KA14 solved-level delta and ratio assertions across selected run IDs |
-| `runs[*]` (`base_year`, `veda_book_name`, `region_partition`, `reporting.value_flows`) | `SysSettings.xlsx` run/year context (`~STARTYEAR`, `~BOOKREGIONS_MAP`) plus reporting controls (`~TFM_INS` `RPT_OPT(FLO,3)=1`) and a human-readable `Reporting` tab, with the solver scaffold mirroring emitted `RPT_OPT` rows as RUN-file assignments | Year/region slices in `VAR_ACT` rows and run-scoped reporting control in solved artifacts |
+| `facilities[*].stock.adjust_to_base_year.using` with `annual_growth` | Run-specific adjusted stock in CSIR/CPIR lowered to `PRC_RESID` for the selected start year | KA12 solved activity ratio check against `1.1^10` baseline scaling |
+| `temporal_index_series[*]` + selected run year set | Index-ratio adjustment of stock before lowering for selected run (`reg1_2020` vs `reg1_2030`) | KA14 solved-level delta and ratio assertions across selected run IDs |
+| `year_sets[*]` + `runs[*]` (`year_set`, `veda_book_name`, `region_partition`, `reporting.value_flows`) | `SysSettings.xlsx` run/year context (`~STARTYEAR`, `~MILESTONEYEARS`, `~BOOKREGIONS_MAP`) plus reporting controls (`~TFM_INS` `RPT_OPT(FLO,3)=1`) and a human-readable `Reporting` tab, with the solver scaffold mirroring emitted `RPT_OPT` rows as RUN-file assignments | Year/region slices in `VAR_ACT` rows and run-scoped reporting control in solved artifacts |
 
 ## Per-Test Mapping Notes
 
@@ -119,7 +119,7 @@ The suite validates model semantics through the full path:
 ### KA12 Annual-Growth Temporal Scaling
 
 1. KA12 applies `adjust_to_base_year.using.kind: annual_growth` with `rate: 10 %/year` to both supply and conversion stocks observed in 2020.
-2. Run selection at `base_year=2030` scales stock by `1.1^10`, then lowers to 2030 `PRC_RESID` values.
+2. Run selection with `start_year=2030` scales stock by `1.1^10`, then lowers to 2030 `PRC_RESID` values.
 3. Solver assertion checks both absolute 2030 `VAR_ACT` and ratio consistency versus the KA01 2020 baseline.
 
 ### KA13 Constraint-Edge Diagnostics Coverage

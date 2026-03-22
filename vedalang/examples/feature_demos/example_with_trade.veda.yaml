@@ -1,223 +1,203 @@
-dsl_version: "0.3"
-
+dsl_version: '0.3'
 commodities:
-  - id: electricity
-    type: energy
-    energy_form: secondary
-
-  - id: electricity_generation
-    type: service
-
-  - id: gas_supply
-    type: service
-
-  - id: natural_gas
-    type: energy
-    energy_form: primary
-
-  - id: residential_demand
-    type: service
-
+- id: electricity
+  type: energy
+  energy_form: secondary
+- id: electricity_generation
+  type: service
+- id: gas_supply
+  type: service
+- id: natural_gas
+  type: energy
+  energy_form: primary
+- id: residential_demand
+  type: service
 technologies:
-  - id: ccgt
-    description: ccgt provides electricity_generation by transforming natural_gas.
-    inputs:
-      - commodity: natural_gas
-        basis: HHV
-    outputs:
-      - commodity: electricity
-    fixed_om: 20 AUD2024/kW/year
-    investment_cost: 800 AUD2024/kW
-    lifetime: 30 year
-    performance:
-      kind: efficiency
-      value: 0.55
-    provides: electricity_generation
-
-  - id: pipeline_import
-    description: pipeline_import provides gas_supply as a primary supply or conversion
-      technology.
-    outputs:
-      - commodity: natural_gas
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: gas_supply
-
-  - id: residential_device
-    description: residential_device provides residential_demand by transforming electricity.
-    inputs:
-      - commodity: electricity
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: residential_demand
-
+- id: ccgt
+  description: ccgt provides electricity_generation by transforming natural_gas.
+  inputs:
+  - commodity: natural_gas
+    basis: HHV
+  outputs:
+  - commodity: electricity
+  fixed_om: 20 AUD2024/kW/year
+  investment_cost: 800 AUD2024/kW
+  lifetime: 30 year
+  performance:
+    kind: efficiency
+    value: 0.55
+  provides: electricity_generation
+- id: pipeline_import
+  description: pipeline_import provides gas_supply as a primary supply or conversion
+    technology.
+  outputs:
+  - commodity: natural_gas
+  lifetime: 100 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: gas_supply
+- id: residential_device
+  description: residential_device provides residential_demand by transforming electricity.
+  inputs:
+  - commodity: electricity
+  lifetime: 100 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: residential_demand
 technology_roles:
-  - id: electricity_generation
-    description:
-      "electricity_generation groups technologies that deliver electricity_generation:
-      ccgt."
-    primary_service: electricity_generation
-    technologies:
-      - ccgt
-
-  - id: gas_supply
-    description: "gas_supply groups technologies that deliver gas_supply: pipeline_import."
-    primary_service: gas_supply
-    technologies:
-      - pipeline_import
-
-  - id: residential_service
-    description:
-      "residential_service groups technologies that deliver residential_demand:
-      residential_device."
-    primary_service: residential_demand
-    technologies:
-      - residential_device
-
+- id: electricity_generation
+  description: 'electricity_generation groups technologies that deliver electricity_generation:
+    ccgt.'
+  primary_service: electricity_generation
+  technologies:
+  - ccgt
+- id: gas_supply
+  description: 'gas_supply groups technologies that deliver gas_supply: pipeline_import.'
+  primary_service: gas_supply
+  technologies:
+  - pipeline_import
+- id: residential_service
+  description: 'residential_service groups technologies that deliver residential_demand:
+    residential_device.'
+  primary_service: residential_demand
+  technologies:
+  - residential_device
 spatial_layers:
-  - id: geo_demo
-    geometry_file: data/regions.geojson
-    key: region_id
-    kind: polygon
-
+- id: geo_demo
+  geometry_file: data/regions.geojson
+  key: region_id
+  kind: polygon
 region_partitions:
-  - id: trade_regions
-    layer: geo_demo
-    mapping:
-      kind: constant
-      value: REG1
-    members:
-      - REG1
-      - REG2
-
+- id: trade_regions
+  layer: geo_demo
+  mapping:
+    kind: constant
+    value: REG1
+  members:
+  - REG1
+  - REG2
 sites:
-  - id: reg1_hub
-    location:
-      point:
-        lat: -33.87
-        lon: 151.21
-    membership_overrides:
-      region_partitions:
-        trade_regions: REG1
-
-  - id: reg2_hub
-    location:
-      point:
-        lat: -37.81
-        lon: 144.96
-    membership_overrides:
-      region_partitions:
-        trade_regions: REG2
-
+- id: reg1_hub
+  location:
+    point:
+      lat: -33.87
+      lon: 151.21
+  membership_overrides:
+    region_partitions:
+      trade_regions: REG1
+- id: reg2_hub
+  location:
+    point:
+      lat: -37.81
+      lon: 144.96
+  membership_overrides:
+    region_partitions:
+      trade_regions: REG2
 facilities:
-  - id: reg1_gas_supply
-    description: reg1_gas_supply instantiates role gas_supply at site reg1_hub.
-    site: reg1_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 300 MW
-            year: 2025
-          technology: pipeline_import
-    technology_role: gas_supply
-
-  - id: reg1_generation
-    description: reg1_generation instantiates role electricity_generation at site reg1_hub.
-    site: reg1_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 15 MW
-            year: 2025
-          technology: ccgt
-    technology_role: electricity_generation
-
-  - id: reg1_residential_service
-    description: reg1_residential_service instantiates role residential_service at site
-      reg1_hub.
-    site: reg1_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 20 MW
-            year: 2025
-          technology: residential_device
-    technology_role: residential_service
-
-  - id: reg2_gas_supply
-    description: reg2_gas_supply instantiates role gas_supply at site reg2_hub.
-    site: reg2_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 150 MW
-            year: 2025
-          technology: pipeline_import
-    technology_role: gas_supply
-
-  - id: reg2_generation
-    description: reg2_generation instantiates role electricity_generation at site reg2_hub.
-    site: reg2_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 8 MW
-            year: 2025
-          technology: ccgt
-    technology_role: electricity_generation
-
-  - id: reg2_residential_service
-    description: reg2_residential_service instantiates role residential_service at site
-      reg2_hub.
-    site: reg2_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 20 MW
-            year: 2025
-          technology: residential_device
-    technology_role: residential_service
-
+- id: reg1_gas_supply
+  description: reg1_gas_supply instantiates role gas_supply at site reg1_hub.
+  site: reg1_hub
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 300 MW
+        year: 2025
+      technology: pipeline_import
+  technology_role: gas_supply
+- id: reg1_generation
+  description: reg1_generation instantiates role electricity_generation at site reg1_hub.
+  site: reg1_hub
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 15 MW
+        year: 2025
+      technology: ccgt
+  technology_role: electricity_generation
+- id: reg1_residential_service
+  description: reg1_residential_service instantiates role residential_service at site
+    reg1_hub.
+  site: reg1_hub
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 20 MW
+        year: 2025
+      technology: residential_device
+  technology_role: residential_service
+- id: reg2_gas_supply
+  description: reg2_gas_supply instantiates role gas_supply at site reg2_hub.
+  site: reg2_hub
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 150 MW
+        year: 2025
+      technology: pipeline_import
+  technology_role: gas_supply
+- id: reg2_generation
+  description: reg2_generation instantiates role electricity_generation at site reg2_hub.
+  site: reg2_hub
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 8 MW
+        year: 2025
+      technology: ccgt
+  technology_role: electricity_generation
+- id: reg2_residential_service
+  description: reg2_residential_service instantiates role residential_service at site
+    reg2_hub.
+  site: reg2_hub
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 20 MW
+        year: 2025
+      technology: residential_device
+  technology_role: residential_service
 networks:
-  - id: gas_pipeline
-    kind: pipeline
-    links:
-      - id: reg1_reg2_gas
-        commodity: natural_gas
-        existing_transfer_capacity: 100 MW
-        from: REG1
-        max_new_capacity: 80 MW
-        to: REG2
-    node_basis:
-      kind: region_partition
-      ref: trade_regions
-
-  - id: interconnector
-    kind: transmission
-    links:
-      - id: reg1_reg2_power
-        commodity: electricity
-        existing_transfer_capacity: 120 MW
-        from: REG1
-        max_new_capacity: 90 MW
-        to: REG2
-    node_basis:
-      kind: region_partition
-      ref: trade_regions
-
+- id: gas_pipeline
+  kind: pipeline
+  links:
+  - id: reg1_reg2_gas
+    commodity: natural_gas
+    existing_transfer_capacity: 100 MW
+    from: REG1
+    max_new_capacity: 80 MW
+    to: REG2
+  node_basis:
+    kind: region_partition
+    ref: trade_regions
+- id: interconnector
+  kind: transmission
+  links:
+  - id: reg1_reg2_power
+    commodity: electricity
+    existing_transfer_capacity: 120 MW
+    from: REG1
+    max_new_capacity: 90 MW
+    to: REG2
+  node_basis:
+    kind: region_partition
+    ref: trade_regions
 runs:
-  - id: trade_regions_2025
-    veda_book_name: TRADEREGIONS2025
-    base_year: 2025
-    currency_year: 2024
-    region_partition: trade_regions
+- id: trade_regions_2025
+  veda_book_name: TRADEREGIONS2025
+  year_set: pathway_2025_2035
+  currency_year: 2024
+  region_partition: trade_regions
+year_sets:
+- id: pathway_2025_2035
+  start_year: 2025
+  milestone_years:
+  - 2025
+  - 2035

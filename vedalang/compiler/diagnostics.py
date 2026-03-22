@@ -260,6 +260,38 @@ def _validate_veda_book_names(graph: ResolvedDefinitionGraph) -> None:
         seen[book_name] = run.id
 
 
+def _validate_year_sets(graph: ResolvedDefinitionGraph) -> None:
+    for year_set in graph.year_sets.values():
+        if not year_set.milestone_years:
+            raise _error(
+                "E035",
+                year_set,
+                "year_set.milestone_years must be non-empty",
+                object_id=year_set.id,
+            )
+        if year_set.milestone_years[0] != year_set.start_year:
+            raise _error(
+                "E035",
+                year_set,
+                "year_set.milestone_years must start with year_set.start_year",
+                object_id=year_set.id,
+                suggestion=(
+                    "Make the first milestone year equal the authored start_year."
+                ),
+            )
+        for prev, curr in zip(
+            year_set.milestone_years,
+            year_set.milestone_years[1:],
+        ):
+            if curr <= prev:
+                raise _error(
+                    "E035",
+                    year_set,
+                    "year_set.milestone_years must be strictly increasing",
+                    object_id=year_set.id,
+                )
+
+
 def _error_missing_required_descriptions(
     graph: ResolvedDefinitionGraph,
 ) -> list[dict[str, Any]]:
@@ -433,13 +465,13 @@ def _warn_run_specific(
 
     for measure_set in graph.spatial_measure_sets.values():
         for measure in measure_set.measures:
-            if run.base_year - measure.observed_year >= 5:
+            if run.start_year - measure.observed_year >= 5:
                 warnings.append(
                     _diagnostic(
                         "W003",
                         "warning",
                         "spatial weight measure observed_year is materially older "
-                        "than the selected run base_year",
+                        "than the selected run start_year",
                         object_id=measure.id,
                         location=_location_of(measure),
                     )
@@ -611,6 +643,7 @@ def collect_diagnostics(
             for name, pkg in (packages or {}).items()
         }
         graph = resolve_imports(parsed, normalized_packages)
+        _validate_year_sets(graph)
         _validate_role_contracts(graph)
         _validate_dependency_closure(graph)
         _validate_unresolved_formulas(graph)

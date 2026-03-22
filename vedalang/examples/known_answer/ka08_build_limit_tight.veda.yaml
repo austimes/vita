@@ -1,129 +1,120 @@
-dsl_version: "0.3"
-
+dsl_version: '0.3'
 commodities:
-  - id: dem
-    type: service
-
-  - id: el
-    type: energy
-    energy_form: secondary
-
-  - id: sup
-    type: service
-
+- id: dem
+  type: service
+- id: el
+  type: energy
+  energy_form: secondary
+- id: sup
+  type: service
 technologies:
-  - id: dv
-    description: dv provides dem by transforming el.
-    inputs:
-      - commodity: el
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: dem
-    variable_om: -10 MUSD24/PJ
-
-  - id: ic
-    description: ic provides sup as a primary supply or conversion technology.
-    outputs:
-      - commodity: el
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: sup
-    variable_om: 0 MUSD24/PJ
-
-  - id: ifb
-    description: ifb provides sup as a primary supply or conversion technology.
-    outputs:
-      - commodity: el
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: sup
-    variable_om: 10 MUSD24/PJ
-
+- id: dv
+  description: dv provides dem by transforming el.
+  inputs:
+  - commodity: el
+  lifetime: 100 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: dem
+  variable_om: -10 MUSD24/PJ
+- id: ic
+  description: ic provides sup as a primary supply or conversion technology.
+  outputs:
+  - commodity: el
+  lifetime: 100 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: sup
+  variable_om: 0 MUSD24/PJ
+- id: ifb
+  description: ifb provides sup as a primary supply or conversion technology.
+  outputs:
+  - commodity: el
+  lifetime: 100 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: sup
+  variable_om: 10 MUSD24/PJ
 technology_roles:
-  - id: rd
-    description: "rd groups technologies that deliver dem: dv."
-    primary_service: dem
-    technologies:
-      - dv
-
-  - id: rs
-    description: "rs groups technologies that deliver sup: ic and ifb."
-    primary_service: sup
-    technologies:
-      - ic
-      - ifb
-
+- id: rd
+  description: 'rd groups technologies that deliver dem: dv.'
+  primary_service: dem
+  technologies:
+  - dv
+- id: rs
+  description: 'rs groups technologies that deliver sup: ic and ifb.'
+  primary_service: sup
+  technologies:
+  - ic
+  - ifb
 spatial_layers:
-  - id: geo
-    geometry_file: data/regions.geojson
-    key: region_id
-    kind: polygon
-
+- id: geo
+  geometry_file: data/regions.geojson
+  key: region_id
+  kind: polygon
 region_partitions:
-  - id: rp
-    layer: geo
-    mapping:
-      kind: constant
-      value: R1
-    members:
-      - R1
-
+- id: rp
+  layer: geo
+  mapping:
+    kind: constant
+    value: R1
+  members:
+  - R1
 sites:
-  - id: s1
-    location:
-      point:
-        lat: -33.87
-        lon: 151.21
-    membership_overrides:
-      region_partitions:
-        rp: R1
-
+- id: s1
+  location:
+    point:
+      lat: -33.87
+      lon: 151.21
+  membership_overrides:
+    region_partitions:
+      rp: R1
 facilities:
-  - id: fd
-    description: fd instantiates role rd at site s1.
-    site: s1
-    stock:
-      items:
-        - metric: annual_activity
-          observed:
-            value: 8 PJ/year
-            year: 2020
-          technology: dv
-    technology_role: rd
-
-  - id: fs
-    description: fs instantiates role rs at site s1.
-    available_technologies:
-      - ic
-      - ifb
-    new_build_limits:
-      - max_new_capacity: 0 MW
-        technology: ifb
-    site: s1
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 100 MW
-            year: 2020
-          technology: ic
-
-        - metric: installed_capacity
-          observed:
-            value: 100 MW
-            year: 2020
-          technology: ifb
-    technology_role: rs
-
+- id: fd
+  description: fd instantiates role rd at site s1.
+  site: s1
+  stock:
+    items:
+    - metric: annual_activity
+      observed:
+        value: 8 PJ/year
+        year: 2020
+      technology: dv
+  technology_role: rd
+- id: fs
+  description: fs instantiates role rs at site s1.
+  available_technologies:
+  - ic
+  - ifb
+  new_build_limits:
+  - max_new_capacity: 0 MW
+    technology: ifb
+  site: s1
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 100 MW
+        year: 2020
+      technology: ic
+    - metric: installed_capacity
+      observed:
+        value: 100 MW
+        year: 2020
+      technology: ifb
+  technology_role: rs
 runs:
-  - id: r2020
-    veda_book_name: R2020
-    base_year: 2020
-    currency_year: 2024
-    region_partition: rp
+- id: r2020
+  veda_book_name: R2020
+  year_set: pathway_2020_2030
+  currency_year: 2024
+  region_partition: rp
+year_sets:
+- id: pathway_2020_2030
+  start_year: 2020
+  milestone_years:
+  - 2020
+  - 2030

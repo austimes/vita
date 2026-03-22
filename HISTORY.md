@@ -2,6 +2,23 @@
 
 Chronological record of the current repository state.
 
+## 2026-03-23
+
+- Replaced run-authored `base_year` with reusable top-level `year_sets` and
+  `runs[*].year_set`, making solve years explicit as authored `start_year` plus
+  milestone years.
+- Changed VedaLang workbook emission to use only `~STARTYEAR` and
+  `~MILESTONEYEARS` on `SysSettings.xlsx/TimePeriods`; removed emitted
+  `~ACTIVEPDEF`, `~TIMEPERIODS`, and `Endyear` rows.
+- Updated CSIR/run context semantics from `base_year` to `start_year`, while
+  keeping stock-adjustment authoring under `adjust_to_base_year` for now.
+- Updated VEDA online compatibility checks, examples, docs, and test fixtures
+  to the new year-set contract.
+- Extended local `xl2times` milestone-year handling so milestone-only tables
+  without `Endyear` treat the final milestone as the terminal horizon year.
+- Bumped the shipped repo/tool version to `0.4.23` across the Python package
+  and both CLI version markers.
+
 ## 2026-03-21
 
 - Added explicit `runs[*].veda_book_name` to the public VedaLang schema and

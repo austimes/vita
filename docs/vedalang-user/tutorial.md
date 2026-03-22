@@ -79,11 +79,16 @@ fleets:
     distribution:
       method: direct
 
-# Runs select the base year and regional view to compile.
+# Year sets declare the solve years; runs pick one and the regional view.
+year_sets:
+  - id: pathway_2025_2035
+    start_year: 2025
+    milestone_years: [2025, 2035]
+
 runs:
   - id: toy_region_2025
     veda_book_name: TOYREGION2025
-    base_year: 2025
+    year_set: pathway_2025_2035
     currency_year: 2024
     region_partition: toy_region
     reporting:
@@ -99,7 +104,8 @@ runs:
 - `region_partitions`: how underlying spatial members are grouped into model regions
 - `fleets`: generic or distributed stock, using `distribution.method: direct`
   for toy single-region models
-- `runs`: compile-time selection of base year, currency year, region partition,
+- `year_sets`: explicit solve-year catalogs with a `start_year` and milestone years
+- `runs`: compile-time selection of year set, currency year, region partition,
   and optional reporting toggles such as `reporting.value_flows`. When enabled,
   VedaLang emits the matching `RPT_OPT` control into `SysSettings.xlsx` and
   documents it on the workbook's `Reporting` tab.

@@ -1,147 +1,135 @@
-dsl_version: "0.3"
-
+dsl_version: '0.3'
 commodities:
-  - id: el
-    type: energy
-    energy_form: secondary
-
-  - id: el_gen
-    type: service
-
-  - id: gas_srv
-    type: service
-
-  - id: ng
-    type: energy
-    energy_form: primary
-
+- id: el
+  type: energy
+  energy_form: secondary
+- id: el_gen
+  type: service
+- id: gas_srv
+  type: service
+- id: ng
+  type: energy
+  energy_form: primary
 technologies:
-  - id: ccgt
-    description: ccgt provides el_gen by transforming ng.
-    inputs:
-      - commodity: ng
-        basis: HHV
-    outputs:
-      - commodity: el
-    lifetime: 30 year
-    performance:
-      kind: efficiency
-      value: 0.55
-    provides: el_gen
-
-  - id: gas_imp
-    description: gas_imp provides gas_srv as a primary supply or conversion technology.
-    outputs:
-      - commodity: ng
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: gas_srv
-
+- id: ccgt
+  description: ccgt provides el_gen by transforming ng.
+  inputs:
+  - commodity: ng
+    basis: HHV
+  outputs:
+  - commodity: el
+  lifetime: 30 year
+  performance:
+    kind: efficiency
+    value: 0.55
+  provides: el_gen
+- id: gas_imp
+  description: gas_imp provides gas_srv as a primary supply or conversion technology.
+  outputs:
+  - commodity: ng
+  lifetime: 100 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: gas_srv
 technology_roles:
-  - id: el_gen
-    description: "el_gen groups technologies that deliver el_gen: ccgt."
-    primary_service: el_gen
-    technologies:
-      - ccgt
-
-  - id: gas_srv
-    description: "gas_srv groups technologies that deliver gas_srv: gas_imp."
-    primary_service: gas_srv
-    technologies:
-      - gas_imp
-
+- id: el_gen
+  description: 'el_gen groups technologies that deliver el_gen: ccgt.'
+  primary_service: el_gen
+  technologies:
+  - ccgt
+- id: gas_srv
+  description: 'gas_srv groups technologies that deliver gas_srv: gas_imp.'
+  primary_service: gas_srv
+  technologies:
+  - gas_imp
 spatial_layers:
-  - id: geo_demo
-    geometry_file: data/regions.geojson
-    key: region_id
-    kind: polygon
-
+- id: geo_demo
+  geometry_file: data/regions.geojson
+  key: region_id
+  kind: polygon
 spatial_measure_sets:
-  - id: ka11_demo
-    layer: geo_demo
-    measures:
-      - id: ka11_pop
-        unit: people
-        column: population
-        file: data/ka11_pop.csv
-        observed_year: 2020
-
+- id: ka11_demo
+  layer: geo_demo
+  measures:
+  - id: ka11_pop
+    unit: people
+    column: population
+    file: data/ka11_pop.csv
+    observed_year: 2020
 region_partitions:
-  - id: ka11_regions
-    layer: geo_demo
-    mapping:
-      kind: constant
-      value: NTH
-    members:
-      - NTH
-      - STH
-
+- id: ka11_regions
+  layer: geo_demo
+  mapping:
+    kind: constant
+    value: NTH
+  members:
+  - NTH
+  - STH
 sites:
-  - id: nth_hub
-    location:
-      point:
-        lat: -20.0
-        lon: 140.0
-    membership_overrides:
-      region_partitions:
-        ka11_regions: NTH
-
-  - id: sth_hub
-    location:
-      point:
-        lat: -35.0
-        lon: 148.0
-    membership_overrides:
-      region_partitions:
-        ka11_regions: STH
-
+- id: nth_hub
+  location:
+    point:
+      lat: -20.0
+      lon: 140.0
+  membership_overrides:
+    region_partitions:
+      ka11_regions: NTH
+- id: sth_hub
+  location:
+    point:
+      lat: -35.0
+      lon: 148.0
+  membership_overrides:
+    region_partitions:
+      ka11_regions: STH
 facilities:
-  - id: nth_ccgt
-    description: nth_ccgt instantiates role el_gen at site nth_hub.
-    site: nth_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 12 MW
-            year: 2020
-          technology: ccgt
-    technology_role: el_gen
-
-  - id: sth_ccgt
-    description: sth_ccgt instantiates role el_gen at site sth_hub.
-    site: sth_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 12 MW
-            year: 2020
-          technology: ccgt
-    technology_role: el_gen
-
+- id: nth_ccgt
+  description: nth_ccgt instantiates role el_gen at site nth_hub.
+  site: nth_hub
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 12 MW
+        year: 2020
+      technology: ccgt
+  technology_role: el_gen
+- id: sth_ccgt
+  description: sth_ccgt instantiates role el_gen at site sth_hub.
+  site: sth_hub
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 12 MW
+        year: 2020
+      technology: ccgt
+  technology_role: el_gen
 fleets:
-  - id: gas_flt
-    description:
-      gas_flt represents distributed assets for role gas_srv using proportional
-      allocation.
-    distribution:
-      method: proportional
-      weight_by: ka11_pop
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 120 MW
-            year: 2020
-          technology: gas_imp
-    technology_role: gas_srv
-
+- id: gas_flt
+  description: gas_flt represents distributed assets for role gas_srv using proportional
+    allocation.
+  distribution:
+    method: proportional
+    weight_by: ka11_pop
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 120 MW
+        year: 2020
+      technology: gas_imp
+  technology_role: gas_srv
 runs:
-  - id: ka11_2020
-    veda_book_name: KA112020
-    base_year: 2020
-    currency_year: 2024
-    region_partition: ka11_regions
+- id: ka11_2020
+  veda_book_name: KA112020
+  year_set: pathway_2020_2030
+  currency_year: 2024
+  region_partition: ka11_regions
+year_sets:
+- id: pathway_2020_2030
+  start_year: 2020
+  milestone_years:
+  - 2020
+  - 2030

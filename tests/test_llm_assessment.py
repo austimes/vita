@@ -65,12 +65,16 @@ MINIMAL_SOURCE = {
         {
             "id": "r1_2025",
             "veda_book_name": "R12025",
-
-            "base_year": 2025,
-
+            "year_set": "pathway_2025_2035",
             "currency_year": 2024,
-
             "region_partition": "single_region",
+        }
+    ],
+    "year_sets": [
+        {
+            "id": "pathway_2025_2035",
+            "start_year": 2025,
+            "milestone_years": [2025, 2035],
         }
     ],
 }

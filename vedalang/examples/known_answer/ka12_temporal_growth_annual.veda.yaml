@@ -1,120 +1,111 @@
-dsl_version: "0.3"
-
+dsl_version: '0.3'
 commodities:
-  - id: electricity
-    type: energy
-    energy_form: secondary
-
-  - id: electricity_generation
-    type: service
-
-  - id: gas_supply
-    type: service
-
-  - id: natural_gas
-    type: energy
-    energy_form: primary
-
+- id: electricity
+  type: energy
+  energy_form: secondary
+- id: electricity_generation
+  type: service
+- id: gas_supply
+  type: service
+- id: natural_gas
+  type: energy
+  energy_form: primary
 technologies:
-  - id: ccgt
-    description: ccgt provides electricity_generation by transforming natural_gas.
-    inputs:
-      - commodity: natural_gas
-        basis: HHV
-    outputs:
-      - commodity: electricity
-    lifetime: 30 year
-    performance:
-      kind: efficiency
-      value: 0.55
-    provides: electricity_generation
-
-  - id: gas_import
-    description: gas_import provides gas_supply as a primary supply or conversion technology.
-    outputs:
-      - commodity: natural_gas
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: gas_supply
-
+- id: ccgt
+  description: ccgt provides electricity_generation by transforming natural_gas.
+  inputs:
+  - commodity: natural_gas
+    basis: HHV
+  outputs:
+  - commodity: electricity
+  lifetime: 30 year
+  performance:
+    kind: efficiency
+    value: 0.55
+  provides: electricity_generation
+- id: gas_import
+  description: gas_import provides gas_supply as a primary supply or conversion technology.
+  outputs:
+  - commodity: natural_gas
+  lifetime: 100 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: gas_supply
 technology_roles:
-  - id: electricity_generation
-    description:
-      "electricity_generation groups technologies that deliver electricity_generation:
-      ccgt."
-    primary_service: electricity_generation
-    technologies:
-      - ccgt
-
-  - id: gas_supply
-    description: "gas_supply groups technologies that deliver gas_supply: gas_import."
-    primary_service: gas_supply
-    technologies:
-      - gas_import
-
+- id: electricity_generation
+  description: 'electricity_generation groups technologies that deliver electricity_generation:
+    ccgt.'
+  primary_service: electricity_generation
+  technologies:
+  - ccgt
+- id: gas_supply
+  description: 'gas_supply groups technologies that deliver gas_supply: gas_import.'
+  primary_service: gas_supply
+  technologies:
+  - gas_import
 spatial_layers:
-  - id: geo_demo
-    geometry_file: data/regions.geojson
-    key: region_id
-    kind: polygon
-
+- id: geo_demo
+  geometry_file: data/regions.geojson
+  key: region_id
+  kind: polygon
 region_partitions:
-  - id: reg1_partition
-    layer: geo_demo
-    mapping:
-      kind: constant
-      value: REG1
-    members:
-      - REG1
-
+- id: reg1_partition
+  layer: geo_demo
+  mapping:
+    kind: constant
+    value: REG1
+  members:
+  - REG1
 sites:
-  - id: reg1_energy_hub
-    location:
-      point:
-        lat: -33.87
-        lon: 151.21
-    membership_overrides:
-      region_partitions:
-        reg1_partition: REG1
-
+- id: reg1_energy_hub
+  location:
+    point:
+      lat: -33.87
+      lon: 151.21
+  membership_overrides:
+    region_partitions:
+      reg1_partition: REG1
 facilities:
-  - id: reg1_ccgt
-    description: reg1_ccgt instantiates role electricity_generation at site reg1_energy_hub.
-    site: reg1_energy_hub
-    stock:
-      adjust_to_base_year:
-        using:
-          kind: annual_growth
-          rate: 10 %/year
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 12 MW
-            year: 2020
-          technology: ccgt
-    technology_role: electricity_generation
-
-  - id: reg1_gas_supply
-    description: reg1_gas_supply instantiates role gas_supply at site reg1_energy_hub.
-    site: reg1_energy_hub
-    stock:
-      adjust_to_base_year:
-        using:
-          kind: annual_growth
-          rate: 10 %/year
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 100 MW
-            year: 2020
-          technology: gas_import
-    technology_role: gas_supply
-
+- id: reg1_ccgt
+  description: reg1_ccgt instantiates role electricity_generation at site reg1_energy_hub.
+  site: reg1_energy_hub
+  stock:
+    adjust_to_base_year:
+      using:
+        kind: annual_growth
+        rate: 10 %/year
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 12 MW
+        year: 2020
+      technology: ccgt
+  technology_role: electricity_generation
+- id: reg1_gas_supply
+  description: reg1_gas_supply instantiates role gas_supply at site reg1_energy_hub.
+  site: reg1_energy_hub
+  stock:
+    adjust_to_base_year:
+      using:
+        kind: annual_growth
+        rate: 10 %/year
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 100 MW
+        year: 2020
+      technology: gas_import
+  technology_role: gas_supply
 runs:
-  - id: reg1_2030
-    veda_book_name: REG12030
-    base_year: 2030
-    currency_year: 2024
-    region_partition: reg1_partition
+- id: reg1_2030
+  veda_book_name: REG12030
+  year_set: pathway_2030_2040
+  currency_year: 2024
+  region_partition: reg1_partition
+year_sets:
+- id: pathway_2030_2040
+  start_year: 2030
+  milestone_years:
+  - 2030
+  - 2040

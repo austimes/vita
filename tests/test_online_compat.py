@@ -47,14 +47,6 @@ class TestScalarTagValidation:
         errors = validate_online_compat(tableir)
         assert errors == []
 
-    def test_activepdef_scalar_valid(self):
-        tableir = _make_tableir([
-            {"tag": "~ACTIVEPDEF", "rows": [{"value": "P1"}]}
-        ])
-        errors = validate_online_compat(tableir)
-        assert errors == []
-
-
 class TestYearColumnValidation:
     def test_year_column_string_rejected(self):
         tableir = _make_tableir([
@@ -204,9 +196,13 @@ class TestVedaWorkbookContracts:
                             "name": "TimePeriods",
                             "tables": [
                                 {"tag": "~STARTYEAR", "rows": [{"value": 2025}]},
-                                {"tag": "~ACTIVEPDEF", "rows": [{"value": "Pdef-1"}]},
-                                {"tag": "~TIMEPERIODS", "rows": [{"Pdef-1": 10}]},
-                                {"tag": "~MILESTONEYEARS", "rows": [{"type": "Endyear", "year": 2035}]},
+                                {
+                                    "tag": "~MILESTONEYEARS",
+                                    "rows": [
+                                        {"type": "milestoneyear", "pathway_2025_2035": 2025},
+                                        {"type": "milestoneyear", "pathway_2025_2035": 2035},
+                                    ],
+                                },
                             ],
                         },
                         {

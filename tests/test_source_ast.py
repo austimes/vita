@@ -90,6 +90,13 @@ def valid_public_source() -> dict:
                 "values": {"2023": 1.0, "2025": 1.04},
             }
         ],
+        "year_sets": [
+            {
+                "id": "pathway_2025_2035",
+                "start_year": 2025,
+                "milestone_years": [2025, 2035],
+            }
+        ],
         "policies": [
             {
                 "id": "co2_cap",
@@ -195,11 +202,8 @@ def valid_public_source() -> dict:
             {
                 "id": "toy_states_2025",
                 "veda_book_name": "TOYSTATES2025",
-
-                "base_year": 2025,
-
+                "year_set": "pathway_2025_2035",
                 "currency_year": 2024,
-
                 "region_partition": "regions_toy_states_3",
             }
         ],
@@ -233,6 +237,7 @@ def test_parse_public_source_returns_typed_document() -> None:
     )
     assert ast.zone_opportunities[0].zone == "regions_aemo_rez_2024.qld_central_rez"
     assert ast.networks[0].links[0].from_node == "QLD"
+    assert ast.year_sets[0].start_year == 2025
     assert ast.runs[0].region_partition == "regions_toy_states_3"
 
 

@@ -158,11 +158,18 @@ def _sample_source(
                 ],
             }
         ],
+        "year_sets": [
+            {
+                "id": "pathway_2025_2035",
+                "start_year": 2025,
+                "milestone_years": [2025, 2035],
+            }
+        ],
         "runs": [
             {
                 "id": "toy_states_2025",
                 "veda_book_name": "TOYSTATES2025",
-                "base_year": 2025,
+                "year_set": "pathway_2025_2035",
                 "currency_year": 2024,
                 "region_partition": "toy_states",
             }
@@ -568,12 +575,13 @@ def test_lower_bundle_emits_uc_tables_from_cpir_user_constraints():
     assert rhs_years == [2025, 2030, 2035]
 
     milestone_rows = _table_rows(tableir, "~MILESTONEYEARS")
-    assert any(row == {"type": "Endyear", "year": 2035} for row in milestone_rows)
     assert {
-        row["year"] for row in milestone_rows if row.get("type") == "milestoneyear"
-    } == {2025, 2030}
-    assert _table_rows(tableir, "~ACTIVEPDEF") == [{"value": "Pdef-1"}]
-    assert _table_rows(tableir, "~TIMEPERIODS") == [{"Pdef-1": 5}, {"Pdef-1": 5}]
+        row["pathway_2025_2035"]
+        for row in milestone_rows
+        if row.get("type") == "milestoneyear"
+    } == {2025, 2030, 2035}
+    assert _table_rows(tableir, "~ACTIVEPDEF") == []
+    assert _table_rows(tableir, "~TIMEPERIODS") == []
 
 
 def test_injected_uc_tableir_passes_run_check(tmp_path):

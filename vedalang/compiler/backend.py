@@ -224,7 +224,7 @@ def _trade_link_files(
     network_arcs: list[dict[str, Any]],
     commodity_aliases: dict[str, str],
     *,
-    base_year: int,
+    start_year: int,
 ) -> list[dict[str, Any]]:
     grouped: dict[str, list[dict[str, Any]]] = {}
     trade_attr_rows: list[dict[str, Any]] = []
@@ -247,7 +247,7 @@ def _trade_link_files(
             trade_attr_rows.append(
                 {
                     "region": arc["from"],
-                    "year": base_year,
+                    "year": start_year,
                     "limtype": "UP",
                     "pset_pn": pattern,
                     "attribute": "NCAP_BND",
@@ -299,8 +299,8 @@ def _trade_link_files(
     return files
 
 
-def _model_years(cpir: dict[str, Any], *, base_year: int) -> list[int]:
-    years: set[int] = {base_year}
+def _model_years(cpir: dict[str, Any], *, start_year: int) -> list[int]:
+    years: set[int] = {start_year}
     raw = cpir.get("model_years")
     if isinstance(raw, list):
         for value in raw:
@@ -313,8 +313,6 @@ def _model_years(cpir: dict[str, Any], *, base_year: int) -> list[int]:
                 normalized = value.strip()
                 if normalized.isdigit():
                     years.add(int(normalized))
-    if len(years) == 1:
-        years.add(base_year + 10)
     return sorted(years)
 
 
@@ -517,7 +515,7 @@ def lower_bundle_to_tableir(
             bound_row = {
                 "region": region,
                 "process": process_alias,
-                "year": artifacts.csir["base_year"],
+                "year": artifacts.csir["start_year"],
                 "limtype": technology.activity_bound.limtype,
                 "act_bnd": _numeric_amount(technology.activity_bound.value),
             }
@@ -534,7 +532,7 @@ def lower_bundle_to_tableir(
                 {
                     "region": region,
                     "process": process_alias,
-                    "year": artifacts.csir["base_year"],
+                    "year": artifacts.csir["start_year"],
                     "attribute": "PRC_RESID",
                     "value": initial_stock["amount"],
                 }
@@ -549,7 +547,7 @@ def lower_bundle_to_tableir(
                 {
                     "region": region,
                     "process": process_alias,
-                    "year": artifacts.csir["base_year"],
+                    "year": artifacts.csir["start_year"],
                     "limtype": "UP",
                     "attribute": "NCAP_BND",
                     "value": max_new_capacity["amount"],
@@ -558,8 +556,8 @@ def lower_bundle_to_tableir(
 
         fi_t_rows.extend(emission_rows)
 
-    start_year = artifacts.csir["base_year"]
-    model_years = _model_years(artifacts.cpir, base_year=start_year)
+    start_year = artifacts.csir["start_year"]
+    model_years = _model_years(artifacts.cpir, start_year=start_year)
     uc_tables = _lower_user_constraints_to_tables(
         artifacts.cpir.get("user_constraints", []),
         process_symbols=process_symbols,
@@ -570,17 +568,10 @@ def lower_bundle_to_tableir(
         {"bookname": bookname, "region": region} for region in model_regions
     ]
     startyear_rows = [{"value": start_year}]
-    period_boundaries = sorted(set(model_years))
-    end_year = period_boundaries[-1]
-    milestone_years = period_boundaries[:-1] or [start_year]
-    milestoneyears_rows = [{"type": "Endyear", "year": end_year}]
-    milestoneyears_rows.extend(
-        {"type": "milestoneyear", "year": year} for year in milestone_years
-    )
-    activepdef_rows = [{"value": "Pdef-1"}]
-    timeperiod_rows = [
-        {"Pdef-1": period_boundaries[idx + 1] - year}
-        for idx, year in enumerate(period_boundaries[:-1])
+    year_set_id = str(artifacts.csir["year_set"])
+    milestoneyears_rows = [
+        {"type": "milestoneyear", year_set_id: year}
+        for year in sorted(set(model_years))
     ]
     currencies_rows = [{"currency": "USD"}]
     gdrate_rows = [
@@ -673,8 +664,6 @@ def lower_bundle_to_tableir(
                         "name": "TimePeriods",
                         "tables": [
                             {"tag": "~STARTYEAR", "rows": startyear_rows},
-                            {"tag": "~ACTIVEPDEF", "rows": activepdef_rows},
-                            {"tag": "~TIMEPERIODS", "rows": timeperiod_rows},
                             {"tag": "~MILESTONEYEARS", "rows": milestoneyears_rows},
                         ],
                     },
@@ -704,7 +693,7 @@ def lower_bundle_to_tableir(
             *_trade_link_files(
                 artifacts.cpir.get("network_arcs", []),
                 commodity_symbols,
-                base_year=start_year,
+                start_year=start_year,
             ),
         ]
     }

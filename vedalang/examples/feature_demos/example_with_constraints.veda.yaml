@@ -1,273 +1,242 @@
-dsl_version: "0.3"
-
+dsl_version: '0.3'
 commodities:
-  - id: co2
-    type: emission
-
-  - id: electricity
-    type: energy
-    energy_form: secondary
-
-  - id: electricity_generation
-    type: service
-
-  - id: electricity_service
-    type: service
-
-  - id: gas_supply
-    type: service
-
-  - id: natural_gas
-    type: energy
-    energy_form: primary
-
-  - id: solar_resource
-    type: energy
-    energy_form: resource
-
-  - id: solar_supply
-    type: service
-
-  - id: wind_resource
-    type: energy
-    energy_form: resource
-
-  - id: wind_supply
-    type: service
-
+- id: co2
+  type: emission
+- id: electricity
+  type: energy
+  energy_form: secondary
+- id: electricity_generation
+  type: service
+- id: electricity_service
+  type: service
+- id: gas_supply
+  type: service
+- id: natural_gas
+  type: energy
+  energy_form: primary
+- id: solar_resource
+  type: energy
+  energy_form: resource
+- id: solar_supply
+  type: service
+- id: wind_resource
+  type: energy
+  energy_form: resource
+- id: wind_supply
+  type: service
 technologies:
-  - id: ccgt_generation
-    description: ccgt_generation provides electricity_generation by transforming natural_gas.
-    inputs:
-      - commodity: natural_gas
-        basis: HHV
-    outputs:
-      - commodity: electricity
-    emissions:
-      - commodity: co2
-        factor: 0.056 t/GJ
-    lifetime: 30 year
-    performance:
-      kind: efficiency
-      value: 0.55
-    provides: electricity_generation
-
-  - id: electric_service
-    description: electric_service provides electricity_service by transforming electricity.
-    inputs:
-      - commodity: electricity
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: electricity_service
-
-  - id: pipeline_import
-    description: pipeline_import provides gas_supply as a primary supply or conversion
-      technology.
-    outputs:
-      - commodity: natural_gas
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: gas_supply
-
-  - id: solar_generation
-    description: solar_generation provides electricity_generation by transforming solar_resource.
-    inputs:
-      - commodity: solar_resource
-    outputs:
-      - commodity: electricity
-    lifetime: 25 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: electricity_generation
-
-  - id: solar_resource_supply
-    description: solar_resource_supply provides solar_supply as a primary supply or
-      conversion technology.
-    outputs:
-      - commodity: solar_resource
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: solar_supply
-
-  - id: wind_generation
-    description: wind_generation provides electricity_generation by transforming wind_resource.
-    inputs:
-      - commodity: wind_resource
-    outputs:
-      - commodity: electricity
-    lifetime: 25 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: electricity_generation
-
-  - id: wind_resource_supply
-    description:
-      wind_resource_supply provides wind_supply as a primary supply or conversion
-      technology.
-    outputs:
-      - commodity: wind_resource
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: wind_supply
-
+- id: ccgt_generation
+  description: ccgt_generation provides electricity_generation by transforming natural_gas.
+  inputs:
+  - commodity: natural_gas
+    basis: HHV
+  outputs:
+  - commodity: electricity
+  emissions:
+  - commodity: co2
+    factor: 0.056 t/GJ
+  lifetime: 30 year
+  performance:
+    kind: efficiency
+    value: 0.55
+  provides: electricity_generation
+- id: electric_service
+  description: electric_service provides electricity_service by transforming electricity.
+  inputs:
+  - commodity: electricity
+  lifetime: 100 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: electricity_service
+- id: pipeline_import
+  description: pipeline_import provides gas_supply as a primary supply or conversion
+    technology.
+  outputs:
+  - commodity: natural_gas
+  lifetime: 100 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: gas_supply
+- id: solar_generation
+  description: solar_generation provides electricity_generation by transforming solar_resource.
+  inputs:
+  - commodity: solar_resource
+  outputs:
+  - commodity: electricity
+  lifetime: 25 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: electricity_generation
+- id: solar_resource_supply
+  description: solar_resource_supply provides solar_supply as a primary supply or
+    conversion technology.
+  outputs:
+  - commodity: solar_resource
+  lifetime: 100 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: solar_supply
+- id: wind_generation
+  description: wind_generation provides electricity_generation by transforming wind_resource.
+  inputs:
+  - commodity: wind_resource
+  outputs:
+  - commodity: electricity
+  lifetime: 25 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: electricity_generation
+- id: wind_resource_supply
+  description: wind_resource_supply provides wind_supply as a primary supply or conversion
+    technology.
+  outputs:
+  - commodity: wind_resource
+  lifetime: 100 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: wind_supply
 technology_roles:
-  - id: electricity_generation
-    description:
-      "electricity_generation groups technologies that deliver electricity_generation:
-      ccgt_generation, solar_generation, and wind_generation."
-    primary_service: electricity_generation
-    technologies:
-      - ccgt_generation
-      - solar_generation
-      - wind_generation
-
-  - id: electricity_service
-    description:
-      "electricity_service groups technologies that deliver electricity_service:
-      electric_service."
-    primary_service: electricity_service
-    technologies:
-      - electric_service
-
-  - id: gas_supply
-    description: "gas_supply groups technologies that deliver gas_supply: pipeline_import."
-    primary_service: gas_supply
-    technologies:
-      - pipeline_import
-
-  - id: solar_supply
-    description: "solar_supply groups technologies that deliver solar_supply: solar_resource_supply."
-    primary_service: solar_supply
-    technologies:
-      - solar_resource_supply
-
-  - id: wind_supply
-    description: "wind_supply groups technologies that deliver wind_supply: wind_resource_supply."
-    primary_service: wind_supply
-    technologies:
-      - wind_resource_supply
-
+- id: electricity_generation
+  description: 'electricity_generation groups technologies that deliver electricity_generation:
+    ccgt_generation, solar_generation, and wind_generation.'
+  primary_service: electricity_generation
+  technologies:
+  - ccgt_generation
+  - solar_generation
+  - wind_generation
+- id: electricity_service
+  description: 'electricity_service groups technologies that deliver electricity_service:
+    electric_service.'
+  primary_service: electricity_service
+  technologies:
+  - electric_service
+- id: gas_supply
+  description: 'gas_supply groups technologies that deliver gas_supply: pipeline_import.'
+  primary_service: gas_supply
+  technologies:
+  - pipeline_import
+- id: solar_supply
+  description: 'solar_supply groups technologies that deliver solar_supply: solar_resource_supply.'
+  primary_service: solar_supply
+  technologies:
+  - solar_resource_supply
+- id: wind_supply
+  description: 'wind_supply groups technologies that deliver wind_supply: wind_resource_supply.'
+  primary_service: wind_supply
+  technologies:
+  - wind_resource_supply
 spatial_layers:
-  - id: geo_demo
-    geometry_file: data/regions.geojson
-    key: region_id
-    kind: polygon
-
+- id: geo_demo
+  geometry_file: data/regions.geojson
+  key: region_id
+  kind: polygon
 region_partitions:
-  - id: reg1_partition
-    layer: geo_demo
-    mapping:
-      kind: constant
-      value: REG1
-    members:
-      - REG1
-
+- id: reg1_partition
+  layer: geo_demo
+  mapping:
+    kind: constant
+    value: REG1
+  members:
+  - REG1
 sites:
-  - id: reg1_energy_hub
-    location:
-      point:
-        lat: -33.87
-        lon: 151.21
-    membership_overrides:
-      region_partitions:
-        reg1_partition: REG1
-
+- id: reg1_energy_hub
+  location:
+    point:
+      lat: -33.87
+      lon: 151.21
+  membership_overrides:
+    region_partitions:
+      reg1_partition: REG1
 facilities:
-  - id: reg1_fuel_supply
-    description: reg1_fuel_supply instantiates role gas_supply at site reg1_energy_hub.
-    site: reg1_energy_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 150 MW
-            year: 2025
-          technology: pipeline_import
-    technology_role: gas_supply
-
-  - id: reg1_generation
-    description: reg1_generation instantiates role electricity_generation at site reg1_energy_hub.
-    available_technologies:
-      - ccgt_generation
-      - solar_generation
-      - wind_generation
-    new_build_limits:
-      - max_new_capacity: 30 MW
-        technology: solar_generation
-
-      - max_new_capacity: 40 MW
-        technology: wind_generation
-    site: reg1_energy_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 10 MW
-            year: 2025
-          technology: ccgt_generation
-
-        - metric: installed_capacity
-          observed:
-            value: 3 MW
-            year: 2025
-          technology: solar_generation
-
-        - metric: installed_capacity
-          observed:
-            value: 3 MW
-            year: 2025
-          technology: wind_generation
-    technology_role: electricity_generation
-
-  - id: reg1_service
-    description: reg1_service instantiates role electricity_service at site reg1_energy_hub.
-    site: reg1_energy_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 16 MW
-            year: 2025
-          technology: electric_service
-    technology_role: electricity_service
-
-  - id: reg1_solar_supply
-    description: reg1_solar_supply instantiates role solar_supply at site reg1_energy_hub.
-    site: reg1_energy_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 120 MW
-            year: 2025
-          technology: solar_resource_supply
-    technology_role: solar_supply
-
-  - id: reg1_wind_supply
-    description: reg1_wind_supply instantiates role wind_supply at site reg1_energy_hub.
-    site: reg1_energy_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 120 MW
-            year: 2025
-          technology: wind_resource_supply
-    technology_role: wind_supply
-
+- id: reg1_fuel_supply
+  description: reg1_fuel_supply instantiates role gas_supply at site reg1_energy_hub.
+  site: reg1_energy_hub
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 150 MW
+        year: 2025
+      technology: pipeline_import
+  technology_role: gas_supply
+- id: reg1_generation
+  description: reg1_generation instantiates role electricity_generation at site reg1_energy_hub.
+  available_technologies:
+  - ccgt_generation
+  - solar_generation
+  - wind_generation
+  new_build_limits:
+  - max_new_capacity: 30 MW
+    technology: solar_generation
+  - max_new_capacity: 40 MW
+    technology: wind_generation
+  site: reg1_energy_hub
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 10 MW
+        year: 2025
+      technology: ccgt_generation
+    - metric: installed_capacity
+      observed:
+        value: 3 MW
+        year: 2025
+      technology: solar_generation
+    - metric: installed_capacity
+      observed:
+        value: 3 MW
+        year: 2025
+      technology: wind_generation
+  technology_role: electricity_generation
+- id: reg1_service
+  description: reg1_service instantiates role electricity_service at site reg1_energy_hub.
+  site: reg1_energy_hub
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 16 MW
+        year: 2025
+      technology: electric_service
+  technology_role: electricity_service
+- id: reg1_solar_supply
+  description: reg1_solar_supply instantiates role solar_supply at site reg1_energy_hub.
+  site: reg1_energy_hub
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 120 MW
+        year: 2025
+      technology: solar_resource_supply
+  technology_role: solar_supply
+- id: reg1_wind_supply
+  description: reg1_wind_supply instantiates role wind_supply at site reg1_energy_hub.
+  site: reg1_energy_hub
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 120 MW
+        year: 2025
+      technology: wind_resource_supply
+  technology_role: wind_supply
 runs:
-  - id: reg1_2025
-    veda_book_name: REG12025
-    base_year: 2025
-    currency_year: 2024
-    region_partition: reg1_partition
+- id: reg1_2025
+  veda_book_name: REG12025
+  year_set: pathway_2025_2035
+  currency_year: 2024
+  region_partition: reg1_partition
+year_sets:
+- id: pathway_2025_2035
+  start_year: 2025
+  milestone_years:
+  - 2025
+  - 2035

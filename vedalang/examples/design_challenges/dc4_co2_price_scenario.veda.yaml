@@ -1,229 +1,205 @@
-dsl_version: "0.3"
-
+dsl_version: '0.3'
 commodities:
-  - id: co2
-    type: emission
-
-  - id: electricity
-    type: energy
-    energy_form: secondary
-
-  - id: electricity_generation
-    type: service
-
-  - id: electricity_service
-    type: service
-
-  - id: gas_supply
-    type: service
-
-  - id: natural_gas
-    type: energy
-    energy_form: primary
-
-  - id: wind_resource
-    type: energy
-    energy_form: resource
-
-  - id: wind_resource_supply
-    type: service
-
+- id: co2
+  type: emission
+- id: electricity
+  type: energy
+  energy_form: secondary
+- id: electricity_generation
+  type: service
+- id: electricity_service
+  type: service
+- id: gas_supply
+  type: service
+- id: natural_gas
+  type: energy
+  energy_form: primary
+- id: wind_resource
+  type: energy
+  energy_form: resource
+- id: wind_resource_supply
+  type: service
 technologies:
-  - id: ccgt
-    description: ccgt provides electricity_generation by transforming natural_gas.
-    inputs:
-      - commodity: natural_gas
-        basis: HHV
-    outputs:
-      - commodity: electricity
-    emissions:
-      - commodity: co2
-        factor: 0.056 t/GJ
-    lifetime: 40 year
-    performance:
-      kind: efficiency
-      value: 0.55
-    provides: electricity_generation
-
-  - id: electricity_service
-    description: electricity_service provides electricity_service by transforming electricity.
-    inputs:
-      - commodity: electricity
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: electricity_service
-
-  - id: onshore_wind_resource
-    description: onshore_wind_resource provides wind_resource_supply as a primary supply
-      or conversion technology.
-    outputs:
-      - commodity: wind_resource
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: wind_resource_supply
-
-  - id: pipeline_import
-    description: pipeline_import provides gas_supply as a primary supply or conversion
-      technology.
-    outputs:
-      - commodity: natural_gas
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: gas_supply
-    variable_om: 8 AUD2024/MWh
-
-  - id: wind
-    description: wind provides electricity_generation by transforming wind_resource.
-    inputs:
-      - commodity: wind_resource
-    outputs:
-      - commodity: electricity
-    lifetime: 25 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: electricity_generation
-
+- id: ccgt
+  description: ccgt provides electricity_generation by transforming natural_gas.
+  inputs:
+  - commodity: natural_gas
+    basis: HHV
+  outputs:
+  - commodity: electricity
+  emissions:
+  - commodity: co2
+    factor: 0.056 t/GJ
+  lifetime: 40 year
+  performance:
+    kind: efficiency
+    value: 0.55
+  provides: electricity_generation
+- id: electricity_service
+  description: electricity_service provides electricity_service by transforming electricity.
+  inputs:
+  - commodity: electricity
+  lifetime: 100 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: electricity_service
+- id: onshore_wind_resource
+  description: onshore_wind_resource provides wind_resource_supply as a primary supply
+    or conversion technology.
+  outputs:
+  - commodity: wind_resource
+  lifetime: 100 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: wind_resource_supply
+- id: pipeline_import
+  description: pipeline_import provides gas_supply as a primary supply or conversion
+    technology.
+  outputs:
+  - commodity: natural_gas
+  lifetime: 100 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: gas_supply
+  variable_om: 8 AUD2024/MWh
+- id: wind
+  description: wind provides electricity_generation by transforming wind_resource.
+  inputs:
+  - commodity: wind_resource
+  outputs:
+  - commodity: electricity
+  lifetime: 25 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: electricity_generation
 technology_roles:
-  - id: electricity_generation
-    description:
-      "electricity_generation groups technologies that deliver electricity_generation:
-      ccgt and wind."
-    primary_service: electricity_generation
-    technologies:
-      - ccgt
-      - wind
-
-  - id: electricity_service
-    description:
-      "electricity_service groups technologies that deliver electricity_service:
-      electricity_service."
-    primary_service: electricity_service
-    technologies:
-      - electricity_service
-
-  - id: gas_supply
-    description: "gas_supply groups technologies that deliver gas_supply: pipeline_import."
-    primary_service: gas_supply
-    technologies:
-      - pipeline_import
-
-  - id: wind_resource_supply
-    description:
-      "wind_resource_supply groups technologies that deliver wind_resource_supply:
-      onshore_wind_resource."
-    primary_service: wind_resource_supply
-    technologies:
-      - onshore_wind_resource
-
+- id: electricity_generation
+  description: 'electricity_generation groups technologies that deliver electricity_generation:
+    ccgt and wind.'
+  primary_service: electricity_generation
+  technologies:
+  - ccgt
+  - wind
+- id: electricity_service
+  description: 'electricity_service groups technologies that deliver electricity_service:
+    electricity_service.'
+  primary_service: electricity_service
+  technologies:
+  - electricity_service
+- id: gas_supply
+  description: 'gas_supply groups technologies that deliver gas_supply: pipeline_import.'
+  primary_service: gas_supply
+  technologies:
+  - pipeline_import
+- id: wind_resource_supply
+  description: 'wind_resource_supply groups technologies that deliver wind_resource_supply:
+    onshore_wind_resource.'
+  primary_service: wind_resource_supply
+  technologies:
+  - onshore_wind_resource
 spatial_layers:
-  - id: geo_demo
-    geometry_file: data/regions.geojson
-    key: region_id
-    kind: polygon
-
+- id: geo_demo
+  geometry_file: data/regions.geojson
+  key: region_id
+  kind: polygon
 temporal_index_series:
-  - id: co2_policy_index
-    unit: index
-    values:
-      "2025": 1.0
-      "2030": 1.5
-      "2040": 2.5
-      "2050": 4.0
-    base_year: 2025
-
+- id: co2_policy_index
+  unit: index
+  values:
+    '2025': 1.0
+    '2030': 1.5
+    '2040': 2.5
+    '2050': 4.0
+  base_year: 2025
+year_sets:
+- id: pathway_2025_2035
+  start_year: 2025
+  milestone_years:
+  - 2025
+  - 2035
 region_partitions:
-  - id: reg1_partition
-    layer: geo_demo
-    mapping:
-      kind: constant
-      value: REG1
-    members:
-      - REG1
-
+- id: reg1_partition
+  layer: geo_demo
+  mapping:
+    kind: constant
+    value: REG1
+  members:
+  - REG1
 sites:
-  - id: reg1_energy_hub
-    location:
-      point:
-        lat: -35.28
-        lon: 149.13
-    membership_overrides:
-      region_partitions:
-        reg1_partition: REG1
-
+- id: reg1_energy_hub
+  location:
+    point:
+      lat: -35.28
+      lon: 149.13
+  membership_overrides:
+    region_partitions:
+      reg1_partition: REG1
 facilities:
-  - id: reg1_gas_supply
-    description: reg1_gas_supply instantiates role gas_supply at site reg1_energy_hub.
-    site: reg1_energy_hub
-    stock:
-      items:
-        - adjust_to_base_year:
-            elasticity: -0.2
-            using: co2_policy_index
-          metric: annual_activity
-          observed:
-            value: 300 GWh/year
-            year: 2025
-          technology: pipeline_import
-    technology_role: gas_supply
-
-  - id: reg1_generation
-    description: reg1_generation instantiates role electricity_generation at site reg1_energy_hub.
-    available_technologies:
-      - ccgt
-      - wind
-    new_build_limits:
-      - max_new_capacity: 40 MW
-        technology: wind
-    site: reg1_energy_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 15 MW
-            year: 2025
-          technology: ccgt
-
-        - metric: installed_capacity
-          observed:
-            value: 3 MW
-            year: 2025
-          technology: wind
-    technology_role: electricity_generation
-
-  - id: reg1_service
-    description: reg1_service instantiates role electricity_service at site reg1_energy_hub.
-    site: reg1_energy_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 18 MW
-            year: 2025
-          technology: electricity_service
-    technology_role: electricity_service
-
-  - id: reg1_wind_supply
-    description: reg1_wind_supply instantiates role wind_resource_supply at site reg1_energy_hub.
-    site: reg1_energy_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 100 MW
-            year: 2025
-          technology: onshore_wind_resource
-    technology_role: wind_resource_supply
-
+- id: reg1_gas_supply
+  description: reg1_gas_supply instantiates role gas_supply at site reg1_energy_hub.
+  site: reg1_energy_hub
+  stock:
+    items:
+    - adjust_to_base_year:
+        elasticity: -0.2
+        using: co2_policy_index
+      metric: annual_activity
+      observed:
+        value: 300 GWh/year
+        year: 2025
+      technology: pipeline_import
+  technology_role: gas_supply
+- id: reg1_generation
+  description: reg1_generation instantiates role electricity_generation at site reg1_energy_hub.
+  available_technologies:
+  - ccgt
+  - wind
+  new_build_limits:
+  - max_new_capacity: 40 MW
+    technology: wind
+  site: reg1_energy_hub
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 15 MW
+        year: 2025
+      technology: ccgt
+    - metric: installed_capacity
+      observed:
+        value: 3 MW
+        year: 2025
+      technology: wind
+  technology_role: electricity_generation
+- id: reg1_service
+  description: reg1_service instantiates role electricity_service at site reg1_energy_hub.
+  site: reg1_energy_hub
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 18 MW
+        year: 2025
+      technology: electricity_service
+  technology_role: electricity_service
+- id: reg1_wind_supply
+  description: reg1_wind_supply instantiates role wind_resource_supply at site reg1_energy_hub.
+  site: reg1_energy_hub
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 100 MW
+        year: 2025
+      technology: onshore_wind_resource
+  technology_role: wind_resource_supply
 runs:
-  - id: reg1_2025
-    veda_book_name: REG12025
-    base_year: 2025
-    currency_year: 2024
-    region_partition: reg1_partition
+- id: reg1_2025
+  veda_book_name: REG12025
+  year_set: pathway_2025_2035
+  currency_year: 2024
+  region_partition: reg1_partition

@@ -6,6 +6,16 @@ from vedalang.compiler.source_maps import attach_source_positions
 from vedalang.lint.code_categories import run_core
 
 
+def _year_sets_2025() -> list[dict[str, object]]:
+    return [
+        {
+            "id": "pathway_2025_2035",
+            "start_year": 2025,
+            "milestone_years": [2025, 2035],
+        }
+    ]
+
+
 def test_public_compile_json_includes_section14_location_metadata(tmp_path):
     src = tmp_path / "bad_service_role.veda.yaml"
     src.write_text(
@@ -25,10 +35,14 @@ def test_public_compile_json_includes_section14_location_metadata(tmp_path):
                 "    description: Diagnostic fixture role for electricity service.",
                 "    primary_service: electricity",
                 "    technologies: [gas_heater]",
+                "year_sets:",
+                "  - id: pathway_2025_2035",
+                "    start_year: 2025",
+                "    milestone_years: [2025, 2035]",
                 "runs:",
                 "  - id: toy_run",
                 "    veda_book_name: TOYRUN",
-                "    base_year: 2025",
+                "    year_set: pathway_2025_2035",
                 "    currency_year: 2024",
                 "    region_partition: toy_partition",
                 "spatial_layers:",
@@ -111,10 +125,14 @@ def test_lint_and_validate_emit_e020_for_missing_required_description(tmp_path):
                 "    description: Facility fixture description.",
                 "    site: home",
                 "    technology_role: heat_supply",
+                "year_sets:",
+                "  - id: pathway_2025_2035",
+                "    start_year: 2025",
+                "    milestone_years: [2025, 2035]",
                 "runs:",
                 "  - id: toy_run",
                 "    veda_book_name: TOYRUN",
-                "    base_year: 2025",
+                "    year_set: pathway_2025_2035",
                 "    currency_year: 2024",
                 "    region_partition: toy_partition",
             ]
@@ -259,15 +277,13 @@ def test_collect_public_diagnostics_emits_prd_warning_codes():
                 },
             }
         ],
+        "year_sets": _year_sets_2025(),
         "runs": [
             {
                 "id": "toy_run",
                 "veda_book_name": "TOYRUN",
-
-                "base_year": 2025,
-
+                "year_set": "pathway_2025_2035",
                 "currency_year": 2024,
-
                 "region_partition": "toy_partition",
             }
         ],
@@ -368,15 +384,13 @@ def test_collect_public_diagnostics_flags_duplicate_rollout_patterns():
                 },
             }
         ],
+        "year_sets": _year_sets_2025(),
         "runs": [
             {
                 "id": "single_2025",
                 "veda_book_name": "SINGLE2025",
-
-                "base_year": 2025,
-
+                "year_set": "pathway_2025_2035",
                 "currency_year": 2024,
-
                 "region_partition": "single_region",
             }
         ],
@@ -476,15 +490,13 @@ def test_collect_public_diagnostics_flags_missing_res_explorer_descriptions():
                 "max_new_capacity": "10 MW",
             }
         ],
+        "year_sets": _year_sets_2025(),
         "runs": [
             {
                 "id": "toy_run",
                 "veda_book_name": "TOYRUN",
-
-                "base_year": 2025,
-
+                "year_set": "pathway_2025_2035",
                 "currency_year": 2024,
-
                 "region_partition": "toy_partition",
             }
         ],
@@ -590,18 +602,19 @@ def test_collect_diagnostics_rejects_duplicate_veda_book_names():
                 "mapping": {"kind": "constant", "value": "SINGLE"},
             }
         ],
+        "year_sets": _year_sets_2025(),
         "runs": [
             {
                 "id": "run_a",
                 "veda_book_name": "AUS",
-                "base_year": 2025,
+                "year_set": "pathway_2025_2035",
                 "currency_year": 2024,
                 "region_partition": "single_region",
             },
             {
                 "id": "run_b",
                 "veda_book_name": "AUS",
-                "base_year": 2025,
+                "year_set": "pathway_2025_2035",
                 "currency_year": 2024,
                 "region_partition": "single_region",
             },
@@ -678,15 +691,13 @@ def test_run_core_skips_legacy_xref_checks_for_public_source():
                 },
             }
         ],
+        "year_sets": _year_sets_2025(),
         "runs": [
             {
                 "id": "toy_run",
                 "veda_book_name": "TOYRUN",
-
-                "base_year": 2025,
-
+                "year_set": "pathway_2025_2035",
                 "currency_year": 2024,
-
                 "region_partition": "toy_partition",
             }
         ],

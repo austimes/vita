@@ -1,234 +1,212 @@
-dsl_version: "0.3"
-
+dsl_version: '0.3'
 commodities:
-  - id: co2
-    type: emission
-
-  - id: electricity
-    type: energy
-    energy_form: secondary
-
-  - id: electricity_generation
-    type: service
-
-  - id: gas
-    type: energy
-    energy_form: primary
-
-  - id: gas_supply
-    type: service
-
-  - id: residential_demand
-    type: service
-
+- id: co2
+  type: emission
+- id: electricity
+  type: energy
+  energy_form: secondary
+- id: electricity_generation
+  type: service
+- id: gas
+  type: energy
+  energy_form: primary
+- id: gas_supply
+  type: service
+- id: residential_demand
+  type: service
 technologies:
-  - id: ccgt
-    description: ccgt provides electricity_generation by transforming gas.
-    inputs:
-      - commodity: gas
-        basis: HHV
-    outputs:
-      - commodity: electricity
-    emissions:
-      - commodity: co2
-        factor: 0.05 t/GJ
-    lifetime: 40 year
-    performance:
-      kind: efficiency
-      value: 0.55
-    provides: electricity_generation
-
-  - id: gas_import
-    description: gas_import provides gas_supply as a primary supply or conversion technology.
-    outputs:
-      - commodity: gas
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: gas_supply
-
-  - id: residential_device
-    description: residential_device provides residential_demand by transforming electricity.
-    inputs:
-      - commodity: electricity
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: residential_demand
-
-  - id: wind
-    description: wind provides electricity_generation as a primary supply or conversion
-      technology.
-    outputs:
-      - commodity: electricity
-    lifetime: 25 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: electricity_generation
-
+- id: ccgt
+  description: ccgt provides electricity_generation by transforming gas.
+  inputs:
+  - commodity: gas
+    basis: HHV
+  outputs:
+  - commodity: electricity
+  emissions:
+  - commodity: co2
+    factor: 0.05 t/GJ
+  lifetime: 40 year
+  performance:
+    kind: efficiency
+    value: 0.55
+  provides: electricity_generation
+- id: gas_import
+  description: gas_import provides gas_supply as a primary supply or conversion technology.
+  outputs:
+  - commodity: gas
+  lifetime: 100 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: gas_supply
+- id: residential_device
+  description: residential_device provides residential_demand by transforming electricity.
+  inputs:
+  - commodity: electricity
+  lifetime: 100 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: residential_demand
+- id: wind
+  description: wind provides electricity_generation as a primary supply or conversion
+    technology.
+  outputs:
+  - commodity: electricity
+  lifetime: 25 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: electricity_generation
 technology_roles:
-  - id: electricity_generation
-    description:
-      "electricity_generation groups technologies that deliver electricity_generation:
-      ccgt and wind."
-    primary_service: electricity_generation
-    technologies:
-      - ccgt
-      - wind
-
-  - id: gas_supply
-    description: "gas_supply groups technologies that deliver gas_supply: gas_import."
-    primary_service: gas_supply
-    technologies:
-      - gas_import
-
-  - id: residential_service
-    description:
-      "residential_service groups technologies that deliver residential_demand:
-      residential_device."
-    primary_service: residential_demand
-    technologies:
-      - residential_device
-
+- id: electricity_generation
+  description: 'electricity_generation groups technologies that deliver electricity_generation:
+    ccgt and wind.'
+  primary_service: electricity_generation
+  technologies:
+  - ccgt
+  - wind
+- id: gas_supply
+  description: 'gas_supply groups technologies that deliver gas_supply: gas_import.'
+  primary_service: gas_supply
+  technologies:
+  - gas_import
+- id: residential_service
+  description: 'residential_service groups technologies that deliver residential_demand:
+    residential_device.'
+  primary_service: residential_demand
+  technologies:
+  - residential_device
 spatial_layers:
-  - id: geo_demo
-    geometry_file: data/regions.geojson
-    key: region_id
-    kind: polygon
-
+- id: geo_demo
+  geometry_file: data/regions.geojson
+  key: region_id
+  kind: polygon
 region_partitions:
-  - id: north_south
-    layer: geo_demo
-    mapping:
-      kind: constant
-      value: NORTH
-    members:
-      - NORTH
-      - SOUTH
-
+- id: north_south
+  layer: geo_demo
+  mapping:
+    kind: constant
+    value: NORTH
+  members:
+  - NORTH
+  - SOUTH
 sites:
-  - id: north_hub
-    location:
-      point:
-        lat: -27.47
-        lon: 153.02
-    membership_overrides:
-      region_partitions:
-        north_south: NORTH
-
-  - id: south_hub
-    location:
-      point:
-        lat: -37.81
-        lon: 144.96
-    membership_overrides:
-      region_partitions:
-        north_south: SOUTH
-
+- id: north_hub
+  location:
+    point:
+      lat: -27.47
+      lon: 153.02
+  membership_overrides:
+    region_partitions:
+      north_south: NORTH
+- id: south_hub
+  location:
+    point:
+      lat: -37.81
+      lon: 144.96
+  membership_overrides:
+    region_partitions:
+      north_south: SOUTH
 facilities:
-  - id: north_generation
-    description: north_generation instantiates role electricity_generation at site north_hub.
-    available_technologies:
-      - ccgt
-      - wind
-    site: north_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 2 MW
-            year: 2025
-          technology: ccgt
-
-        - metric: installed_capacity
-          observed:
-            value: 1 MW
-            year: 2025
-          technology: wind
-    technology_role: electricity_generation
-
-  - id: north_service
-    description: north_service instantiates role residential_service at site north_hub.
-    site: north_hub
-    stock:
-      items:
-        - metric: annual_activity
-          observed:
-            value: 30 GWh/year
-            year: 2025
-          technology: residential_device
-    technology_role: residential_service
-
-  - id: north_supply
-    description: north_supply instantiates role gas_supply at site north_hub.
-    site: north_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 100 MW
-            year: 2025
-          technology: gas_import
-    technology_role: gas_supply
-
-  - id: south_generation
-    description: south_generation instantiates role electricity_generation at site south_hub.
-    available_technologies:
-      - ccgt
-      - wind
-    site: south_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 2 MW
-            year: 2025
-          technology: ccgt
-    technology_role: electricity_generation
-
-  - id: south_service
-    description: south_service instantiates role residential_service at site south_hub.
-    site: south_hub
-    stock:
-      items:
-        - metric: annual_activity
-          observed:
-            value: 30 GWh/year
-            year: 2025
-          technology: residential_device
-    technology_role: residential_service
-
-  - id: south_supply
-    description: south_supply instantiates role gas_supply at site south_hub.
-    site: south_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 100 MW
-            year: 2025
-          technology: gas_import
-    technology_role: gas_supply
-
+- id: north_generation
+  description: north_generation instantiates role electricity_generation at site north_hub.
+  available_technologies:
+  - ccgt
+  - wind
+  site: north_hub
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 2 MW
+        year: 2025
+      technology: ccgt
+    - metric: installed_capacity
+      observed:
+        value: 1 MW
+        year: 2025
+      technology: wind
+  technology_role: electricity_generation
+- id: north_service
+  description: north_service instantiates role residential_service at site north_hub.
+  site: north_hub
+  stock:
+    items:
+    - metric: annual_activity
+      observed:
+        value: 30 GWh/year
+        year: 2025
+      technology: residential_device
+  technology_role: residential_service
+- id: north_supply
+  description: north_supply instantiates role gas_supply at site north_hub.
+  site: north_hub
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 100 MW
+        year: 2025
+      technology: gas_import
+  technology_role: gas_supply
+- id: south_generation
+  description: south_generation instantiates role electricity_generation at site south_hub.
+  available_technologies:
+  - ccgt
+  - wind
+  site: south_hub
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 2 MW
+        year: 2025
+      technology: ccgt
+  technology_role: electricity_generation
+- id: south_service
+  description: south_service instantiates role residential_service at site south_hub.
+  site: south_hub
+  stock:
+    items:
+    - metric: annual_activity
+      observed:
+        value: 30 GWh/year
+        year: 2025
+      technology: residential_device
+  technology_role: residential_service
+- id: south_supply
+  description: south_supply instantiates role gas_supply at site south_hub.
+  site: south_hub
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 100 MW
+        year: 2025
+      technology: gas_import
+  technology_role: gas_supply
 networks:
-  - id: north_south_power
-    kind: transmission
-    links:
-      - id: north_to_south
-        commodity: electricity
-        existing_transfer_capacity: 50 MW
-        from: NORTH
-        to: SOUTH
-    node_basis:
-      kind: region_partition
-      ref: north_south
-
+- id: north_south_power
+  kind: transmission
+  links:
+  - id: north_to_south
+    commodity: electricity
+    existing_transfer_capacity: 50 MW
+    from: NORTH
+    to: SOUTH
+  node_basis:
+    kind: region_partition
+    ref: north_south
 runs:
-  - id: north_south_2025
-    veda_book_name: NORTHSOUTH2025
-    base_year: 2025
-    currency_year: 2024
-    region_partition: north_south
+- id: north_south_2025
+  veda_book_name: NORTHSOUTH2025
+  year_set: pathway_2025_2035
+  currency_year: 2024
+  region_partition: north_south
+year_sets:
+- id: pathway_2025_2035
+  start_year: 2025
+  milestone_years:
+  - 2025
+  - 2035

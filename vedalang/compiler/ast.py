@@ -154,6 +154,14 @@ class TemporalIndexSeriesDecl:
 
 
 @dataclass(frozen=True)
+class YearSetDecl:
+    id: str
+    start_year: int
+    milestone_years: tuple[int, ...]
+    source_ref: SourceRef
+
+
+@dataclass(frozen=True)
 class PolicyBudgetPoint:
     year: int
     value: str | int | float
@@ -355,7 +363,7 @@ class NetworkDecl:
 class RunDecl:
     id: str
     veda_book_name: str
-    base_year: int
+    year_set: str
     currency_year: int
     region_partition: str
     temporal_partition: str | None
@@ -377,6 +385,7 @@ class SourceDocument:
     spatial_layers: tuple[SpatialLayerDecl, ...]
     spatial_measure_sets: tuple[SpatialMeasureSetDecl, ...]
     temporal_index_series: tuple[TemporalIndexSeriesDecl, ...]
+    year_sets: tuple[YearSetDecl, ...]
     policies: tuple[PolicyDecl, ...]
     region_partitions: tuple[RegionPartitionDecl, ...]
     zone_overlays: tuple[ZoneOverlayDecl, ...]
@@ -530,6 +539,7 @@ def _parse_asset_new_build_limits(
 
 def parse_source(source: dict[str, Any]) -> SourceDocument:
     """Parse a validated public source mapping into typed AST objects."""
+    raw_year_sets = list(source.get("year_sets") or [])
     return SourceDocument(
         dsl_version=str(source["dsl_version"]) if source.get("dsl_version") else None,
         imports=tuple(
@@ -711,6 +721,17 @@ def parse_source(source: dict[str, Any]) -> SourceDocument:
                 source_ref=_source_ref(f"temporal_index_series[{idx}]"),
             )
             for idx, item in enumerate(source.get("temporal_index_series") or [])
+        ),
+        year_sets=tuple(
+            YearSetDecl(
+                id=str(item["id"]),
+                start_year=int(item["start_year"]),
+                milestone_years=tuple(
+                    int(year) for year in (item.get("milestone_years") or [])
+                ),
+                source_ref=_source_ref(f"year_sets[{idx}]"),
+            )
+            for idx, item in enumerate(raw_year_sets)
         ),
         policies=tuple(
             PolicyDecl(
@@ -962,7 +983,7 @@ def parse_source(source: dict[str, Any]) -> SourceDocument:
             RunDecl(
                 id=str(item["id"]),
                 veda_book_name=str(item["veda_book_name"]),
-                base_year=int(item["base_year"]),
+                year_set=str(item["year_set"]),
                 currency_year=int(item["currency_year"]),
                 region_partition=str(item["region_partition"]),
                 temporal_partition=(

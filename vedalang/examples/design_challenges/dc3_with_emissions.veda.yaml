@@ -1,219 +1,195 @@
-dsl_version: "0.3"
-
+dsl_version: '0.3'
 commodities:
-  - id: co2
-    type: emission
-
-  - id: electricity
-    type: energy
-    energy_form: secondary
-
-  - id: electricity_generation
-    type: service
-
-  - id: electricity_service
-    type: service
-
-  - id: gas_supply
-    type: service
-
-  - id: natural_gas
-    type: energy
-    energy_form: primary
-
-  - id: wind_resource
-    type: energy
-    energy_form: resource
-
-  - id: wind_resource_supply
-    type: service
-
+- id: co2
+  type: emission
+- id: electricity
+  type: energy
+  energy_form: secondary
+- id: electricity_generation
+  type: service
+- id: electricity_service
+  type: service
+- id: gas_supply
+  type: service
+- id: natural_gas
+  type: energy
+  energy_form: primary
+- id: wind_resource
+  type: energy
+  energy_form: resource
+- id: wind_resource_supply
+  type: service
 technologies:
-  - id: ccgt
-    description: ccgt provides electricity_generation by transforming natural_gas.
-    inputs:
-      - commodity: natural_gas
-        basis: HHV
-    outputs:
-      - commodity: electricity
-    emissions:
-      - commodity: co2
-        factor: 0.056 t/GJ
-    lifetime: 30 year
-    performance:
-      kind: efficiency
-      value: 0.55
-    provides: electricity_generation
-
-  - id: grid_delivery
-    description: grid_delivery provides electricity_service by transforming electricity.
-    inputs:
-      - commodity: electricity
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: electricity_service
-
-  - id: natural_gas_supply
-    description:
-      natural_gas_supply provides gas_supply as a primary supply or conversion
-      technology.
-    outputs:
-      - commodity: natural_gas
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: gas_supply
-
-  - id: wind_resource_supply
-    description: wind_resource_supply provides wind_resource_supply as a primary supply
-      or conversion technology.
-    outputs:
-      - commodity: wind_resource
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: wind_resource_supply
-
-  - id: wind_turbine
-    description: wind_turbine provides electricity_generation by transforming wind_resource.
-    inputs:
-      - commodity: wind_resource
-    outputs:
-      - commodity: electricity
-    lifetime: 25 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: electricity_generation
-
+- id: ccgt
+  description: ccgt provides electricity_generation by transforming natural_gas.
+  inputs:
+  - commodity: natural_gas
+    basis: HHV
+  outputs:
+  - commodity: electricity
+  emissions:
+  - commodity: co2
+    factor: 0.056 t/GJ
+  lifetime: 30 year
+  performance:
+    kind: efficiency
+    value: 0.55
+  provides: electricity_generation
+- id: grid_delivery
+  description: grid_delivery provides electricity_service by transforming electricity.
+  inputs:
+  - commodity: electricity
+  lifetime: 100 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: electricity_service
+- id: natural_gas_supply
+  description: natural_gas_supply provides gas_supply as a primary supply or conversion
+    technology.
+  outputs:
+  - commodity: natural_gas
+  lifetime: 100 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: gas_supply
+- id: wind_resource_supply
+  description: wind_resource_supply provides wind_resource_supply as a primary supply
+    or conversion technology.
+  outputs:
+  - commodity: wind_resource
+  lifetime: 100 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: wind_resource_supply
+- id: wind_turbine
+  description: wind_turbine provides electricity_generation by transforming wind_resource.
+  inputs:
+  - commodity: wind_resource
+  outputs:
+  - commodity: electricity
+  lifetime: 25 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: electricity_generation
 technology_roles:
-  - id: electricity_generation
-    description:
-      "electricity_generation groups technologies that deliver electricity_generation:
-      ccgt and wind_turbine."
-    primary_service: electricity_generation
-    technologies:
-      - ccgt
-      - wind_turbine
-
-  - id: electricity_service
-    description:
-      "electricity_service groups technologies that deliver electricity_service:
-      grid_delivery."
-    primary_service: electricity_service
-    technologies:
-      - grid_delivery
-
-  - id: gas_supply
-    description: "gas_supply groups technologies that deliver gas_supply: natural_gas_supply."
-    primary_service: gas_supply
-    technologies:
-      - natural_gas_supply
-
-  - id: wind_resource_supply
-    description:
-      "wind_resource_supply groups technologies that deliver wind_resource_supply:
-      wind_resource_supply."
-    primary_service: wind_resource_supply
-    technologies:
-      - wind_resource_supply
-
+- id: electricity_generation
+  description: 'electricity_generation groups technologies that deliver electricity_generation:
+    ccgt and wind_turbine.'
+  primary_service: electricity_generation
+  technologies:
+  - ccgt
+  - wind_turbine
+- id: electricity_service
+  description: 'electricity_service groups technologies that deliver electricity_service:
+    grid_delivery.'
+  primary_service: electricity_service
+  technologies:
+  - grid_delivery
+- id: gas_supply
+  description: 'gas_supply groups technologies that deliver gas_supply: natural_gas_supply.'
+  primary_service: gas_supply
+  technologies:
+  - natural_gas_supply
+- id: wind_resource_supply
+  description: 'wind_resource_supply groups technologies that deliver wind_resource_supply:
+    wind_resource_supply.'
+  primary_service: wind_resource_supply
+  technologies:
+  - wind_resource_supply
 spatial_layers:
-  - id: geo_demo
-    geometry_file: data/regions.geojson
-    key: region_id
-    kind: polygon
-
+- id: geo_demo
+  geometry_file: data/regions.geojson
+  key: region_id
+  kind: polygon
 region_partitions:
-  - id: single_region
-    layer: geo_demo
-    mapping:
-      kind: constant
-      value: SINGLE
-    members:
-      - SINGLE
-
+- id: single_region
+  layer: geo_demo
+  mapping:
+    kind: constant
+    value: SINGLE
+  members:
+  - SINGLE
 sites:
-  - id: single_energy_hub
-    location:
-      point:
-        lat: -27.47
-        lon: 153.02
-    membership_overrides:
-      region_partitions:
-        single_region: SINGLE
-
+- id: single_energy_hub
+  location:
+    point:
+      lat: -27.47
+      lon: 153.02
+  membership_overrides:
+    region_partitions:
+      single_region: SINGLE
 facilities:
-  - id: single_gas_supply
-    description: single_gas_supply instantiates role gas_supply at site single_energy_hub.
-    site: single_energy_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 200 MW
-            year: 2025
-          technology: natural_gas_supply
-    technology_role: gas_supply
-
-  - id: single_generation
-    description: single_generation instantiates role electricity_generation at site
-      single_energy_hub.
-    available_technologies:
-      - ccgt
-      - wind_turbine
-    new_build_limits:
-      - max_new_capacity: 25 MW
-        technology: wind_turbine
-    site: single_energy_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 8 MW
-            year: 2025
-          technology: ccgt
-
-        - metric: installed_capacity
-          observed:
-            value: 4 MW
-            year: 2025
-          technology: wind_turbine
-    technology_role: electricity_generation
-
-  - id: single_service_delivery
-    description: single_service_delivery instantiates role electricity_service at site
-      single_energy_hub.
-    site: single_energy_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 12 MW
-            year: 2025
-          technology: grid_delivery
-    technology_role: electricity_service
-
-  - id: single_wind_resource
-    description: single_wind_resource instantiates role wind_resource_supply at site
-      single_energy_hub.
-    site: single_energy_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 200 MW
-            year: 2025
-          technology: wind_resource_supply
-    technology_role: wind_resource_supply
-
+- id: single_gas_supply
+  description: single_gas_supply instantiates role gas_supply at site single_energy_hub.
+  site: single_energy_hub
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 200 MW
+        year: 2025
+      technology: natural_gas_supply
+  technology_role: gas_supply
+- id: single_generation
+  description: single_generation instantiates role electricity_generation at site
+    single_energy_hub.
+  available_technologies:
+  - ccgt
+  - wind_turbine
+  new_build_limits:
+  - max_new_capacity: 25 MW
+    technology: wind_turbine
+  site: single_energy_hub
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 8 MW
+        year: 2025
+      technology: ccgt
+    - metric: installed_capacity
+      observed:
+        value: 4 MW
+        year: 2025
+      technology: wind_turbine
+  technology_role: electricity_generation
+- id: single_service_delivery
+  description: single_service_delivery instantiates role electricity_service at site
+    single_energy_hub.
+  site: single_energy_hub
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 12 MW
+        year: 2025
+      technology: grid_delivery
+  technology_role: electricity_service
+- id: single_wind_resource
+  description: single_wind_resource instantiates role wind_resource_supply at site
+    single_energy_hub.
+  site: single_energy_hub
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 200 MW
+        year: 2025
+      technology: wind_resource_supply
+  technology_role: wind_resource_supply
 runs:
-  - id: single_2025
-    veda_book_name: SINGLE2025
-    base_year: 2025
-    currency_year: 2024
-    region_partition: single_region
+- id: single_2025
+  veda_book_name: SINGLE2025
+  year_set: pathway_2025_2035
+  currency_year: 2024
+  region_partition: single_region
+year_sets:
+- id: pathway_2025_2035
+  start_year: 2025
+  milestone_years:
+  - 2025
+  - 2035

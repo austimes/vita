@@ -1,153 +1,139 @@
-dsl_version: "0.3"
-
+dsl_version: '0.3'
 commodities:
-  - id: electricity
-    type: energy
-    energy_form: secondary
-
-  - id: electricity_generation
-    type: service
-
-  - id: gas_supply
-    type: service
-
-  - id: natural_gas
-    type: energy
-    energy_form: primary
-
-  - id: residential_demand
-    type: service
-
+- id: electricity
+  type: energy
+  energy_form: secondary
+- id: electricity_generation
+  type: service
+- id: gas_supply
+  type: service
+- id: natural_gas
+  type: energy
+  energy_form: primary
+- id: residential_demand
+  type: service
 technologies:
-  - id: ccgt
-    description: ccgt provides electricity_generation by transforming natural_gas.
-    inputs:
-      - commodity: natural_gas
-        basis: HHV
-    outputs:
-      - commodity: electricity
-    fixed_om: 20 AUD2024/kW/year
-    investment_cost: 800 AUD2024/kW
-    lifetime: 40 year
-    performance:
-      kind: efficiency
-      value: 0.55
-    provides: electricity_generation
-    variable_om: 2 AUD2024/MWh
-
-  - id: gas_import
-    description: gas_import provides gas_supply as a primary supply or conversion technology.
-    outputs:
-      - commodity: natural_gas
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: gas_supply
-
-  - id: residential_device
-    description: residential_device provides residential_demand by transforming electricity.
-    inputs:
-      - commodity: electricity
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: residential_demand
-
+- id: ccgt
+  description: ccgt provides electricity_generation by transforming natural_gas.
+  inputs:
+  - commodity: natural_gas
+    basis: HHV
+  outputs:
+  - commodity: electricity
+  fixed_om: 20 AUD2024/kW/year
+  investment_cost: 800 AUD2024/kW
+  lifetime: 40 year
+  performance:
+    kind: efficiency
+    value: 0.55
+  provides: electricity_generation
+  variable_om: 2 AUD2024/MWh
+- id: gas_import
+  description: gas_import provides gas_supply as a primary supply or conversion technology.
+  outputs:
+  - commodity: natural_gas
+  lifetime: 100 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: gas_supply
+- id: residential_device
+  description: residential_device provides residential_demand by transforming electricity.
+  inputs:
+  - commodity: electricity
+  lifetime: 100 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: residential_demand
 technology_roles:
-  - id: electricity_generation
-    description:
-      "electricity_generation groups technologies that deliver electricity_generation:
-      ccgt."
-    primary_service: electricity_generation
-    technologies:
-      - ccgt
-
-  - id: gas_supply
-    description: "gas_supply groups technologies that deliver gas_supply: gas_import."
-    primary_service: gas_supply
-    technologies:
-      - gas_import
-
-  - id: residential_service
-    description:
-      "residential_service groups technologies that deliver residential_demand:
-      residential_device."
-    primary_service: residential_demand
-    technologies:
-      - residential_device
-
+- id: electricity_generation
+  description: 'electricity_generation groups technologies that deliver electricity_generation:
+    ccgt.'
+  primary_service: electricity_generation
+  technologies:
+  - ccgt
+- id: gas_supply
+  description: 'gas_supply groups technologies that deliver gas_supply: gas_import.'
+  primary_service: gas_supply
+  technologies:
+  - gas_import
+- id: residential_service
+  description: 'residential_service groups technologies that deliver residential_demand:
+    residential_device.'
+  primary_service: residential_demand
+  technologies:
+  - residential_device
 spatial_layers:
-  - id: geo_demo
-    geometry_file: data/regions.geojson
-    key: region_id
-    kind: polygon
-
+- id: geo_demo
+  geometry_file: data/regions.geojson
+  key: region_id
+  kind: polygon
 region_partitions:
-  - id: single_region
-    layer: geo_demo
-    mapping:
-      kind: constant
-      value: SINGLE
-    members:
-      - SINGLE
-
+- id: single_region
+  layer: geo_demo
+  mapping:
+    kind: constant
+    value: SINGLE
+  members:
+  - SINGLE
 sites:
-  - id: single_hub
-    location:
-      point:
-        lat: -33.87
-        lon: 151.21
-    membership_overrides:
-      region_partitions:
-        single_region: SINGLE
-
+- id: single_hub
+  location:
+    point:
+      lat: -33.87
+      lon: 151.21
+  membership_overrides:
+    region_partitions:
+      single_region: SINGLE
 facilities:
-  - id: gas_supply_facility
-    description: gas_supply_facility instantiates role gas_supply at site single_hub.
-    site: single_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 100 MW
-            year: 2025
-          technology: gas_import
-    technology_role: gas_supply
-
-  - id: generation_facility
-    description: generation_facility instantiates role electricity_generation at site
-      single_hub.
-    new_build_limits:
-      - max_new_capacity: 8 MW
-        technology: ccgt
-    site: single_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 2 MW
-            year: 2025
-          technology: ccgt
-    technology_role: electricity_generation
-
-  - id: residential_service_facility
-    description: residential_service_facility instantiates role residential_service
-      at site single_hub.
-    site: single_hub
-    stock:
-      items:
-        - metric: annual_activity
-          observed:
-            value: 60 GWh/year
-            year: 2025
-          technology: residential_device
-    technology_role: residential_service
-
+- id: gas_supply_facility
+  description: gas_supply_facility instantiates role gas_supply at site single_hub.
+  site: single_hub
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 100 MW
+        year: 2025
+      technology: gas_import
+  technology_role: gas_supply
+- id: generation_facility
+  description: generation_facility instantiates role electricity_generation at site
+    single_hub.
+  new_build_limits:
+  - max_new_capacity: 8 MW
+    technology: ccgt
+  site: single_hub
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 2 MW
+        year: 2025
+      technology: ccgt
+  technology_role: electricity_generation
+- id: residential_service_facility
+  description: residential_service_facility instantiates role residential_service
+    at site single_hub.
+  site: single_hub
+  stock:
+    items:
+    - metric: annual_activity
+      observed:
+        value: 60 GWh/year
+        year: 2025
+      technology: residential_device
+  technology_role: residential_service
 runs:
-  - id: single_2025
-    veda_book_name: SINGLE2025
-    base_year: 2025
-    currency_year: 2024
-    region_partition: single_region
+- id: single_2025
+  veda_book_name: SINGLE2025
+  year_set: pathway_2025_2035
+  currency_year: 2024
+  region_partition: single_region
+year_sets:
+- id: pathway_2025_2035
+  start_year: 2025
+  milestone_years:
+  - 2025
+  - 2035

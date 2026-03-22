@@ -14,6 +14,7 @@ This file tracks all local modifications made to the xl2times library, which is 
 | 2026-01-27 | (pending) | transforms.py | Fixed pandas 3.0 compatibility issues | Two bugs caused by pandas 3.0 breaking changes |
 | 2026-03-04 | (pending) | main.py, utils.py | Added `--force-veda` flag to force VEDA filename filtering and require exactly one `SysSettings.*` root file | Needed strict VEDA-structure validation mode for VedaLang output checks |
 | 2026-03-18 | (pending) | transforms.py | Accepted `u_*` / `b_*` ScenTrade worksheet prefixes alongside `uni_*` / `bi_*` | VedaLang now emits shorter explicit trade worksheet names (`U_<commodity>`), and xl2times only recognized the long-form prefixes |
+| 2026-03-22 | (pending) | transforms.py | Accepted `~MILESTONEYEARS` tables without `Endyear` and treated the last milestone as the terminal horizon year | VedaLang now emits milestone-only solve-year tables matching VEDA desktop behavior and no longer emits `~TIMEPERIODS`/`Endyear` |
 
 ## Details
 
@@ -74,3 +75,15 @@ Modified `xl2times/transforms.py`:
 This keeps the oracle compatible with VedaLang's shorter explicit trade sheet
 names such as `U_natural_gas` without changing the rest of the ScenTrade
 parsing contract.
+
+### (pending) - Milestone-only `~MILESTONEYEARS` terminal horizon (2026-03-22)
+
+Modified `xl2times/transforms.py`:
+- When `~MILESTONEYEARS` has no `Endyear` row, the final milestone year is now
+  treated as the terminal horizon year
+- The final time period is emitted as a one-year terminal period instead of
+  extending by a synthetic copied duration
+
+This keeps the oracle aligned with VedaLang's new year-set emission, which
+authors only `~STARTYEAR` plus explicit milestone years and does not emit
+`~TIMEPERIODS` or an `Endyear` row.

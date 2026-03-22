@@ -59,6 +59,12 @@
         "$ref": "#/$defs/temporal_index_series"
       }
     },
+    "year_sets": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/year_set"
+      }
+    },
     "policies": {
       "type": "array",
       "items": {
@@ -765,6 +771,33 @@
         },
         "description": {
           "$ref": "#/$defs/description_field"
+        }
+      }
+    },
+    "year_set": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "start_year",
+        "milestone_years"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/public_identifier"
+        },
+        "start_year": {
+          "type": "integer",
+          "minimum": 1900
+        },
+        "milestone_years": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 1900
+          },
+          "minItems": 1,
+          "uniqueItems": true
         }
       }
     },
@@ -1501,7 +1534,7 @@
       "required": [
         "id",
         "veda_book_name",
-        "base_year",
+        "year_set",
         "currency_year",
         "region_partition"
       ],
@@ -1513,9 +1546,8 @@
           "type": "string",
           "pattern": "^[A-Z][A-Z0-9]*$"
         },
-        "base_year": {
-          "type": "integer",
-          "minimum": 1900
+        "year_set": {
+          "$ref": "#/$defs/identifier"
         },
         "currency_year": {
           "type": "integer",

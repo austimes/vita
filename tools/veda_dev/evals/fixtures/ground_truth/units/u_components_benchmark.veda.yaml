@@ -1,277 +1,283 @@
-dsl_version: "0.3"
+dsl_version: '0.3'
 commodities:
-  - id: heat
-    type: service
-  - id: mobility
-    type: service
-  - id: electricity
-    type: energy
-    energy_form: secondary
-  - id: natural_gas
-    type: energy
-    energy_form: primary
-  - id: steam
-    type: material
+- id: heat
+  type: service
+- id: mobility
+  type: service
+- id: electricity
+  type: energy
+  energy_form: secondary
+- id: natural_gas
+  type: energy
+  energy_form: primary
+- id: steam
+  type: material
 technologies:
-  - id: electricity_import
-    provides: electricity
-    outputs:
-      - commodity: electricity
-    performance:
-      kind: efficiency
-      value: 1.0
-  - id: gas_import
-    provides: natural_gas
-    outputs:
-      - commodity: natural_gas
-        basis: HHV
-    performance:
-      kind: efficiency
-      value: 1.0
-  - id: heat_clean_1
-    provides: heat
-    inputs:
-      - commodity: electricity
-    performance:
-      kind: efficiency
-      value: 1.0
-    variable_om: 10 MAUD24/PJ
-    investment_cost: 120 MAUD24/GW
-  - id: heat_missing_basis_1
-    provides: heat
-    inputs:
-      - commodity: natural_gas
-    performance:
-      kind: efficiency
-      value: 0.9
-    variable_om: 12 MAUD24/PJ
-    investment_cost: 90 MAUD24/GW
-  - id: heat_bad_variable_cost_1
-    provides: heat
-    inputs:
-      - commodity: natural_gas
-        basis: HHV
-    performance:
-      kind: efficiency
-      value: 0.9
-    variable_om: 12 MAUD24/GW
-    investment_cost: 95 MAUD24/GW
-  - id: heat_bad_investment_cost_1
-    provides: heat
-    inputs:
-      - commodity: natural_gas
-        basis: HHV
-    performance:
-      kind: efficiency
-      value: 0.9
-    variable_om: 10 MAUD24/PJ
-    investment_cost: 60 MAUD24/PJ
-  - id: heat_bad_capacity_denom_1
-    provides: heat
-    inputs:
-      - commodity: electricity
-    performance:
-      kind: efficiency
-      value: 1.0
-    variable_om: 9 MAUD24/PJ
-    investment_cost: 40 MAUD24/Bvkm/yr
-  - id: mobility_clean_1
-    provides: mobility
-    inputs:
-      - commodity: electricity
-        coefficient: 0.02 Bvkm
-    performance:
-      kind: efficiency
-      value: 1.0
-    variable_om: 20 MAUD24/Bvkm
-    investment_cost: 70 MAUD24/Bvkm/yr
-  - id: mobility_bad_variable_cost_1
-    provides: mobility
-    inputs:
-      - commodity: electricity
-        coefficient: 0.02 Bvkm
-    performance:
-      kind: efficiency
-      value: 1.0
-    variable_om: 20 MAUD24/PJ
-    investment_cost: 70 MAUD24/Bvkm/yr
-  - id: mobility_bad_investment_cost_1
-    provides: mobility
-    inputs:
-      - commodity: electricity
-        coefficient: 0.02 Bvkm
-    performance:
-      kind: efficiency
-      value: 1.0
-    variable_om: 20 MAUD24/Bvkm
-    investment_cost: 80 MAUD24/GW
-  - id: mobility_gas_missing_basis_1
-    provides: mobility
-    inputs:
-      - commodity: natural_gas
-        coefficient: 0.025 Bvkm
-    performance:
-      kind: efficiency
-      value: 1.0
-    variable_om: 28 MAUD24/Bvkm
-    investment_cost: 75 MAUD24/Bvkm/yr
-  - id: mobility_bad_model_expectation_1
-    provides: mobility
-    inputs:
-      - commodity: electricity
-        coefficient: 0.02 Bvkm
-    performance:
-      kind: efficiency
-      value: 1.0
-    variable_om: 5 MAUD24/Mt
-    investment_cost: 82 MAUD24/Bvkm/yr
-  - id: steam_clean_1
-    provides: steam
-    inputs:
-      - commodity: electricity
-    performance:
-      kind: efficiency
-      value: 1.0
-    variable_om: 6 MAUD24/Mt
-    investment_cost: 35 MAUD24/Mt/yr
-  - id: steam_gas_missing_basis_1
-    provides: steam
-    inputs:
-      - commodity: natural_gas
-    performance:
-      kind: efficiency
-      value: 0.8
-    variable_om: 7 MAUD24/Mt
-    investment_cost: 38 MAUD24/Mt/yr
-  - id: steam_bad_variable_cost_1
-    provides: steam
-    inputs:
-      - commodity: electricity
-    performance:
-      kind: efficiency
-      value: 1.0
-    variable_om: 7 MAUD24/Bvkm
-    investment_cost: 40 MAUD24/Mt/yr
-  - id: steam_bad_investment_cost_1
-    provides: steam
-    inputs:
-      - commodity: electricity
-    performance:
-      kind: efficiency
-      value: 1.0
-    variable_om: 6 MAUD24/Mt
-    investment_cost: 35 MAUD24/PJ
-  - id: steam_bad_capacity_denom_1
-    provides: steam
-    inputs:
-      - commodity: electricity
-    performance:
-      kind: efficiency
-      value: 1.0
-    variable_om: 6 MAUD24/Mt
-    investment_cost: 35 MAUD24/GW
-  - id: heat_clean_2
-    provides: heat
-    inputs:
-      - commodity: natural_gas
-        basis: HHV
-    performance:
-      kind: efficiency
-      value: 0.92
-    variable_om: 11 MAUD24/PJ
-    investment_cost: 100 MAUD24/GW
-  - id: heat_bad_variable_cost_2
-    provides: heat
-    inputs:
-      - commodity: natural_gas
-        basis: HHV
-    performance:
-      kind: efficiency
-      value: 0.9
-    variable_om: 11 MAUD24/Bvkm
-    investment_cost: 100 MAUD24/GW
-  - id: mobility_clean_2
-    provides: mobility
-    inputs:
-      - commodity: electricity
-        coefficient: 0.021 Bvkm
-    performance:
-      kind: efficiency
-      value: 1.0
-    variable_om: 19 MAUD24/Bvkm
-    investment_cost: 72 MAUD24/Bvkm/yr
-  - id: mobility_bad_variable_cost_2
-    provides: mobility
-    inputs:
-      - commodity: electricity
-        coefficient: 0.021 Bvkm
-    performance:
-      kind: efficiency
-      value: 1.0
-    variable_om: 18 MAUD24/Mt
-    investment_cost: 72 MAUD24/Bvkm/yr
-  - id: heat_missing_basis_2
-    provides: heat
-    inputs:
-      - commodity: natural_gas
-    performance:
-      kind: efficiency
-      value: 0.9
-    variable_om: 13 MAUD24/PJ
-    investment_cost: 110 MAUD24/GW
+- id: electricity_import
+  provides: electricity
+  outputs:
+  - commodity: electricity
+  performance:
+    kind: efficiency
+    value: 1.0
+- id: gas_import
+  provides: natural_gas
+  outputs:
+  - commodity: natural_gas
+    basis: HHV
+  performance:
+    kind: efficiency
+    value: 1.0
+- id: heat_clean_1
+  provides: heat
+  inputs:
+  - commodity: electricity
+  performance:
+    kind: efficiency
+    value: 1.0
+  variable_om: 10 MAUD24/PJ
+  investment_cost: 120 MAUD24/GW
+- id: heat_missing_basis_1
+  provides: heat
+  inputs:
+  - commodity: natural_gas
+  performance:
+    kind: efficiency
+    value: 0.9
+  variable_om: 12 MAUD24/PJ
+  investment_cost: 90 MAUD24/GW
+- id: heat_bad_variable_cost_1
+  provides: heat
+  inputs:
+  - commodity: natural_gas
+    basis: HHV
+  performance:
+    kind: efficiency
+    value: 0.9
+  variable_om: 12 MAUD24/GW
+  investment_cost: 95 MAUD24/GW
+- id: heat_bad_investment_cost_1
+  provides: heat
+  inputs:
+  - commodity: natural_gas
+    basis: HHV
+  performance:
+    kind: efficiency
+    value: 0.9
+  variable_om: 10 MAUD24/PJ
+  investment_cost: 60 MAUD24/PJ
+- id: heat_bad_capacity_denom_1
+  provides: heat
+  inputs:
+  - commodity: electricity
+  performance:
+    kind: efficiency
+    value: 1.0
+  variable_om: 9 MAUD24/PJ
+  investment_cost: 40 MAUD24/Bvkm/yr
+- id: mobility_clean_1
+  provides: mobility
+  inputs:
+  - commodity: electricity
+    coefficient: 0.02 Bvkm
+  performance:
+    kind: efficiency
+    value: 1.0
+  variable_om: 20 MAUD24/Bvkm
+  investment_cost: 70 MAUD24/Bvkm/yr
+- id: mobility_bad_variable_cost_1
+  provides: mobility
+  inputs:
+  - commodity: electricity
+    coefficient: 0.02 Bvkm
+  performance:
+    kind: efficiency
+    value: 1.0
+  variable_om: 20 MAUD24/PJ
+  investment_cost: 70 MAUD24/Bvkm/yr
+- id: mobility_bad_investment_cost_1
+  provides: mobility
+  inputs:
+  - commodity: electricity
+    coefficient: 0.02 Bvkm
+  performance:
+    kind: efficiency
+    value: 1.0
+  variable_om: 20 MAUD24/Bvkm
+  investment_cost: 80 MAUD24/GW
+- id: mobility_gas_missing_basis_1
+  provides: mobility
+  inputs:
+  - commodity: natural_gas
+    coefficient: 0.025 Bvkm
+  performance:
+    kind: efficiency
+    value: 1.0
+  variable_om: 28 MAUD24/Bvkm
+  investment_cost: 75 MAUD24/Bvkm/yr
+- id: mobility_bad_model_expectation_1
+  provides: mobility
+  inputs:
+  - commodity: electricity
+    coefficient: 0.02 Bvkm
+  performance:
+    kind: efficiency
+    value: 1.0
+  variable_om: 5 MAUD24/Mt
+  investment_cost: 82 MAUD24/Bvkm/yr
+- id: steam_clean_1
+  provides: steam
+  inputs:
+  - commodity: electricity
+  performance:
+    kind: efficiency
+    value: 1.0
+  variable_om: 6 MAUD24/Mt
+  investment_cost: 35 MAUD24/Mt/yr
+- id: steam_gas_missing_basis_1
+  provides: steam
+  inputs:
+  - commodity: natural_gas
+  performance:
+    kind: efficiency
+    value: 0.8
+  variable_om: 7 MAUD24/Mt
+  investment_cost: 38 MAUD24/Mt/yr
+- id: steam_bad_variable_cost_1
+  provides: steam
+  inputs:
+  - commodity: electricity
+  performance:
+    kind: efficiency
+    value: 1.0
+  variable_om: 7 MAUD24/Bvkm
+  investment_cost: 40 MAUD24/Mt/yr
+- id: steam_bad_investment_cost_1
+  provides: steam
+  inputs:
+  - commodity: electricity
+  performance:
+    kind: efficiency
+    value: 1.0
+  variable_om: 6 MAUD24/Mt
+  investment_cost: 35 MAUD24/PJ
+- id: steam_bad_capacity_denom_1
+  provides: steam
+  inputs:
+  - commodity: electricity
+  performance:
+    kind: efficiency
+    value: 1.0
+  variable_om: 6 MAUD24/Mt
+  investment_cost: 35 MAUD24/GW
+- id: heat_clean_2
+  provides: heat
+  inputs:
+  - commodity: natural_gas
+    basis: HHV
+  performance:
+    kind: efficiency
+    value: 0.92
+  variable_om: 11 MAUD24/PJ
+  investment_cost: 100 MAUD24/GW
+- id: heat_bad_variable_cost_2
+  provides: heat
+  inputs:
+  - commodity: natural_gas
+    basis: HHV
+  performance:
+    kind: efficiency
+    value: 0.9
+  variable_om: 11 MAUD24/Bvkm
+  investment_cost: 100 MAUD24/GW
+- id: mobility_clean_2
+  provides: mobility
+  inputs:
+  - commodity: electricity
+    coefficient: 0.021 Bvkm
+  performance:
+    kind: efficiency
+    value: 1.0
+  variable_om: 19 MAUD24/Bvkm
+  investment_cost: 72 MAUD24/Bvkm/yr
+- id: mobility_bad_variable_cost_2
+  provides: mobility
+  inputs:
+  - commodity: electricity
+    coefficient: 0.021 Bvkm
+  performance:
+    kind: efficiency
+    value: 1.0
+  variable_om: 18 MAUD24/Mt
+  investment_cost: 72 MAUD24/Bvkm/yr
+- id: heat_missing_basis_2
+  provides: heat
+  inputs:
+  - commodity: natural_gas
+  performance:
+    kind: efficiency
+    value: 0.9
+  variable_om: 13 MAUD24/PJ
+  investment_cost: 110 MAUD24/GW
 technology_roles:
-  - id: electricity_supply
-    primary_service: electricity
-    technologies:
-      - electricity_import
-  - id: gas_supply
-    primary_service: natural_gas
-    technologies:
-      - gas_import
-  - id: heat_supply
-    primary_service: heat
-    technologies:
-      - heat_clean_1
-      - heat_missing_basis_1
-      - heat_bad_variable_cost_1
-      - heat_bad_investment_cost_1
-      - heat_bad_capacity_denom_1
-      - heat_clean_2
-      - heat_bad_variable_cost_2
-      - heat_missing_basis_2
-  - id: mobility_supply
-    primary_service: mobility
-    technologies:
-      - mobility_clean_1
-      - mobility_bad_variable_cost_1
-      - mobility_bad_investment_cost_1
-      - mobility_gas_missing_basis_1
-      - mobility_bad_model_expectation_1
-      - mobility_clean_2
-      - mobility_bad_variable_cost_2
-  - id: steam_supply
-    primary_service: steam
-    technologies:
-      - steam_clean_1
-      - steam_gas_missing_basis_1
-      - steam_bad_variable_cost_1
-      - steam_bad_investment_cost_1
-      - steam_bad_capacity_denom_1
+- id: electricity_supply
+  primary_service: electricity
+  technologies:
+  - electricity_import
+- id: gas_supply
+  primary_service: natural_gas
+  technologies:
+  - gas_import
+- id: heat_supply
+  primary_service: heat
+  technologies:
+  - heat_clean_1
+  - heat_missing_basis_1
+  - heat_bad_variable_cost_1
+  - heat_bad_investment_cost_1
+  - heat_bad_capacity_denom_1
+  - heat_clean_2
+  - heat_bad_variable_cost_2
+  - heat_missing_basis_2
+- id: mobility_supply
+  primary_service: mobility
+  technologies:
+  - mobility_clean_1
+  - mobility_bad_variable_cost_1
+  - mobility_bad_investment_cost_1
+  - mobility_gas_missing_basis_1
+  - mobility_bad_model_expectation_1
+  - mobility_clean_2
+  - mobility_bad_variable_cost_2
+- id: steam_supply
+  primary_service: steam
+  technologies:
+  - steam_clean_1
+  - steam_gas_missing_basis_1
+  - steam_bad_variable_cost_1
+  - steam_bad_investment_cost_1
+  - steam_bad_capacity_denom_1
+year_sets:
+- id: pathway_2025_2035
+  start_year: 2025
+  milestone_years:
+  - 2025
+  - 2035
 runs:
-  - id: benchmark_2025
-    base_year: 2025
-    currency_year: 2024
-    region_partition: benchmark_region
+- id: benchmark_2025
+  currency_year: 2024
+  region_partition: benchmark_region
+  year_set: pathway_2025_2035
 spatial_layers:
-  - id: geo.demo
-    kind: polygon
-    key: region_id
-    geometry_file: data/regions.geojson
+- id: geo.demo
+  kind: polygon
+  key: region_id
+  geometry_file: data/regions.geojson
 region_partitions:
-  - id: benchmark_region
-    layer: geo.demo
-    members:
-      - R1
-    mapping:
-      kind: constant
-      value: R1
+- id: benchmark_region
+  layer: geo.demo
+  members:
+  - R1
+  mapping:
+    kind: constant
+    value: R1

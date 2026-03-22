@@ -119,7 +119,8 @@ class TestPublicSchemaContract:
         assert defs["flow_spec"]["required"] == ["commodity"]
         assert defs["run"]["required"] == [
             "id",
-            "base_year",
+            "veda_book_name",
+            "year_set",
             "currency_year",
             "region_partition",
         ]

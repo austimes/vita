@@ -101,11 +101,8 @@ def _write_multi_run_source(path: Path) -> None:
         {
             "id": "toy_states_alt",
             "veda_book_name": "TOYSTATESALT",
-
-            "base_year": 2025,
-
+            "year_set": "pathway_2025_2035",
             "currency_year": 2024,
-
             "region_partition": "toy_states",
         }
     )
@@ -294,12 +291,16 @@ def _emission_contract_source() -> dict:
             {
                 "id": "single_run",
                 "veda_book_name": "SINGLERUN",
-
-                "base_year": 2025,
-
+                "year_set": "pathway_2025_2035",
                 "currency_year": 2024,
-
                 "region_partition": "single_partition",
+            }
+        ],
+        "year_sets": [
+            {
+                "id": "pathway_2025_2035",
+                "start_year": 2025,
+                "milestone_years": [2025, 2035],
             }
         ],
     }
@@ -1320,11 +1321,11 @@ def test_object_explorer_source_blocks_use_exact_yaml_item_lines():
     role_item = next(item for item in dsl_items if item["kind"] == "technology_role")
     tech_item = next(item for item in dsl_items if item["kind"] == "technology")
 
-    assert role_item["source_location"]["start_line"] == 160
-    assert role_item["source_location"]["end_line"] == 165
+    assert role_item["source_location"]["start_line"] == 133
+    assert role_item["source_location"]["end_line"] == 138
     assert (
         role_item["source_location"]["lines"][0]["text"]
-        == "  - id: farm_input_supply"
+        == "- id: farm_input_supply"
     )
     assert all(
         line["text"] != "technology_roles:"
@@ -1332,10 +1333,10 @@ def test_object_explorer_source_blocks_use_exact_yaml_item_lines():
     )
     assert "excerpt" not in role_item["source_location"]
 
-    assert tech_item["source_location"]["start_line"] == 26
+    assert tech_item["source_location"]["start_line"] == 18
     assert (
         tech_item["source_location"]["lines"][0]["text"]
-        == "  - id: farm_input_import"
+        == "- id: farm_input_import"
     )
     assert all(
         line["text"] != "technologies:"

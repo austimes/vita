@@ -1,420 +1,376 @@
-dsl_version: "0.3"
-
+dsl_version: '0.3'
 commodities:
-  - id: co2
-    type: emission
-
-  - id: coal
-    type: energy
-    energy_form: primary
-
-  - id: coal_supply
-    type: service
-
-  - id: commercial_demand
-    type: service
-
-  - id: electricity
-    type: energy
-    energy_form: secondary
-
-  - id: electricity_generation
-    type: service
-
-  - id: gas
-    type: energy
-    energy_form: primary
-
-  - id: gas_supply
-    type: service
-
-  - id: hydrogen
-    type: energy
-    energy_form: secondary
-
-  - id: hydrogen_supply
-    type: service
-
-  - id: industrial_demand
-    type: service
-
-  - id: residential_demand
-    type: service
-
-  - id: transport_demand
-    type: service
-
+- id: co2
+  type: emission
+- id: coal
+  type: energy
+  energy_form: primary
+- id: coal_supply
+  type: service
+- id: commercial_demand
+  type: service
+- id: electricity
+  type: energy
+  energy_form: secondary
+- id: electricity_generation
+  type: service
+- id: gas
+  type: energy
+  energy_form: primary
+- id: gas_supply
+  type: service
+- id: hydrogen
+  type: energy
+  energy_form: secondary
+- id: hydrogen_supply
+  type: service
+- id: industrial_demand
+  type: service
+- id: residential_demand
+  type: service
+- id: transport_demand
+  type: service
 technologies:
-  - id: ccgt
-    description: ccgt provides electricity_generation by transforming gas.
-    inputs:
-      - commodity: gas
-        basis: HHV
-    outputs:
-      - commodity: electricity
-    emissions:
-      - commodity: co2
-        factor: 0.05 t/GJ
-    lifetime: 40 year
-    performance:
-      kind: efficiency
-      value: 0.55
-    provides: electricity_generation
-
-  - id: coal_import
-    description: coal_import provides coal_supply as a primary supply or conversion
-      technology.
-    outputs:
-      - commodity: coal
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: coal_supply
-
-  - id: coal_plant
-    description: coal_plant provides electricity_generation by transforming coal.
-    inputs:
-      - commodity: coal
-        basis: HHV
-    outputs:
-      - commodity: electricity
-    emissions:
-      - commodity: co2
-        factor: 0.09 t/GJ
-    lifetime: 40 year
-    performance:
-      kind: efficiency
-      value: 0.38
-    provides: electricity_generation
-
-  - id: commercial_device
-    description: commercial_device provides commercial_demand by transforming electricity.
-    inputs:
-      - commodity: electricity
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: commercial_demand
-
-  - id: gas_import
-    description: gas_import provides gas_supply as a primary supply or conversion technology.
-    outputs:
-      - commodity: gas
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: gas_supply
-
-  - id: industrial_device
-    description: industrial_device provides industrial_demand by transforming hydrogen.
-    inputs:
-      - commodity: hydrogen
-        basis: HHV
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: industrial_demand
-
-  - id: residential_device
-    description: residential_device provides residential_demand by transforming electricity.
-    inputs:
-      - commodity: electricity
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: residential_demand
-
-  - id: smr
-    description: smr provides hydrogen_supply by transforming gas.
-    inputs:
-      - commodity: gas
-        basis: HHV
-    outputs:
-      - commodity: hydrogen
-    lifetime: 30 year
-    performance:
-      kind: efficiency
-      value: 0.7
-    provides: hydrogen_supply
-
-  - id: transport_device
-    description: transport_device provides transport_demand by transforming electricity.
-    inputs:
-      - commodity: electricity
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: transport_demand
-
+- id: ccgt
+  description: ccgt provides electricity_generation by transforming gas.
+  inputs:
+  - commodity: gas
+    basis: HHV
+  outputs:
+  - commodity: electricity
+  emissions:
+  - commodity: co2
+    factor: 0.05 t/GJ
+  lifetime: 40 year
+  performance:
+    kind: efficiency
+    value: 0.55
+  provides: electricity_generation
+- id: coal_import
+  description: coal_import provides coal_supply as a primary supply or conversion
+    technology.
+  outputs:
+  - commodity: coal
+  lifetime: 100 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: coal_supply
+- id: coal_plant
+  description: coal_plant provides electricity_generation by transforming coal.
+  inputs:
+  - commodity: coal
+    basis: HHV
+  outputs:
+  - commodity: electricity
+  emissions:
+  - commodity: co2
+    factor: 0.09 t/GJ
+  lifetime: 40 year
+  performance:
+    kind: efficiency
+    value: 0.38
+  provides: electricity_generation
+- id: commercial_device
+  description: commercial_device provides commercial_demand by transforming electricity.
+  inputs:
+  - commodity: electricity
+  lifetime: 100 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: commercial_demand
+- id: gas_import
+  description: gas_import provides gas_supply as a primary supply or conversion technology.
+  outputs:
+  - commodity: gas
+  lifetime: 100 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: gas_supply
+- id: industrial_device
+  description: industrial_device provides industrial_demand by transforming hydrogen.
+  inputs:
+  - commodity: hydrogen
+    basis: HHV
+  lifetime: 100 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: industrial_demand
+- id: residential_device
+  description: residential_device provides residential_demand by transforming electricity.
+  inputs:
+  - commodity: electricity
+  lifetime: 100 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: residential_demand
+- id: smr
+  description: smr provides hydrogen_supply by transforming gas.
+  inputs:
+  - commodity: gas
+    basis: HHV
+  outputs:
+  - commodity: hydrogen
+  lifetime: 30 year
+  performance:
+    kind: efficiency
+    value: 0.7
+  provides: hydrogen_supply
+- id: transport_device
+  description: transport_device provides transport_demand by transforming electricity.
+  inputs:
+  - commodity: electricity
+  lifetime: 100 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: transport_demand
 technology_roles:
-  - id: coal_supply
-    description: "coal_supply groups technologies that deliver coal_supply: coal_import."
-    primary_service: coal_supply
-    technologies:
-      - coal_import
-
-  - id: commercial_service
-    description: "commercial_service groups technologies that deliver commercial_demand:
-      commercial_device."
-    primary_service: commercial_demand
-    technologies:
-      - commercial_device
-
-  - id: electricity_generation
-    description:
-      "electricity_generation groups technologies that deliver electricity_generation:
-      coal_plant and ccgt."
-    primary_service: electricity_generation
-    technologies:
-      - coal_plant
-      - ccgt
-
-  - id: gas_supply
-    description: "gas_supply groups technologies that deliver gas_supply: gas_import."
-    primary_service: gas_supply
-    technologies:
-      - gas_import
-
-  - id: hydrogen_supply
-    description: "hydrogen_supply groups technologies that deliver hydrogen_supply:
-      smr."
-    primary_service: hydrogen_supply
-    technologies:
-      - smr
-
-  - id: industrial_service
-    description: "industrial_service groups technologies that deliver industrial_demand:
-      industrial_device."
-    primary_service: industrial_demand
-    technologies:
-      - industrial_device
-
-  - id: residential_service
-    description:
-      "residential_service groups technologies that deliver residential_demand:
-      residential_device."
-    primary_service: residential_demand
-    technologies:
-      - residential_device
-
-  - id: transport_service
-    description: "transport_service groups technologies that deliver transport_demand:
-      transport_device."
-    primary_service: transport_demand
-    technologies:
-      - transport_device
-
+- id: coal_supply
+  description: 'coal_supply groups technologies that deliver coal_supply: coal_import.'
+  primary_service: coal_supply
+  technologies:
+  - coal_import
+- id: commercial_service
+  description: 'commercial_service groups technologies that deliver commercial_demand:
+    commercial_device.'
+  primary_service: commercial_demand
+  technologies:
+  - commercial_device
+- id: electricity_generation
+  description: 'electricity_generation groups technologies that deliver electricity_generation:
+    coal_plant and ccgt.'
+  primary_service: electricity_generation
+  technologies:
+  - coal_plant
+  - ccgt
+- id: gas_supply
+  description: 'gas_supply groups technologies that deliver gas_supply: gas_import.'
+  primary_service: gas_supply
+  technologies:
+  - gas_import
+- id: hydrogen_supply
+  description: 'hydrogen_supply groups technologies that deliver hydrogen_supply:
+    smr.'
+  primary_service: hydrogen_supply
+  technologies:
+  - smr
+- id: industrial_service
+  description: 'industrial_service groups technologies that deliver industrial_demand:
+    industrial_device.'
+  primary_service: industrial_demand
+  technologies:
+  - industrial_device
+- id: residential_service
+  description: 'residential_service groups technologies that deliver residential_demand:
+    residential_device.'
+  primary_service: residential_demand
+  technologies:
+  - residential_device
+- id: transport_service
+  description: 'transport_service groups technologies that deliver transport_demand:
+    transport_device.'
+  primary_service: transport_demand
+  technologies:
+  - transport_device
 spatial_layers:
-  - id: geo_demo
-    geometry_file: data/regions.geojson
-    key: region_id
-    kind: polygon
-
+- id: geo_demo
+  geometry_file: data/regions.geojson
+  key: region_id
+  kind: polygon
 region_partitions:
-  - id: australian_regions
-    layer: geo_demo
-    mapping:
-      kind: constant
-      value: NEM_EAST
-    members:
-      - NEM_EAST
-      - NEM_SOUTH
-      - WA
-
+- id: australian_regions
+  layer: geo_demo
+  mapping:
+    kind: constant
+    value: NEM_EAST
+  members:
+  - NEM_EAST
+  - NEM_SOUTH
+  - WA
 sites:
-  - id: nem_east_hub
-    location:
-      point:
-        lat: -27.47
-        lon: 153.02
-    membership_overrides:
-      region_partitions:
-        australian_regions: NEM_EAST
-
-  - id: nem_south_hub
-    location:
-      point:
-        lat: -37.81
-        lon: 144.96
-    membership_overrides:
-      region_partitions:
-        australian_regions: NEM_SOUTH
-
-  - id: wa_hub
-    location:
-      point:
-        lat: -31.95
-        lon: 115.86
-    membership_overrides:
-      region_partitions:
-        australian_regions: WA
-
+- id: nem_east_hub
+  location:
+    point:
+      lat: -27.47
+      lon: 153.02
+  membership_overrides:
+    region_partitions:
+      australian_regions: NEM_EAST
+- id: nem_south_hub
+  location:
+    point:
+      lat: -37.81
+      lon: 144.96
+  membership_overrides:
+    region_partitions:
+      australian_regions: NEM_SOUTH
+- id: wa_hub
+  location:
+    point:
+      lat: -31.95
+      lon: 115.86
+  membership_overrides:
+    region_partitions:
+      australian_regions: WA
 facilities:
-  - id: commercial_sector
-    description: commercial_sector instantiates role commercial_service at site nem_south_hub.
-    site: nem_south_hub
-    stock:
-      items:
-        - metric: annual_activity
-          observed:
-            value: 60 GWh/year
-            year: 2025
-          technology: commercial_device
-    technology_role: commercial_service
-
-  - id: industrial_sector
-    description: industrial_sector instantiates role industrial_service at site nem_east_hub.
-    site: nem_east_hub
-    stock:
-      items:
-        - metric: annual_activity
-          observed:
-            value: 40 GWh/year
-            year: 2025
-          technology: industrial_device
-    technology_role: industrial_service
-
-  - id: nem_east_generation
-    description: nem_east_generation instantiates role electricity_generation at site
-      nem_east_hub.
-    available_technologies:
-      - coal_plant
-      - ccgt
-    site: nem_east_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 20 MW
-            year: 2025
-          technology: ccgt
-    technology_role: electricity_generation
-
-  - id: nem_east_hydrogen
-    description: nem_east_hydrogen instantiates role hydrogen_supply at site nem_east_hub.
-    site: nem_east_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 8 MW
-            year: 2025
-          technology: smr
-    technology_role: hydrogen_supply
-
-  - id: nem_east_supply
-    description: nem_east_supply instantiates role gas_supply at site nem_east_hub.
-    site: nem_east_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 150 MW
-            year: 2025
-          technology: gas_import
-    technology_role: gas_supply
-
-  - id: nem_south_generation
-    description: nem_south_generation instantiates role electricity_generation at site
-      nem_south_hub.
-    available_technologies:
-      - coal_plant
-      - ccgt
-    site: nem_south_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 18 MW
-            year: 2025
-          technology: coal_plant
-    technology_role: electricity_generation
-
-  - id: nem_south_supply
-    description: nem_south_supply instantiates role coal_supply at site nem_south_hub.
-    site: nem_south_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 150 MW
-            year: 2025
-          technology: coal_import
-    technology_role: coal_supply
-
-  - id: residential_sector
-    description: residential_sector instantiates role residential_service at site nem_east_hub.
-    site: nem_east_hub
-    stock:
-      items:
-        - metric: annual_activity
-          observed:
-            value: 70 GWh/year
-            year: 2025
-          technology: residential_device
-    technology_role: residential_service
-
-  - id: transport_sector
-    description: transport_sector instantiates role transport_service at site wa_hub.
-    site: wa_hub
-    stock:
-      items:
-        - metric: annual_activity
-          observed:
-            value: 50 GWh/year
-            year: 2025
-          technology: transport_device
-    technology_role: transport_service
-
-  - id: wa_generation
-    description: wa_generation instantiates role electricity_generation at site wa_hub.
-    available_technologies:
-      - coal_plant
-      - ccgt
-    site: wa_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 12 MW
-            year: 2025
-          technology: ccgt
-    technology_role: electricity_generation
-
-  - id: wa_supply
-    description: wa_supply instantiates role gas_supply at site wa_hub.
-    site: wa_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 120 MW
-            year: 2025
-          technology: gas_import
-    technology_role: gas_supply
-
+- id: commercial_sector
+  description: commercial_sector instantiates role commercial_service at site nem_south_hub.
+  site: nem_south_hub
+  stock:
+    items:
+    - metric: annual_activity
+      observed:
+        value: 60 GWh/year
+        year: 2025
+      technology: commercial_device
+  technology_role: commercial_service
+- id: industrial_sector
+  description: industrial_sector instantiates role industrial_service at site nem_east_hub.
+  site: nem_east_hub
+  stock:
+    items:
+    - metric: annual_activity
+      observed:
+        value: 40 GWh/year
+        year: 2025
+      technology: industrial_device
+  technology_role: industrial_service
+- id: nem_east_generation
+  description: nem_east_generation instantiates role electricity_generation at site
+    nem_east_hub.
+  available_technologies:
+  - coal_plant
+  - ccgt
+  site: nem_east_hub
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 20 MW
+        year: 2025
+      technology: ccgt
+  technology_role: electricity_generation
+- id: nem_east_hydrogen
+  description: nem_east_hydrogen instantiates role hydrogen_supply at site nem_east_hub.
+  site: nem_east_hub
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 8 MW
+        year: 2025
+      technology: smr
+  technology_role: hydrogen_supply
+- id: nem_east_supply
+  description: nem_east_supply instantiates role gas_supply at site nem_east_hub.
+  site: nem_east_hub
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 150 MW
+        year: 2025
+      technology: gas_import
+  technology_role: gas_supply
+- id: nem_south_generation
+  description: nem_south_generation instantiates role electricity_generation at site
+    nem_south_hub.
+  available_technologies:
+  - coal_plant
+  - ccgt
+  site: nem_south_hub
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 18 MW
+        year: 2025
+      technology: coal_plant
+  technology_role: electricity_generation
+- id: nem_south_supply
+  description: nem_south_supply instantiates role coal_supply at site nem_south_hub.
+  site: nem_south_hub
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 150 MW
+        year: 2025
+      technology: coal_import
+  technology_role: coal_supply
+- id: residential_sector
+  description: residential_sector instantiates role residential_service at site nem_east_hub.
+  site: nem_east_hub
+  stock:
+    items:
+    - metric: annual_activity
+      observed:
+        value: 70 GWh/year
+        year: 2025
+      technology: residential_device
+  technology_role: residential_service
+- id: transport_sector
+  description: transport_sector instantiates role transport_service at site wa_hub.
+  site: wa_hub
+  stock:
+    items:
+    - metric: annual_activity
+      observed:
+        value: 50 GWh/year
+        year: 2025
+      technology: transport_device
+  technology_role: transport_service
+- id: wa_generation
+  description: wa_generation instantiates role electricity_generation at site wa_hub.
+  available_technologies:
+  - coal_plant
+  - ccgt
+  site: wa_hub
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 12 MW
+        year: 2025
+      technology: ccgt
+  technology_role: electricity_generation
+- id: wa_supply
+  description: wa_supply instantiates role gas_supply at site wa_hub.
+  site: wa_hub
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 120 MW
+        year: 2025
+      technology: gas_import
+  technology_role: gas_supply
 networks:
-  - id: east_south_interconnector
-    kind: transmission
-    links:
-      - id: east_to_south
-        commodity: electricity
-        existing_transfer_capacity: 80 MW
-        from: NEM_EAST
-        to: NEM_SOUTH
-    node_basis:
-      kind: region_partition
-      ref: australian_regions
-
+- id: east_south_interconnector
+  kind: transmission
+  links:
+  - id: east_to_south
+    commodity: electricity
+    existing_transfer_capacity: 80 MW
+    from: NEM_EAST
+    to: NEM_SOUTH
+  node_basis:
+    kind: region_partition
+    ref: australian_regions
 runs:
-  - id: australia_2025
-    veda_book_name: AUSTRALIA2025
-    base_year: 2025
-    currency_year: 2024
-    region_partition: australian_regions
+- id: australia_2025
+  veda_book_name: AUSTRALIA2025
+  year_set: pathway_2025_2035
+  currency_year: 2024
+  region_partition: australian_regions
+year_sets:
+- id: pathway_2025_2035
+  start_year: 2025
+  milestone_years:
+  - 2025
+  - 2035

@@ -1,153 +1,141 @@
-dsl_version: "0.3"
-
+dsl_version: '0.3'
 commodities:
-  - id: co2
-    type: emission
-
-  - id: industrial_heat
-    type: service
-
-  - id: lng
-    type: energy
-    energy_form: primary
-
-  - id: lng_supply
-    type: service
-
+- id: co2
+  type: emission
+- id: industrial_heat
+  type: service
+- id: lng
+  type: energy
+  energy_form: primary
+- id: lng_supply
+  type: service
 technologies:
-  - id: lng_boiler_baseline
-    description: lng_boiler_baseline provides industrial_heat by transforming lng.
-    inputs:
-      - commodity: lng
-        basis: HHV
-    emissions:
-      - commodity: co2
-        factor: 0.056 t/GJ
-    fixed_om: 2 AUD2024/kW/year
-    investment_cost: 30 AUD2024/kW
-    lifetime: 25 year
-    performance:
-      kind: efficiency
-      value: 0.9
-    provides: industrial_heat
-
-  - id: lng_boiler_with_ccs
-    description: lng_boiler_with_ccs provides industrial_heat by transforming lng.
-    inputs:
-      - commodity: lng
-        basis: HHV
-    emissions:
-      - commodity: co2
-        factor: 0.01 t/GJ
-    fixed_om: 4 AUD2024/kW/year
-    investment_cost: 55 AUD2024/kW
-    lifetime: 25 year
-    performance:
-      kind: efficiency
-      value: 0.82
-    provides: industrial_heat
-    variable_om: 1.2 AUD2024/MWh
-
-  - id: lng_import_terminal
-    description:
-      lng_import_terminal provides lng_supply as a primary supply or conversion
-      technology.
-    outputs:
-      - commodity: lng
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: lng_supply
-    variable_om: 9 AUD2024/MWh
-
+- id: lng_boiler_baseline
+  description: lng_boiler_baseline provides industrial_heat by transforming lng.
+  inputs:
+  - commodity: lng
+    basis: HHV
+  emissions:
+  - commodity: co2
+    factor: 0.056 t/GJ
+  fixed_om: 2 AUD2024/kW/year
+  investment_cost: 30 AUD2024/kW
+  lifetime: 25 year
+  performance:
+    kind: efficiency
+    value: 0.9
+  provides: industrial_heat
+- id: lng_boiler_with_ccs
+  description: lng_boiler_with_ccs provides industrial_heat by transforming lng.
+  inputs:
+  - commodity: lng
+    basis: HHV
+  emissions:
+  - commodity: co2
+    factor: 0.01 t/GJ
+  fixed_om: 4 AUD2024/kW/year
+  investment_cost: 55 AUD2024/kW
+  lifetime: 25 year
+  performance:
+    kind: efficiency
+    value: 0.82
+  provides: industrial_heat
+  variable_om: 1.2 AUD2024/MWh
+- id: lng_import_terminal
+  description: lng_import_terminal provides lng_supply as a primary supply or conversion
+    technology.
+  outputs:
+  - commodity: lng
+  lifetime: 100 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: lng_supply
+  variable_om: 9 AUD2024/MWh
 technology_roles:
-  - id: industrial_heat_supply
-    description:
-      "industrial_heat_supply groups technologies that deliver industrial_heat:
-      lng_boiler_baseline and lng_boiler_with_ccs."
-    primary_service: industrial_heat
-    technologies:
-      - lng_boiler_baseline
-      - lng_boiler_with_ccs
-    transitions:
-      - cost: 45 AUD2024/kW
-        from: lng_boiler_baseline
-        kind: retrofit
-        to: lng_boiler_with_ccs
-
-  - id: lng_supply
-    description: "lng_supply groups technologies that deliver lng_supply: lng_import_terminal."
-    primary_service: lng_supply
-    technologies:
-      - lng_import_terminal
-
+- id: industrial_heat_supply
+  description: 'industrial_heat_supply groups technologies that deliver industrial_heat:
+    lng_boiler_baseline and lng_boiler_with_ccs.'
+  primary_service: industrial_heat
+  technologies:
+  - lng_boiler_baseline
+  - lng_boiler_with_ccs
+  transitions:
+  - cost: 45 AUD2024/kW
+    from: lng_boiler_baseline
+    kind: retrofit
+    to: lng_boiler_with_ccs
+- id: lng_supply
+  description: 'lng_supply groups technologies that deliver lng_supply: lng_import_terminal.'
+  primary_service: lng_supply
+  technologies:
+  - lng_import_terminal
 spatial_layers:
-  - id: geo_demo
-    geometry_file: data/regions.geojson
-    key: region_id
-    kind: polygon
-
+- id: geo_demo
+  geometry_file: data/regions.geojson
+  key: region_id
+  kind: polygon
 region_partitions:
-  - id: single_region
-    layer: geo_demo
-    mapping:
-      kind: constant
-      value: SINGLE
-    members:
-      - SINGLE
-
+- id: single_region
+  layer: geo_demo
+  mapping:
+    kind: constant
+    value: SINGLE
+  members:
+  - SINGLE
 sites:
-  - id: lng_industrial_hub
-    location:
-      point:
-        lat: -27.47
-        lon: 153.02
-    membership_overrides:
-      region_partitions:
-        single_region: SINGLE
-
+- id: lng_industrial_hub
+  location:
+    point:
+      lat: -27.47
+      lon: 153.02
+  membership_overrides:
+    region_partitions:
+      single_region: SINGLE
 facilities:
-  - id: industrial_heat_hub
-    description: industrial_heat_hub instantiates role industrial_heat_supply at site
-      lng_industrial_hub.
-    available_technologies:
-      - lng_boiler_baseline
-      - lng_boiler_with_ccs
-    new_build_limits:
-      - max_new_capacity: 40 MW
-        technology: lng_boiler_with_ccs
-    site: lng_industrial_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 60 MW
-            year: 2025
-          technology: lng_boiler_baseline
-
-        - metric: installed_capacity
-          observed:
-            value: 5 MW
-            year: 2025
-          technology: lng_boiler_with_ccs
-    technology_role: industrial_heat_supply
-
-  - id: lng_supply_hub
-    description: lng_supply_hub instantiates role lng_supply at site lng_industrial_hub.
-    site: lng_industrial_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 100 MW
-            year: 2025
-          technology: lng_import_terminal
-    technology_role: lng_supply
-
+- id: industrial_heat_hub
+  description: industrial_heat_hub instantiates role industrial_heat_supply at site
+    lng_industrial_hub.
+  available_technologies:
+  - lng_boiler_baseline
+  - lng_boiler_with_ccs
+  new_build_limits:
+  - max_new_capacity: 40 MW
+    technology: lng_boiler_with_ccs
+  site: lng_industrial_hub
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 60 MW
+        year: 2025
+      technology: lng_boiler_baseline
+    - metric: installed_capacity
+      observed:
+        value: 5 MW
+        year: 2025
+      technology: lng_boiler_with_ccs
+  technology_role: industrial_heat_supply
+- id: lng_supply_hub
+  description: lng_supply_hub instantiates role lng_supply at site lng_industrial_hub.
+  site: lng_industrial_hub
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 100 MW
+        year: 2025
+      technology: lng_import_terminal
+  technology_role: lng_supply
 runs:
-  - id: single_2025
-    veda_book_name: SINGLE2025
-    base_year: 2025
-    currency_year: 2024
-    region_partition: single_region
+- id: single_2025
+  veda_book_name: SINGLE2025
+  year_set: pathway_2025_2035
+  currency_year: 2024
+  region_partition: single_region
+year_sets:
+- id: pathway_2025_2035
+  start_year: 2025
+  milestone_years:
+  - 2025
+  - 2035

@@ -1,112 +1,102 @@
-dsl_version: "0.3"
-
+dsl_version: '0.3'
 commodities:
-  - id: electricity
-    type: energy
-    energy_form: secondary
-
-  - id: electricity_supply
-    type: service
-
-  - id: residential_electricity
-    type: service
-
+- id: electricity
+  type: energy
+  energy_form: secondary
+- id: electricity_supply
+  type: service
+- id: residential_electricity
+  type: service
 technologies:
-  - id: grid_supply
-    description:
-      grid_supply provides electricity_supply as a primary supply or conversion
-      technology.
-    outputs:
-      - commodity: electricity
-    lifetime: 40 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: electricity_supply
-    variable_om: 10 AUD2024/MWh
-
-  - id: residential_device
-    description: residential_device provides residential_electricity by transforming
-      electricity.
-    inputs:
-      - commodity: electricity
-    lifetime: 40 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: residential_electricity
-
+- id: grid_supply
+  description: grid_supply provides electricity_supply as a primary supply or conversion
+    technology.
+  outputs:
+  - commodity: electricity
+  lifetime: 40 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: electricity_supply
+  variable_om: 10 AUD2024/MWh
+- id: residential_device
+  description: residential_device provides residential_electricity by transforming
+    electricity.
+  inputs:
+  - commodity: electricity
+  lifetime: 40 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: residential_electricity
 technology_roles:
-  - id: electricity_supply
-    description:
-      "electricity_supply groups technologies that deliver electricity_supply:
-      grid_supply."
-    primary_service: electricity_supply
-    technologies:
-      - grid_supply
-
-  - id: residential_service
-    description:
-      "residential_service groups technologies that deliver residential_electricity:
-      residential_device."
-    primary_service: residential_electricity
-    technologies:
-      - residential_device
-
+- id: electricity_supply
+  description: 'electricity_supply groups technologies that deliver electricity_supply:
+    grid_supply.'
+  primary_service: electricity_supply
+  technologies:
+  - grid_supply
+- id: residential_service
+  description: 'residential_service groups technologies that deliver residential_electricity:
+    residential_device.'
+  primary_service: residential_electricity
+  technologies:
+  - residential_device
 spatial_layers:
-  - id: geo_demo
-    geometry_file: data/regions.geojson
-    key: region_id
-    kind: polygon
-
+- id: geo_demo
+  geometry_file: data/regions.geojson
+  key: region_id
+  kind: polygon
 region_partitions:
-  - id: single_region
-    layer: geo_demo
-    mapping:
-      kind: constant
-      value: SINGLE
-    members:
-      - SINGLE
-
+- id: single_region
+  layer: geo_demo
+  mapping:
+    kind: constant
+    value: SINGLE
+  members:
+  - SINGLE
 sites:
-  - id: single_hub
-    location:
-      point:
-        lat: -33.87
-        lon: 151.21
-    membership_overrides:
-      region_partitions:
-        single_region: SINGLE
-
+- id: single_hub
+  location:
+    point:
+      lat: -33.87
+      lon: 151.21
+  membership_overrides:
+    region_partitions:
+      single_region: SINGLE
 facilities:
-  - id: grid_supply_facility
-    description: grid_supply_facility instantiates role electricity_supply at site single_hub.
-    site: single_hub
-    stock:
-      items:
-        - metric: annual_activity
-          observed:
-            value: 50 GWh/year
-            year: 2020
-          technology: grid_supply
-    technology_role: electricity_supply
-
-  - id: residential_service_facility
-    description: residential_service_facility instantiates role residential_service
-      at site single_hub.
-    site: single_hub
-    stock:
-      items:
-        - metric: annual_activity
-          observed:
-            value: 50 GWh/year
-            year: 2020
-          technology: residential_device
-    technology_role: residential_service
-
+- id: grid_supply_facility
+  description: grid_supply_facility instantiates role electricity_supply at site single_hub.
+  site: single_hub
+  stock:
+    items:
+    - metric: annual_activity
+      observed:
+        value: 50 GWh/year
+        year: 2020
+      technology: grid_supply
+  technology_role: electricity_supply
+- id: residential_service_facility
+  description: residential_service_facility instantiates role residential_service
+    at site single_hub.
+  site: single_hub
+  stock:
+    items:
+    - metric: annual_activity
+      observed:
+        value: 50 GWh/year
+        year: 2020
+      technology: residential_device
+  technology_role: residential_service
 runs:
-  - id: single_2020
-    veda_book_name: SINGLE2020
-    base_year: 2020
-    currency_year: 2024
-    region_partition: single_region
+- id: single_2020
+  veda_book_name: SINGLE2020
+  year_set: pathway_2020_2030
+  currency_year: 2024
+  region_partition: single_region
+year_sets:
+- id: pathway_2020_2030
+  start_year: 2020
+  milestone_years:
+  - 2020
+  - 2030

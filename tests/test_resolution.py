@@ -12,6 +12,16 @@ from vedalang.compiler.resolution import (
 )
 
 
+def _year_sets_2025() -> list[dict[str, object]]:
+    return [
+        {
+            "id": "pathway_2025_2035",
+            "start_year": 2025,
+            "milestone_years": [2025, 2035],
+        }
+    ]
+
+
 def _packages_and_model():
     regions = parse_source(
         {
@@ -249,15 +259,13 @@ def _packages_and_model():
                     ],
                 }
             ],
+            "year_sets": _year_sets_2025(),
             "runs": [
                 {
                     "id": "toy_states_2025",
                     "veda_book_name": "TOYSTATES2025",
-
-                    "base_year": 2025,
-
+                    "year_set": "pathway_2025_2035",
                     "currency_year": 2024,
-
                     "region_partition": "regions.toy_states_3",
                 }
             ],
@@ -604,6 +612,7 @@ def test_resolve_run_fails_for_unknown_policy_references():
                     "mapping": {"kind": "constant", "value": "SINGLE"},
                 }
             ],
+            "year_sets": _year_sets_2025(),
             "sites": [
                 {
                     "id": "site_a",
@@ -623,11 +632,8 @@ def test_resolve_run_fails_for_unknown_policy_references():
                 {
                     "id": "single_2025",
                     "veda_book_name": "SINGLE2025",
-
-                    "base_year": 2025,
-
+                    "year_set": "pathway_2025_2035",
                     "currency_year": 2024,
-
                     "region_partition": "single_region",
                     "enable_policies": ["missing_policy"],
                 }
@@ -686,15 +692,13 @@ def test_resolve_run_fails_when_emissions_budget_targets_non_emission_commodity(
                     "mapping": {"kind": "constant", "value": "SINGLE"},
                 }
             ],
+            "year_sets": _year_sets_2025(),
             "runs": [
                 {
                     "id": "single_2025",
                     "veda_book_name": "SINGLE2025",
-
-                    "base_year": 2025,
-
+                    "year_set": "pathway_2025_2035",
                     "currency_year": 2024,
-
                     "region_partition": "single_region",
                     "enable_policies": ["co2_cap"],
                 }
@@ -756,15 +760,13 @@ def test_resolve_run_fails_on_duplicate_policy_budget_years():
                     "mapping": {"kind": "constant", "value": "SINGLE"},
                 }
             ],
+            "year_sets": _year_sets_2025(),
             "runs": [
                 {
                     "id": "single_2025",
                     "veda_book_name": "SINGLE2025",
-
-                    "base_year": 2025,
-
+                    "year_set": "pathway_2025_2035",
                     "currency_year": 2024,
-
                     "region_partition": "single_region",
                     "enable_policies": ["co2_cap"],
                 }
@@ -832,15 +834,13 @@ def test_resolve_run_fails_when_multiple_cases_selected_for_policy():
                     "mapping": {"kind": "constant", "value": "SINGLE"},
                 }
             ],
+            "year_sets": _year_sets_2025(),
             "runs": [
                 {
                     "id": "single_2025",
                     "veda_book_name": "SINGLE2025",
-
-                    "base_year": 2025,
-
+                    "year_set": "pathway_2025_2035",
                     "currency_year": 2024,
-
                     "region_partition": "single_region",
                     "enable_policies": ["co2_cap"],
                     "include_cases": ["cap_a", "cap_b"],
@@ -905,15 +905,13 @@ def test_resolve_run_fails_when_case_based_policy_not_selected():
                     "mapping": {"kind": "constant", "value": "SINGLE"},
                 }
             ],
+            "year_sets": _year_sets_2025(),
             "runs": [
                 {
                     "id": "single_2025",
                     "veda_book_name": "SINGLE2025",
-
-                    "base_year": 2025,
-
+                    "year_set": "pathway_2025_2035",
                     "currency_year": 2024,
-
                     "region_partition": "single_region",
                     "enable_policies": ["co2_cap"],
                     "include_cases": ["dem_base"],
@@ -982,15 +980,13 @@ def test_resolve_run_fails_on_duplicate_policy_case_ids():
                     "mapping": {"kind": "constant", "value": "SINGLE"},
                 }
             ],
+            "year_sets": _year_sets_2025(),
             "runs": [
                 {
                     "id": "single_2025",
                     "veda_book_name": "SINGLE2025",
-
-                    "base_year": 2025,
-
+                    "year_set": "pathway_2025_2035",
                     "currency_year": 2024,
-
                     "region_partition": "single_region",
                     "enable_policies": ["co2_cap"],
                     "include_cases": ["cap_a"],
@@ -1059,15 +1055,13 @@ def test_allocate_direct_fleet_defaults_to_single_region_and_copies_stock():
                     "distribution": {"method": "direct"},
                 }
             ],
+            "year_sets": _year_sets_2025(),
             "runs": [
                 {
                     "id": "single_2025",
                     "veda_book_name": "SINGLE2025",
-
-                    "base_year": 2025,
-
+                    "year_set": "pathway_2025_2035",
                     "currency_year": 2024,
-
                     "region_partition": "single_region",
                 }
             ],

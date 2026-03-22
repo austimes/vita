@@ -1,5 +1,6 @@
 """VedaLang to TableIR compiler."""
 
+from collections import deque
 import json
 import re
 from functools import lru_cache
@@ -896,6 +897,28 @@ def load_tableir_schema() -> dict:
 def validate_vedalang(source: dict) -> None:
     """Validate VedaLang source against the active public schema."""
     jsonschema.validate(source, load_vedalang_schema())
+    for idx, year_set in enumerate(source.get("year_sets") or []):
+        milestone_years = year_set.get("milestone_years") or []
+        start_year = year_set.get("start_year")
+        if not milestone_years:
+            raise jsonschema.ValidationError(
+                "year_sets[*].milestone_years must be non-empty",
+                validator="vedalang_year_sets",
+                path=deque(["year_sets", idx, "milestone_years"]),
+            )
+        if milestone_years[0] != start_year:
+            raise jsonschema.ValidationError(
+                "year_sets[*].milestone_years must start with start_year",
+                validator="vedalang_year_sets",
+                path=deque(["year_sets", idx, "milestone_years", 0]),
+            )
+        for milestone_idx in range(1, len(milestone_years)):
+            if milestone_years[milestone_idx] <= milestone_years[milestone_idx - 1]:
+                raise jsonschema.ValidationError(
+                    "year_sets[*].milestone_years must be strictly increasing",
+                    validator="vedalang_year_sets",
+                    path=deque(["year_sets", idx, "milestone_years", milestone_idx]),
+                )
 
 
 def compile_vedalang_bundle(

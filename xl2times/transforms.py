@@ -1192,8 +1192,8 @@ def process_time_periods(
                     elif end_year is not None:
                         duration = end_year - year
                     else:
-                        # Last period: default to same as previous or 10
-                        duration = periods[-1]["d"] if periods else 10
+                        # Treat the final milestone as the terminal horizon year.
+                        duration = 1
                     periods.append({
                         "d": duration,
                         "b": year,

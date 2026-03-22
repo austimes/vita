@@ -1,164 +1,153 @@
-dsl_version: "0.3"
-
+dsl_version: '0.3'
 commodities:
-  - id: alumina_output
-    type: service
-
-  - id: co2
-    type: emission
-
-  - id: coal
-    type: energy
-    energy_form: primary
-
-  - id: hydrogen
-    type: energy
-    energy_form: primary
-
-  - id: natural_gas
-    type: energy
-    energy_form: primary
-
+- id: alumina_output
+  type: service
+- id: co2
+  type: emission
+- id: coal
+  type: energy
+  energy_form: primary
+- id: hydrogen
+  type: energy
+  energy_form: primary
+- id: natural_gas
+  type: energy
+  energy_form: primary
 technologies:
-  - id: coal_calciner
-    description: coal_calciner provides alumina_output by transforming coal.
-    inputs:
-      - commodity: coal
-        basis: HHV
-    emissions:
-      - commodity: co2
-        factor: 0.12 t/GJ
-    lifetime: 35 year
-    performance:
-      kind: efficiency
-      value: 0.9
-    provides: alumina_output
-
-  - id: gas_calciner
-    description: gas_calciner provides alumina_output by transforming natural_gas.
-    inputs:
-      - commodity: natural_gas
-        basis: HHV
-    emissions:
-      - commodity: co2
-        factor: 0.08 t/GJ
-    lifetime: 30 year
-    performance:
-      kind: efficiency
-      value: 0.95
-    provides: alumina_output
-
-  - id: hydrogen_calciner
-    description: hydrogen_calciner provides alumina_output by transforming hydrogen.
-    inputs:
-      - commodity: hydrogen
-        basis: HHV
-    emissions:
-      - commodity: co2
-        factor: 0.02 t/GJ
-    lifetime: 30 year
-    performance:
-      kind: efficiency
-      value: 0.98
-    provides: alumina_output
-
+- id: coal_calciner
+  description: coal_calciner provides alumina_output by transforming coal.
+  inputs:
+  - commodity: coal
+    basis: HHV
+  emissions:
+  - commodity: co2
+    factor: 0.12 t/GJ
+  lifetime: 35 year
+  performance:
+    kind: efficiency
+    value: 0.9
+  provides: alumina_output
+- id: gas_calciner
+  description: gas_calciner provides alumina_output by transforming natural_gas.
+  inputs:
+  - commodity: natural_gas
+    basis: HHV
+  emissions:
+  - commodity: co2
+    factor: 0.08 t/GJ
+  lifetime: 30 year
+  performance:
+    kind: efficiency
+    value: 0.95
+  provides: alumina_output
+- id: hydrogen_calciner
+  description: hydrogen_calciner provides alumina_output by transforming hydrogen.
+  inputs:
+  - commodity: hydrogen
+    basis: HHV
+  emissions:
+  - commodity: co2
+    factor: 0.02 t/GJ
+  lifetime: 30 year
+  performance:
+    kind: efficiency
+    value: 0.98
+  provides: alumina_output
 technology_roles:
-  - id: alumina_calcination
-    description: "alumina_calcination groups technologies that deliver alumina_output:
-      coal_calciner, gas_calciner, and hydrogen_calciner."
-    primary_service: alumina_output
-    technologies:
-      - coal_calciner
-      - gas_calciner
-      - hydrogen_calciner
-    transitions:
-      - cost: 1200 AUD2024/kW
-        from: coal_calciner
-        kind: retrofit
-        to: gas_calciner
-
-      - cost: 2500 AUD2024/kW
-        from: gas_calciner
-        kind: retrofit
-        to: hydrogen_calciner
-
+- id: alumina_calcination
+  description: 'alumina_calcination groups technologies that deliver alumina_output:
+    coal_calciner, gas_calciner, and hydrogen_calciner.'
+  primary_service: alumina_output
+  technologies:
+  - coal_calciner
+  - gas_calciner
+  - hydrogen_calciner
+  transitions:
+  - cost: 1200 AUD2024/kW
+    from: coal_calciner
+    kind: retrofit
+    to: gas_calciner
+  - cost: 2500 AUD2024/kW
+    from: gas_calciner
+    kind: retrofit
+    to: hydrogen_calciner
 spatial_layers:
-  - id: geo_demo
-    geometry_file: data/regions.geojson
-    key: region_id
-    kind: polygon
-
+- id: geo_demo
+  geometry_file: data/regions.geojson
+  key: region_id
+  kind: polygon
 region_partitions:
-  - id: au_states
-    layer: geo_demo
-    mapping:
-      kind: constant
-      value: QLD
-    members:
-      - NSW
-      - QLD
-
+- id: au_states
+  layer: geo_demo
+  mapping:
+    kind: constant
+    value: QLD
+  members:
+  - NSW
+  - QLD
 sites:
-  - id: gladstone_refinery
-    location:
-      point:
-        lat: -23.842
-        lon: 151.248
-    membership_overrides:
-      region_partitions:
-        au_states: QLD
-
-  - id: newcastle_refinery
-    location:
-      point:
-        lat: -32.928
-        lon: 151.781
-    membership_overrides:
-      region_partitions:
-        au_states: NSW
-
+- id: gladstone_refinery
+  location:
+    point:
+      lat: -23.842
+      lon: 151.248
+  membership_overrides:
+    region_partitions:
+      au_states: QLD
+- id: newcastle_refinery
+  location:
+    point:
+      lat: -32.928
+      lon: 151.781
+  membership_overrides:
+    region_partitions:
+      au_states: NSW
 facilities:
-  - id: gladstone_alumina
-    description: gladstone_alumina instantiates role alumina_calcination at site gladstone_refinery.
-    available_technologies:
-      - coal_calciner
-      - gas_calciner
-      - hydrogen_calciner
-    new_build_limits:
-      - max_new_capacity: 8 MW
-        technology: hydrogen_calciner
-    site: gladstone_refinery
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 8 MW
-            year: 2025
-          technology: coal_calciner
-    technology_role: alumina_calcination
-
-  - id: newcastle_alumina
-    description: newcastle_alumina instantiates role alumina_calcination at site newcastle_refinery.
-    available_technologies:
-      - coal_calciner
-      - gas_calciner
-      - hydrogen_calciner
-    new_build_limits:
-      - max_new_capacity: 3.5 MW
-        technology: gas_calciner
-    site: newcastle_refinery
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 3.5 MW
-            year: 2025
-          technology: coal_calciner
-    technology_role: alumina_calcination
-
+- id: gladstone_alumina
+  description: gladstone_alumina instantiates role alumina_calcination at site gladstone_refinery.
+  available_technologies:
+  - coal_calciner
+  - gas_calciner
+  - hydrogen_calciner
+  new_build_limits:
+  - max_new_capacity: 8 MW
+    technology: hydrogen_calciner
+  site: gladstone_refinery
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 8 MW
+        year: 2025
+      technology: coal_calciner
+  technology_role: alumina_calcination
+- id: newcastle_alumina
+  description: newcastle_alumina instantiates role alumina_calcination at site newcastle_refinery.
+  available_technologies:
+  - coal_calciner
+  - gas_calciner
+  - hydrogen_calciner
+  new_build_limits:
+  - max_new_capacity: 3.5 MW
+    technology: gas_calciner
+  site: newcastle_refinery
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 3.5 MW
+        year: 2025
+      technology: coal_calciner
+  technology_role: alumina_calcination
 runs:
-  - id: au_states_2025
-    veda_book_name: AUSTATES2025
-    base_year: 2025
-    currency_year: 2024
-    region_partition: au_states
+- id: au_states_2025
+  veda_book_name: AUSTATES2025
+  year_set: pathway_2025_2035
+  currency_year: 2024
+  region_partition: au_states
+year_sets:
+- id: pathway_2025_2035
+  start_year: 2025
+  milestone_years:
+  - 2025
+  - 2035

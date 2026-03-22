@@ -1,258 +1,224 @@
-dsl_version: "0.3"
-
+dsl_version: '0.3'
 commodities:
-  - id: agricultural_output
-    type: service
-
-  - id: carbon_removal
-    type: service
-
-  - id: co2e
-    type: emission
-
-  - id: farm_input_supply
-    type: service
-
-  - id: farm_inputs
-    type: material
-
-  - id: farm_land
-    type: material
-
-  - id: farm_land_supply
-    type: service
-
+- id: agricultural_output
+  type: service
+- id: carbon_removal
+  type: service
+- id: co2e
+  type: emission
+- id: farm_input_supply
+  type: service
+- id: farm_inputs
+  type: material
+- id: farm_land
+  type: material
+- id: farm_land_supply
+  type: service
 technologies:
-  - id: farm_input_import
-    description: farm_input_import provides farm_input_supply as a primary supply or
-      conversion technology.
-    outputs:
-      - commodity: farm_inputs
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: farm_input_supply
-
-  - id: land_endowment
-    description:
-      land_endowment provides farm_land_supply as a primary supply or conversion
-      technology.
-    outputs:
-      - commodity: farm_land
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: farm_land_supply
-
-  - id: reforestation
-    description: reforestation provides carbon_removal by transforming farm_land.
-    inputs:
-      - commodity: farm_land
-    emissions:
-      - commodity: co2e
-        factor: -1 t/t
-    investment_cost: 15 AUD2024/kW
-    lifetime: 50 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: carbon_removal
-
-  - id: soil_carbon
-    description: soil_carbon provides carbon_removal by transforming farm_land.
-    inputs:
-      - commodity: farm_land
-    emissions:
-      - commodity: co2e
-        factor: -1 t/t
-    investment_cost: 30 AUD2024/kW
-    lifetime: 30 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: carbon_removal
-
-  - id: traditional_baseline
-    description:
-      traditional_baseline provides agricultural_output by transforming farm_inputs
-      and farm_land.
-    inputs:
-      - commodity: farm_inputs
-
-      - commodity: farm_land
-    emissions:
-      - commodity: co2e
-        factor: 5 t/t
-    lifetime: 50 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: agricultural_output
-
-  - id: traditional_with_feed_additives
-    description:
-      traditional_with_feed_additives provides agricultural_output by transforming
-      farm_inputs and farm_land.
-    inputs:
-      - commodity: farm_inputs
-
-      - commodity: farm_land
-    emissions:
-      - commodity: co2e
-        factor: 3 t/t
-    investment_cost: 20 AUD2024/kW
-    lifetime: 50 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: agricultural_output
-
-  - id: traditional_with_improved_manure
-    description:
-      traditional_with_improved_manure provides agricultural_output by transforming
-      farm_inputs and farm_land.
-    inputs:
-      - commodity: farm_inputs
-
-      - commodity: farm_land
-    emissions:
-      - commodity: co2e
-        factor: 3.75 t/t
-    investment_cost: 10 AUD2024/kW
-    lifetime: 50 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: agricultural_output
-
+- id: farm_input_import
+  description: farm_input_import provides farm_input_supply as a primary supply or
+    conversion technology.
+  outputs:
+  - commodity: farm_inputs
+  lifetime: 100 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: farm_input_supply
+- id: land_endowment
+  description: land_endowment provides farm_land_supply as a primary supply or conversion
+    technology.
+  outputs:
+  - commodity: farm_land
+  lifetime: 100 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: farm_land_supply
+- id: reforestation
+  description: reforestation provides carbon_removal by transforming farm_land.
+  inputs:
+  - commodity: farm_land
+  emissions:
+  - commodity: co2e
+    factor: -1 t/t
+  investment_cost: 15 AUD2024/kW
+  lifetime: 50 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: carbon_removal
+- id: soil_carbon
+  description: soil_carbon provides carbon_removal by transforming farm_land.
+  inputs:
+  - commodity: farm_land
+  emissions:
+  - commodity: co2e
+    factor: -1 t/t
+  investment_cost: 30 AUD2024/kW
+  lifetime: 30 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: carbon_removal
+- id: traditional_baseline
+  description: traditional_baseline provides agricultural_output by transforming farm_inputs
+    and farm_land.
+  inputs:
+  - commodity: farm_inputs
+  - commodity: farm_land
+  emissions:
+  - commodity: co2e
+    factor: 5 t/t
+  lifetime: 50 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: agricultural_output
+- id: traditional_with_feed_additives
+  description: traditional_with_feed_additives provides agricultural_output by transforming
+    farm_inputs and farm_land.
+  inputs:
+  - commodity: farm_inputs
+  - commodity: farm_land
+  emissions:
+  - commodity: co2e
+    factor: 3 t/t
+  investment_cost: 20 AUD2024/kW
+  lifetime: 50 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: agricultural_output
+- id: traditional_with_improved_manure
+  description: traditional_with_improved_manure provides agricultural_output by transforming
+    farm_inputs and farm_land.
+  inputs:
+  - commodity: farm_inputs
+  - commodity: farm_land
+  emissions:
+  - commodity: co2e
+    factor: 3.75 t/t
+  investment_cost: 10 AUD2024/kW
+  lifetime: 50 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: agricultural_output
 technology_roles:
-  - id: agricultural_production
-    description:
-      "agricultural_production groups technologies that deliver agricultural_output:
-      traditional_baseline, traditional_with_feed_additives, and traditional_with_improved_manure."
-    primary_service: agricultural_output
-    technologies:
-      - traditional_baseline
-      - traditional_with_feed_additives
-      - traditional_with_improved_manure
-    transitions:
-      - cost: 20 AUD2024/kW
-        from: traditional_baseline
-        kind: retrofit
-        to: traditional_with_feed_additives
-
-      - cost: 10 AUD2024/kW
-        from: traditional_baseline
-        kind: retrofit
-        to: traditional_with_improved_manure
-
-  - id: farm_carbon_management
-    description:
-      "farm_carbon_management groups technologies that deliver carbon_removal:
-      soil_carbon and reforestation."
-    primary_service: carbon_removal
-    technologies:
-      - soil_carbon
-      - reforestation
-
-  - id: farm_input_supply
-    description: "farm_input_supply groups technologies that deliver farm_input_supply:
-      farm_input_import."
-    primary_service: farm_input_supply
-    technologies:
-      - farm_input_import
-
-  - id: farm_land_supply
-    description: "farm_land_supply groups technologies that deliver farm_land_supply:
-      land_endowment."
-    primary_service: farm_land_supply
-    technologies:
-      - land_endowment
-
+- id: agricultural_production
+  description: 'agricultural_production groups technologies that deliver agricultural_output:
+    traditional_baseline, traditional_with_feed_additives, and traditional_with_improved_manure.'
+  primary_service: agricultural_output
+  technologies:
+  - traditional_baseline
+  - traditional_with_feed_additives
+  - traditional_with_improved_manure
+  transitions:
+  - cost: 20 AUD2024/kW
+    from: traditional_baseline
+    kind: retrofit
+    to: traditional_with_feed_additives
+  - cost: 10 AUD2024/kW
+    from: traditional_baseline
+    kind: retrofit
+    to: traditional_with_improved_manure
+- id: farm_carbon_management
+  description: 'farm_carbon_management groups technologies that deliver carbon_removal:
+    soil_carbon and reforestation.'
+  primary_service: carbon_removal
+  technologies:
+  - soil_carbon
+  - reforestation
+- id: farm_input_supply
+  description: 'farm_input_supply groups technologies that deliver farm_input_supply:
+    farm_input_import.'
+  primary_service: farm_input_supply
+  technologies:
+  - farm_input_import
+- id: farm_land_supply
+  description: 'farm_land_supply groups technologies that deliver farm_land_supply:
+    land_endowment.'
+  primary_service: farm_land_supply
+  technologies:
+  - land_endowment
 spatial_layers:
-  - id: geo_demo
-    geometry_file: data/regions.geojson
-    key: region_id
-    kind: polygon
-
+- id: geo_demo
+  geometry_file: data/regions.geojson
+  key: region_id
+  kind: polygon
 region_partitions:
-  - id: single_region
-    layer: geo_demo
-    mapping:
-      kind: constant
-      value: SINGLE
-    members:
-      - SINGLE
-
+- id: single_region
+  layer: geo_demo
+  mapping:
+    kind: constant
+    value: SINGLE
+  members:
+  - SINGLE
 fleets:
-  - id: farm_carbon_management
-    description:
-      farm_carbon_management represents distributed assets for role farm_carbon_management
-      using direct allocation.
-    distribution:
-      method: direct
-    new_build_limits:
-      - max_new_capacity: 1 MW
-        technology: reforestation
-
-      - max_new_capacity: 1 MW
-        technology: soil_carbon
-    technology_role: farm_carbon_management
-
-  - id: farm_input_supply
-    description:
-      farm_input_supply represents distributed assets for role farm_input_supply
-      using direct allocation.
-    distribution:
-      method: direct
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 1000 MW
-            year: 2025
-          technology: farm_input_import
-    technology_role: farm_input_supply
-
-  - id: farm_land_endowment
-    description:
-      farm_land_endowment represents distributed assets for role farm_land_supply
-      using direct allocation.
-    distribution:
-      method: direct
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 12 MW
-            year: 2025
-          technology: land_endowment
-    technology_role: farm_land_supply
-
-  - id: farm_production
-    description:
-      farm_production represents distributed assets for role agricultural_production
-      using direct allocation.
-    available_technologies:
-      - traditional_baseline
-      - traditional_with_feed_additives
-      - traditional_with_improved_manure
-    distribution:
-      method: direct
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 10 MW
-            year: 2025
-          technology: traditional_baseline
-    technology_role: agricultural_production
-
+- id: farm_carbon_management
+  description: farm_carbon_management represents distributed assets for role farm_carbon_management
+    using direct allocation.
+  distribution:
+    method: direct
+  new_build_limits:
+  - max_new_capacity: 1 MW
+    technology: reforestation
+  - max_new_capacity: 1 MW
+    technology: soil_carbon
+  technology_role: farm_carbon_management
+- id: farm_input_supply
+  description: farm_input_supply represents distributed assets for role farm_input_supply
+    using direct allocation.
+  distribution:
+    method: direct
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 1000 MW
+        year: 2025
+      technology: farm_input_import
+  technology_role: farm_input_supply
+- id: farm_land_endowment
+  description: farm_land_endowment represents distributed assets for role farm_land_supply
+    using direct allocation.
+  distribution:
+    method: direct
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 12 MW
+        year: 2025
+      technology: land_endowment
+  technology_role: farm_land_supply
+- id: farm_production
+  description: farm_production represents distributed assets for role agricultural_production
+    using direct allocation.
+  available_technologies:
+  - traditional_baseline
+  - traditional_with_feed_additives
+  - traditional_with_improved_manure
+  distribution:
+    method: direct
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 10 MW
+        year: 2025
+      technology: traditional_baseline
+  technology_role: agricultural_production
 runs:
-  - id: single_2025
-    veda_book_name: SINGLE2025
-    base_year: 2025
-    currency_year: 2024
-    region_partition: single_region
+- id: single_2025
+  veda_book_name: SINGLE2025
+  year_set: pathway_2025_2035
+  currency_year: 2024
+  region_partition: single_region
+year_sets:
+- id: pathway_2025_2035
+  start_year: 2025
+  milestone_years:
+  - 2025
+  - 2035

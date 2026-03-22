@@ -1,376 +1,333 @@
-dsl_version: "0.3"
-
+dsl_version: '0.3'
 commodities:
-  - id: co2
-    type: emission
-
-  - id: crude_oil
-    type: energy
-    energy_form: primary
-
-  - id: electricity
-    type: energy
-    energy_form: secondary
-
-  - id: electricity_supply
-    type: service
-
-  - id: farm_work
-    type: service
-
-  - id: gas_supply
-    type: service
-
-  - id: hydrogen
-    type: energy
-    energy_form: secondary
-
-  - id: hydrogen_supply
-    type: service
-
-  - id: industrial_heat
-    type: service
-
-  - id: natural_gas
-    type: energy
-    energy_form: primary
-
-  - id: oil_supply
-    type: service
-
-  - id: passenger_km
-    type: service
-
-  - id: petrol
-    type: energy
-    energy_form: primary
-
-  - id: space_heat
-    type: service
-
+- id: co2
+  type: emission
+- id: crude_oil
+  type: energy
+  energy_form: primary
+- id: electricity
+  type: energy
+  energy_form: secondary
+- id: electricity_supply
+  type: service
+- id: farm_work
+  type: service
+- id: gas_supply
+  type: service
+- id: hydrogen
+  type: energy
+  energy_form: secondary
+- id: hydrogen_supply
+  type: service
+- id: industrial_heat
+  type: service
+- id: natural_gas
+  type: energy
+  energy_form: primary
+- id: oil_supply
+  type: service
+- id: passenger_km
+  type: service
+- id: petrol
+  type: energy
+  energy_form: primary
+- id: space_heat
+  type: service
 technologies:
-  - id: electric_heater
-    description: electric_heater provides space_heat by transforming electricity.
-    inputs:
-      - commodity: electricity
-    lifetime: 20 year
-    performance:
-      kind: cop
-      value: 3.0
-    provides: space_heat
-
-  - id: electric_tractor
-    description: electric_tractor provides farm_work by transforming electricity.
-    inputs:
-      - commodity: electricity
-    lifetime: 20 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: farm_work
-
-  - id: electricity_import
-    description: electricity_import provides electricity_supply as a primary supply
-      or conversion technology.
-    outputs:
-      - commodity: electricity
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: electricity_supply
-
-  - id: ev_vehicle
-    description: ev_vehicle provides passenger_km by transforming electricity.
-    inputs:
-      - commodity: electricity
-    lifetime: 15 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: passenger_km
-
-  - id: gas_heater
-    description: gas_heater provides space_heat by transforming natural_gas.
-    inputs:
-      - commodity: natural_gas
-        basis: HHV
-    emissions:
-      - commodity: co2
-        factor: 0.056 t/GJ
-    lifetime: 20 year
-    performance:
-      kind: efficiency
-      value: 0.9
-    provides: space_heat
-
-  - id: gas_import
-    description: gas_import provides gas_supply as a primary supply or conversion technology.
-    outputs:
-      - commodity: natural_gas
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: gas_supply
-
-  - id: hydrogen_furnace
-    description: hydrogen_furnace provides industrial_heat by transforming hydrogen.
-    inputs:
-      - commodity: hydrogen
-        basis: HHV
-    lifetime: 30 year
-    performance:
-      kind: efficiency
-      value: 0.85
-    provides: industrial_heat
-
-  - id: hydrogen_import
-    description:
-      hydrogen_import provides hydrogen_supply as a primary supply or conversion
-      technology.
-    outputs:
-      - commodity: hydrogen
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: hydrogen_supply
-
-  - id: ice_vehicle
-    description: ice_vehicle provides passenger_km by transforming petrol.
-    inputs:
-      - commodity: petrol
-        basis: HHV
-    emissions:
-      - commodity: co2
-        factor: 0.067 t/GJ
-    lifetime: 15 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: passenger_km
-
-  - id: industrial_boiler
-    description: industrial_boiler provides industrial_heat by transforming natural_gas.
-    inputs:
-      - commodity: natural_gas
-        basis: HHV
-    emissions:
-      - commodity: co2
-        factor: 0.056 t/GJ
-    lifetime: 30 year
-    performance:
-      kind: efficiency
-      value: 0.9
-    provides: industrial_heat
-
-  - id: oil_import
-    description: oil_import provides oil_supply as a primary supply or conversion technology.
-    outputs:
-      - commodity: crude_oil
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: oil_supply
-
+- id: electric_heater
+  description: electric_heater provides space_heat by transforming electricity.
+  inputs:
+  - commodity: electricity
+  lifetime: 20 year
+  performance:
+    kind: cop
+    value: 3.0
+  provides: space_heat
+- id: electric_tractor
+  description: electric_tractor provides farm_work by transforming electricity.
+  inputs:
+  - commodity: electricity
+  lifetime: 20 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: farm_work
+- id: electricity_import
+  description: electricity_import provides electricity_supply as a primary supply
+    or conversion technology.
+  outputs:
+  - commodity: electricity
+  lifetime: 100 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: electricity_supply
+- id: ev_vehicle
+  description: ev_vehicle provides passenger_km by transforming electricity.
+  inputs:
+  - commodity: electricity
+  lifetime: 15 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: passenger_km
+- id: gas_heater
+  description: gas_heater provides space_heat by transforming natural_gas.
+  inputs:
+  - commodity: natural_gas
+    basis: HHV
+  emissions:
+  - commodity: co2
+    factor: 0.056 t/GJ
+  lifetime: 20 year
+  performance:
+    kind: efficiency
+    value: 0.9
+  provides: space_heat
+- id: gas_import
+  description: gas_import provides gas_supply as a primary supply or conversion technology.
+  outputs:
+  - commodity: natural_gas
+  lifetime: 100 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: gas_supply
+- id: hydrogen_furnace
+  description: hydrogen_furnace provides industrial_heat by transforming hydrogen.
+  inputs:
+  - commodity: hydrogen
+    basis: HHV
+  lifetime: 30 year
+  performance:
+    kind: efficiency
+    value: 0.85
+  provides: industrial_heat
+- id: hydrogen_import
+  description: hydrogen_import provides hydrogen_supply as a primary supply or conversion
+    technology.
+  outputs:
+  - commodity: hydrogen
+  lifetime: 100 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: hydrogen_supply
+- id: ice_vehicle
+  description: ice_vehicle provides passenger_km by transforming petrol.
+  inputs:
+  - commodity: petrol
+    basis: HHV
+  emissions:
+  - commodity: co2
+    factor: 0.067 t/GJ
+  lifetime: 15 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: passenger_km
+- id: industrial_boiler
+  description: industrial_boiler provides industrial_heat by transforming natural_gas.
+  inputs:
+  - commodity: natural_gas
+    basis: HHV
+  emissions:
+  - commodity: co2
+    factor: 0.056 t/GJ
+  lifetime: 30 year
+  performance:
+    kind: efficiency
+    value: 0.9
+  provides: industrial_heat
+- id: oil_import
+  description: oil_import provides oil_supply as a primary supply or conversion technology.
+  outputs:
+  - commodity: crude_oil
+  lifetime: 100 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: oil_supply
 technology_roles:
-  - id: electricity_supply
-    description:
-      "electricity_supply groups technologies that deliver electricity_supply:
-      electricity_import."
-    primary_service: electricity_supply
-    technologies:
-      - electricity_import
-
-  - id: farm_work_supply
-    description: "farm_work_supply groups technologies that deliver farm_work: electric_tractor."
-    primary_service: farm_work
-    technologies:
-      - electric_tractor
-
-  - id: gas_supply
-    description: "gas_supply groups technologies that deliver gas_supply: gas_import."
-    primary_service: gas_supply
-    technologies:
-      - gas_import
-
-  - id: hydrogen_supply
-    description: "hydrogen_supply groups technologies that deliver hydrogen_supply:
-      hydrogen_import."
-    primary_service: hydrogen_supply
-    technologies:
-      - hydrogen_import
-
-  - id: industrial_heat_supply
-    description:
-      "industrial_heat_supply groups technologies that deliver industrial_heat:
-      industrial_boiler and hydrogen_furnace."
-    primary_service: industrial_heat
-    technologies:
-      - industrial_boiler
-      - hydrogen_furnace
-
-  - id: oil_supply
-    description: "oil_supply groups technologies that deliver oil_supply: oil_import."
-    primary_service: oil_supply
-    technologies:
-      - oil_import
-
-  - id: passenger_mobility
-    description: "passenger_mobility groups technologies that deliver passenger_km:
-      ice_vehicle and ev_vehicle."
-    primary_service: passenger_km
-    technologies:
-      - ice_vehicle
-      - ev_vehicle
-
-  - id: space_heat_supply
-    description:
-      "space_heat_supply groups technologies that deliver space_heat: gas_heater
-      and electric_heater."
-    primary_service: space_heat
-    technologies:
-      - gas_heater
-      - electric_heater
-
+- id: electricity_supply
+  description: 'electricity_supply groups technologies that deliver electricity_supply:
+    electricity_import.'
+  primary_service: electricity_supply
+  technologies:
+  - electricity_import
+- id: farm_work_supply
+  description: 'farm_work_supply groups technologies that deliver farm_work: electric_tractor.'
+  primary_service: farm_work
+  technologies:
+  - electric_tractor
+- id: gas_supply
+  description: 'gas_supply groups technologies that deliver gas_supply: gas_import.'
+  primary_service: gas_supply
+  technologies:
+  - gas_import
+- id: hydrogen_supply
+  description: 'hydrogen_supply groups technologies that deliver hydrogen_supply:
+    hydrogen_import.'
+  primary_service: hydrogen_supply
+  technologies:
+  - hydrogen_import
+- id: industrial_heat_supply
+  description: 'industrial_heat_supply groups technologies that deliver industrial_heat:
+    industrial_boiler and hydrogen_furnace.'
+  primary_service: industrial_heat
+  technologies:
+  - industrial_boiler
+  - hydrogen_furnace
+- id: oil_supply
+  description: 'oil_supply groups technologies that deliver oil_supply: oil_import.'
+  primary_service: oil_supply
+  technologies:
+  - oil_import
+- id: passenger_mobility
+  description: 'passenger_mobility groups technologies that deliver passenger_km:
+    ice_vehicle and ev_vehicle.'
+  primary_service: passenger_km
+  technologies:
+  - ice_vehicle
+  - ev_vehicle
+- id: space_heat_supply
+  description: 'space_heat_supply groups technologies that deliver space_heat: gas_heater
+    and electric_heater.'
+  primary_service: space_heat
+  technologies:
+  - gas_heater
+  - electric_heater
 spatial_layers:
-  - id: geo_demo
-    geometry_file: data/regions.geojson
-    key: region_id
-    kind: polygon
-
+- id: geo_demo
+  geometry_file: data/regions.geojson
+  key: region_id
+  kind: polygon
 region_partitions:
-  - id: integrated_region
-    layer: geo_demo
-    mapping:
-      kind: constant
-      value: SINGLE
-    members:
-      - SINGLE
-
+- id: integrated_region
+  layer: geo_demo
+  mapping:
+    kind: constant
+    value: SINGLE
+  members:
+  - SINGLE
 sites:
-  - id: integrated_hub
-    location:
-      point:
-        lat: -34.93
-        lon: 138.6
-    membership_overrides:
-      region_partitions:
-        integrated_region: SINGLE
-
+- id: integrated_hub
+  location:
+    point:
+      lat: -34.93
+      lon: 138.6
+  membership_overrides:
+    region_partitions:
+      integrated_region: SINGLE
 facilities:
-  - id: agriculture_sector
-    description: agriculture_sector instantiates role farm_work_supply at site integrated_hub.
-    site: integrated_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 8 MW
-            year: 2025
-          technology: electric_tractor
-    technology_role: farm_work_supply
-
-  - id: buildings_sector
-    description: buildings_sector instantiates role space_heat_supply at site integrated_hub.
-    available_technologies:
-      - gas_heater
-      - electric_heater
-    site: integrated_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 20 MW
-            year: 2025
-          technology: gas_heater
-    technology_role: space_heat_supply
-
-  - id: electricity_supply_facility
-    description: electricity_supply_facility instantiates role electricity_supply at
-      site integrated_hub.
-    site: integrated_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 150 MW
-            year: 2025
-          technology: electricity_import
-    technology_role: electricity_supply
-
-  - id: gas_supply_facility
-    description: gas_supply_facility instantiates role gas_supply at site integrated_hub.
-    site: integrated_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 120 MW
-            year: 2025
-          technology: gas_import
-    technology_role: gas_supply
-
-  - id: hydrogen_supply_facility
-    description: hydrogen_supply_facility instantiates role hydrogen_supply at site
-      integrated_hub.
-    site: integrated_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 60 MW
-            year: 2025
-          technology: hydrogen_import
-    technology_role: hydrogen_supply
-
-  - id: industry_sector
-    description: industry_sector instantiates role industrial_heat_supply at site integrated_hub.
-    available_technologies:
-      - industrial_boiler
-      - hydrogen_furnace
-    site: integrated_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 15 MW
-            year: 2025
-          technology: industrial_boiler
-    technology_role: industrial_heat_supply
-
-  - id: oil_supply_facility
-    description: oil_supply_facility instantiates role oil_supply at site integrated_hub.
-    site: integrated_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 120 MW
-            year: 2025
-          technology: oil_import
-    technology_role: oil_supply
-
-  - id: transport_sector
-    description: transport_sector instantiates role passenger_mobility at site integrated_hub.
-    available_technologies:
-      - ice_vehicle
-      - ev_vehicle
-    site: integrated_hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 25 MW
-            year: 2025
-          technology: ice_vehicle
-    technology_role: passenger_mobility
-
+- id: agriculture_sector
+  description: agriculture_sector instantiates role farm_work_supply at site integrated_hub.
+  site: integrated_hub
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 8 MW
+        year: 2025
+      technology: electric_tractor
+  technology_role: farm_work_supply
+- id: buildings_sector
+  description: buildings_sector instantiates role space_heat_supply at site integrated_hub.
+  available_technologies:
+  - gas_heater
+  - electric_heater
+  site: integrated_hub
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 20 MW
+        year: 2025
+      technology: gas_heater
+  technology_role: space_heat_supply
+- id: electricity_supply_facility
+  description: electricity_supply_facility instantiates role electricity_supply at
+    site integrated_hub.
+  site: integrated_hub
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 150 MW
+        year: 2025
+      technology: electricity_import
+  technology_role: electricity_supply
+- id: gas_supply_facility
+  description: gas_supply_facility instantiates role gas_supply at site integrated_hub.
+  site: integrated_hub
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 120 MW
+        year: 2025
+      technology: gas_import
+  technology_role: gas_supply
+- id: hydrogen_supply_facility
+  description: hydrogen_supply_facility instantiates role hydrogen_supply at site
+    integrated_hub.
+  site: integrated_hub
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 60 MW
+        year: 2025
+      technology: hydrogen_import
+  technology_role: hydrogen_supply
+- id: industry_sector
+  description: industry_sector instantiates role industrial_heat_supply at site integrated_hub.
+  available_technologies:
+  - industrial_boiler
+  - hydrogen_furnace
+  site: integrated_hub
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 15 MW
+        year: 2025
+      technology: industrial_boiler
+  technology_role: industrial_heat_supply
+- id: oil_supply_facility
+  description: oil_supply_facility instantiates role oil_supply at site integrated_hub.
+  site: integrated_hub
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 120 MW
+        year: 2025
+      technology: oil_import
+  technology_role: oil_supply
+- id: transport_sector
+  description: transport_sector instantiates role passenger_mobility at site integrated_hub.
+  available_technologies:
+  - ice_vehicle
+  - ev_vehicle
+  site: integrated_hub
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 25 MW
+        year: 2025
+      technology: ice_vehicle
+  technology_role: passenger_mobility
 runs:
-  - id: integrated_2025
-    veda_book_name: INTEGRATED2025
-    base_year: 2025
-    currency_year: 2024
-    region_partition: integrated_region
+- id: integrated_2025
+  veda_book_name: INTEGRATED2025
+  year_set: pathway_2025_2035
+  currency_year: 2024
+  region_partition: integrated_region
+year_sets:
+- id: pathway_2025_2035
+  start_year: 2025
+  milestone_years:
+  - 2025
+  - 2035

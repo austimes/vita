@@ -131,6 +131,13 @@ def valid_public_source() -> dict:
                 "values": {"2023": 1.0, "2024": 1.02, "2025": 1.04},
             }
         ],
+        "year_sets": [
+            {
+                "id": "pathway_2025_2035",
+                "start_year": 2025,
+                "milestone_years": [2025, 2035],
+            }
+        ],
         "region_partitions": [
             {
                 "id": "regions_toy_states_3",
@@ -239,11 +246,8 @@ def valid_public_source() -> dict:
             {
                 "id": "toy_states_2025",
                 "veda_book_name": "TOYSTATES2025",
-
-                "base_year": 2025,
-
+                "year_set": "pathway_2025_2035",
                 "currency_year": 2024,
-
                 "region_partition": "regions_toy_states_3",
             }
         ],

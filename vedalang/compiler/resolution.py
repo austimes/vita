@@ -25,6 +25,7 @@ from .ast import (
     TechnologyDecl,
     TechnologyRoleDecl,
     TemporalIndexSeriesDecl,
+    YearSetDecl,
     ZoneOpportunityDecl,
     ZoneOverlayDecl,
 )
@@ -81,6 +82,7 @@ class ResolvedDefinitionGraph:
     spatial_layers: dict[str, SpatialLayerDecl]
     spatial_measure_sets: dict[str, SpatialMeasureSetDecl]
     temporal_index_series: dict[str, TemporalIndexSeriesDecl]
+    year_sets: dict[str, YearSetDecl]
     policies: dict[str, PolicyDecl]
     region_partitions: dict[str, RegionPartitionDecl]
     zone_overlays: dict[str, ZoneOverlayDecl]
@@ -96,7 +98,9 @@ class ResolvedDefinitionGraph:
 class RunContext:
     run_id: str
     veda_book_name: str
-    base_year: int
+    year_set: str
+    start_year: int
+    model_years: tuple[int, ...]
     currency_year: int
     region_partition: str
     model_regions: tuple[str, ...]
@@ -120,7 +124,7 @@ class AdjustedStock:
     observed: ParsedQuantity
     adjusted: ParsedQuantity
     observed_year: int
-    base_year: int
+    start_year: int
     trace: dict[str, Any]
 
 
@@ -217,6 +221,7 @@ def _object_maps(source: SourceDocument) -> dict[str, dict[str, Any]]:
             source.temporal_index_series,
             "temporal_index_series",
         ),
+        "year_sets": _by_id(source.year_sets, "year_set"),
         "policies": _by_id(source.policies, "policy"),
         "region_partitions": _by_id(source.region_partitions, "region_partition"),
         "zone_overlays": _by_id(source.zone_overlays, "zone_overlay"),
@@ -557,6 +562,14 @@ def resolve_run(graph: ResolvedDefinitionGraph, run_id: str) -> RunContext:
     run = graph.runs.get(run_id)
     if run is None:
         raise ResolutionError("E002", run_id, "run not found")
+    year_set = graph.year_sets.get(run.year_set)
+    if year_set is None:
+        raise ResolutionError(
+            "E002",
+            run.id,
+            f"run references missing year_set '{run.year_set}'",
+            location=run.source_ref.path,
+        )
     partition = graph.region_partitions.get(run.region_partition)
     if partition is None:
         raise ResolutionError(
@@ -594,7 +607,9 @@ def resolve_run(graph: ResolvedDefinitionGraph, run_id: str) -> RunContext:
     context = RunContext(
         run_id=run.id,
         veda_book_name=run.veda_book_name,
-        base_year=run.base_year,
+        year_set=run.year_set,
+        start_year=year_set.start_year,
+        model_years=tuple(year_set.milestone_years),
         currency_year=run.currency_year,
         region_partition=run.region_partition,
         model_regions=tuple(model_regions),
@@ -858,19 +873,23 @@ def adjust_stock_to_base_year(
     run: RunContext,
     graph: ResolvedDefinitionGraph,
 ) -> AdjustedStock:
-    """Adjust one observed stock item to the selected run base year."""
+    """Adjust one observed stock item to the selected run start year."""
     observed_quantity = parse_quantity(observation.observed.value)
-    base_year = run.base_year
+    start_year = run.start_year
     obs_year = observation.observed.year
     adjustment = observation.adjust_to_base_year or default_adjustment
-    if obs_year == base_year:
+    if obs_year == start_year:
         adjusted = observed_quantity
-        trace = {"method": "none", "observed_year": obs_year, "base_year": base_year}
+        trace = {
+            "method": "none",
+            "observed_year": obs_year,
+            "start_year": start_year,
+        }
     elif adjustment is None:
         raise ResolutionError(
             "E011",
             observation.technology,
-            "observed year differs from run base_year and no adjustment rule "
+            "observed year differs from run start_year and no adjustment rule "
             "is available",
         )
     elif adjustment.using_temporal_index:
@@ -878,16 +897,16 @@ def adjust_stock_to_base_year(
         if (
             series is None
             or obs_year not in series.values
-            or base_year not in series.values
+            or start_year not in series.values
         ):
             raise ResolutionError(
                 "E011",
                 observation.technology,
                 "temporal index series cannot adjust the observed year to the "
-                "base year",
+                "start year",
             )
         elasticity = adjustment.elasticity if adjustment.elasticity is not None else 1.0
-        ratio = series.values[base_year] / series.values[obs_year]
+        ratio = series.values[start_year] / series.values[obs_year]
         adjusted = _format_quantity(
             observed_quantity.value * math.pow(ratio, elasticity),
             observed_quantity.unit,
@@ -898,21 +917,21 @@ def adjust_stock_to_base_year(
             "ratio": ratio,
             "elasticity": elasticity,
             "observed_year": obs_year,
-            "base_year": base_year,
+            "start_year": start_year,
         }
     elif adjustment.annual_growth:
         rate = parse_quantity(adjustment.annual_growth.rate)
         normalized_rate = rate.value / 100.0 if "%" in rate.unit else rate.value
         adjusted = _format_quantity(
             observed_quantity.value
-            * math.pow(1.0 + normalized_rate, base_year - obs_year),
+            * math.pow(1.0 + normalized_rate, start_year - obs_year),
             observed_quantity.unit,
         )
         trace = {
             "method": "annual_growth",
             "rate": normalized_rate,
             "observed_year": obs_year,
-            "base_year": base_year,
+            "start_year": start_year,
         }
     else:
         raise ResolutionError(
@@ -924,7 +943,7 @@ def adjust_stock_to_base_year(
         observed=observed_quantity,
         adjusted=adjusted,
         observed_year=obs_year,
-        base_year=base_year,
+        start_year=start_year,
         trace=trace,
     )
 
@@ -1105,7 +1124,7 @@ def allocate_fleet_stock(
                     observed=item.observed,
                     adjusted=_format_quantity(item.adjusted.value, item.adjusted.unit),
                     observed_year=item.observed_year,
-                    base_year=item.base_year,
+                    start_year=item.start_year,
                     trace={
                         **item.trace,
                         "direct_binding": True,
@@ -1167,7 +1186,7 @@ def allocate_fleet_stock(
                     item.adjusted.value * share, item.adjusted.unit
                 ),
                 observed_year=item.observed_year,
-                base_year=item.base_year,
+                start_year=item.start_year,
                 trace={**item.trace, "allocation_share": share, "model_region": region},
             )
             for item in adjusted_stock

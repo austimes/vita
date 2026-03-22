@@ -1,118 +1,110 @@
-dsl_version: "0.3"
-
+dsl_version: '0.3'
 commodities:
-  - id: elec
-    type: energy
-    energy_form: secondary
-
-  - id: srv_dem
-    type: service
-
-  - id: srv_sup
-    type: service
-
+- id: elec
+  type: energy
+  energy_form: secondary
+- id: srv_dem
+  type: service
+- id: srv_sup
+  type: service
 technologies:
-  - id: dev
-    description: dev provides srv_dem by transforming elec.
-    inputs:
-      - commodity: elec
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: srv_dem
-    variable_om: 0 MUSD24/PJ
-
-  - id: imp
-    description: imp provides srv_sup as a primary supply or conversion technology.
-    outputs:
-      - commodity: elec
-    lifetime: 100 year
-    performance:
-      kind: efficiency
-      value: 1.0
-    provides: srv_sup
-    variable_om: 10 MUSD24/PJ
-
+- id: dev
+  description: dev provides srv_dem by transforming elec.
+  inputs:
+  - commodity: elec
+  lifetime: 100 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: srv_dem
+  variable_om: 0 MUSD24/PJ
+- id: imp
+  description: imp provides srv_sup as a primary supply or conversion technology.
+  outputs:
+  - commodity: elec
+  lifetime: 100 year
+  performance:
+    kind: efficiency
+    value: 1.0
+  provides: srv_sup
+  variable_om: 10 MUSD24/PJ
 technology_roles:
-  - id: dem
-    description: "dem groups technologies that deliver srv_dem: dev."
-    primary_service: srv_dem
-    technologies:
-      - dev
-
-  - id: sup
-    description: "sup groups technologies that deliver srv_sup: imp."
-    primary_service: srv_sup
-    technologies:
-      - imp
-
+- id: dem
+  description: 'dem groups technologies that deliver srv_dem: dev.'
+  primary_service: srv_dem
+  technologies:
+  - dev
+- id: sup
+  description: 'sup groups technologies that deliver srv_sup: imp.'
+  primary_service: srv_sup
+  technologies:
+  - imp
 spatial_layers:
-  - id: geo_demo
-    geometry_file: data/regions.geojson
-    key: region_id
-    kind: polygon
-
+- id: geo_demo
+  geometry_file: data/regions.geojson
+  key: region_id
+  kind: polygon
 region_partitions:
-  - id: reg1_partition
-    layer: geo_demo
-    mapping:
-      kind: constant
-      value: REG1
-    members:
-      - REG1
-
+- id: reg1_partition
+  layer: geo_demo
+  mapping:
+    kind: constant
+    value: REG1
+  members:
+  - REG1
 sites:
-  - id: hub
-    location:
-      point:
-        lat: -33.87
-        lon: 151.21
-    membership_overrides:
-      region_partitions:
-        reg1_partition: REG1
-
+- id: hub
+  location:
+    point:
+      lat: -33.87
+      lon: 151.21
+  membership_overrides:
+    region_partitions:
+      reg1_partition: REG1
 facilities:
-  - id: fdem
-    description: fdem instantiates role dem at site hub.
-    site: hub
-    stock:
-      items:
-        - metric: annual_activity
-          observed:
-            value: 0.80 PJ/year
-            year: 2020
-          technology: dev
-    technology_role: dem
-
-  - id: fsup
-    description: fsup instantiates role sup at site hub.
-    available_technologies:
-      - imp
-    new_build_limits:
-      - max_new_capacity: 80 MW
-        technology: imp
-    site: hub
-    stock:
-      items:
-        - metric: installed_capacity
-          observed:
-            value: 30 MW
-            year: 2020
-          technology: imp
-    technology_role: sup
-
+- id: fdem
+  description: fdem instantiates role dem at site hub.
+  site: hub
+  stock:
+    items:
+    - metric: annual_activity
+      observed:
+        value: 0.80 PJ/year
+        year: 2020
+      technology: dev
+  technology_role: dem
+- id: fsup
+  description: fsup instantiates role sup at site hub.
+  available_technologies:
+  - imp
+  new_build_limits:
+  - max_new_capacity: 80 MW
+    technology: imp
+  site: hub
+  stock:
+    items:
+    - metric: installed_capacity
+      observed:
+        value: 30 MW
+        year: 2020
+      technology: imp
+  technology_role: sup
 runs:
-  - id: reg1_2020_default
-    veda_book_name: REG12020DEFAULT
-    base_year: 2020
-    currency_year: 2024
-    region_partition: reg1_partition
-
-  - id: reg1_2020_reporting_off
-    veda_book_name: REG12020REPORTINGOFF
-    base_year: 2020
-    currency_year: 2024
-    region_partition: reg1_partition
-    reporting:
-      value_flows: false
+- id: reg1_2020_default
+  veda_book_name: REG12020DEFAULT
+  year_set: pathway_2020_2030
+  currency_year: 2024
+  region_partition: reg1_partition
+- id: reg1_2020_reporting_off
+  veda_book_name: REG12020REPORTINGOFF
+  year_set: pathway_2020_2030
+  currency_year: 2024
+  region_partition: reg1_partition
+  reporting:
+    value_flows: false
+year_sets:
+- id: pathway_2020_2030
+  start_year: 2020
+  milestone_years:
+  - 2020
+  - 2030

@@ -15,7 +15,7 @@ outputs, see [known_answer_catalog.md](known_answer_catalog.md).
 - `facilities[*].new_build_limits` and `fleets[*].new_build_limits` carry
   technology-specific new-build caps on instantiated asset boundaries.
 - `zone_opportunities` carry explicitly zone-bound future build classes.
-- `runs` carry base year and currency year context.
+- `year_sets` plus `runs` carry start-year and currency-year context.
 
 ## Technology Attributes
 
@@ -84,7 +84,7 @@ fleets:
 
 | VedaLang v0.3 attribute | TIMES concept | Notes |
 |---|---|---|
-| `runs[*].base_year` | model base year | Used for stock adjustment and compilation context |
+| `year_sets[*].start_year` + `runs[*].year_set` | model start year | Used for stock adjustment and compilation context |
 | `runs[*].currency_year` | reporting currency year | Normalizes compiled cost literals |
 | `runs[*].region_partition` | model-region set | Controls spatial lowering |
 

@@ -41,10 +41,6 @@ def _sorted_dict(items: dict[str, Any]) -> dict[str, Any]:
     return {key: items[key] for key in sorted(items)}
 
 
-def _default_model_years(base_year: int) -> list[int]:
-    return sorted({base_year, base_year + 10})
-
-
 def _sanitize_uc_token(value: str) -> str:
     token = re.sub(r"[^A-Za-z0-9]+", "_", value).strip("_")
     return token or "VALUE"
@@ -355,8 +351,9 @@ def emit_csir(
         "dsl_version": DSL_VERSION,
         "run_id": run.run_id,
         "veda_book_name": run.veda_book_name,
-        "base_year": run.base_year,
-        "model_years": _default_model_years(run.base_year),
+        "year_set": run.year_set,
+        "start_year": run.start_year,
+        "model_years": list(run.model_years),
         "currency_year": run.currency_year,
         "region_partition": run.region_partition,
         "model_regions": list(run.model_regions),
@@ -521,10 +518,7 @@ def lower_csir_to_cpir(
     model_years = sorted(
         {
             int(year)
-            for year in (
-                csir.get("model_years")
-                or _default_model_years(int(csir.get("base_year", 0)))
-            )
+            for year in (csir.get("model_years") or [])
         }
     )
 

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import re
 
-SCALAR_TAGS = {"~STARTYEAR", "~ACTIVEPDEF"}
+SCALAR_TAGS = {"~STARTYEAR"}
 
 # Tags that use wide-in-attribute format (attribute names as column headers)
 # These should NOT have generic 'value' column - data goes under attribute headers
@@ -167,7 +167,7 @@ def _validate_syssettings_file(file_spec: dict, loc: str) -> list[str]:
         errors.append(f"{loc}: missing required 'TimePeriods' sheet")
     else:
         tags = {table.get("tag") for table in timeperiod_sheet.get("tables", [])}
-        for tag in ("~STARTYEAR", "~ACTIVEPDEF", "~TIMEPERIODS", "~MILESTONEYEARS"):
+        for tag in ("~STARTYEAR", "~MILESTONEYEARS"):
             if tag not in tags:
                 errors.append(f"{loc}: 'TimePeriods' sheet is missing {tag}")
 
