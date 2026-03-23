@@ -142,21 +142,6 @@ spatial_layers:
   geometry_file: data/regions.geojson
   key: region_id
   kind: polygon
-temporal_index_series:
-- id: co2_cap_idx
-  unit: index
-  values:
-    '2025': 1.0
-    '2030': 0.8
-    '2035': 0.6
-  base_year: 2025
-- id: heat_dem_idx
-  unit: index
-  values:
-    '2020': 1.0
-    '2025': 1.15
-    '2030': 1.3
-  base_year: 2020
 year_sets:
 - id: pathway_2025_2035
   start_year: 2025
@@ -210,7 +195,8 @@ fleets:
         year: 2025
       technology: ht_sink
     - adjust_to_base_year:
-        using: heat_dem_idx
+        series:
+          series: heat_dem_idx
       metric: annual_activity
       observed:
         value: 30 GWh/year
@@ -267,3 +253,36 @@ runs:
   year_set: pathway_2025_2035
   currency_year: 2024
   region_partition: single_region
+time_series:
+- id: co2_cap_idx
+  unit: index
+  values:
+    '2025': 1.0
+    '2030': 0.8
+    '2035': 0.6
+  base_year: 2025
+  kind: index
+  interpolation: interp_extrap
+- id: heat_dem_idx
+  unit: index
+  values:
+    '2020': 1.0
+    '2025': 1.15
+    '2030': 1.3
+  base_year: 2020
+  kind: index
+  interpolation: interp_extrap
+policies:
+- id: co2_cap
+  kind: emissions_budget
+  emission_commodity: co2
+  description: Emissions budget policy for industrial heat supply.
+  cases:
+  - id: co2_cap_case
+    description: CO2 cap policy case budgets.
+    budget:
+      values:
+        '2025': 0.00336 Mt
+        '2030': 0.002688 Mt
+        '2035': 0.002016 Mt
+      interpolation: interp_extrap

@@ -1269,7 +1269,7 @@ FMT_ROOT_KEY_ORDER = (
     "stock_characterizations",
     "spatial_layers",
     "spatial_measure_sets",
-    "temporal_index_series",
+    "time_series",
     "region_partitions",
     "zone_overlays",
     "sites",
@@ -1278,6 +1278,7 @@ FMT_ROOT_KEY_ORDER = (
     "zone_opportunities",
     "networks",
     "runs",
+    "demands",
 )
 
 FMT_GENERIC_KEY_ORDER = (

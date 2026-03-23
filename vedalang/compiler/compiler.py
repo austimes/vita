@@ -13,6 +13,7 @@ from pint.errors import DimensionalityError, UndefinedUnitError
 
 from vedalang.versioning import with_dsl_version
 
+from .time_series import expand_series_to_years, is_series_spec, resolve_series_spec
 from .backend import CompileBundle, compile_source_bundle
 from .registry import VedaLangError, get_registry
 
@@ -191,8 +192,8 @@ SEMANTIC_TO_TIMES = {
 }
 
 def _is_time_varying(value) -> bool:
-    """Check if a value is a time-varying specification (dict with 'values' key)."""
-    return isinstance(value, dict) and "values" in value
+    """Check if a value is a canonical time-series specification."""
+    return is_series_spec(value)
 
 
 def _normalize_process_flows(process: dict) -> dict:
@@ -710,10 +711,9 @@ def _expand_time_varying_attr(
         return [row]
 
     # Time-varying value - expand to multiple rows
+    series = resolve_series_spec(value, series_library={})
     rows = []
-    values = value["values"]
-    interpolation = value.get("interpolation", "interp_extrap")
-    interp_code = INTERPOLATION_CODES.get(interpolation, 3)
+    interp_code = INTERPOLATION_CODES.get(series.interpolation, 3)
 
     # First, emit a year=0 row with interpolation code if not 'none'
     if interp_code != -1:
@@ -723,9 +723,9 @@ def _expand_time_varying_attr(
         rows.append(interp_row)
 
     # Emit one row per year
-    for year_str, val in sorted(values.items()):
+    for year, val in sorted(series.values.items()):
         row = base_row.copy()
-        row["year"] = int(year_str)
+        row["year"] = year
         row[column] = val
         rows.append(row)
 
@@ -793,10 +793,11 @@ def _expand_attr_to_all_years(
     """
     if _is_time_varying(value):
         # Time-varying: use interpolation to fill all years
-        sparse_values = value.get("values", {})
-        interpolation = value.get("interpolation", "interp_extrap")
-        dense_values = _expand_series_to_years(
-            sparse_values, milestone_years, interpolation
+        series = resolve_series_spec(value, series_library={})
+        dense_values = expand_series_to_years(
+            series.values,
+            milestone_years,
+            series.interpolation,
         )
 
         column = ATTR_TO_COLUMN.get(attr_name, attr_name)
@@ -1062,11 +1063,12 @@ def _collect_bound_params(
             # Check if this is a time-varying bound
             if _is_time_varying(limit_value):
                 # Time-varying bound: expand using interpolation
-                sparse_values = limit_value.get("values", {})
-                interpolation = limit_value.get("interpolation", "interp_extrap")
+                series = resolve_series_spec(limit_value, series_library={})
                 years_to_use = milestone_years or [2020]
-                dense_values = _expand_series_to_years(
-                    sparse_values, years_to_use, interpolation
+                dense_values = expand_series_to_years(
+                    series.values,
+                    years_to_use,
+                    series.interpolation,
                 )
                 for year, val in sorted(dense_values.items()):
                     params.append({
@@ -1107,83 +1109,6 @@ def _commodity_type_to_csets(ctype: str) -> str:
         "carrier": "NRG",
     }
     return mapping.get(ctype, "NRG")
-
-
-def _expand_series_to_years(
-    sparse_values: dict[str, float],
-    model_years: list[int],
-    interpolation: str,
-) -> dict[int, float]:
-    """
-    Expand sparse year->value mapping to dense values for all model years.
-
-    Uses VEDA-compatible interpolation/extrapolation semantics but performs
-    the expansion at compile time (no year=0 rows emitted).
-
-    Args:
-        sparse_values: Dictionary of year (as string) -> value
-        model_years: List of model representative years
-        interpolation: One of the VEDA-compatible modes:
-            - none: No interpolation/extrapolation (only specified years)
-            - interp_only: Interpolate between points, no extrapolation
-            - interp_extrap_eps: Interpolate, extrapolate with EPS (tiny value)
-            - interp_extrap: Full interpolation and extrapolation
-            - interp_extrap_back: Interpolate, backward extrapolation only
-            - interp_extrap_forward: Interpolate, forward extrapolation only
-
-    Returns:
-        Dictionary of year (as int) -> interpolated value
-    """
-    # Convert string keys to int and sort
-    points = sorted([(int(y), v) for y, v in sparse_values.items()])
-
-    if not points:
-        return {}
-
-    result = {}
-    first_year, first_val = points[0]
-    last_year, last_val = points[-1]
-
-    # Determine extrapolation behavior based on mode
-    extrap_backward = interpolation in ("interp_extrap", "interp_extrap_back")
-    extrap_forward = interpolation in (
-        "interp_extrap", "interp_extrap_forward", "interp_extrap_eps"
-    )
-    do_interpolate = interpolation != "none"
-
-    for ym in model_years:
-        # Check if exact match exists
-        exact = next((v for y, v in points if y == ym), None)
-        if exact is not None:
-            result[ym] = exact
-            continue
-
-        # If no interpolation, skip non-specified years
-        if not do_interpolate:
-            continue
-
-        # Find surrounding points
-        before = [(y, v) for y, v in points if y < ym]
-        after = [(y, v) for y, v in points if y > ym]
-
-        if not before:
-            # Before first point - backward extrapolation
-            if extrap_backward:
-                result[ym] = first_val
-            # else: skip this year
-        elif not after:
-            # After last point - forward extrapolation
-            if extrap_forward:
-                result[ym] = last_val
-            # else: skip this year
-        else:
-            # Between two points - linear interpolation
-            y0, v0 = before[-1]
-            y1, v1 = after[0]
-            ratio = (ym - y0) / (y1 - y0)
-            result[ym] = v0 + (v1 - v0) * ratio
-
-    return result
 
 
 def load_vedalang(path: Path) -> dict:

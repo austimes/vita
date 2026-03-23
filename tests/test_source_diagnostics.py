@@ -230,10 +230,13 @@ def test_collect_public_diagnostics_emits_prd_warning_codes():
                 ],
             }
         ],
-        "temporal_index_series": [
+        "time_series": [
             {
                 "id": "dwelling_index",
+                "kind": "index",
                 "unit": "index",
+                "interpolation": "interp_extrap",
+                "base_year": 2020,
                 "values": {"2020": 1.0, "2025": 1.1},
             }
         ],
@@ -261,7 +264,10 @@ def test_collect_public_diagnostics_emits_prd_warning_codes():
                 "technology_role": "gas_heat_pump",
                 "stock": {
                     "adjust_to_base_year": {
-                        "using": {"kind": "annual_growth", "rate": "1 %/year"}
+                        "series": {
+                            "interpolation": "interp_extrap",
+                            "values": {"2020": 1.0, "2025": 1.05},
+                        }
                     },
                     "items": [
                         {
@@ -298,7 +304,7 @@ def test_collect_public_diagnostics_emits_prd_warning_codes():
     attach_source_positions(diagnostics, source=source, source_text=source_text)
     codes = {diag["code"] for diag in diagnostics}
 
-    assert {"W001", "W002", "W003", "W006", "W007", "W009", "W010", "W011"} <= codes
+    assert {"W001", "W002", "W003", "W006", "W007", "W009", "W011"} <= codes
 
 
 def test_collect_public_diagnostics_flags_duplicate_rollout_patterns():

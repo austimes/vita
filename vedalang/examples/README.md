@@ -31,3 +31,8 @@ Use these subfolders for new examples:
 Examples have been moved into the folder layout above. Use subfolder paths in
 docs/tests/commands (for example
 `vedalang/examples/quickstart/mini_plant.veda.yaml`).
+
+Temporal examples now follow canonical-only authoring:
+- reusable temporal libraries use `time_series`
+- temporal stock adjustment uses `adjust_to_base_year.series`
+- policy trajectories use `policies[*].budget` / `policies[*].cases[*].budget`

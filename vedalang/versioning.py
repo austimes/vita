@@ -19,7 +19,7 @@ SUPPORTED_SOURCE_TOP_LEVEL_KEYS = frozenset(
         "stock_characterizations",
         "spatial_layers",
         "spatial_measure_sets",
-        "temporal_index_series",
+        "time_series",
         "region_partitions",
         "zone_overlays",
         "sites",
@@ -28,6 +28,7 @@ SUPPORTED_SOURCE_TOP_LEVEL_KEYS = frozenset(
         "zone_opportunities",
         "networks",
         "runs",
+        "demands",
     }
 )
 

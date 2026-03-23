@@ -85,7 +85,7 @@ class N011_SnakeCasePreferred(NamingLintRule):
             "stock_characterizations",
             "spatial_layers",
             "spatial_measure_sets",
-            "temporal_index_series",
+            "time_series",
             "region_partitions",
             "zone_overlays",
             "sites",
@@ -94,6 +94,7 @@ class N011_SnakeCasePreferred(NamingLintRule):
             "zone_opportunities",
             "networks",
             "runs",
+            "demands",
         )
         for section in sections:
             for index, item in enumerate(source.get(section, []) or []):

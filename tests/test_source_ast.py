@@ -83,11 +83,14 @@ def valid_public_source() -> dict:
                 ],
             }
         ],
-        "temporal_index_series": [
+        "time_series": [
             {
                 "id": "demo_national_dwelling_stock_index",
+                "kind": "index",
                 "unit": "index",
+                "interpolation": "interp_extrap",
                 "values": {"2023": 1.0, "2025": 1.04},
+                "base_year": 2023,
             }
         ],
         "year_sets": [
@@ -105,10 +108,10 @@ def valid_public_source() -> dict:
                 "cases": [
                     {
                         "id": "co2_cap_case",
-                        "budgets": [
-                            {"year": 2025, "value": "0.5 Mt"},
-                            {"year": 2030, "value": "0.4 Mt"},
-                        ],
+                        "budget": {
+                            "values": {"2025": "0.5 Mt", "2030": "0.4 Mt"},
+                            "interpolation": "interp_extrap",
+                        },
                     }
                 ],
             }
@@ -226,7 +229,8 @@ def test_parse_public_source_returns_typed_document() -> None:
     assert ast.sites[0].location.point == {"lat": -23.842, "lon": 151.248}
     assert ast.policies[0].id == "co2_cap"
     assert ast.policies[0].cases[0].id == "co2_cap_case"
-    assert ast.policies[0].cases[0].budgets[1].year == 2030
+    assert ast.policies[0].cases[0].budget.values[2030] == "0.4 Mt"
+    assert ast.time_series[0].kind == "index"
     assert ast.facilities[0].stock.items[0].metric == "installed_capacity"
     assert ast.facilities[0].new_build_limits[0].technology == "heat_heat_pump"
     assert ast.fleets[0].distribution.weight_by == "demo_abs_demography.dwelling_stock"
@@ -257,8 +261,8 @@ def test_parse_public_source_keeps_structural_source_paths() -> None:
     assert ast.policies[0].source_ref.path == "policies[0]"
     assert ast.policies[0].cases[0].source_ref.path == "policies[0].cases[0]"
     assert (
-        ast.policies[0].cases[0].budgets[1].source_ref.path
-        == "policies[0].cases[0].budgets[1]"
+        ast.policies[0].cases[0].budget.source_ref.path
+        == "policies[0].cases[0].budget"
     )
     assert ast.fleets[0].distribution.source_ref.path == "fleets[0].distribution"
     assert ast.networks[0].links[0].source_ref.path == "networks[0].links[0]"

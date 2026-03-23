@@ -28,6 +28,7 @@ from .resolution import (
 from .resolution import (
     resolve_run as resolve_selected_run,
 )
+from .time_series import expand_series_to_years, is_series_spec, resolve_series_spec
 
 DEFAULT_UNITS = {
     "energy": "PJ",
@@ -96,9 +97,39 @@ def _quantity_unit(quantity: dict[str, Any] | None) -> str:
 def _numeric_amount(value: str | int | float | None) -> float | int | None:
     if value is None:
         return None
+    if is_series_spec(value):
+        return None
     if isinstance(value, (int, float)):
         return value
     return parse_quantity(value).value
+
+
+def _expand_attr_rows(
+    *,
+    value: Any,
+    column: str,
+    base_row: dict[str, Any],
+    model_years: list[int],
+    series_library: dict[str, Any],
+) -> list[dict[str, Any]]:
+    if value is None:
+        return []
+    if is_series_spec(value):
+        series = resolve_series_spec(value, series_library=series_library)
+        dense = expand_series_to_years(
+            series.values,
+            model_years,
+            series.interpolation,
+        )
+        return [
+            {
+                **base_row,
+                "year": year,
+                column: amount,
+            }
+            for year, amount in sorted(dense.items())
+        ]
+    return []
 
 
 def _activity_unit(
@@ -440,6 +471,16 @@ def lower_bundle_to_tableir(
     process_rows: list[dict[str, Any]] = []
     fi_t_rows: list[dict[str, Any]] = []
     tfm_rows: list[dict[str, Any]] = []
+    model_years = _model_years(artifacts.cpir, start_year=artifacts.csir["start_year"])
+    series_library = {
+        series_id: {
+            "kind": series.kind,
+            "unit": series.unit,
+            "interpolation": series.interpolation,
+            "values": series.values,
+        }
+        for series_id, series in graph.time_series.items()
+    }
 
     for process in artifacts.cpir.get("processes", []):
         technology = graph.technologies[process["technology"]]
@@ -500,16 +541,57 @@ def lower_bundle_to_tableir(
         cap_to_act = _cap_to_act(capacity_unit, activity_unit)
         if cap_to_act is not None:
             eff_row["prc_capact"] = cap_to_act
-        if technology.investment_cost is not None:
+        if technology.investment_cost is not None and not is_series_spec(
+            technology.investment_cost
+        ):
             eff_row["ncap_cost"] = _numeric_amount(technology.investment_cost)
-        if technology.fixed_om is not None:
+        if technology.fixed_om is not None and not is_series_spec(technology.fixed_om):
             eff_row["ncap_fom"] = _numeric_amount(technology.fixed_om)
-        if technology.variable_om is not None:
+        if technology.variable_om is not None and not is_series_spec(
+            technology.variable_om
+        ):
             eff_row["act_cost"] = _numeric_amount(technology.variable_om)
-        if technology.lifetime is not None:
+        if technology.lifetime is not None and not is_series_spec(technology.lifetime):
             eff_row["ncap_tlife"] = _numeric_amount(technology.lifetime)
         if len(eff_row) > 2:
             fi_t_rows.append(eff_row)
+
+        fi_t_rows.extend(
+            _expand_attr_rows(
+                value=technology.investment_cost,
+                column="ncap_cost",
+                base_row={"region": region, "process": process_alias},
+                model_years=model_years,
+                series_library=series_library,
+            )
+        )
+        fi_t_rows.extend(
+            _expand_attr_rows(
+                value=technology.fixed_om,
+                column="ncap_fom",
+                base_row={"region": region, "process": process_alias},
+                model_years=model_years,
+                series_library=series_library,
+            )
+        )
+        fi_t_rows.extend(
+            _expand_attr_rows(
+                value=technology.variable_om,
+                column="act_cost",
+                base_row={"region": region, "process": process_alias},
+                model_years=model_years,
+                series_library=series_library,
+            )
+        )
+        fi_t_rows.extend(
+            _expand_attr_rows(
+                value=technology.lifetime,
+                column="ncap_tlife",
+                base_row={"region": region, "process": process_alias},
+                model_years=model_years,
+                series_library=series_library,
+            )
+        )
 
         if technology.activity_bound is not None:
             bound_row = {
@@ -557,7 +639,6 @@ def lower_bundle_to_tableir(
         fi_t_rows.extend(emission_rows)
 
     start_year = artifacts.csir["start_year"]
-    model_years = _model_years(artifacts.cpir, start_year=start_year)
     uc_tables = _lower_user_constraints_to_tables(
         artifacts.cpir.get("user_constraints", []),
         process_symbols=process_symbols,

@@ -58,10 +58,13 @@ def _section16_packages_and_model():
                     ],
                 }
             ],
-            "temporal_index_series": [
+            "time_series": [
                 {
                     "id": "national_dwelling_stock_index",
+                    "kind": "index",
                     "unit": "index",
+                    "interpolation": "interp_extrap",
+                    "base_year": 2023,
                     "values": {"2023": 1.0, "2024": 1.02, "2025": 1.04},
                 }
             ],
@@ -173,7 +176,7 @@ def _section16_packages_and_model():
                     "as": "demo",
                     "only": {
                         "spatial_measure_sets": ["abs_demography"],
-                        "temporal_index_series": ["national_dwelling_stock_index"],
+                        "time_series": ["national_dwelling_stock_index"],
                     },
                 },
                 {
@@ -211,7 +214,12 @@ def _section16_packages_and_model():
                     ],
                     "stock": {
                         "adjust_to_base_year": {
-                            "using": {"kind": "annual_growth", "rate": "0.5 %/year"}
+                            "series": {
+                                "kind": "index",
+                                "unit": "index",
+                                "interpolation": "interp_extrap",
+                                "values": {"2023": 1.0, "2025": 1.010025},
+                            }
                         },
                         "items": [
                             {
@@ -229,7 +237,9 @@ def _section16_packages_and_model():
                     "technology_role": "heat.residential_space_heat_supply",
                     "stock": {
                         "adjust_to_base_year": {
-                            "using": "demo.national_dwelling_stock_index",
+                            "series": {
+                                "series": "demo.national_dwelling_stock_index"
+                            },
                             "elasticity": 1.0,
                         },
                         "items": [

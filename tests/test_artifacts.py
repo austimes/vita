@@ -179,10 +179,10 @@ def test_emissions_budget_policy_activation_lowers_to_cpir_user_constraint():
                 "cases": [
                     {
                         "id": "co2_cap_case",
-                        "budgets": [
-                            {"year": 2025, "value": "0.5 Mt"},
-                            {"year": 2030, "value": "0.4 Mt"},
-                        ],
+                        "budget": {
+                            "values": {"2025": "0.5 Mt", "2030": "0.4 Mt"},
+                            "interpolation": "none",
+                        },
                     }
                 ],
             }

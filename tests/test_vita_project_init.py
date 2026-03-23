@@ -294,3 +294,24 @@ def test_root_readme_quick_start_uses_curated_demo() -> None:
         "vita experiment experiments/demos/toy_industry_core.experiment.yaml "
         "--out experiments/ --json"
     ) in content
+
+
+def test_curated_starter_demos_use_canonical_temporal_authoring() -> None:
+    for demo in CURATED_STARTER_DEMOS:
+        template = (
+            PROJECT_ROOT
+            / "vita"
+            / "templates"
+            / "starter"
+            / demo.asset_filename
+        )
+        content = template.read_text(encoding="utf-8")
+        assert "temporal_index_series" not in content
+        if demo.id.startswith("toy_industry"):
+            assert "time_series:" in content
+        if demo.id.startswith("toy_industry"):
+            assert "adjust_to_base_year:" in content
+            assert "series:\n          series: heat_dem_idx" in content
+            if "co2_cap" in content:
+                assert "budgets:" not in content
+                assert "budget:" in content

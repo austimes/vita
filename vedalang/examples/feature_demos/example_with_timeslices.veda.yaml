@@ -66,13 +66,6 @@ spatial_layers:
   geometry_file: data/regions.geojson
   key: region_id
   kind: polygon
-temporal_index_series:
-- id: day_night_profile_proxy
-  unit: index
-  values:
-    '2020': 1.0
-    '2030': 1.2
-  base_year: 2020
 year_sets:
 - id: pathway_2020_2030
   start_year: 2020
@@ -103,7 +96,8 @@ facilities:
   stock:
     items:
     - adjust_to_base_year:
-        using: day_night_profile_proxy
+        series:
+          series: day_night_profile_proxy
       metric: annual_activity
       observed:
         value: 20 GWh/year
@@ -116,7 +110,8 @@ facilities:
   stock:
     items:
     - adjust_to_base_year:
-        using: day_night_profile_proxy
+        series:
+          series: day_night_profile_proxy
       metric: annual_activity
       observed:
         value: 200 GWh/year
@@ -140,3 +135,12 @@ runs:
   year_set: pathway_2020_2030
   currency_year: 2024
   region_partition: reg1_partition
+time_series:
+- id: day_night_profile_proxy
+  unit: index
+  values:
+    '2020': 1.0
+    '2030': 1.2
+  base_year: 2020
+  kind: index
+  interpolation: interp_extrap

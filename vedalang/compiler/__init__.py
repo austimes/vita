@@ -44,6 +44,7 @@ from .table_schemas import (
     get_all_schemas,
     validate_tableir,
 )
+from .time_series import CanonicalSeries, expand_series_to_years, resolve_series_spec
 
 __all__ = [
     "AttributeInfo",
@@ -64,6 +65,9 @@ __all__ = [
     "VedaTableLayout",
     "VedaTableSchema",
     "compile_demands",
+    "CanonicalSeries",
+    "expand_series_to_years",
+    "resolve_series_spec",
     "compile_vedalang_bundle",
     "compile_vedalang_to_tableir",
     "build_run_artifacts",

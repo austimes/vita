@@ -46,9 +46,11 @@ spatial_layers:
   geometry_file: data/regions.geojson
   key: region_id
   kind: polygon
-temporal_index_series:
+time_series:
 - id: residential_service_index
+  kind: index
   unit: index
+  interpolation: interp_extrap
   values:
     '2020': 1.0
     '2030': 1.2
@@ -56,6 +58,13 @@ temporal_index_series:
     '2050': 1.6
     '2060': 1.8
   base_year: 2020
+- id: residential_service_demand_path
+  kind: absolute
+  unit: GWh/year
+  interpolation: interp_extrap
+  values:
+    '2020': 100.0
+    '2030': 120.0
 year_sets:
 - id: pathway_2020_2030
   start_year: 2020
@@ -87,7 +96,8 @@ facilities:
   stock:
     items:
     - adjust_to_base_year:
-        using: residential_service_index
+        series:
+          series: residential_service_index
       metric: annual_activity
       observed:
         value: 100 GWh/year
@@ -100,7 +110,8 @@ facilities:
   stock:
     items:
     - adjust_to_base_year:
-        using: residential_service_index
+        series:
+          series: residential_service_index
       metric: annual_activity
       observed:
         value: 100 GWh/year
@@ -113,3 +124,10 @@ runs:
   year_set: pathway_2020_2030
   currency_year: 2024
   region_partition: reg1_partition
+demands:
+- id: reg1_residential_service_demand
+  commodity: residential_electric_service
+  region: REG1
+  scope: RES
+  quantity:
+    series: residential_service_demand_path

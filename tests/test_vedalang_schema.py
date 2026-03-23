@@ -123,10 +123,12 @@ def valid_public_source() -> dict:
                 ],
             }
         ],
-        "temporal_index_series": [
+        "time_series": [
             {
                 "id": "demo_national_dwelling_stock_index",
+                "kind": "index",
                 "unit": "index",
+                "interpolation": "interp_extrap",
                 "base_year": 2023,
                 "values": {"2023": 1.0, "2024": 1.02, "2025": 1.04},
             }
@@ -174,7 +176,10 @@ def valid_public_source() -> dict:
                 "available_technologies": ["heat_gas_heater", "heat_heat_pump"],
                 "stock": {
                     "adjust_to_base_year": {
-                        "using": {"kind": "annual_growth", "rate": "0.5 %/year"}
+                        "series": {
+                            "interpolation": "interp_extrap",
+                            "values": {"2023": 1.0, "2025": 1.010025},
+                        }
                     },
                     "items": [
                         {
@@ -193,7 +198,7 @@ def valid_public_source() -> dict:
                 "technology_role": "heat_residential_space_heat_supply",
                 "stock": {
                     "adjust_to_base_year": {
-                        "using": "demo_national_dwelling_stock_index",
+                        "series": {"series": "demo_national_dwelling_stock_index"},
                         "elasticity": 1.0,
                     },
                     "items": [
@@ -335,9 +340,9 @@ def test_network_node_basis_requires_partition_ref() -> None:
         jsonschema.validate(data, load_schema())
 
 
-def test_temporal_index_series_requires_index_unit() -> None:
+def test_time_series_index_requires_index_unit() -> None:
     data = valid_public_source()
-    data["temporal_index_series"][0]["unit"] = "ratio"
+    data["time_series"][0]["unit"] = "ratio"
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(data, load_schema())
 
@@ -398,14 +403,14 @@ def test_policy_requires_budget_or_cases() -> None:
         jsonschema.validate(data, load_schema())
 
 
-def test_policy_cases_require_non_empty_budgets() -> None:
+def test_policy_cases_require_budget() -> None:
     data = valid_public_source()
     data["policies"] = [
         {
             "id": "co2_cap",
             "kind": "emissions_budget",
             "emission_commodity": "co2",
-            "cases": [{"id": "co2_cap_case", "budgets": []}],
+            "cases": [{"id": "co2_cap_case"}],
         }
     ]
     with pytest.raises(jsonschema.ValidationError):
@@ -422,12 +427,94 @@ def test_policy_schema_accepts_case_budget_shape() -> None:
             "cases": [
                 {
                     "id": "co2_cap_case",
-                    "budgets": [
-                        {"year": 2025, "value": "0.5 Mt"},
-                        {"year": 2030, "value": "0.4 Mt"},
-                    ],
+                    "budget": {
+                        "values": {"2025": "0.5 Mt", "2030": "0.4 Mt"},
+                        "interpolation": "interp_extrap",
+                    },
                 }
             ],
         }
     ]
     jsonschema.validate(data, load_schema())
+
+
+def test_time_series_requires_interpolation() -> None:
+    data = valid_public_source()
+    data["time_series"][0].pop("interpolation")
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(data, load_schema())
+
+
+def test_policy_budget_accepts_series_reference() -> None:
+    data = valid_public_source()
+    data["policies"] = [
+        {
+            "id": "co2_cap",
+            "kind": "emissions_budget",
+            "emission_commodity": "co2",
+            "budget": {"series": "demo_national_dwelling_stock_index"},
+        }
+    ]
+    jsonschema.validate(data, load_schema())
+
+
+def test_policy_budget_rejects_legacy_budgets_points() -> None:
+    data = valid_public_source()
+    data["policies"] = [
+        {
+            "id": "co2_cap",
+            "kind": "emissions_budget",
+            "emission_commodity": "co2",
+            "budgets": [{"year": 2025, "value": "0.5 Mt"}],
+        }
+    ]
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(data, load_schema())
+
+
+def test_base_year_adjustment_accepts_inline_series_path() -> None:
+    data = valid_public_source()
+    data["fleets"][0]["stock"]["adjust_to_base_year"] = {
+        "series": {
+            "interpolation": "interp_extrap",
+            "values": {"2023": 1.0, "2025": 1.010025},
+        },
+        "elasticity": 1.0,
+    }
+    jsonschema.validate(data, load_schema())
+
+
+def test_base_year_adjustment_rejects_legacy_using_series_string() -> None:
+    data = valid_public_source()
+    data["fleets"][0]["stock"]["adjust_to_base_year"] = {
+        "series": "demo_national_dwelling_stock_index",
+    }
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(data, load_schema())
+
+
+def test_demands_accept_canonical_quantity_series_reference() -> None:
+    data = valid_public_source()
+    data["demands"] = [
+        {
+            "id": "space_heat_demand",
+            "commodity": "space_heat",
+            "region": "QLD",
+            "scope": "RES",
+            "quantity": {"series": "demo_national_dwelling_stock_index"},
+        }
+    ]
+    jsonschema.validate(data, load_schema())
+
+
+def test_demands_reject_legacy_scalar_quantity() -> None:
+    data = valid_public_source()
+    data["demands"] = [
+        {
+            "commodity": "space_heat",
+            "region": "QLD",
+            "quantity": "100 PJ/year",
+        }
+    ]
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(data, load_schema())

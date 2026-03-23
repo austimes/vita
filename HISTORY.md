@@ -4,6 +4,11 @@ Chronological record of the current repository state.
 
 ## 2026-03-23
 
+- Canonical temporal migration (breaking): migrated examples, known-answer
+  temporal fixtures, and `vita init` seeded toy-industry demos from legacy
+  `temporal_index_series` / policy `budgets[{year,value}]` forms to canonical
+  `time_series`, `adjust_to_base_year.series`, and policy `budget` quantity
+  specs.
 - Replaced run-authored `base_year` with reusable top-level `year_sets` and
   `runs[*].year_set`, making solve years explicit as authored `start_year` plus
   milestone years.

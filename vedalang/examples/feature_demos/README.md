@@ -10,5 +10,7 @@ Notes:
 - `example_with_trade.veda.yaml` demonstrates public-surface `networks`.
 - `example_with_bounds.veda.yaml` demonstrates stock plus `zone_opportunities`
   (`max_new_capacity`) rather than older process-bound blocks.
-- `example_with_timeslices.veda.yaml` now demonstrates temporal reference data
-  via `temporal_index_series` and base-year stock adjustment.
+- `example_with_timeslices.veda.yaml` now demonstrates canonical temporal
+  reference data via `time_series` and `adjust_to_base_year.series`.
+- `example_with_demand.veda.yaml` now demonstrates canonical demand-path
+  authoring via `demands[*].quantity` with reusable `time_series` references.

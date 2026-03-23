@@ -43,8 +43,8 @@ The suite validates model semantics through the full path:
 | `facilities[*].stock.items[*]` with `metric: annual_activity` on demand devices | Demand-proxy stock lowered through `PRC_RESID` on the demand-side process | KA06/KA07 compare deterministic solved supply/demand activity anchors (`0.8` baseline vs `1.2` spike) and the resulting new-capacity trigger direction |
 | `zone_opportunities[*].max_new_capacity` | Zone-opportunity process rows lowered with opportunity-bound capacity constraints | KA09 checks class-shift behavior via solved activity on `ZONE_OPPORTUNITY` versus role-instance fallback processes |
 | `networks[*].links[*]` directional transfer links | `suppxls/trades` `~TRADELINKS` topology plus generated trade processes in solved GDX | KA10 asserts region-scoped `VAR_ACT` supplier dominance flips between open and constrained network directions |
-| `facilities[*].stock.adjust_to_base_year.using` with `annual_growth` | Run-specific adjusted stock in CSIR/CPIR lowered to `PRC_RESID` for the selected start year | KA12 solved activity ratio check against `1.1^10` baseline scaling |
-| `temporal_index_series[*]` + selected run year set | Index-ratio adjustment of stock before lowering for selected run (`reg1_2020` vs `reg1_2030`) | KA14 solved-level delta and ratio assertions across selected run IDs |
+| `facilities[*].stock.adjust_to_base_year.series` with `time_series` index refs | Run-specific adjusted stock in CSIR/CPIR lowered to `PRC_RESID` for the selected start year | KA12 solved activity ratio check against `1.1^10` baseline scaling |
+| `time_series[*]` (`kind: index`) + selected run year set | Index-ratio adjustment of stock before lowering for selected run (`reg1_2020` vs `reg1_2030`) | KA14 solved-level delta and ratio assertions across selected run IDs |
 | `year_sets[*]` + `runs[*]` (`year_set`, `veda_book_name`, `region_partition`, `reporting.value_flows`) | `SysSettings.xlsx` run/year context (`~STARTYEAR`, `~MILESTONEYEARS`, `~BOOKREGIONS_MAP`) plus reporting controls (`~TFM_INS` `RPT_OPT(FLO,3)=1`) and a human-readable `Reporting` tab, with the solver scaffold mirroring emitted `RPT_OPT` rows as RUN-file assignments | Year/region slices in `VAR_ACT` rows and run-scoped reporting control in solved artifacts |
 
 ## Per-Test Mapping Notes
@@ -116,10 +116,10 @@ The suite validates model semantics through the full path:
 2. The shared solver harness injects deterministic measure weights (`NTH=3.0`, `STH=1.0`) during compile so stock allocation is explicit and repeatable.
 3. Solver assertions verify region-scoped activity keeps the expected directional split (`~3:1`, north share `>= 0.74`) and that stress-stock activity increases in both regions without ratio drift.
 
-### KA12 Annual-Growth Temporal Scaling
+### KA12 Canonical Time-Series Scaling
 
-1. KA12 applies `adjust_to_base_year.using.kind: annual_growth` with `rate: 10 %/year` to both supply and conversion stocks observed in 2020.
-2. Run selection with `start_year=2030` scales stock by `1.1^10`, then lowers to 2030 `PRC_RESID` values.
+1. KA12 applies `adjust_to_base_year.series: { series: ka12_growth }` to both supply and conversion stocks observed in 2020.
+2. `time_series.ka12_growth` encodes the same 2020->2030 index ratio (`1.0 -> 2.5937424601`, equivalent to `1.1^10`) before lowering to 2030 `PRC_RESID` values.
 3. Solver assertion checks both absolute 2030 `VAR_ACT` and ratio consistency versus the KA01 2020 baseline.
 
 ### KA13 Constraint-Edge Diagnostics Coverage
@@ -130,7 +130,7 @@ The suite validates model semantics through the full path:
 
 ### KA14 Multi-Run Selection Semantics
 
-1. KA14 defines one source file with two runs (`reg1_2020`, `reg1_2030`) and one `temporal_index_series` (`2020: 1.0`, `2030: 2.0`).
+1. KA14 defines one source file with two runs (`reg1_2020`, `reg1_2030`) and one canonical `time_series` index (`2020: 1.0`, `2030: 2.0`).
 2. Each run selection applies a different stock adjustment ratio before lowering to VEDA tables.
 3. Solver assertions verify run-specific solved outputs and a deterministic `2x` ratio between selected runs.
 

@@ -518,17 +518,17 @@ def _warn_run_specific(
             adjustment = item.adjust_to_base_year or fleet.stock.adjust_to_base_year
             if (
                 adjustment
-                and adjustment.annual_growth is not None
-                and graph.temporal_index_series
+                and adjustment.series.values
+                and graph.time_series
             ):
                 warnings.append(
                     _diagnostic(
                         "W010",
                         "warning",
-                        "annual growth adjustment is used even though "
-                        "temporal_index_series values are available",
+                        "inline stock adjustment series is used even though "
+                        "reusable time_series declarations are available",
                         object_id=fleet.id,
-                        location=_location_of(adjustment.annual_growth),
+                        location=_location_of(adjustment.series),
                     )
                 )
     resolved_sites = resolve_sites(

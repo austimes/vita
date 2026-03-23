@@ -83,10 +83,13 @@ def _packages_and_model():
                     ],
                 }
             ],
-            "temporal_index_series": [
+            "time_series": [
                 {
                     "id": "national_dwelling_stock_index",
+                    "kind": "index",
                     "unit": "index",
+                    "interpolation": "interp_extrap",
+                    "base_year": 2023,
                     "values": {"2023": 1.0, "2025": 1.04},
                 }
             ],
@@ -167,7 +170,7 @@ def _packages_and_model():
                     "as": "demo",
                     "only": {
                         "spatial_measure_sets": ["abs_demography"],
-                        "temporal_index_series": ["national_dwelling_stock_index"],
+                        "time_series": ["national_dwelling_stock_index"],
                     },
                 },
                 {
@@ -197,7 +200,12 @@ def _packages_and_model():
                     "available_technologies": ["heat.gas_heater", "heat.heat_pump"],
                     "stock": {
                         "adjust_to_base_year": {
-                            "using": {"kind": "annual_growth", "rate": "0.5 %/year"}
+                            "series": {
+                                "kind": "index",
+                                "unit": "index",
+                                "interpolation": "interp_extrap",
+                                "values": {"2023": 1.0, "2025": 1.010025},
+                            }
                         },
                         "items": [
                             {
@@ -215,7 +223,7 @@ def _packages_and_model():
                     "technology_role": "heat.residential_space_heat_supply",
                     "stock": {
                         "adjust_to_base_year": {
-                            "using": "demo.national_dwelling_stock_index",
+                            "series": {"series": "demo.national_dwelling_stock_index"},
                             "elasticity": 1.0,
                         },
                         "items": [
@@ -353,7 +361,7 @@ def test_resolve_imports_detects_missing_object_and_cycle():
                     "package": "vedalang.au.demography@1",
                     "as": "demo",
                     "only": {
-                        "temporal_index_series": ["national_dwelling_stock_index"]
+                        "time_series": ["national_dwelling_stock_index"]
                     },
                 },
             ],
@@ -491,7 +499,7 @@ def test_item_level_adjustment_overrides_stock_block_rule():
                     "package": "vedalang.au.demography@1",
                     "as": "demo",
                     "only": {
-                        "temporal_index_series": ["national_dwelling_stock_index"]
+                        "time_series": ["national_dwelling_stock_index"]
                     },
                 },
             ],
@@ -502,7 +510,12 @@ def test_item_level_adjustment_overrides_stock_block_rule():
                     "technology_role": "heat.residential_space_heat_supply",
                     "stock": {
                         "adjust_to_base_year": {
-                            "using": {"kind": "annual_growth", "rate": "0.5 %/year"}
+                            "series": {
+                                "kind": "index",
+                                "unit": "index",
+                                "interpolation": "interp_extrap",
+                                "values": {"2023": 1.0, "2025": 1.010025},
+                            }
                         },
                         "items": [
                             {
@@ -510,7 +523,7 @@ def test_item_level_adjustment_overrides_stock_block_rule():
                                 "metric": "asset_count",
                                 "observed": {"value": "100 assets", "year": 2023},
                                 "adjust_to_base_year": {
-                                    "using": "demo.national_dwelling_stock_index"
+                                    "series": {"series": "demo.national_dwelling_stock_index"}
                                 },
                             }
                         ],
@@ -673,7 +686,10 @@ def test_resolve_run_fails_when_emissions_budget_targets_non_emission_commodity(
                     "id": "co2_cap",
                     "kind": "emissions_budget",
                     "emission_commodity": "electricity",
-                    "budgets": [{"year": 2025, "value": "1 Mt"}],
+                    "budget": {
+                        "values": {"2025": "1 Mt"},
+                        "interpolation": "none",
+                    },
                 }
             ],
             "spatial_layers": [
@@ -711,7 +727,7 @@ def test_resolve_run_fails_when_emissions_budget_targets_non_emission_commodity(
         resolve_run(graph, "single_2025")
 
 
-def test_resolve_run_fails_on_duplicate_policy_budget_years():
+def test_resolve_run_fails_on_non_absolute_policy_budget_series():
     source = parse_source(
         {
             "dsl_version": "0.3",
@@ -738,10 +754,17 @@ def test_resolve_run_fails_on_duplicate_policy_budget_years():
                     "id": "co2_cap",
                     "kind": "emissions_budget",
                     "emission_commodity": "co2",
-                    "budgets": [
-                        {"year": 2025, "value": "1 Mt"},
-                        {"year": 2025, "value": "0.8 Mt"},
-                    ],
+                    "budget": {"series": "co2_budget_index"},
+                }
+            ],
+            "time_series": [
+                {
+                    "id": "co2_budget_index",
+                    "kind": "index",
+                    "unit": "index",
+                    "interpolation": "none",
+                    "base_year": 2025,
+                    "values": {"2025": 1.0, "2030": 0.8},
                 }
             ],
             "spatial_layers": [
@@ -775,7 +798,7 @@ def test_resolve_run_fails_on_duplicate_policy_budget_years():
     )
     graph = resolve_imports(source, {})
 
-    with pytest.raises(ResolutionError, match="E030"):
+    with pytest.raises(ResolutionError, match="E031"):
         resolve_run(graph, "single_2025")
 
 
@@ -809,11 +832,17 @@ def test_resolve_run_fails_when_multiple_cases_selected_for_policy():
                     "cases": [
                         {
                             "id": "cap_a",
-                            "budgets": [{"year": 2025, "value": "1 Mt"}],
+                            "budget": {
+                                "values": {"2025": "1 Mt"},
+                                "interpolation": "none",
+                            },
                         },
                         {
                             "id": "cap_b",
-                            "budgets": [{"year": 2025, "value": "0.8 Mt"}],
+                            "budget": {
+                                "values": {"2025": "0.8 Mt"},
+                                "interpolation": "none",
+                            },
                         },
                     ],
                 }
@@ -884,7 +913,10 @@ def test_resolve_run_fails_when_case_based_policy_not_selected():
                     "cases": [
                         {
                             "id": "cap_a",
-                            "budgets": [{"year": 2025, "value": "1 Mt"}],
+                            "budget": {
+                                "values": {"2025": "1 Mt"},
+                                "interpolation": "none",
+                            },
                         }
                     ],
                 }
@@ -955,11 +987,17 @@ def test_resolve_run_fails_on_duplicate_policy_case_ids():
                     "cases": [
                         {
                             "id": "cap_a",
-                            "budgets": [{"year": 2025, "value": "1 Mt"}],
+                            "budget": {
+                                "values": {"2025": "1 Mt"},
+                                "interpolation": "none",
+                            },
                         },
                         {
                             "id": "cap_a",
-                            "budgets": [{"year": 2030, "value": "0.8 Mt"}],
+                            "budget": {
+                                "values": {"2030": "0.8 Mt"},
+                                "interpolation": "none",
+                            },
                         },
                     ],
                 }

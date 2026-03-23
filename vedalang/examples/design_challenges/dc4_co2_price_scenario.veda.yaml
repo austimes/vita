@@ -106,15 +106,6 @@ spatial_layers:
   geometry_file: data/regions.geojson
   key: region_id
   kind: polygon
-temporal_index_series:
-- id: co2_policy_index
-  unit: index
-  values:
-    '2025': 1.0
-    '2030': 1.5
-    '2040': 2.5
-    '2050': 4.0
-  base_year: 2025
 year_sets:
 - id: pathway_2025_2035
   start_year: 2025
@@ -146,7 +137,8 @@ facilities:
     items:
     - adjust_to_base_year:
         elasticity: -0.2
-        using: co2_policy_index
+        series:
+          series: co2_policy_index
       metric: annual_activity
       observed:
         value: 300 GWh/year
@@ -203,3 +195,14 @@ runs:
   year_set: pathway_2025_2035
   currency_year: 2024
   region_partition: reg1_partition
+time_series:
+- id: co2_policy_index
+  unit: index
+  values:
+    '2025': 1.0
+    '2030': 1.5
+    '2040': 2.5
+    '2050': 4.0
+  base_year: 2025
+  kind: index
+  interpolation: interp_extrap

@@ -21,7 +21,7 @@ EXPECTED_PUBLIC_TOP_LEVEL_PROPERTIES = {
     "stock_characterizations",
     "spatial_layers",
     "spatial_measure_sets",
-    "temporal_index_series",
+    "time_series",
     "region_partitions",
     "zone_overlays",
     "sites",
@@ -30,6 +30,7 @@ EXPECTED_PUBLIC_TOP_LEVEL_PROPERTIES = {
     "zone_opportunities",
     "networks",
     "runs",
+    "demands",
 }
 
 LEGACY_TOP_LEVEL_PROPERTIES = {
@@ -38,7 +39,6 @@ LEGACY_TOP_LEVEL_PROPERTIES = {
     "variants",
     "availability",
     "process_parameters",
-    "demands",
     "providers",
 }
 
@@ -83,8 +83,9 @@ class TestPublicSchemaContract:
             "zone_opportunity",
             "network",
             "run",
-            "temporal_index_series",
+            "time_series",
             "zone_overlay",
+            "demand",
         ]:
             assert definition in defs, f"Missing v0.3 definition: {definition}"
 
@@ -100,7 +101,6 @@ class TestPublicSchemaContract:
             "scoping",
             "availability_entry",
             "process_parameter",
-            "demand",
         ]:
             assert definition not in defs, (
                 f"Legacy definition {definition} should not be present in v0.3 schema"

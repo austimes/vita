@@ -144,9 +144,20 @@ class SpatialMeasureSetDecl:
 
 
 @dataclass(frozen=True)
-class TemporalIndexSeriesDecl:
+class QuantitySpec:
+    scalar: str | int | float | None
+    series: str | None
+    interpolation: str | None
+    values: dict[int, str | int | float]
+    source_ref: SourceRef
+
+
+@dataclass(frozen=True)
+class TimeSeriesDecl:
     id: str
+    kind: str
     unit: str
+    interpolation: str
     base_year: int | None
     values: dict[int, float]
     description: str | None
@@ -162,16 +173,9 @@ class YearSetDecl:
 
 
 @dataclass(frozen=True)
-class PolicyBudgetPoint:
-    year: int
-    value: str | int | float
-    source_ref: SourceRef
-
-
-@dataclass(frozen=True)
 class PolicyCaseDecl:
     id: str
-    budgets: tuple[PolicyBudgetPoint, ...]
+    budget: QuantitySpec
     description: str | None
     source_ref: SourceRef
 
@@ -181,7 +185,7 @@ class PolicyDecl:
     id: str
     kind: str
     emission_commodity: str
-    budgets: tuple[PolicyBudgetPoint, ...]
+    budget: QuantitySpec | None
     cases: tuple[PolicyCaseDecl, ...]
     description: str | None
     source_ref: SourceRef
@@ -241,15 +245,8 @@ class SiteDecl:
 
 
 @dataclass(frozen=True)
-class AnnualGrowthAssumption:
-    rate: str | int | float
-    source_ref: SourceRef
-
-
-@dataclass(frozen=True)
 class BaseYearAdjustment:
-    using_temporal_index: str | None
-    annual_growth: AnnualGrowthAssumption | None
+    series: QuantitySpec
     elasticity: float | None
     source_ref: SourceRef
 
@@ -384,7 +381,7 @@ class SourceDocument:
     stock_characterizations: tuple[StockCharacterizationDecl, ...]
     spatial_layers: tuple[SpatialLayerDecl, ...]
     spatial_measure_sets: tuple[SpatialMeasureSetDecl, ...]
-    temporal_index_series: tuple[TemporalIndexSeriesDecl, ...]
+    time_series: tuple[TimeSeriesDecl, ...]
     year_sets: tuple[YearSetDecl, ...]
     policies: tuple[PolicyDecl, ...]
     region_partitions: tuple[RegionPartitionDecl, ...]
@@ -448,25 +445,50 @@ def _parse_activity_bound(
     )
 
 
+def _parse_series_values(values: Any) -> dict[int, float]:
+    return {
+        int(year): float(value)
+        for year, value in (values or {}).items()
+    }
+
+
+def _parse_quantity_values(values: Any) -> dict[int, str | int | float]:
+    return {
+        int(year): value
+        for year, value in (values or {}).items()
+    }
+
+
+def _parse_series_spec(
+    data: Any,
+    path: str,
+) -> QuantitySpec:
+    if not isinstance(data, dict):
+        raise TypeError(f"{path} must be an object")
+    has_series = data.get("series") is not None
+    has_values = bool(data.get("values"))
+    if has_series == has_values:
+        raise TypeError(f"{path} must define exactly one of series or values")
+    return QuantitySpec(
+        scalar=None,
+        series=(str(data["series"]) if data.get("series") else None),
+        interpolation=(
+            str(data["interpolation"]) if data.get("interpolation") else None
+        ),
+        values=_parse_quantity_values(data.get("values")),
+        source_ref=_source_ref(path),
+    )
+
+
 def _parse_base_year_adjustment(
     data: dict[str, Any] | None, path: str
 ) -> BaseYearAdjustment | None:
     if not data:
         return None
-    using = data.get("using")
-    using_temporal_index: str | None = None
-    annual_growth: AnnualGrowthAssumption | None = None
-    if isinstance(using, dict):
-        annual_growth = AnnualGrowthAssumption(
-            rate=using["rate"],
-            source_ref=_source_ref(f"{path}.using"),
-        )
-    elif using is not None:
-        using_temporal_index = str(using)
     elasticity = data.get("elasticity")
+    series_spec = _parse_series_spec(data["series"], f"{path}.series")
     return BaseYearAdjustment(
-        using_temporal_index=using_temporal_index,
-        annual_growth=annual_growth,
+        series=series_spec,
         elasticity=float(elasticity) if elasticity is not None else None,
         source_ref=_source_ref(path),
     )
@@ -477,20 +499,6 @@ def _parse_observed_value(data: dict[str, Any], path: str) -> ObservedValue:
         value=data["value"],
         year=int(data["year"]),
         source_ref=_source_ref(path),
-    )
-
-
-def _parse_policy_budget_points(
-    values: Any,
-    path: str,
-) -> tuple[PolicyBudgetPoint, ...]:
-    return tuple(
-        PolicyBudgetPoint(
-            year=int(item["year"]),
-            value=item["value"],
-            source_ref=_source_ref(f"{path}[{idx}]"),
-        )
-        for idx, item in enumerate(values or [])
     )
 
 
@@ -706,21 +714,20 @@ def parse_source(source: dict[str, Any]) -> SourceDocument:
             )
             for idx, item in enumerate(source.get("spatial_measure_sets") or [])
         ),
-        temporal_index_series=tuple(
-            TemporalIndexSeriesDecl(
+        time_series=tuple(
+            TimeSeriesDecl(
                 id=str(item["id"]),
+                kind=str(item["kind"]),
                 unit=str(item["unit"]),
+                interpolation=str(item["interpolation"]),
                 base_year=int(item["base_year"]) if item.get("base_year") else None,
-                values={
-                    int(year): float(value)
-                    for year, value in (item.get("values") or {}).items()
-                },
+                values=_parse_series_values(item.get("values")),
                 description=(
                     str(item["description"]) if item.get("description") else None
                 ),
-                source_ref=_source_ref(f"temporal_index_series[{idx}]"),
+                source_ref=_source_ref(f"time_series[{idx}]"),
             )
-            for idx, item in enumerate(source.get("temporal_index_series") or [])
+            for idx, item in enumerate(source.get("time_series") or [])
         ),
         year_sets=tuple(
             YearSetDecl(
@@ -738,16 +745,20 @@ def parse_source(source: dict[str, Any]) -> SourceDocument:
                 id=str(item["id"]),
                 kind=str(item["kind"]),
                 emission_commodity=str(item["emission_commodity"]),
-                budgets=_parse_policy_budget_points(
-                    item.get("budgets"),
-                    f"policies[{idx}].budgets",
+                budget=(
+                    _parse_series_spec(
+                        item["budget"],
+                        f"policies[{idx}].budget",
+                    )
+                    if item.get("budget") is not None
+                    else None
                 ),
                 cases=tuple(
                     PolicyCaseDecl(
                         id=str(case["id"]),
-                        budgets=_parse_policy_budget_points(
-                            case.get("budgets"),
-                            f"policies[{idx}].cases[{case_idx}].budgets",
+                        budget=_parse_series_spec(
+                            case["budget"],
+                            f"policies[{idx}].cases[{case_idx}].budget",
                         ),
                         description=(
                             str(case["description"])

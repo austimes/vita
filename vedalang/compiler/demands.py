@@ -10,6 +10,7 @@ feasibility is validated by the linter.
 
 from .naming import NamingRegistry
 from .segments import get_scoped_commodity_id
+from .time_series import resolve_series_spec
 
 
 class DemandError(Exception):
@@ -79,13 +80,21 @@ def compile_demands(
             name_parts.append("ALL")
         param_name = "_".join(name_parts)
 
+        quantity = d.get("quantity")
+        if not isinstance(quantity, dict):
+            raise DemandError("Demand quantity must be a canonical series object")
+        series = resolve_series_spec(quantity, series_library=model.get("time_series") or {})
+        if series.kind != "absolute":
+            raise DemandError("Demand quantity series kind must be 'absolute'")
+
         param: dict = {
             "name": param_name,
             "type": "demand_projection",
             "commodity": scoped_id,
             "region": region,
-            "values": d["values"],
-            "interpolation": d.get("interpolation", "interp_extrap"),
+            "values": {str(year): value for year, value in sorted(series.values.items())},
+            "interpolation": series.interpolation,
+            "unit": series.unit,
         }
 
         if scope_key:

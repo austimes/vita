@@ -32,6 +32,15 @@ technologies:
     kind: efficiency
     value: 1.0
   provides: gas_supply
+time_series:
+- id: ka12_growth
+  kind: index
+  unit: index
+  interpolation: interp_extrap
+  base_year: 2020
+  values:
+    '2020': 1.0
+    '2030': 2.5937424601
 technology_roles:
 - id: electricity_generation
   description: 'electricity_generation groups technologies that deliver electricity_generation:
@@ -72,9 +81,8 @@ facilities:
   site: reg1_energy_hub
   stock:
     adjust_to_base_year:
-      using:
-        kind: annual_growth
-        rate: 10 %/year
+      series:
+        series: ka12_growth
     items:
     - metric: installed_capacity
       observed:
@@ -87,9 +95,8 @@ facilities:
   site: reg1_energy_hub
   stock:
     adjust_to_base_year:
-      using:
-        kind: annual_growth
-        rate: 10 %/year
+      series:
+        series: ka12_growth
     items:
     - metric: installed_capacity
       observed:

@@ -26,7 +26,12 @@ class TestCompileDemandsBasic:
                     "commodity": "lighting",
                     "region": "SINGLE",
                     "sector": "RES",
-                    "values": {"2020": 10, "2030": 15},
+                    "quantity": {
+                        "values": {"2020": 10, "2030": 15},
+                        "interpolation": "interp_extrap",
+                        "kind": "absolute",
+                        "unit": "PJ",
+                    },
                 }
             ]
         }
@@ -55,7 +60,12 @@ class TestCompileDemandsBasic:
                     "commodity": "lighting",
                     "region": "R1",
                     "scope": "RES.lighting",
-                    "values": {"2020": 5},
+                    "quantity": {
+                        "values": {"2020": 5},
+                        "interpolation": "interp_extrap",
+                        "kind": "absolute",
+                        "unit": "PJ",
+                    },
                 }
             ]
         }
@@ -78,7 +88,12 @@ class TestCompileDemandsBasic:
                 {
                     "commodity": "lighting",
                     "region": "SINGLE",
-                    "values": {"2020": 10},
+                    "quantity": {
+                        "values": {"2020": 10},
+                        "interpolation": "interp_extrap",
+                        "kind": "absolute",
+                        "unit": "PJ",
+                    },
                 }
             ]
         }
@@ -102,8 +117,12 @@ class TestCompileDemandsBasic:
                     "commodity": "lighting",
                     "region": "R1",
                     "sector": "RES",
-                    "values": {"2020": 10},
-                    "interpolation": "none",
+                    "quantity": {
+                        "values": {"2020": 10},
+                        "interpolation": "none",
+                        "kind": "absolute",
+                        "unit": "PJ",
+                    },
                 }
             ]
         }
@@ -122,19 +141,34 @@ class TestCompileDemandsBasic:
                     "commodity": "lighting",
                     "region": "R1",
                     "sector": "RES",
-                    "values": {"2020": 10},
+                    "quantity": {
+                        "values": {"2020": 10},
+                        "interpolation": "interp_extrap",
+                        "kind": "absolute",
+                        "unit": "PJ",
+                    },
                 },
                 {
                     "commodity": "lighting",
                     "region": "R1",
                     "sector": "COM",
-                    "values": {"2020": 20},
+                    "quantity": {
+                        "values": {"2020": 20},
+                        "interpolation": "interp_extrap",
+                        "kind": "absolute",
+                        "unit": "PJ",
+                    },
                 },
                 {
                     "commodity": "heating",
                     "region": "R1",
                     "sector": "RES",
-                    "values": {"2020": 50},
+                    "quantity": {
+                        "values": {"2020": 50},
+                        "interpolation": "interp_extrap",
+                        "kind": "absolute",
+                        "unit": "PJ",
+                    },
                 },
             ]
         }
@@ -163,7 +197,12 @@ class TestCompileDemandsErrors:
                 {
                     "commodity": "unknown",
                     "region": "R1",
-                    "values": {"2020": 10},
+                    "quantity": {
+                        "values": {"2020": 10},
+                        "interpolation": "interp_extrap",
+                        "kind": "absolute",
+                        "unit": "PJ",
+                    },
                 }
             ]
         }
@@ -178,7 +217,12 @@ class TestCompileDemandsErrors:
                 {
                     "commodity": "electricity",
                     "region": "R1",
-                    "values": {"2020": 10},
+                    "quantity": {
+                        "values": {"2020": 10},
+                        "interpolation": "interp_extrap",
+                        "kind": "absolute",
+                        "unit": "PJ",
+                    },
                 }
             ]
         }
@@ -192,7 +236,18 @@ class TestCompileDemandsErrors:
     def test_error_includes_commodity_kind(self):
         """Error message includes the actual commodity kind."""
         model = {
-            "demands": [{"commodity": "gas", "region": "R1", "values": {"2020": 1}}]
+            "demands": [
+                {
+                    "commodity": "gas",
+                    "region": "R1",
+                    "quantity": {
+                        "values": {"2020": 1},
+                        "interpolation": "interp_extrap",
+                        "kind": "absolute",
+                        "unit": "PJ",
+                    },
+                }
+            ]
         }
         commodities = {"gas": {"id": "gas", "kind": "carrier"}}
 
@@ -211,7 +266,12 @@ class TestCompileDemandsWithRegistry:
                     "commodity": "lighting",
                     "region": "R1",
                     "sector": "RES",
-                    "values": {"2020": 10},
+                    "quantity": {
+                        "values": {"2020": 10},
+                        "interpolation": "interp_extrap",
+                        "kind": "absolute",
+                        "unit": "PJ",
+                    },
                 }
             ]
         }
@@ -235,13 +295,23 @@ class TestCompileDemandsWithRegistry:
                     "commodity": "lighting",
                     "region": "R1",
                     "sector": "RES",
-                    "values": {"2020": 10},
+                    "quantity": {
+                        "values": {"2020": 10},
+                        "interpolation": "interp_extrap",
+                        "kind": "absolute",
+                        "unit": "PJ",
+                    },
                 },
                 {
                     "commodity": "lighting",
                     "region": "R2",
                     "sector": "RES",
-                    "values": {"2020": 20},
+                    "quantity": {
+                        "values": {"2020": 20},
+                        "interpolation": "interp_extrap",
+                        "kind": "absolute",
+                        "unit": "PJ",
+                    },
                 },
             ]
         }
@@ -265,7 +335,17 @@ class TestCompileDemandsSegmentScoping:
 
         model_sector = {
             "demands": [
-                {"commodity": "lighting", "region": "R1", "sector": "RES", "values": {}}
+                {
+                    "commodity": "lighting",
+                    "region": "R1",
+                    "sector": "RES",
+                    "quantity": {
+                        "values": {"2020": 1},
+                        "interpolation": "interp_extrap",
+                        "kind": "absolute",
+                        "unit": "PJ",
+                    },
+                }
             ]
         }
         model_segment = {
@@ -274,7 +354,12 @@ class TestCompileDemandsSegmentScoping:
                     "commodity": "lighting",
                     "region": "R1",
                     "scope": "RES",
-                    "values": {},
+                    "quantity": {
+                        "values": {"2020": 1},
+                        "interpolation": "interp_extrap",
+                        "kind": "absolute",
+                        "unit": "PJ",
+                    },
                 }
             ]
         }
@@ -293,7 +378,12 @@ class TestCompileDemandsSegmentScoping:
                     "region": "R1",
                     "sector": "RES",
                     "scope": "RES.lighting",
-                    "values": {},
+                    "quantity": {
+                        "values": {"2020": 1},
+                        "interpolation": "interp_extrap",
+                        "kind": "absolute",
+                        "unit": "PJ",
+                    },
                 }
             ]
         }

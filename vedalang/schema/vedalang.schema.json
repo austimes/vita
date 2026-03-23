@@ -53,10 +53,10 @@
         "$ref": "#/$defs/spatial_measure_set"
       }
     },
-    "temporal_index_series": {
+    "time_series": {
       "type": "array",
       "items": {
-        "$ref": "#/$defs/temporal_index_series"
+        "$ref": "#/$defs/time_series"
       }
     },
     "year_sets": {
@@ -118,6 +118,12 @@
       "items": {
         "$ref": "#/$defs/run"
       }
+    },
+    "demands": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/demand"
+      }
     }
   },
   "anyOf": [
@@ -158,7 +164,7 @@
     },
     {
       "required": [
-        "temporal_index_series"
+        "time_series"
       ]
     },
     {
@@ -205,6 +211,11 @@
       "required": [
         "runs"
       ]
+    },
+    {
+      "required": [
+        "demands"
+      ]
     }
   ],
   "$defs": {
@@ -245,6 +256,99 @@
         {
           "type": "string",
           "minLength": 1
+        }
+      ]
+    },
+    "interpolation_mode": {
+      "type": "string",
+      "enum": [
+        "none",
+        "interp_only",
+        "interp_extrap_eps",
+        "interp_extrap",
+        "interp_extrap_back",
+        "interp_extrap_forward"
+      ]
+    },
+    "year_number_map": {
+      "type": "object",
+      "patternProperties": {
+        "^[0-9]{4}$": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false,
+      "minProperties": 1
+    },
+    "year_quantity_map": {
+      "type": "object",
+      "patternProperties": {
+        "^[0-9]{4}$": {
+          "$ref": "#/$defs/quantity"
+        }
+      },
+      "additionalProperties": false,
+      "minProperties": 1
+    },
+    "quantity_path": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "values",
+        "interpolation"
+      ],
+      "properties": {
+        "values": {
+          "$ref": "#/$defs/year_quantity_map"
+        },
+        "interpolation": {
+          "$ref": "#/$defs/interpolation_mode"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "absolute",
+            "index"
+          ]
+        },
+        "unit": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "quantity_series_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "series"
+      ],
+      "properties": {
+        "series": {
+          "$ref": "#/$defs/identifier"
+        }
+      }
+    },
+    "quantity_spec": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/quantity"
+        },
+        {
+          "$ref": "#/$defs/quantity_series_ref"
+        },
+        {
+          "$ref": "#/$defs/quantity_path"
+        }
+      ]
+    },
+    "quantity_path_or_ref": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/quantity_series_ref"
+        },
+        {
+          "$ref": "#/$defs/quantity_path"
         }
       ]
     },
@@ -296,7 +400,7 @@
         "spatial_measure_sets": {
           "$ref": "#/$defs/ref_array"
         },
-        "temporal_index_series": {
+        "time_series": {
           "$ref": "#/$defs/ref_array"
         },
         "policies": {
@@ -739,40 +843,66 @@
         }
       }
     },
-    "temporal_index_series": {
+    "time_series": {
       "type": "object",
       "additionalProperties": false,
       "required": [
         "id",
+        "kind",
         "unit",
+        "interpolation",
         "values"
       ],
       "properties": {
         "id": {
           "$ref": "#/$defs/public_identifier"
         },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "absolute",
+            "index"
+          ]
+        },
         "unit": {
           "type": "string",
-          "const": "index"
+          "minLength": 1
+        },
+        "interpolation": {
+          "$ref": "#/$defs/interpolation_mode"
         },
         "base_year": {
           "type": "integer",
           "minimum": 1900
         },
         "values": {
-          "type": "object",
-          "patternProperties": {
-            "^[0-9]{4}$": {
-              "type": "number"
-            }
-          },
-          "additionalProperties": false,
-          "minProperties": 1
+          "$ref": "#/$defs/year_number_map"
         },
         "description": {
           "$ref": "#/$defs/description_field"
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "index"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "base_year"
+            ],
+            "properties": {
+              "unit": {
+                "const": "index"
+              }
+            }
+          }
+        }
+      ]
     },
     "year_set": {
       "type": "object",
@@ -801,40 +931,19 @@
         }
       }
     },
-    "policy_budget": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "year",
-        "value"
-      ],
-      "properties": {
-        "year": {
-          "type": "integer",
-          "minimum": 1900
-        },
-        "value": {
-          "$ref": "#/$defs/quantity"
-        }
-      }
-    },
     "policy_case": {
       "type": "object",
       "additionalProperties": false,
       "required": [
         "id",
-        "budgets"
+        "budget"
       ],
       "properties": {
         "id": {
           "$ref": "#/$defs/public_identifier"
         },
-        "budgets": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/policy_budget"
-          },
-          "minItems": 1
+        "budget": {
+          "$ref": "#/$defs/quantity_path_or_ref"
         },
         "description": {
           "$ref": "#/$defs/description_field"
@@ -862,12 +971,8 @@
         "emission_commodity": {
           "$ref": "#/$defs/commodity_identifier"
         },
-        "budgets": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/policy_budget"
-          },
-          "minItems": 1
+        "budget": {
+          "$ref": "#/$defs/quantity_path_or_ref"
         },
         "cases": {
           "type": "array",
@@ -885,7 +990,7 @@
           "oneOf": [
             {
               "required": [
-                "budgets"
+                "budget"
               ]
             },
             {
@@ -1116,38 +1221,15 @@
         }
       }
     },
-    "annual_growth_assumption": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "kind",
-        "rate"
-      ],
-      "properties": {
-        "kind": {
-          "const": "annual_growth"
-        },
-        "rate": {
-          "$ref": "#/$defs/quantity"
-        }
-      }
-    },
     "base_year_adjustment": {
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "using"
+        "series"
       ],
       "properties": {
-        "using": {
-          "oneOf": [
-            {
-              "$ref": "#/$defs/identifier"
-            },
-            {
-              "$ref": "#/$defs/annual_growth_assumption"
-            }
-          ]
+        "series": {
+          "$ref": "#/$defs/quantity_path_or_ref"
         },
         "elasticity": {
           "type": "number"
@@ -1567,6 +1649,41 @@
         },
         "enable_policies": {
           "$ref": "#/$defs/ref_array"
+        },
+        "description": {
+          "$ref": "#/$defs/description_field"
+        }
+      }
+    },
+    "demand": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "commodity",
+        "region",
+        "quantity"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/public_identifier"
+        },
+        "commodity": {
+          "$ref": "#/$defs/commodity_identifier"
+        },
+        "region": {
+          "type": "string",
+          "minLength": 1
+        },
+        "scope": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sector": {
+          "type": "string",
+          "minLength": 1
+        },
+        "quantity": {
+          "$ref": "#/$defs/quantity_path_or_ref"
         },
         "description": {
           "$ref": "#/$defs/description_field"

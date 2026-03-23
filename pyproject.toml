@@ -1,6 +1,6 @@
 [project]
 name = "VITA"
-version = "0.4.24"
+version = "0.4.25"
 description = "VITA is a toolkit for authoring, validating, running, and analyzing TIMES energy models, including the VedaLang DSL"
 requires-python = ">=3.11"
 dependencies = [

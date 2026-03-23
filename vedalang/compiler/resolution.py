@@ -14,6 +14,7 @@ from .ast import (
     FleetDecl,
     NetworkDecl,
     PolicyDecl,
+    QuantitySpec,
     RegionPartitionDecl,
     RunDecl,
     SiteDecl,
@@ -22,9 +23,9 @@ from .ast import (
     SpatialMeasureSetDecl,
     StockCharacterizationDecl,
     StockObservation,
+    TimeSeriesDecl,
     TechnologyDecl,
     TechnologyRoleDecl,
-    TemporalIndexSeriesDecl,
     YearSetDecl,
     ZoneOpportunityDecl,
     ZoneOverlayDecl,
@@ -81,7 +82,7 @@ class ResolvedDefinitionGraph:
     stock_characterizations: dict[str, StockCharacterizationDecl]
     spatial_layers: dict[str, SpatialLayerDecl]
     spatial_measure_sets: dict[str, SpatialMeasureSetDecl]
-    temporal_index_series: dict[str, TemporalIndexSeriesDecl]
+    time_series: dict[str, TimeSeriesDecl]
     year_sets: dict[str, YearSetDecl]
     policies: dict[str, PolicyDecl]
     region_partitions: dict[str, RegionPartitionDecl]
@@ -166,6 +167,15 @@ class ResolvedPolicyActivation:
     budgets: tuple[ResolvedPolicyBudget, ...]
 
 
+@dataclass(frozen=True)
+class NormalizedTimeSeries:
+    kind: str
+    unit: str
+    interpolation: str
+    values: dict[int, float]
+    source: str
+
+
 def parse_quantity(value: str | int | float) -> ParsedQuantity:
     """Parse a loose quantity literal into numeric value plus unit suffix."""
     if isinstance(value, (int, float)):
@@ -182,6 +192,100 @@ def _format_quantity(value: float, unit: str) -> ParsedQuantity:
 
 def _split_factor_unit(unit: str) -> str:
     return unit.split("/", 1)[0].strip()
+
+
+def _as_float_values(values: dict[int, Any]) -> dict[int, float]:
+    return {int(year): float(value) for year, value in values.items()}
+
+
+def _normalize_series_from_decl(
+    series: TimeSeriesDecl,
+) -> NormalizedTimeSeries:
+    return NormalizedTimeSeries(
+        kind=series.kind,
+        unit=series.unit,
+        interpolation=series.interpolation,
+        values=_as_float_values(series.values),
+        source=series.id,
+    )
+
+
+def _normalize_time_series_reference(
+    *,
+    graph: ResolvedDefinitionGraph,
+    spec: QuantitySpec,
+    object_id: str,
+    error_code: str,
+    expected_kind: str | None,
+    expected_unit: str | None = None,
+) -> NormalizedTimeSeries:
+    if spec.series:
+        series = graph.time_series.get(spec.series)
+        if series is None:
+            raise ResolutionError(
+                error_code,
+                object_id,
+                f"time series '{spec.series}' is not defined",
+                location=spec.source_ref.path,
+            )
+        normalized = _normalize_series_from_decl(series)
+    elif spec.values:
+        normalized = NormalizedTimeSeries(
+            kind=expected_kind or "absolute",
+            unit=expected_unit or "",
+            interpolation=spec.interpolation or "interp_extrap",
+            values={
+                int(year): parse_quantity(value).value
+                for year, value in spec.values.items()
+            },
+            source="inline",
+        )
+    else:
+        raise ResolutionError(
+            error_code,
+            object_id,
+            "time-varying quantity requires a series reference or values map",
+            location=spec.source_ref.path,
+        )
+
+    if expected_kind and normalized.kind != expected_kind:
+        raise ResolutionError(
+            error_code,
+            object_id,
+            f"time series must have kind '{expected_kind}'",
+            location=spec.source_ref.path,
+        )
+    if expected_unit and normalized.unit != expected_unit:
+        raise ResolutionError(
+            error_code,
+            object_id,
+            f"time series must use unit '{expected_unit}'",
+            location=spec.source_ref.path,
+        )
+    if not normalized.values:
+        raise ResolutionError(
+            error_code,
+            object_id,
+            "time-varying quantity values cannot be empty",
+            location=spec.source_ref.path,
+        )
+    return normalized
+
+
+def _normalize_adjustment_series(
+    *,
+    graph: ResolvedDefinitionGraph,
+    adjustment: BaseYearAdjustment,
+    object_id: str,
+) -> NormalizedTimeSeries:
+    return _normalize_time_series_reference(
+        graph=graph,
+        spec=adjustment.series,
+        object_id=object_id,
+        error_code="E011",
+        expected_kind="index",
+        expected_unit="index",
+    )
 
 
 def _by_id(items: tuple[Any, ...], kind: str) -> dict[str, Any]:
@@ -217,10 +321,7 @@ def _object_maps(source: SourceDocument) -> dict[str, dict[str, Any]]:
         "spatial_measure_sets": _by_id(
             source.spatial_measure_sets, "spatial_measure_set"
         ),
-        "temporal_index_series": _by_id(
-            source.temporal_index_series,
-            "temporal_index_series",
-        ),
+        "time_series": _by_id(source.time_series, "time_series"),
         "year_sets": _by_id(source.year_sets, "year_set"),
         "policies": _by_id(source.policies, "policy"),
         "region_partitions": _by_id(source.region_partitions, "region_partition"),
@@ -254,8 +355,16 @@ def _package_dependency_refs(kind: str, item: Any) -> list[tuple[str, str]]:
         return [("technologies", ref) for ref in item.applies_to]
     if kind == "spatial_measure_sets":
         return [("spatial_layers", item.layer)]
+    if kind == "time_series":
+        return []
     if kind == "policies":
-        return [("commodities", item.emission_commodity)]
+        refs: list[tuple[str, str]] = [("commodities", item.emission_commodity)]
+        if item.budget and item.budget.series:
+            refs.append(("time_series", item.budget.series))
+        for case in item.cases:
+            if case.budget.series:
+                refs.append(("time_series", case.budget.series))
+        return refs
     if kind == "region_partitions":
         return [("spatial_layers", item.layer)]
     if kind == "zone_overlays":
@@ -281,6 +390,17 @@ def _qualify_imported_object(
     candidates = {
         object_kind: set(items) for object_kind, items in package_maps.items()
     }
+    def _qualify_quantity_spec(spec: QuantitySpec) -> QuantitySpec:
+        if not spec.series:
+            return spec
+        return QuantitySpec(
+            scalar=spec.scalar,
+            series=_qualify_ref(alias, spec.series, candidates["time_series"]),
+            interpolation=spec.interpolation,
+            values=spec.values,
+            source_ref=spec.source_ref,
+        )
+
     if kind == "commodities":
         return CommodityDecl(
             id=_qualify_id(alias, item.id),
@@ -438,10 +558,12 @@ def _qualify_imported_object(
             measures=item.measures,
             source_ref=item.source_ref,
         )
-    if kind == "temporal_index_series":
-        return TemporalIndexSeriesDecl(
+    if kind == "time_series":
+        return TimeSeriesDecl(
             id=_qualify_id(alias, item.id),
+            kind=item.kind,
             unit=item.unit,
+            interpolation=item.interpolation,
             base_year=item.base_year,
             values=item.values,
             description=item.description,
@@ -456,8 +578,20 @@ def _qualify_imported_object(
                 item.emission_commodity,
                 candidates["commodities"],
             ),
-            budgets=item.budgets,
-            cases=item.cases,
+            budget=(
+                _qualify_quantity_spec(item.budget)
+                if item.budget
+                else None
+            ),
+            cases=tuple(
+                case.__class__(
+                    id=case.id,
+                    budget=_qualify_quantity_spec(case.budget),
+                    description=case.description,
+                    source_ref=case.source_ref,
+                )
+                for case in item.cases
+            ),
             description=item.description,
             source_ref=item.source_ref,
         )
@@ -626,24 +760,31 @@ def resolve_run(graph: ResolvedDefinitionGraph, run_id: str) -> RunContext:
 def _resolved_policy_budgets(
     *,
     policy_id: str,
-    points: tuple[Any, ...],
+    series: NormalizedTimeSeries,
     location: str,
 ) -> tuple[ResolvedPolicyBudget, ...]:
     seen_years: set[int] = set()
     budgets: list[ResolvedPolicyBudget] = []
-    for point in points:
-        if point.year in seen_years:
+    if series.kind != "absolute":
+        raise ResolutionError(
+            "E030",
+            policy_id,
+            "policy budget series must use kind 'absolute'",
+            location=location,
+        )
+    for year, raw_value in sorted(series.values.items()):
+        if year in seen_years:
             raise ResolutionError(
                 "E030",
                 policy_id,
-                f"duplicate budget year '{point.year}' in policy budget",
+                f"duplicate budget year '{year}' in policy budget",
                 location=location,
             )
-        seen_years.add(point.year)
+        seen_years.add(year)
         budgets.append(
             ResolvedPolicyBudget(
-                year=point.year,
-                value=parse_quantity(point.value),
+                year=year,
+                value=parse_quantity(f"{raw_value} {series.unit}".strip()),
             )
         )
     return tuple(sorted(budgets, key=lambda item: item.year))
@@ -695,9 +836,17 @@ def resolve_policy_activations(
             )
         if matching_cases:
             selected_case = matching_cases[0]
+            selected_series = _normalize_time_series_reference(
+                graph=graph,
+                spec=selected_case.budget,
+                object_id=policy.id,
+                error_code="E031",
+                expected_kind="absolute",
+                expected_unit="Mt",
+            )
             budgets = _resolved_policy_budgets(
                 policy_id=policy.id,
-                points=selected_case.budgets,
+                series=selected_series,
                 location=selected_case.source_ref.path,
             )
             activations.append(
@@ -711,10 +860,18 @@ def resolve_policy_activations(
             )
             continue
 
-        if policy.budgets:
+        if policy.budget is not None:
+            default_series = _normalize_time_series_reference(
+                graph=graph,
+                spec=policy.budget,
+                object_id=policy.id,
+                error_code="E031",
+                expected_kind="absolute",
+                expected_unit="Mt",
+            )
             budgets = _resolved_policy_budgets(
                 policy_id=policy.id,
-                points=policy.budgets,
+                series=default_series,
                 location=policy.source_ref.path,
             )
             activations.append(
@@ -892,17 +1049,17 @@ def adjust_stock_to_base_year(
             "observed year differs from run start_year and no adjustment rule "
             "is available",
         )
-    elif adjustment.using_temporal_index:
-        series = graph.temporal_index_series.get(adjustment.using_temporal_index)
-        if (
-            series is None
-            or obs_year not in series.values
-            or start_year not in series.values
-        ):
+    else:
+        series = _normalize_adjustment_series(
+            graph=graph,
+            adjustment=adjustment,
+            object_id=observation.technology,
+        )
+        if obs_year not in series.values or start_year not in series.values:
             raise ResolutionError(
                 "E011",
                 observation.technology,
-                "temporal index series cannot adjust the observed year to the "
+                "time series cannot adjust the observed year to the "
                 "start year",
             )
         elasticity = adjustment.elasticity if adjustment.elasticity is not None else 1.0
@@ -912,31 +1069,13 @@ def adjust_stock_to_base_year(
             observed_quantity.unit,
         )
         trace = {
-            "method": "temporal_index_series",
-            "series": adjustment.using_temporal_index,
+            "method": "time_series_index",
+            "series": series.source,
             "ratio": ratio,
             "elasticity": elasticity,
             "observed_year": obs_year,
             "start_year": start_year,
         }
-    elif adjustment.annual_growth:
-        rate = parse_quantity(adjustment.annual_growth.rate)
-        normalized_rate = rate.value / 100.0 if "%" in rate.unit else rate.value
-        adjusted = _format_quantity(
-            observed_quantity.value
-            * math.pow(1.0 + normalized_rate, start_year - obs_year),
-            observed_quantity.unit,
-        )
-        trace = {
-            "method": "annual_growth",
-            "rate": normalized_rate,
-            "observed_year": obs_year,
-            "start_year": start_year,
-        }
-    else:
-        raise ResolutionError(
-            "E011", observation.technology, "invalid adjustment rule"
-        )
     return AdjustedStock(
         technology=observation.technology,
         declared_metric=observation.metric,
@@ -981,6 +1120,16 @@ def resolve_asset_stock(
                 "stock item technology "
                 f"'{item.technology}' is not allowed by the asset",
             )
+        effective_adjustment = item.adjust_to_base_year or asset.stock.adjust_to_base_year
+        if effective_adjustment and effective_adjustment.series.series:
+            series_id = effective_adjustment.series.series
+            if series_id is not None and series_id not in graph.time_series:
+                raise ResolutionError(
+                    "E011",
+                    item.technology,
+                    f"time series '{series_id}' is not defined",
+                    location=effective_adjustment.source_ref.path,
+                )
         adjusted.append(
             adjust_stock_to_base_year(
                 item,
