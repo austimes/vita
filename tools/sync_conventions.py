@@ -158,7 +158,7 @@ def _specs(repo_root: Path) -> list[BlockSpec]:
         BlockSpec(
             path=repo_root
             / "skills"
-            / "vedalang-dsl-cli"
+            / "vedalang"
             / "references"
             / "dsl-cli-pipeline.md",
             marker="dsl-cli-canonical-enums",

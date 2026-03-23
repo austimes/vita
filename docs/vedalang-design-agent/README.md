@@ -20,7 +20,7 @@ This directory contains supporting documentation:
 
 | Document | Purpose |
 |----------|---------|
-| [`skills/vedalang-design-exploration/SKILL.md`](../../skills/vedalang-design-exploration/SKILL.md) | Canonical exploration protocol skill |
+| [`SKILL.md`](SKILL.md) | Canonical design-agent skill (internal) |
 | [exploration_prompt.md](exploration_prompt.md) | Compatibility pointer to the exploration skill |
 | [schema_evolution.md](schema_evolution.md) | Rules for evolving the VedaLang schema |
 | [known_answer_tests.md](known_answer_tests.md) | Solver-backed known-answer harness contract and conventions |

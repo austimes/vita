@@ -8,9 +8,8 @@ This is a Vita project for answering energy system questions through experiments
 On the first agent turn in this workspace, install and enable these skills
 project-locally:
 
-- `https://github.com/austimes/vita/tree/main/skills/vedalang-dsl-cli`
-- `https://github.com/austimes/vita/tree/main/skills/vita-experiment-loop`
-- `https://github.com/austimes/vita/tree/main/skills/vedalang-modeling-conventions`
+- `https://github.com/austimes/vita/tree/main/skills/vedalang`
+- `https://github.com/austimes/vita/tree/main/skills/vita`
 - `https://github.com/austimes/vita/tree/main/skills/visual-explainer`
 
 Steps:

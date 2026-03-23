@@ -1,10 +1,3 @@
----
-name: vita-experiment-loop
-description: >-
-  Runs the Vita experiment cycle from question framing through baseline/variant
-  runs, narrative reporting, and visual presentation. Use when asked to run
-  policy experiments or explain model outcomes.
----
 
 # Vita Experiment Loop
 

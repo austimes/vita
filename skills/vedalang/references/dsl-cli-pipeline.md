@@ -57,4 +57,4 @@ vita diff runs/<study>/baseline runs/<study>/variant --agent-mode --json
 - Prefer explicit run selection with `--run`, even when the file currently has
   one run.
 - Prefer explicit milestone-year values over implicit interpolation.
-- Keep emissions in `emission_factors`; do not model `emission:*` as physical flows.
+- Keep emissions in `technologies[*].emissions`; do not model `emission:*` as physical flows.

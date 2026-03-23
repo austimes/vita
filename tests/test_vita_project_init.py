@@ -130,15 +130,11 @@ class TestInitProject:
         assert "<!-- vita:skill-bootstrap:end -->" in content
         assert (
             "https://github.com/austimes/vita/tree/main/skills/"
-            "vedalang-dsl-cli" in content
+            "vedalang" in content
         )
         assert (
             "https://github.com/austimes/vita/tree/main/skills/"
-            "vita-experiment-loop" in content
-        )
-        assert (
-            "https://github.com/austimes/vita/tree/main/skills/"
-            "vedalang-modeling-conventions" in content
+            "vita" in content
         )
         assert "project-locally" in content
         assert "amp skill add" in content

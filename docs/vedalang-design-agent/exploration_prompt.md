@@ -1,8 +1,6 @@
 # VedaLang Exploration Prompt
 
-Moved to the canonical repo skill:
+See the canonical design-agent skill and protocol in this directory:
 
-- `skills/vedalang-design-exploration/SKILL.md`
-- `skills/vedalang-design-exploration/references/exploration-protocol.md`
-
-This file is a compatibility pointer.
+- [`SKILL.md`](SKILL.md)
+- [`exploration-protocol.md`](exploration-protocol.md)

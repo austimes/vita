@@ -176,6 +176,6 @@ allocation.
 
 ## Next Steps
 
-- [DSL + CLI skill](../../skills/vedalang-dsl-cli/SKILL.md)
+- [VedaLang skill](../../skills/vedalang/SKILL.md)
 - [mini_space_heat.veda.yaml](../../vedalang/examples/quickstart/mini_space_heat.veda.yaml)
 - [toy_heat_network.veda.yaml](../../vedalang/examples/feature_demos/toy_heat_network.veda.yaml)

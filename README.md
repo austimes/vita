@@ -168,7 +168,7 @@ Write `.veda.yaml` files to define energy system models. The compiler handles Ex
 
 ### Documentation
 
-- **[skills/vedalang-dsl-cli/SKILL.md](skills/vedalang-dsl-cli/SKILL.md)** — Canonical agent skill for VedaLang DSL + CLI usage
+- **[skills/vedalang/SKILL.md](skills/vedalang/SKILL.md)** — Canonical agent skill for VedaLang DSL + CLI usage
 - **[docs/vedalang-user/modeling-conventions.md](docs/vedalang-user/modeling-conventions.md)** — Canonical modeling conventions guidance
 - **[docs/vedalang-user/known_answer_catalog.md](docs/vedalang-user/known_answer_catalog.md)** — Solver-backed known-answer suite catalog with coverage status and solved-output mappings
 - **[vedalang/examples/](vedalang/examples/)** — Example models
@@ -459,7 +459,7 @@ The repo keeps LLM-facing guidance split by persona, with explicit ownership:
 - `vedalang/schema/vedalang.schema.json` — canonical authored-DSL enums and syntax truth
 - `vedalang/conventions.py` — canonical runtime accessors used by compiler, linter, and LLM prompts
 - `docs/vedalang-user/modeling-conventions.md` — canonical modeling conventions guidance text
-- `skills/vedalang-dsl-cli/SKILL.md` — canonical user-agent DSL+CLI skill
+- `skills/vedalang/SKILL.md` — canonical user-agent VedaLang skill
 - `tools/sync_conventions.py` — regenerates schema-derived enum snippets in docs
 
 To verify docs are in sync with schema enums:

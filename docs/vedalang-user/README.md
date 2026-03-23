@@ -28,14 +28,14 @@ vita run models/example.veda.yaml --run demo_2025 --no-solver --json
 Refresh the installed `vita` and `vedalang` commands later with `vita update`.
 It only reinstalls when GitHub `main` is newer than your current tool version.
 
-Read [`skills/vedalang-dsl-cli/SKILL.md`](../../skills/vedalang-dsl-cli/SKILL.md), study `vedalang/examples/`, check `vedalang/schema/vedalang.schema.json`, and use patterns from `rules/patterns.yaml` when you want the full repository content locally.
+Read [`skills/vedalang/SKILL.md`](../../skills/vedalang/SKILL.md), study `vedalang/examples/`, check `vedalang/schema/vedalang.schema.json`, and use patterns from `rules/patterns.yaml` when you want the full repository content locally.
 
 ## Key Resources
 
 | Resource | Description |
 |----------|-------------|
 | [tutorial.md](tutorial.md) | Your first VedaLang model |
-| [`skills/vedalang-dsl-cli/SKILL.md`](../../skills/vedalang-dsl-cli/SKILL.md) | LLM skill for authoring + CLI pipeline |
+| [`skills/vedalang/SKILL.md`](../../skills/vedalang/SKILL.md) | LLM skill for authoring + CLI pipeline |
 | [attribute_mapping.md](attribute_mapping.md) | VedaLang → VEDA/TIMES mapping + explicit supported unit strings and capacity/activity rules |
 | [known_answer_catalog.md](known_answer_catalog.md) | Solver-backed known-answer suite catalog with KA-by-KA status and solved-output mappings |
 | [heuristics.md](heuristics.md) | Heuristic checks that catch modeling mistakes |
@@ -44,7 +44,7 @@ Read [`skills/vedalang-dsl-cli/SKILL.md`](../../skills/vedalang-dsl-cli/SKILL.md
 | `rules/patterns.yaml` | Pattern "standard library" |
 
 For structural modeling conventions guidance, see
-`skills/vedalang-modeling-conventions/SKILL.md`.
+[`skills/vedalang/references/modeling-conventions.md`](../../skills/vedalang/references/modeling-conventions.md).
 
 For the full LLM-facing docs ownership map (what each doc is for), see
 `docs/LLM_DOCS.md`.
